@@ -1,0 +1,14 @@
+[package]
+name = "nondominium"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "nondominium"
+
+[dependencies]
+hdk = { workspace = true }
+serde = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
+nondominium_integrity = { workspace = true }

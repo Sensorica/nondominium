@@ -1,0 +1,19 @@
+manifest_version: '1'
+name: nondominium
+integrity:
+  network_seed: null
+  properties: null
+  zomes:
+  - name: nondominium_integrity
+    hash: null
+    bundled: ../../../target/wasm32-unknown-unknown/release/nondominium_integrity.wasm
+    dependencies: null
+    dylib: null
+coordinator:
+  zomes:
+  - name: nondominium
+    hash: null
+    bundled: ../../../target/wasm32-unknown-unknown/release/nondominium.wasm
+    dependencies:
+    - name: nondominium_integrity
+    dylib: null
