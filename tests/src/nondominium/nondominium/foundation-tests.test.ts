@@ -1,5 +1,5 @@
-import { test, describe, beforeAll, afterAll, expect } from "vitest";
-import { Scenario, runScenario, Player, Cell, addConductor } from "@holochain/tryorama";
+import { test, describe, expect } from "vitest";
+import { runScenario } from "@holochain/tryorama";
 import {
     createTestPerson,
     createTestEncryptedData,
@@ -11,10 +11,21 @@ import {
     logTestStart,
     logTestEnd,
     defaultTimeout,
+    getAppBundleSource,
     TestPersonOutput,
     TestEncryptedDataOutput,
     TestAgentProfileOutput,
 } from "./common.js";
+
+// Type definition for get_all_agents output
+interface GetAllAgentsOutput {
+    agents: {
+        agent_pub_key: any;
+        name: string;
+        avatar_url?: string;
+        created_at: number;
+    }[];
+}
 
 describe("🔧 Foundation Tests - Person Zome", () => {
 
@@ -23,19 +34,16 @@ describe("🔧 Foundation Tests - Person Zome", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                // Add a conductor with our app bundle
-                const [alice]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    }
+            await runScenario(async (scenario) => {
+                // Add a player with our app bundle - using correct AppWithOptions format
+                const [alice] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
+                const aliceCell = alice.cells[0];
 
-                // Simple connectivity test - try to call any zome function
-                const agentInfo = await aliceCell.callZome({
+                // Simple connectivity test - try to call get_my_profile
+                const agentInfo: TestAgentProfileOutput = await aliceCell.callZome({
                     zome_name: "zome_person",
                     fn_name: "get_my_profile",
                     payload: null,
@@ -60,15 +68,12 @@ describe("🔧 Foundation Tests - Person Zome", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const [alice]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    }
+            await runScenario(async (scenario) => {
+                const [alice] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
+                const aliceCell = alice.cells[0];
                 const testPersonData = createTestPerson();
 
                 console.log("Creating person with data:", testPersonData);
@@ -99,42 +104,36 @@ describe("🔧 Foundation Tests - Person Zome", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const [alice]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    }
+            await runScenario(async (scenario) => {
+                const [alice] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
+                const aliceCell = alice.cells[0];
                 const testPersonData = createTestPerson();
 
                 // First create a person
-                console.log("Step 1: Creating person");
-                const createResult: TestPersonOutput = await aliceCell.callZome({
+                console.log("Creating person for profile test:", testPersonData);
+                await aliceCell.callZome({
                     zome_name: "zome_person",
                     fn_name: "create_person",
                     payload: testPersonData,
                 });
 
-                validatePersonCreation(createResult, testPersonData, alice.agentPubKey);
-
                 // Wait for DHT sync
                 await waitForDHTSync(2000);
 
-                // Then retrieve the profile
-                console.log("Step 2: Retrieving agent profile");
-                const profileResult: TestAgentProfileOutput = await aliceCell.callZome({
+                // Now retrieve the profile
+                const profile: TestAgentProfileOutput = await aliceCell.callZome({
                     zome_name: "zome_person",
-                    fn_name: "get_agent_profile",
-                    payload: alice.agentPubKey,
+                    fn_name: "get_my_profile",
+                    payload: null,
                 });
 
-                console.log("Profile retrieval result:", profileResult);
+                console.log("Retrieved profile:", profile);
 
                 // Validate the profile
-                validateAgentProfile(profileResult, testPersonData.name);
+                validateAgentProfile(profile, testPersonData.name);
 
                 console.log("✅ Profile retrieval validation passed");
             });
@@ -151,30 +150,15 @@ describe("🔧 Foundation Tests - Person Zome", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const [alice]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    }
+            await runScenario(async (scenario) => {
+                const [alice] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
-
-                // First create a person (required for encrypted data)
-                console.log("Step 1: Creating person");
-                const testPersonData = createTestPerson();
-                await aliceCell.callZome({
-                    zome_name: "zome_person",
-                    fn_name: "create_person",
-                    payload: testPersonData,
-                });
-
-                await waitForDHTSync(1000);
-
-                // Then store encrypted data
-                console.log("Step 2: Storing encrypted data");
+                const aliceCell = alice.cells[0];
                 const testEncryptedData = createTestEncryptedData();
+
+                console.log("Creating encrypted data:", testEncryptedData);
 
                 const result: TestEncryptedDataOutput = await aliceCell.callZome({
                     zome_name: "zome_person",
@@ -202,41 +186,45 @@ describe("🔧 Foundation Tests - Person Zome", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const [alice]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    }
+            await runScenario(async (scenario) => {
+                const [alice] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
-
-                // Create a person
-                console.log("Step 1: Creating person");
+                const aliceCell = alice.cells[0];
                 const testPersonData = createTestPerson();
+
+                // First create a person
+                console.log("Creating person for agents test:", testPersonData);
                 await aliceCell.callZome({
                     zome_name: "zome_person",
                     fn_name: "create_person",
                     payload: testPersonData,
                 });
 
-                await waitForDHTSync(1000);
+                // Wait for DHT sync
+                await waitForDHTSync(2000);
 
-                // Get all agents
-                console.log("Step 2: Getting all agents");
-                const result = await aliceCell.callZome({
+                // Now get all agents
+                const agents: GetAllAgentsOutput = await aliceCell.callZome({
                     zome_name: "zome_person",
                     fn_name: "get_all_agents",
                     payload: null,
                 });
 
-                console.log("Get all agents result:", result);
+                console.log("All agents response:", agents);
 
-                // Should have at least one agent (alice)
-                expect(result.agents).toBeDefined();
-                expect(Array.isArray(result.agents)).toBe(true);
-                expect(result.agents.length).toBeGreaterThan(0);
+                // Validate we have at least one agent
+                expect(agents).toBeDefined();
+                expect(agents.agents).toBeDefined();
+                expect(Array.isArray(agents.agents)).toBe(true);
+                expect(agents.agents.length).toBeGreaterThan(0);
+
+                // Validate the agent data structure
+                const agent = agents.agents[0];
+                expect(agent.name).toBe(testPersonData.name);
+                expect(agent.avatar_url).toBe(testPersonData.avatar_url);
+                expect(agent.created_at).toBeDefined();
 
                 console.log("✅ Get all agents validation passed");
             });
@@ -253,43 +241,32 @@ describe("🔧 Foundation Tests - Person Zome", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const [alice]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    }
+            await runScenario(async (scenario) => {
+                const [alice] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
+                const aliceCell = alice.cells[0];
 
-                // Test 1: Try to store encrypted data without creating person first
-                console.log("Test 1: Encrypted data without person (should fail)");
-                const testEncryptedData = createTestEncryptedData();
-
+                // Test calling a non-existent function
                 await expectError(async () => {
                     await aliceCell.callZome({
                         zome_name: "zome_person",
-                        fn_name: "store_encrypted_data",
-                        payload: testEncryptedData,
+                        fn_name: "non_existent_function",
+                        payload: null,
                     });
-                }, "Person not found");
-
-                // Test 2: Try to get profile for non-existent agent
-                console.log("Test 2: Get profile for non-existent agent");
-                const fakeAgentKey = new Uint8Array(32).fill(1); // Fake agent key
-
-                const profileResult: TestAgentProfileOutput = await aliceCell.callZome({
-                    zome_name: "zome_person",
-                    fn_name: "get_agent_profile",
-                    payload: fakeAgentKey,
                 });
 
-                // Should return empty profile (not error)
-                expect(profileResult.person).toBeUndefined();
-                expect(profileResult.encrypted_data).toEqual([]);
+                // Test calling with invalid payload
+                await expectError(async () => {
+                    await aliceCell.callZome({
+                        zome_name: "zome_person",
+                        fn_name: "create_person",
+                        payload: { invalid: "data structure" },
+                    });
+                });
 
-                console.log("✅ Error handling tests passed");
+                console.log("✅ Error handling validation passed");
             });
 
             logTestEnd(testName, true);

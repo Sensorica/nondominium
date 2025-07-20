@@ -33,6 +33,7 @@ Our testing approach follows **Holochain community best practices** with emphasi
 - **Holochain Testing**: [@holochain/tryorama](https://github.com/holochain/tryorama) - Official Holochain testing framework
 - **Language**: TypeScript with full type safety
 - **Assertion Library**: Built-in Vitest expect API
+- **Environment**: Nix development shell for consistent Holochain binaries
 
 ## Test Structure
 
@@ -74,6 +75,8 @@ tests/
 - Error boundary testing
 - Foundation for more complex tests
 
+**Current Status**: ✅ **API Fixed** - All compilation errors resolved, ready for environment testing
+
 ### 🔗 Integration Tests
 
 **Purpose**: Validate multi-agent interactions and DHT synchronization
@@ -91,6 +94,8 @@ tests/
 - DHT timing validation
 - Cross-agent visibility testing
 - Distributed state consistency
+
+**Current Status**: ✅ **API Fixed** - All compilation errors resolved, ready for environment testing
 
 ### 🎭 Scenario Tests
 
@@ -125,6 +130,8 @@ tests/
 - Real governance workflow simulation
 - Privacy and security validation
 - Community dynamics testing
+
+**Current Status**: 🔲 **Not Implemented** - Planned for future development
 
 ## Test Utilities & Infrastructure
 
@@ -171,6 +178,14 @@ logTestStart(testName) → Consistent test initialization
 logTestEnd(testName, success) → Test completion tracking
 ```
 
+### Bundle Management
+
+App bundle source configuration:
+
+```typescript
+getAppBundleSource() → Returns correct AppBundleSource for Tryorama
+```
+
 ## Running Tests
 
 ### Prerequisites
@@ -187,16 +202,18 @@ logTestEnd(testName, success) → Test completion tracking
    npm install
    ```
 
+3. **Environment Setup**: Tests require Holochain binaries available in PATH
+
 ### Test Execution Commands
 
 ```bash
-# Complete test suite
-npm test
+# Complete test suite (requires nix environment)
+nix develop --command npm test
 
-# Specific test categories
-npm run test:foundation     # Basic connectivity validation
-npm run test:integration    # Multi-agent interaction testing
-npm run test:scenarios      # Real-world usage scenarios
+# Specific test categories (requires nix environment)
+nix develop --command npm run test:foundation     # Basic connectivity validation
+nix develop --command npm run test:integration    # Multi-agent interaction testing
+nix develop --command npm run test:scenarios      # Real-world usage scenarios
 
 # Development workflows
 npm run test:watch          # Watch mode for development
@@ -204,12 +221,22 @@ npm run test:debug          # Verbose debugging output
 npm run test:coverage       # Coverage analysis
 ```
 
+### Environment Requirements
+
+**Critical**: Tests must run inside the Nix development environment to access required Holochain binaries:
+
+- `kitsune2-bootstrap-srv` - Holochain networking service
+- `hc` - Holochain CLI tool
+- Other Holochain runtime dependencies
+
+**Without Nix Environment**: Tests will fail with "Failed to spawn kitsune2-bootstrap-srv" and "spawn hc ENOENT" errors.
+
 ### Debug Mode
 
 For detailed troubleshooting:
 
 ```bash
-DEBUG=true npm run test:debug
+DEBUG=true nix develop --command npm run test:debug
 ```
 
 ## Current Test Coverage
@@ -218,20 +245,29 @@ DEBUG=true npm run test:debug
 
 | Component | Foundation | Integration | Scenarios | Status |
 |-----------|------------|-------------|-----------|--------|
-| **Person Management** | ✅ Complete | ✅ Complete | ✅ Complete | Ready |
-| **Identity Storage** | ✅ Complete | ✅ Complete | ✅ Complete | Ready |
-| **Role Assignment** | ✅ Complete | ✅ Complete | ✅ Complete | Ready |
-| **Community Discovery** | ✅ Complete | ✅ Complete | ✅ Complete | Ready |
-| **Privacy Boundaries** | ✅ Basic | ✅ Complete | ✅ Complete | Ready |
-| **DHT Consistency** | ⚠️ Basic | ✅ Complete | ✅ Complete | Ready |
+| **Person Management** | ✅ Complete | ✅ Complete | 🔲 Planned | Ready |
+| **Identity Storage** | ✅ Complete | 🔲 Planned | 🔲 Planned | Ready |
+| **Role Assignment** | 🔲 Planned | ✅ Complete | 🔲 Planned | Ready |
+| **Community Discovery** | ✅ Complete | ✅ Complete | 🔲 Planned | Ready |
+| **Privacy Boundaries** | ✅ Basic | 🔲 Planned | 🔲 Planned | Ready |
+| **DHT Consistency** | ⚠️ Basic | ✅ Complete | 🔲 Planned | Ready |
 
-### Planned Extensions (Phase 2+)
+### API Compatibility Status
 
-- 🔲 **Resource Management Tests** - Resource specification and economic resource testing
-- 🔲 **Governance Process Tests** - Validation framework and governance rule testing  
-- 🔲 **Economic Event Tests** - Transaction and economic event validation
-- 🔲 **Performance Tests** - Scalability and timing validation
-- 🔲 **Cross-Zome Integration** - Multi-zome workflow testing
+| Component | HDK 0.5.3 | Tryorama 0.18.x | Status |
+|-----------|-----------|-----------------|--------|
+| **Foundation Tests** | ✅ Compatible | ✅ Compatible | Ready |
+| **Integration Tests** | ✅ Compatible | ✅ Compatible | Ready |
+| **Bundle Loading** | ✅ Compatible | ✅ Compatible | Ready |
+| **Environment Setup** | ✅ Compatible | ✅ Compatible | Ready |
+
+### Recent Fixes Applied
+
+1. **API Compatibility**: Updated all tests for HDK 0.5.3 and Tryorama 0.18.x
+2. **Bundle Paths**: Fixed hApp bundle path to use correct capitalization (`Nondominium.happ`)
+3. **Type Definitions**: Added proper TypeScript interfaces for all zome outputs
+4. **Player Configuration**: Removed unsupported `agentName` property from player setup
+5. **Environment Integration**: Documented Nix environment requirements
 
 ## Development Workflow Integration
 
@@ -249,6 +285,15 @@ The layered approach enables systematic debugging:
 1. **Foundation Failure** → API compatibility or basic functionality issue
 2. **Integration Failure** → DHT timing or multi-agent logic issue
 3. **Scenario Failure** → Business logic or user workflow issue
+
+### Environment Debugging
+
+Common issues and solutions:
+
+1. **Missing Binaries**: Run tests inside `nix develop` environment
+2. **Bundle Not Found**: Verify `workdir/Nondominium.happ` exists
+3. **API Errors**: Check HDK version compatibility
+4. **Timeout Issues**: Increase DHT sync delays for complex operations
 
 ### Continuous Integration
 
@@ -272,9 +317,9 @@ await waitForDHTSync(5000); // Complex multi-agent operations
 
 Use consistent agent setup patterns:
 ```typescript
-const [alice, bob]: Player[] = await scenario.addPlayersWithApps([
-  { bundle: { path: "../workdir/nondominium.happ" }, agentName: "alice" },
-  { bundle: { path: "../workdir/nondominium.happ" }, agentName: "bob" }
+const [alice, bob] = await scenario.addPlayersWithApps([
+  { appBundleSource: getAppBundleSource() },
+  { appBundleSource: getAppBundleSource() }
 ]);
 ```
 
@@ -292,6 +337,17 @@ Include negative test cases:
 await expectError(async () => {
   await cell.callZome({ /* invalid operation */ });
 }, "Expected error pattern");
+```
+
+### Environment Management
+
+Always run tests in the correct environment:
+```bash
+# Correct way
+nix develop --command npm run test:foundation
+
+# Incorrect way (will fail)
+npm run test:foundation
 ```
 
 ## Future Enhancements
@@ -320,11 +376,25 @@ Extended integration testing for:
 - Advanced validation workflows
 - Multi-DNA interactions
 
+### Resource and Governance Tests
+
+Planned test coverage for:
+- Resource specification and management
+- Economic resource validation
+- Governance rule enforcement
+- Validation framework testing
+
 ## Conclusion
 
 This testing infrastructure provides a robust foundation for ensuring the reliability and functionality of the Nondominium hApp. The layered approach enables systematic development and debugging while the scenario-based testing validates real-world usage patterns.
 
-The infrastructure is designed to scale with the application's complexity, providing clear pathways for adding new test coverage as additional features are implemented.
+**Current Status**: Foundation and Integration tests are API-compatible and ready for environment testing. The infrastructure is designed to scale with the application's complexity, providing clear pathways for adding new test coverage as additional features are implemented.
+
+**Next Steps**: 
+1. Complete environment testing to verify all tests pass in Nix environment
+2. Implement Resource and Governance zome tests
+3. Add comprehensive scenario tests for real-world workflows
+4. Expand integration testing for cross-zome interactions
 
 ---
 

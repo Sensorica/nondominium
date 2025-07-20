@@ -163,18 +163,23 @@ pub fn log_initial_transfer(
 
 #[hdk_extern]
 pub fn get_validation_history(item_hash: ActionHash) -> ExternResult<Vec<ValidationReceipt>> {
-    let links = get_links(GetLinksInput::new(
-        item_hash.into(),
-        LinkTypes::ValidatedItemToReceipt,
-        None,
-    ))?;
+    let links = get_links(
+        GetLinksInputBuilder::try_new(item_hash, LinkTypes::ValidatedItemToReceipt)?.build(),
+    )?;
     let mut receipts = Vec::new();
 
     for link in links {
-        if let Some(record) = get(link.target.into(), GetOptions::default())? {
-            if let Ok(Some(EntryTypes::ValidationReceipt(receipt))) = record.entry().to_app_option()
-            {
-                receipts.push(receipt);
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::ValidationReceipt(receipt))) =
+                    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest(
+                            "Failed to deserialize validation receipt".into()
+                        ))
+                    })
+                {
+                    receipts.push(receipt);
+                }
             }
         }
     }
@@ -241,19 +246,23 @@ pub fn create_resource_validation(
 pub fn check_validation_status(
     resource_hash: ActionHash,
 ) -> ExternResult<Option<ResourceValidation>> {
-    let links = get_links(GetLinksInput::new(
-        resource_hash.into(),
-        LinkTypes::ResourceToValidation,
-        None,
-    ))?;
+    let links = get_links(
+        GetLinksInputBuilder::try_new(resource_hash, LinkTypes::ResourceToValidation)?.build(),
+    )?;
 
     // Get the most recent validation (there should only be one per resource)
     if let Some(link) = links.first() {
-        if let Some(record) = get(link.target.clone().into(), GetOptions::default())? {
-            if let Ok(Some(EntryTypes::ResourceValidation(validation))) =
-                record.entry().to_app_option()
-            {
-                return Ok(Some(validation));
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::ResourceValidation(validation))) =
+                    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest(
+                            "Failed to deserialize resource validation".into()
+                        ))
+                    })
+                {
+                    return Ok(Some(validation));
+                }
             }
         }
     }
@@ -319,18 +328,23 @@ pub fn get_all_validation_receipts(_: ()) -> ExternResult<Vec<ValidationReceipt>
     let path = Path::from("all_validation_receipts");
     let anchor_hash = path.path_entry_hash()?;
 
-    let links = get_links(GetLinksInput::new(
-        anchor_hash.into(),
-        LinkTypes::AllValidationReceipts,
-        None,
-    ))?;
+    let links = get_links(
+        GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllValidationReceipts)?.build(),
+    )?;
     let mut receipts = Vec::new();
 
     for link in links {
-        if let Some(record) = get(link.target.into(), GetOptions::default())? {
-            if let Ok(Some(EntryTypes::ValidationReceipt(receipt))) = record.entry().to_app_option()
-            {
-                receipts.push(receipt);
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::ValidationReceipt(receipt))) =
+                    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest(
+                            "Failed to deserialize validation receipt".into()
+                        ))
+                    })
+                {
+                    receipts.push(receipt);
+                }
             }
         }
     }
@@ -343,17 +357,23 @@ pub fn get_all_economic_events(_: ()) -> ExternResult<Vec<EconomicEvent>> {
     let path = Path::from("all_economic_events");
     let anchor_hash = path.path_entry_hash()?;
 
-    let links = get_links(GetLinksInput::new(
-        anchor_hash.into(),
-        LinkTypes::AllEconomicEvents,
-        None,
-    ))?;
+    let links = get_links(
+        GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllEconomicEvents)?.build(),
+    )?;
     let mut events = Vec::new();
 
     for link in links {
-        if let Some(record) = get(link.target.into(), GetOptions::default())? {
-            if let Ok(Some(EntryTypes::EconomicEvent(event))) = record.entry().to_app_option() {
-                events.push(event);
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::EconomicEvent(event))) =
+                    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest(
+                            "Failed to deserialize economic event".into()
+                        ))
+                    })
+                {
+                    events.push(event);
+                }
             }
         }
     }

@@ -61,6 +61,7 @@ pub struct ResourceValidation {
 
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
+#[derive(Serialize, Deserialize, SerializedBytes)]
 pub enum EntryTypes {
     ValidationReceipt(ValidationReceipt),
     EconomicEvent(EconomicEvent),

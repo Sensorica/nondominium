@@ -36,6 +36,7 @@ pub struct EconomicResource {
 
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
+#[derive(Serialize, Deserialize, SerializedBytes)]
 pub enum EntryTypes {
     ResourceSpecification(ResourceSpecification),
     EconomicResource(EconomicResource),

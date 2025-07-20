@@ -172,22 +172,26 @@ pub fn get_all_resource_specs(_: ()) -> ExternResult<Vec<(ActionHash, ResourceSp
     let path = Path::from("all_resource_specifications");
     let anchor_hash = path.path_entry_hash()?;
 
-    let links = get_links(GetLinksInput::new(
-        anchor_hash.into(),
-        LinkTypes::AllResourceSpecifications,
-        None,
-    ))?;
+    let links = get_links(
+        GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllResourceSpecifications)?.build(),
+    )?;
     let mut specs = Vec::new();
 
     for link in links {
-        if let Some(record) = get(link.target.clone().into(), GetOptions::default())? {
-            if let Ok(Some(EntryTypes::ResourceSpecification(spec))) =
-                record.entry().to_app_option()
-            {
-                let action_hash: ActionHash = link.target.try_into().map_err(|_| {
-                    wasm_error!(WasmErrorInner::Guest("Hash conversion failed".to_string()))
-                })?;
-                specs.push((action_hash, spec));
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::ResourceSpecification(spec))) =
+                    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest(
+                            "Failed to deserialize resource specification".into()
+                        ))
+                    })
+                {
+                    let action_hash: ActionHash = link.target.try_into().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest("Hash conversion failed".to_string()))
+                    })?;
+                    specs.push((action_hash, spec));
+                }
             }
         }
     }
@@ -199,21 +203,26 @@ pub fn get_all_resource_specs(_: ()) -> ExternResult<Vec<(ActionHash, ResourceSp
 pub fn get_resources_by_spec(
     spec_hash: ActionHash,
 ) -> ExternResult<Vec<(ActionHash, EconomicResource)>> {
-    let links = get_links(GetLinksInput::new(
-        spec_hash.into(),
-        LinkTypes::SpecificationToResource,
-        None,
-    ))?;
+    let links = get_links(
+        GetLinksInputBuilder::try_new(spec_hash, LinkTypes::SpecificationToResource)?.build(),
+    )?;
     let mut resources = Vec::new();
 
     for link in links {
-        if let Some(record) = get(link.target.clone().into(), GetOptions::default())? {
-            if let Ok(Some(EntryTypes::EconomicResource(resource))) = record.entry().to_app_option()
-            {
-                let action_hash: ActionHash = link.target.try_into().map_err(|_| {
-                    wasm_error!(WasmErrorInner::Guest("Hash conversion failed".to_string()))
-                })?;
-                resources.push((action_hash, resource));
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::EconomicResource(resource))) =
+                    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest(
+                            "Failed to deserialize economic resource".into()
+                        ))
+                    })
+                {
+                    let action_hash: ActionHash = link.target.try_into().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest("Hash conversion failed".to_string()))
+                    })?;
+                    resources.push((action_hash, resource));
+                }
             }
         }
     }
@@ -227,21 +236,26 @@ pub fn get_my_resources(_: ()) -> ExternResult<Vec<(ActionHash, EconomicResource
     let custodian_path = Path::from(format!("custodian_{}", agent_info.agent_initial_pubkey));
     let custodian_anchor = custodian_path.path_entry_hash()?;
 
-    let links = get_links(GetLinksInput::new(
-        custodian_anchor.into(),
-        LinkTypes::CustodianToResource,
-        None,
-    ))?;
+    let links = get_links(
+        GetLinksInputBuilder::try_new(custodian_anchor, LinkTypes::CustodianToResource)?.build(),
+    )?;
     let mut resources = Vec::new();
 
     for link in links {
-        if let Some(record) = get(link.target.clone().into(), GetOptions::default())? {
-            if let Ok(Some(EntryTypes::EconomicResource(resource))) = record.entry().to_app_option()
-            {
-                let action_hash: ActionHash = link.target.try_into().map_err(|_| {
-                    wasm_error!(WasmErrorInner::Guest("Hash conversion failed".to_string()))
-                })?;
-                resources.push((action_hash, resource));
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::EconomicResource(resource))) =
+                    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest(
+                            "Failed to deserialize economic resource".into()
+                        ))
+                    })
+                {
+                    let action_hash: ActionHash = link.target.try_into().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest("Hash conversion failed".to_string()))
+                    })?;
+                    resources.push((action_hash, resource));
+                }
             }
         }
     }
@@ -254,11 +268,9 @@ pub fn check_first_resource_requirement(agent_pub_key: AgentPubKey) -> ExternRes
     let custodian_path = Path::from(format!("custodian_{}", agent_pub_key));
     let custodian_anchor = custodian_path.path_entry_hash()?;
 
-    let links = get_links(GetLinksInput::new(
-        custodian_anchor.into(),
-        LinkTypes::CustodianToResource,
-        None,
-    ))?;
+    let links = get_links(
+        GetLinksInputBuilder::try_new(custodian_anchor, LinkTypes::CustodianToResource)?.build(),
+    )?;
 
     // Agent has created at least one resource if they have any custodian links
     Ok(!links.is_empty())
@@ -291,18 +303,25 @@ pub fn get_resource_spec_with_rules(
     };
 
     // Get the governance rules
-    let rule_links = get_links(GetLinksInput::new(
-        spec_hash.into(),
-        LinkTypes::SpecificationToGovernanceRule,
-        None,
-    ))?;
+    let rule_links = get_links(
+        GetLinksInputBuilder::try_new(spec_hash, LinkTypes::SpecificationToGovernanceRule)?.build(),
+    )?;
     let mut governance_rules = Vec::new();
 
     for rule_link in rule_links {
-        if let Some(rule_record) = get(rule_link.target.into(), GetOptions::default())? {
-            if let Ok(Some(EntryTypes::GovernanceRule(rule))) = rule_record.entry().to_app_option()
-            {
-                governance_rules.push(rule);
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(rule_link.target.clone()) {
+            if let Some(rule_record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::GovernanceRule(rule))) = rule_record
+                    .entry()
+                    .to_app_option::<EntryTypes>()
+                    .map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest(
+                            "Failed to deserialize governance rule".into()
+                        ))
+                    })
+                {
+                    governance_rules.push(rule);
+                }
             }
         }
     }
@@ -370,11 +389,10 @@ pub fn transfer_custody(input: TransferCustodyInput) -> ExternResult<TransferCus
     let old_custodian_anchor = old_custodian_path.path_entry_hash()?;
 
     // Find and delete the old link
-    let old_links = get_links(GetLinksInput::new(
-        old_custodian_anchor.into(),
-        LinkTypes::CustodianToResource,
-        None,
-    ))?;
+    let old_links = get_links(
+        GetLinksInputBuilder::try_new(old_custodian_anchor, LinkTypes::CustodianToResource)?
+            .build(),
+    )?;
     for link in old_links {
         let link_target_hash: Result<ActionHash, _> = link.target.clone().try_into();
         if let Ok(target_hash) = link_target_hash {

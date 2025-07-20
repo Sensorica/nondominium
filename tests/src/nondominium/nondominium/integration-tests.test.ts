@@ -1,5 +1,5 @@
-import { test, describe, beforeAll, afterAll, expect } from "vitest";
-import { Scenario, runScenario, Player, Cell } from "@holochain/tryorama";
+import { test, describe, expect } from "vitest";
+import { runScenario } from "@holochain/tryorama";
 import {
     createTestPerson,
     createTestPersonVariation,
@@ -13,7 +13,30 @@ import {
     defaultTimeout,
     TestPersonOutput,
     TestAgentProfileOutput,
+    getAppBundleSource,
 } from "./common.js";
+
+// Type definition for role assignment output
+interface RoleAssignmentOutput {
+    role_hash: any;
+    role: {
+        role_name: string;
+        description: string;
+        assigned_to: any;
+        assigned_by: any;
+        created_at: number;
+    };
+}
+
+// Type definition for get_all_agents output
+interface GetAllAgentsOutput {
+    agents: {
+        agent_pub_key: any;
+        name: string;
+        avatar_url?: string;
+        created_at: number;
+    }[];
+}
 
 describe("🔗 Integration Tests - Multi-Agent Interactions", () => {
 
@@ -22,20 +45,14 @@ describe("🔗 Integration Tests - Multi-Agent Interactions", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const [alice, bob]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    },
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "bob",
-                    }
+            await runScenario(async (scenario) => {
+                const [alice, bob] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() },
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
-                const bobCell: Cell = bob.cells[0];
+                const aliceCell = alice.cells[0];
+                const bobCell = bob.cells[0];
 
                 // Alice creates her profile
                 console.log("Step 1: Alice creates profile");
@@ -97,20 +114,14 @@ describe("🔗 Integration Tests - Multi-Agent Interactions", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const [alice, bob]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    },
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "bob",
-                    }
+            await runScenario(async (scenario) => {
+                const [alice, bob] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() },
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
-                const bobCell: Cell = bob.cells[0];
+                const aliceCell = alice.cells[0];
+                const bobCell = bob.cells[0];
 
                 // Both agents create profiles first
                 console.log("Step 1: Creating profiles");
@@ -133,7 +144,7 @@ describe("🔗 Integration Tests - Multi-Agent Interactions", () => {
                 // Alice assigns a role to Bob
                 console.log("Step 2: Alice assigns role to Bob");
                 const roleData = createTestRole();
-                const roleResult = await aliceCell.callZome({
+                const roleResult: RoleAssignmentOutput = await aliceCell.callZome({
                     zome_name: "zome_person",
                     fn_name: "assign_role",
                     payload: {
@@ -175,32 +186,23 @@ describe("🔗 Integration Tests - Multi-Agent Interactions", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const players: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    },
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "bob",
-                    },
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "charlie",
-                    }
+            await runScenario(async (scenario) => {
+                const players = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() },
+                    { appBundleSource: getAppBundleSource() },
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
                 const [alice, bob, charlie] = players;
-                const agents = createMultipleAgents(players.map(p => p.cells[0]), 3);
+                const cells = [alice.cells[0], bob.cells[0], charlie.cells[0]];
 
                 // All agents create profiles
                 console.log("Step 1: All agents create profiles");
-                for (let i = 0; i < agents.length; i++) {
-                    const agent = agents[i];
-                    const personData = createTestPersonVariation(agent.name);
+                for (let i = 0; i < cells.length; i++) {
+                    const cell = cells[i];
+                    const personData = createTestPersonVariation(`Agent${i + 1}`);
 
-                    await agent.cell.callZome({
+                    await cell.callZome({
                         zome_name: "zome_person",
                         fn_name: "create_person",
                         payload: personData,
@@ -211,17 +213,17 @@ describe("🔗 Integration Tests - Multi-Agent Interactions", () => {
 
                 // Test community discovery from each agent's perspective
                 console.log("Step 2: Test community discovery");
-                for (let i = 0; i < agents.length; i++) {
-                    const agent = agents[i];
+                for (let i = 0; i < cells.length; i++) {
+                    const cell = cells[i];
 
-                    console.log(`${agent.name} discovering community...`);
-                    const allAgents = await agent.cell.callZome({
+                    console.log(`Agent ${i + 1} discovering community...`);
+                    const allAgents: GetAllAgentsOutput = await cell.callZome({
                         zome_name: "zome_person",
                         fn_name: "get_all_agents",
                         payload: null,
                     });
 
-                    console.log(`${agent.name} found ${allAgents.agents.length} agents`);
+                    console.log(`Agent ${i + 1} found ${allAgents.agents.length} agents`);
 
                     // Should find all 3 agents (including themselves)
                     expect(allAgents.agents.length).toBeGreaterThanOrEqual(3);
@@ -250,20 +252,14 @@ describe("🔗 Integration Tests - Multi-Agent Interactions", () => {
         logTestStart(testName);
 
         try {
-            await runScenario(async (scenario: Scenario) => {
-                const [alice, bob]: Player[] = await scenario.addPlayersWithApps([
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "alice",
-                    },
-                    {
-                        bundle: { path: "../workdir/nondominium.happ" },
-                        agentName: "bob",
-                    }
+            await runScenario(async (scenario) => {
+                const [alice, bob] = await scenario.addPlayersWithApps([
+                    { appBundleSource: getAppBundleSource() },
+                    { appBundleSource: getAppBundleSource() }
                 ]);
 
-                const aliceCell: Cell = alice.cells[0];
-                const bobCell: Cell = bob.cells[0];
+                const aliceCell = alice.cells[0];
+                const bobCell = bob.cells[0];
 
                 // Alice creates profile
                 console.log("Step 1: Alice creates profile");

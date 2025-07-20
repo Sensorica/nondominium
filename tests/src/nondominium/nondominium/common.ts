@@ -206,7 +206,8 @@ export const logTestEnd = (testName: string, success: boolean) => {
 
 // App Bundle Helper
 export const getAppBundleSource = (): AppBundleSource => ({
-  path: "../workdir/nondominium.happ",
+  type: "path",
+  value: "../workdir/Nondominium.happ",
 });
 
 export const defaultTimeout = 60000; // 60 seconds

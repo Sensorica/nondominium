@@ -30,7 +30,7 @@ pub fn create_person(input: CreatePersonInput) -> ExternResult<CreatePersonOutpu
         created_at: now,
     };
 
-    let person_hash = create_entry(&EntryTypes::Person(person.clone()))?;
+    let person_hash = create_entry(EntryTypes::Person(person.clone()))?;
 
     // Create an anchor link for discovering all persons
     let path = Path::from("all_people");
@@ -49,21 +49,21 @@ pub fn create_person(input: CreatePersonInput) -> ExternResult<CreatePersonOutpu
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateEncryptedDataInput {
+pub struct StoreEncryptedDataInput {
     pub encrypted_data: Vec<u8>,
     pub encryption_method: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateEncryptedDataOutput {
+pub struct StoreEncryptedDataOutput {
     pub encrypted_data_hash: ActionHash,
     pub encrypted_data: EncryptedAgentData,
 }
 
 #[hdk_extern]
 pub fn store_encrypted_data(
-    input: CreateEncryptedDataInput,
-) -> ExternResult<CreateEncryptedDataOutput> {
+    input: StoreEncryptedDataInput,
+) -> ExternResult<StoreEncryptedDataOutput> {
     let agent_info = agent_info()?;
     let now = sys_time()?;
 
@@ -74,127 +74,93 @@ pub fn store_encrypted_data(
         created_at: now,
     };
 
-    let encrypted_data_hash =
-        create_entry(&EntryTypes::EncryptedAgentData(encrypted_data.clone()))?;
+    let encrypted_data_hash = create_entry(EntryTypes::EncryptedAgentData(encrypted_data.clone()))?;
 
-    // Get the person hash first, then link encrypted data to it
-    let person_hash = get_my_person_hash()?;
+    // Link from person to their encrypted data (if person exists)
+    // First, try to find the person record
+    let path = Path::from("all_people");
+    let anchor_hash = path.path_entry_hash()?;
+    let person_links =
+        get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllPeople)?.build())?;
 
-    create_link(
-        person_hash,
-        encrypted_data_hash.clone(),
-        LinkTypes::PersonToEncryptedData,
-        LinkTag::new("encrypted_data"),
-    )?;
+    for link in person_links {
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(person_record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::Person(person))) = person_record
+                    .entry()
+                    .to_app_option::<EntryTypes>()
+                    .map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest("Failed to deserialize person".into()))
+                    })
+                {
+                    if person.agent_pub_key == agent_info.agent_initial_pubkey {
+                        // Link from this person to their encrypted data
+                        create_link(
+                            link.target,
+                            encrypted_data_hash.clone(),
+                            LinkTypes::PersonToEncryptedData,
+                            LinkTag::new("encrypted"),
+                        )?;
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
-    Ok(CreateEncryptedDataOutput {
+    Ok(StoreEncryptedDataOutput {
         encrypted_data_hash,
         encrypted_data,
     })
 }
 
-// Helper function to get the current agent's person hash
-fn get_my_person_hash() -> ExternResult<ActionHash> {
-    let agent_info = agent_info()?;
-    let path = Path::from("all_people");
-    let anchor_hash = path.path_entry_hash()?;
-
-    let links = get_links(GetLinksInput {
-        base_address: anchor_hash.into(),
-        link_type: LinkTypes::AllPeople.try_into()?,
-        tag_prefix: Some(LinkTag::new("person")),
-        after: None,
-        before: None,
-        author: Some(agent_info.agent_initial_pubkey),
-        get_options: GetOptions::default(),
-    })?;
-
-    if let Some(link) = links.first() {
-        // Convert AnyLinkableHash to ActionHash
-        if let AnyLinkableHash::Action(action_hash) = &link.target {
-            return Ok(action_hash.clone());
-        }
-    }
-
-    Err(wasm_error!(WasmErrorInner::Guest(
-        "Person not found for agent".to_string()
-    )))
-}
-
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GetAgentProfileOutput {
+pub struct AgentProfileOutput {
     pub person: Option<Person>,
     pub encrypted_data: Vec<EncryptedAgentData>,
 }
 
 #[hdk_extern]
-pub fn get_agent_profile(agent_pub_key: AgentPubKey) -> ExternResult<GetAgentProfileOutput> {
-    // First get the person
+pub fn get_agent_profile(agent_pub_key: AgentPubKey) -> ExternResult<AgentProfileOutput> {
+    let mut profile = AgentProfileOutput {
+        person: None,
+        encrypted_data: Vec::new(),
+    };
+
+    // Get person profile by searching through all people
     let path = Path::from("all_people");
     let anchor_hash = path.path_entry_hash()?;
 
-    let person_links = get_links(GetLinksInput {
-        base_address: anchor_hash.into(),
-        link_type: LinkTypes::AllPeople.try_into()?,
-        tag_prefix: Some(LinkTag::new("person")),
-        after: None,
-        before: None,
-        author: Some(agent_pub_key.clone()),
-        get_options: GetOptions::default(),
-    })?;
+    // Use correct GetLinksInputBuilder pattern
+    let links =
+        get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllPeople)?.build())?;
 
-    let mut person = None;
-    let mut person_hash = None;
-
-    if let Some(person_link) = person_links.first() {
-        if let Some(person_record) = get(
-            AnyDhtHash::from(person_link.target.clone()),
-            GetOptions::default(),
-        )? {
-            match person_record.entry().to_app_option() {
-                Ok(Some(EntryTypes::Person(person_entry))) => {
-                    person = Some(person_entry);
-                    if let AnyLinkableHash::Action(action_hash) = &person_link.target {
-                        person_hash = Some(action_hash.clone());
+    for link in links {
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(person_record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::Person(person))) = person_record
+                    .entry()
+                    .to_app_option::<EntryTypes>()
+                    .map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest("Failed to deserialize person".into()))
+                    })
+                {
+                    if person.agent_pub_key == agent_pub_key {
+                        profile.person = Some(person);
+                        break;
                     }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    // Get encrypted data links from the person entry
-    let mut encrypted_data = Vec::new();
-    if let Some(p_hash) = person_hash {
-        let encrypted_links = get_links(GetLinksInput {
-            base_address: p_hash.into(),
-            link_type: LinkTypes::PersonToEncryptedData.try_into()?,
-            tag_prefix: Some(LinkTag::new("encrypted_data")),
-            after: None,
-            before: None,
-            author: None,
-            get_options: GetOptions::default(),
-        })?;
-
-        for encrypted_link in encrypted_links {
-            if let Some(encrypted_record) = get(
-                AnyDhtHash::from(encrypted_link.target.clone()),
-                GetOptions::default(),
-            )? {
-                match encrypted_record.entry().to_app_option() {
-                    Ok(Some(EntryTypes::EncryptedAgentData(encrypted_entry))) => {
-                        encrypted_data.push(encrypted_entry);
-                    }
-                    _ => {}
                 }
             }
         }
     }
 
-    Ok(GetAgentProfileOutput {
-        person,
-        encrypted_data,
-    })
+    Ok(profile)
+}
+
+#[hdk_extern]
+pub fn get_my_profile(_: ()) -> ExternResult<AgentProfileOutput> {
+    let agent_info = agent_info()?;
+    get_agent_profile(agent_info.agent_initial_pubkey)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -207,29 +173,26 @@ pub fn get_all_agents(_: ()) -> ExternResult<GetAllAgentsOutput> {
     let path = Path::from("all_people");
     let anchor_hash = path.path_entry_hash()?;
 
-    let links = get_links(GetLinksInput {
-        base_address: anchor_hash.into(),
-        link_type: LinkTypes::AllPeople.try_into()?,
-        tag_prefix: Some(LinkTag::new("person")),
-        after: None,
-        before: None,
-        author: None,
-        get_options: GetOptions::default(),
-    })?;
+    let links =
+        get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllPeople)?.build())?;
 
-    let mut people = Vec::new();
+    let mut agents = Vec::new();
+
     for link in links {
-        if let Some(record) = get(AnyDhtHash::from(link.target), GetOptions::default())? {
-            match record.entry().to_app_option() {
-                Ok(Some(EntryTypes::Person(person))) => {
-                    people.push(person);
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target) {
+            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::Person(person))) =
+                    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest("Failed to deserialize person".into()))
+                    })
+                {
+                    agents.push(person);
                 }
-                _ => {}
             }
         }
     }
 
-    Ok(GetAllAgentsOutput { agents: people })
+    Ok(GetAllAgentsOutput { agents })
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -256,81 +219,67 @@ pub fn assign_role(input: AssignRoleInput) -> ExternResult<AssignRoleOutput> {
         assigned_to: input.agent_pub_key.clone(),
         assigned_by: agent_info.agent_initial_pubkey,
         assigned_at: now,
-        validation_metadata: None,
+        validation_metadata: Some("{\"assigned_through\":\"coordinator_function\"}".to_string()),
     };
 
-    let role_hash = create_entry(&EntryTypes::AgentRole(role.clone()))?;
-
-    // Get the person hash for the agent, then link role to person
-    let person_hash = get_person_hash_by_agent(input.agent_pub_key)?;
-
-    create_link(
-        person_hash,
-        role_hash.clone(),
-        LinkTypes::PersonToRole,
-        LinkTag::new("role"),
-    )?;
+    let role_hash = create_entry(EntryTypes::AgentRole(role.clone()))?;
 
     Ok(AssignRoleOutput { role_hash, role })
 }
 
-// Helper function to get person hash by agent public key
-fn get_person_hash_by_agent(agent_pub_key: AgentPubKey) -> ExternResult<ActionHash> {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetAgentRolesOutput {
+    pub roles: Vec<AgentRole>,
+}
+
+#[hdk_extern]
+pub fn get_agent_roles(agent_pub_key: AgentPubKey) -> ExternResult<GetAgentRolesOutput> {
+    // Find the person record first
     let path = Path::from("all_people");
     let anchor_hash = path.path_entry_hash()?;
+    let person_links =
+        get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllPeople)?.build())?;
 
-    let links = get_links(GetLinksInput {
-        base_address: anchor_hash.into(),
-        link_type: LinkTypes::AllPeople.try_into()?,
-        tag_prefix: Some(LinkTag::new("person")),
-        after: None,
-        before: None,
-        author: Some(agent_pub_key),
-        get_options: GetOptions::default(),
-    })?;
+    let mut roles = Vec::new();
 
-    if let Some(link) = links.first() {
-        if let AnyLinkableHash::Action(action_hash) = &link.target {
-            return Ok(action_hash.clone());
+    for link in person_links {
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(person_record) = get(any_dht_hash, GetOptions::default())? {
+                if let Ok(Some(EntryTypes::Person(person))) = person_record
+                    .entry()
+                    .to_app_option::<EntryTypes>()
+                    .map_err(|_| {
+                        wasm_error!(WasmErrorInner::Guest("Failed to deserialize person".into()))
+                    })
+                {
+                    if person.agent_pub_key == agent_pub_key {
+                        // Get roles for this person
+                        let role_links = get_links(
+                            GetLinksInputBuilder::try_new(link.target, LinkTypes::PersonToRole)?
+                                .build(),
+                        )?;
+
+                        for role_link in role_links {
+                            if let Ok(any_dht_hash) = AnyDhtHash::try_from(role_link.target) {
+                                if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                                    if let Ok(Some(EntryTypes::AgentRole(role))) =
+                                        record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+                                            wasm_error!(WasmErrorInner::Guest(
+                                                "Failed to deserialize role".into()
+                                            ))
+                                        })
+                                    {
+                                        roles.push(role);
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
         }
     }
 
-    Err(wasm_error!(WasmErrorInner::Guest(
-        "Person not found for agent".to_string()
-    )))
-}
-
-#[hdk_extern]
-pub fn get_my_profile(_: ()) -> ExternResult<GetAgentProfileOutput> {
-    let agent_info = agent_info()?;
-    get_agent_profile(agent_info.agent_initial_pubkey)
-}
-
-#[hdk_extern]
-pub fn post_commit(committed_actions: Vec<SignedActionHashed>) -> ExternResult<()> {
-    // Handle any post-commit logic for person-related actions
-    for action in committed_actions {
-        if let Action::Create(create_action) = action.action() {
-            // Could emit signals here for real-time updates
-            let _entry_type = create_action.entry_type.clone();
-            // TODO: Implement signaling for new person creation, role assignments, etc.
-        }
-    }
-    Ok(())
-}
-
-#[hdk_extern]
-pub fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
-    match action.action() {
-        Action::Create(_) => {
-            // Emit signal for any create actions
-            emit_signal(&action)?;
-        }
-        Action::Update(_) => {
-            // Emit signal for any update actions
-            emit_signal(&action)?;
-        }
-        _ => {}
-    }
-    Ok(())
+    Ok(GetAgentRolesOutput { roles })
 }
