@@ -3,7 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:foundation": "vitest run foundation-tests.test.ts",
+    "test:integration": "vitest run integration-tests.test.ts",
+    "test:scenarios": "vitest run scenario-tests.test.ts",
+    "test:debug": "DEBUG=true vitest run --reporter=verbose",
+    "test:person": "vitest run foundation-tests.test.ts integration-tests.test.ts scenario-tests.test.ts",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@msgpack/msgpack": "^2.8.0",

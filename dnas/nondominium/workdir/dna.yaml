@@ -1,19 +1,33 @@
-manifest_version: '1'
+---
+manifest_version: "1"
 name: nondominium
 integrity:
-  network_seed: null
-  properties: null
+  network_seed: ~
+  properties: ~
   zomes:
-  - name: nondominium_integrity
-    hash: null
-    bundled: ../../../target/wasm32-unknown-unknown/release/nondominium_integrity.wasm
-    dependencies: null
-    dylib: null
+    - name: zome_person_integrity
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/zome_person_integrity.wasm"
+    - name: zome_resource_integrity
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/zome_resource_integrity.wasm"
+    - name: zome_gouvernance_integrity
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/zome_gouvernance_integrity.wasm"
 coordinator:
   zomes:
-  - name: nondominium
-    hash: null
-    bundled: ../../../target/wasm32-unknown-unknown/release/nondominium.wasm
-    dependencies:
-    - name: nondominium_integrity
-    dylib: null
+    - name: zome_person_coordinator
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/zome_person_coordinator.wasm"
+      dependencies:
+        - name: zome_person_integrity
+    - name: zome_resource_coordinator
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/zome_resource_coordinator.wasm"
+      dependencies:
+        - name: zome_resource_integrity
+    - name: zome_gouvernance_coordinator
+      hash: ~
+      bundled: "../../../target/wasm32-unknown-unknown/release/zome_gouvernance_coordinator.wasm"
+      dependencies:
+        - name: zome_gouvernance_integrity

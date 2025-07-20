@@ -1,14 +1,14 @@
 [package]
-name = "nondominium"
+name = "zome_resource_coordinator"
 version = "0.0.1"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-name = "nondominium"
+name = "zome_resource_coordinator"
 
 [dependencies]
 hdk = { workspace = true }
 serde = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
-nondominium_integrity = { workspace = true }
+zome_resource_integrity = { path = "../../integrity/zome_resource" }

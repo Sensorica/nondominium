@@ -5,7 +5,16 @@ opt-level = "z"
 opt-level = "z"
 
 [workspace]
-members = ["dnas/*/zomes/coordinator/*", "dnas/*/zomes/integrity/*"]
+members = [
+    "dnas/*/zomes/coordinator/*",
+    "dnas/*/zomes/integrity/*",
+    "dnas/nondominium/zomes/coordinator/zome_person",
+    "dnas/nondominium/zomes/integrity/zome_person",
+    "dnas/nondominium/zomes/coordinator/zome_resource",
+    "dnas/nondominium/zomes/integrity/zome_resource",
+    "dnas/nondominium/zomes/coordinator/zome_gouvernance",
+    "dnas/nondominium/zomes/integrity/zome_gouvernance",
+]
 resolver = "2"
 
 [workspace.dependencies]
@@ -13,9 +22,3 @@ hdi = "=0.6.3"
 hdk = "=0.5.3"
 holochain_serialized_bytes = "*"
 serde = "1.0"
-
-[workspace.dependencies.nondominium]
-path = "dnas/nondominium/zomes/coordinator/nondominium"
-
-[workspace.dependencies.nondominium_integrity]
-path = "dnas/nondominium/zomes/integrity/nondominium"

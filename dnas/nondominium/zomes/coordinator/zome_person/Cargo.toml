@@ -1,0 +1,14 @@
+[package]
+name = "zome_person_coordinator"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "zome_person_coordinator"
+
+[dependencies]
+hdk = { workspace = true }
+serde = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
+zome_person_integrity = { path = "../../integrity/zome_person" }
