@@ -10,7 +10,9 @@ pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
 pub struct CreateResourceSpecInput {
     pub name: String,
     pub description: String,
+    pub category: String,
     pub image_url: Option<String>,
+    pub tags: Vec<String>,
     pub governance_rules: Vec<GovernanceRuleInput>,
 }
 
@@ -57,23 +59,60 @@ pub fn create_resource_spec(
     let spec = ResourceSpecification {
         name: input.name,
         description: input.description,
+        category: input.category.clone(),
         image_url: input.image_url,
+        tags: input.tags.clone(),
         governance_rules: governance_rule_hashes.clone(),
-        created_by: agent_info.agent_initial_pubkey,
+        created_by: agent_info.agent_initial_pubkey.clone(),
         created_at: now,
+        is_active: true, // New specs are active by default
     };
 
     let spec_hash = create_entry(&EntryTypes::ResourceSpecification(spec.clone()))?;
 
-    // Create discovery link
-    let path = Path::from("all_resource_specifications");
-    let anchor_hash = path.path_entry_hash()?;
+    // Create discovery links (inspired by R&O efficient query patterns)
+    
+    // 1. Global discovery anchor
+    let all_specs_path = Path::from("all_resource_specifications");
+    let all_specs_anchor = all_specs_path.path_entry_hash()?;
     create_link(
-        anchor_hash,
+        all_specs_anchor,
         spec_hash.clone(),
         LinkTypes::AllResourceSpecifications,
-        (),
+        LinkTag::new("resource_spec"),
     )?;
+    
+    // 2. Category-based discovery (like ServiceType patterns)
+    let category_path = Path::from(format!("specs_by_category_{}", input.category));
+    let category_anchor = category_path.path_entry_hash()?;
+    create_link(
+        category_anchor,
+        spec_hash.clone(),
+        LinkTypes::SpecsByCategory,
+        LinkTag::new(input.category.as_str()),
+    )?;
+    
+    // 3. Agent-owned specs for efficient "my specs" queries
+    let agent_path = Path::from(format!("agent_specs_{}", agent_info.agent_initial_pubkey));
+    let agent_anchor = agent_path.path_entry_hash()?;
+    create_link(
+        agent_anchor,
+        spec_hash.clone(),
+        LinkTypes::AgentToOwnedSpecs,
+        LinkTag::new("owned_spec"),
+    )?;
+    
+    // 4. Tag-based discovery for flexible queries
+    for tag in &input.tags {
+        let tag_path = Path::from(format!("specs_by_tag_{}", tag));
+        let tag_anchor = tag_path.path_entry_hash()?;
+        create_link(
+            tag_anchor,
+            spec_hash.clone(),
+            LinkTypes::SpecsByCategory, // Reuse for tags
+            LinkTag::new(tag.as_str()),
+        )?;
+    }
 
     // Link governance rules to the specification
     for rule_hash in &governance_rule_hashes {
@@ -81,7 +120,7 @@ pub fn create_resource_spec(
             spec_hash.clone(),
             rule_hash.clone(),
             LinkTypes::SpecificationToGovernanceRule,
-            (),
+            LinkTag::new("governance_rule"),
         )?;
     }
 
@@ -128,7 +167,7 @@ pub fn create_economic_resource(
         created_by: agent_info.agent_initial_pubkey.clone(),
         created_at: now,
         current_location: input.current_location,
-        state: "pending_validation".to_string(), // New resources start in pending validation state
+        state: ResourceState::PendingValidation, // New resources start in pending validation state
     };
 
     let resource_hash = create_entry(&EntryTypes::EconomicResource(resource.clone()))?;
@@ -140,7 +179,7 @@ pub fn create_economic_resource(
         anchor_hash,
         resource_hash.clone(),
         LinkTypes::AllEconomicResources,
-        (),
+        LinkTag::new("economic_resource"),
     )?;
 
     // Link resource to its specification
@@ -148,7 +187,7 @@ pub fn create_economic_resource(
         input.spec_hash,
         resource_hash.clone(),
         LinkTypes::SpecificationToResource,
-        (),
+        LinkTag::new("conforms_to"),
     )?;
 
     // Link custodian to resource
@@ -158,7 +197,7 @@ pub fn create_economic_resource(
         custodian_anchor,
         resource_hash.clone(),
         LinkTypes::CustodianToResource,
-        (),
+        LinkTag::new("custodian"),
     )?;
 
     Ok(CreateEconomicResourceOutput {
@@ -410,7 +449,7 @@ pub fn transfer_custody(input: TransferCustodyInput) -> ExternResult<TransferCus
         new_custodian_anchor,
         updated_resource_hash.clone(),
         LinkTypes::CustodianToResource,
-        (),
+        LinkTag::new("custodian"),
     )?;
 
     Ok(TransferCustodyOutput {

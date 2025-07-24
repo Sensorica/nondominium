@@ -1,14 +1,45 @@
 use hdi::prelude::*;
 
+// TODO: Add transport state
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum ResourceState {
+    PendingValidation,
+    Active,
+    Maintenance,
+    Retired,
+    Reserved,
+}
+
+impl Default for ResourceState {
+    fn default() -> Self {
+        ResourceState::PendingValidation
+    }
+}
+
+impl std::fmt::Display for ResourceState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResourceState::PendingValidation => write!(f, "pending_validation"),
+            ResourceState::Active => write!(f, "active"),
+            ResourceState::Maintenance => write!(f, "maintenance"),
+            ResourceState::Retired => write!(f, "retired"),
+            ResourceState::Reserved => write!(f, "reserved"),
+        }
+    }
+}
+
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct ResourceSpecification {
     pub name: String,
     pub description: String,
+    pub category: String,                  // For efficient categorized queries (like ServiceType)
     pub image_url: Option<String>,
+    pub tags: Vec<String>,                 // For flexible discovery and filtering
     pub governance_rules: Vec<ActionHash>, // Links to GovernanceRule entries
     pub created_by: AgentPubKey,
     pub created_at: Timestamp,
+    pub is_active: bool,                   // For filtering active vs inactive specs
 }
 
 #[hdk_entry_helper]
@@ -31,7 +62,7 @@ pub struct EconomicResource {
     pub created_by: AgentPubKey, // Who created this resource instance
     pub created_at: Timestamp,
     pub current_location: Option<String>, // Physical or virtual location
-    pub state: String,                    // "active", "maintenance", "retired", etc.
+    pub state: ResourceState,
 }
 
 #[hdk_entry_types]
@@ -45,12 +76,28 @@ pub enum EntryTypes {
 
 #[hdk_link_types]
 pub enum LinkTypes {
+    // Discovery anchors (inspired by Requests & Offers patterns)
     AllResourceSpecifications,
     AllEconomicResources,
-    SpecificationToResource,
-    CustodianToResource,
-    SpecificationToGovernanceRule,
-    ResourceSpecToGovernanceRule,
+    AllGovernanceRules,
+    
+    // Hierarchical linking for efficient queries
+    SpecificationToResource,        // ResourceSpec -> EconomicResource
+    CustodianToResource,           // Agent -> Resources they custody
+    SpecificationToGovernanceRule, // ResourceSpec -> GovernanceRules
+    
+    // Agent-centric patterns (from R&O)
+    AgentToOwnedSpecs,            // Agent -> ResourceSpecs they created
+    AgentToManagedResources,      // Agent -> Resources they manage
+    
+    // Service-type patterns (inspired by R&O ServiceType queries)
+    SpecsByCategory,              // Category -> ResourceSpecs
+    ResourcesByLocation,          // Location -> EconomicResources
+    ResourcesByState,             // ResourceState -> EconomicResources
+    
+    // Governance patterns
+    RulesByType,                  // RuleType -> GovernanceRules
+    ResourceToValidation,         // EconomicResource -> ValidationRecords
 }
 
 #[hdk_extern]
@@ -67,8 +114,146 @@ pub fn validate_agent_joining(
 }
 
 #[hdk_extern]
-pub fn validate(_op: Op) -> ExternResult<ValidateCallbackResult> {
-    // For Phase 1, we'll implement basic validation
-    // More complex validation will be added in Phase 2
+pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+    match op.flattened::<EntryTypes, LinkTypes>()? {
+        FlatOp::StoreEntry(store_entry) => match store_entry {
+            OpEntry::CreateEntry { app_entry, action } => match app_entry {
+                EntryTypes::ResourceSpecification(spec) => {
+                    validate_create_resource_spec(&spec, &action.author)
+                }
+                EntryTypes::EconomicResource(resource) => {
+                    validate_create_economic_resource(&resource, &action.author)
+                }
+                EntryTypes::GovernanceRule(rule) => validate_create_governance_rule(&rule, &action.author),
+            },
+            OpEntry::UpdateEntry {
+                app_entry, action, ..
+            } => match app_entry {
+                EntryTypes::ResourceSpecification(spec) => {
+                    validate_update_resource_spec(&spec, &action.author)
+                }
+                EntryTypes::EconomicResource(resource) => {
+                    validate_update_economic_resource(&resource, &action.author)
+                }
+                EntryTypes::GovernanceRule(rule) => validate_update_governance_rule(&rule, &action.author),
+            },
+            _ => Ok(ValidateCallbackResult::Valid),
+        },
+        FlatOp::StoreRecord(OpRecord::CreateLink { .. }) => {
+            // Validate link creation
+            Ok(ValidateCallbackResult::Valid)
+        }
+        _ => Ok(ValidateCallbackResult::Valid),
+    }
+}
+
+fn validate_create_resource_spec(
+    spec: &ResourceSpecification,
+    author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+    if spec.name.trim().is_empty() {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Resource specification name cannot be empty".to_string(),
+        ));
+    }
+
+    if spec.name.len() > 100 {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Resource specification name too long".to_string(),
+        ));
+    }
+
+    if spec.description.trim().is_empty() {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Resource specification description cannot be empty".to_string(),
+        ));
+    }
+
+    // Validate creator matches action author
+    if spec.created_by != *author {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Resource spec can only be created by the action author".to_string(),
+        ));
+    }
+
+    Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_create_economic_resource(
+    resource: &EconomicResource,
+    author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+    if resource.quantity <= 0.0 {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Resource quantity must be positive".to_string(),
+        ));
+    }
+
+    if resource.unit.trim().is_empty() {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Resource unit cannot be empty".to_string(),
+        ));
+    }
+
+    // Validate creator matches action author
+    if resource.created_by != *author {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Economic resource can only be created by the action author".to_string(),
+        ));
+    }
+
+    Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_create_governance_rule(
+    rule: &GovernanceRule,
+    author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+    if rule.rule_type.trim().is_empty() {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Governance rule type cannot be empty".to_string(),
+        ));
+    }
+
+    if rule.rule_data.trim().is_empty() {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Governance rule data cannot be empty".to_string(),
+        ));
+    }
+
+    // Validate creator matches action author
+    if rule.created_by != *author {
+        return Ok(ValidateCallbackResult::Invalid(
+            "Governance rule can only be created by the action author".to_string(),
+        ));
+    }
+
+    Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_update_resource_spec(
+    _spec: &ResourceSpecification,
+    _author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+    // For Phase 1, allow updates
+    // Phase 2 will add governance-based update validation
+    Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_update_economic_resource(
+    _resource: &EconomicResource,
+    _author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+    // For Phase 1, allow updates
+    // Phase 2 will add custody transfer validation
+    Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_update_governance_rule(
+    _rule: &GovernanceRule,
+    _author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+    // For Phase 1, allow updates
+    // Phase 2 will add proper governance rule update validation
     Ok(ValidateCallbackResult::Valid)
 }

@@ -1,0 +1,9 @@
+[package]
+name = "nondominium_utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hdk = { workspace = true }
+serde = { workspace = true }
+thiserror = "1.0"

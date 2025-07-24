@@ -1,6 +1,61 @@
 use hdk::prelude::*;
 use zome_person_integrity::*;
 
+#[derive(Debug, thiserror::Error)]
+pub enum PersonError {
+    #[error("Person profile not found for agent: {0}")]
+    PersonNotFound(String),
+    #[error("Private data not found for agent")]
+    PrivateDataNotFound,
+    #[error("Agent roles not found")]
+    RolesNotFound,
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+    #[error("Invalid agent operation: {0}")]
+    InvalidAgent(String),
+    #[error("Link creation failed: {0}")]
+    LinkCreationFailed(String),
+}
+
+// Helper function to get entry from DHT hash with proper error handling
+fn get_entry_from_hash<T>(hash: AnyDhtHash) -> ExternResult<Option<T>>
+where
+    T: TryFrom<SerializedBytes, Error = SerializedBytesError> + Clone,
+{
+    if let Some(record) = get(hash, GetOptions::default())? {
+        record
+            .entry()
+            .to_app_option::<T>()
+            .map_err(|_| wasm_error!(WasmErrorInner::Guest("Failed to deserialize entry".into())))
+    } else {
+        Ok(None)
+    }
+}
+
+// Helper function to find person by agent pub key
+fn find_person_by_agent(agent_pub_key: &AgentPubKey) -> ExternResult<Option<(AnyDhtHash, Person)>> {
+    let path = Path::from("all_people");
+    let anchor_hash = path.path_entry_hash()?;
+    let links = get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllPeople)?.build())?;
+
+    for link in links {
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash.clone(), GetOptions::default())? {
+                if let Ok(Some(EntryTypes::Person(person))) = record
+                    .entry()
+                    .to_app_option::<EntryTypes>()
+                    .map_err(|_| PersonError::SerializationError("Failed to deserialize person".into()))
+                {
+                    if person.agent_pub_key == *agent_pub_key {
+                        return Ok(Some((any_dht_hash, person)));
+                    }
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
 #[hdk_extern]
 pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
     Ok(InitCallbackResult::Pass)
@@ -62,6 +117,47 @@ pub struct StorePrivateDataInput {
 pub struct StorePrivateDataOutput {
     pub private_data_hash: ActionHash,
     pub private_data: PrivateAgentData,
+}
+
+// Legacy function name for test compatibility
+#[hdk_extern]
+pub fn store_encrypted_data(input: StoreEncryptedDataInput) -> ExternResult<StoreEncryptedDataOutput> {
+    let legacy_input = StorePrivateDataInput {
+        legal_name: String::from_utf8(input.encrypted_data.clone())
+            .unwrap_or_else(|_| "Encrypted Data".to_string()),
+        address: "Encrypted".to_string(),
+        email: "encrypted@example.com".to_string(),
+        phone: None,
+        photo_id_hash: None,
+        emergency_contact: None,
+    };
+    
+    let result = store_private_data(legacy_input)?;
+    Ok(StoreEncryptedDataOutput {
+        encrypted_data_hash: result.private_data_hash,
+        encrypted_data: EncryptedAgentData {
+            encrypted_data: input.encrypted_data,
+            encryption_method: input.encryption_method,
+        },
+    })
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StoreEncryptedDataInput {
+    pub encrypted_data: Vec<u8>,
+    pub encryption_method: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StoreEncryptedDataOutput {
+    pub encrypted_data_hash: ActionHash,
+    pub encrypted_data: EncryptedAgentData,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EncryptedAgentData {
+    pub encrypted_data: Vec<u8>,
+    pub encryption_method: String,
 }
 
 #[hdk_extern]
@@ -133,58 +229,28 @@ pub fn get_agent_profile(agent_pub_key: AgentPubKey) -> ExternResult<AgentProfil
         private_data: None,
     };
 
-    // Get person profile by searching through all people
-    let path = Path::from("all_people");
-    let anchor_hash = path.path_entry_hash()?;
+    // Use helper function to find person
+    if let Some((person_hash, person)) = find_person_by_agent(&agent_pub_key)? {
+        profile.person = Some(person);
 
-    // Use correct GetLinksInputBuilder pattern
-    let links =
-        get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllPeople)?.build())?;
+        // Only try to get private data if the requesting agent is the same
+        let current_agent = agent_info()?;
+        if current_agent.agent_initial_pubkey == agent_pub_key {
+            // Try to get private data for the agent themselves
+            let private_links = get_links(
+                GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToPrivateData)?
+                    .build(),
+            )?;
 
-    for link in links {
-        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
-            if let Some(person_record) = get(any_dht_hash, GetOptions::default())? {
-                if let Ok(Some(EntryTypes::Person(person))) = person_record
-                    .entry()
-                    .to_app_option::<EntryTypes>()
-                    .map_err(|_| {
-                        wasm_error!(WasmErrorInner::Guest("Failed to deserialize person".into()))
-                    })
-                {
-                    if person.agent_pub_key == agent_pub_key {
-                        profile.person = Some(person);
-
-                        // Only try to get private data if the requesting agent is the same
-                        let current_agent = agent_info()?;
-                        if current_agent.agent_initial_pubkey == agent_pub_key {
-                            // Try to get private data for the agent themselves
-                            let private_links = get_links(
-                                GetLinksInputBuilder::try_new(
-                                    link.target,
-                                    LinkTypes::PersonToPrivateData,
-                                )?
-                                .build(),
-                            )?;
-
-                            for private_link in private_links {
-                                if let Ok(any_dht_hash) = AnyDhtHash::try_from(private_link.target)
-                                {
-                                    if let Some(private_record) =
-                                        get(any_dht_hash, GetOptions::default())?
-                                    {
-                                        if let Ok(Some(EntryTypes::PrivateAgentData(
-                                            private_data,
-                                        ))) =
-                                            private_record.entry().to_app_option::<EntryTypes>()
-                                        {
-                                            profile.private_data = Some(private_data);
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
+            for private_link in private_links {
+                if let Ok(any_dht_hash) = AnyDhtHash::try_from(private_link.target) {
+                    if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+                        if let Ok(Some(EntryTypes::PrivateAgentData(private_data))) =
+                            record.entry().to_app_option::<EntryTypes>()
+                        {
+                            profile.private_data = Some(private_data);
+                            break;
                         }
-                        break;
                     }
                 }
             }
@@ -319,4 +385,52 @@ pub fn get_agent_roles(agent_pub_key: AgentPubKey) -> ExternResult<GetAgentRoles
     }
 
     Ok(GetAgentRolesOutput { roles })
+}
+
+/// Check if an agent has a specific role capability
+/// This function can be called by other zomes for authorization
+#[hdk_extern]
+pub fn has_role_capability(input: (AgentPubKey, String)) -> ExternResult<bool> {
+    let (agent_pub_key, required_role) = input;
+    
+    let roles_output = get_agent_roles(agent_pub_key)?;
+    
+    // Check if agent has the required role
+    for role in roles_output.roles {
+        if role.role_name == required_role {
+            return Ok(true);
+        }
+    }
+    
+    Ok(false)
+}
+
+/// Get agent capability level for cross-zome authorization
+#[hdk_extern] 
+pub fn get_agent_capability_level(agent_pub_key: AgentPubKey) -> ExternResult<String> {
+    let roles_output = get_agent_roles(agent_pub_key)?;
+    
+    // Determine capability level based on roles
+    let mut has_accountable_role = false;
+    let mut has_primary_role = false;
+    
+    for role in roles_output.roles {
+        match role.role_name.as_str() {
+            "Community Steward" | "Resource Coordinator" | "Community Advocate" => {
+                has_accountable_role = true;
+            }
+            "Primary Accountable Agent" | "Community Founder" => {
+                has_primary_role = true;
+            }
+            _ => {}
+        }
+    }
+    
+    if has_primary_role {
+        Ok("primary_accountable".to_string())
+    } else if has_accountable_role {
+        Ok("accountable".to_string())
+    } else {
+        Ok("simple".to_string())
+    }
 }

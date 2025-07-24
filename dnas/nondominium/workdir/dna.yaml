@@ -16,17 +16,17 @@ integrity:
       bundled: "../../../target/wasm32-unknown-unknown/release/zome_gouvernance_integrity.wasm"
 coordinator:
   zomes:
-    - name: zome_person_coordinator
+    - name: zome_person
       hash: ~
       bundled: "../../../target/wasm32-unknown-unknown/release/zome_person_coordinator.wasm"
       dependencies:
         - name: zome_person_integrity
-    - name: zome_resource_coordinator
+    - name: zome_resource
       hash: ~
       bundled: "../../../target/wasm32-unknown-unknown/release/zome_resource_coordinator.wasm"
       dependencies:
         - name: zome_resource_integrity
-    - name: zome_gouvernance_coordinator
+    - name: zome_gouvernance
       hash: ~
       bundled: "../../../target/wasm32-unknown-unknown/release/zome_gouvernance_coordinator.wasm"
       dependencies:

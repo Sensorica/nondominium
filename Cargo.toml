@@ -14,6 +14,7 @@ members = [
     "dnas/nondominium/zomes/integrity/zome_resource",
     "dnas/nondominium/zomes/coordinator/zome_gouvernance",
     "dnas/nondominium/zomes/integrity/zome_gouvernance",
+    "crates/utils",
 ]
 resolver = "2"
 
