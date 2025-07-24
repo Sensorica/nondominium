@@ -9,12 +9,16 @@ pub struct Person {
     pub created_at: Timestamp,
 }
 
+// Replace custom encryption with Holochain's private entries
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
-pub struct EncryptedAgentData {
-    pub agent_pub_key: AgentPubKey,
-    pub encrypted_data: Vec<u8>, // Encrypted blob containing PII (legal name, address, email, photo ID hash)
-    pub encryption_method: String, // Method used for encryption
+pub struct PrivateAgentData {
+    pub legal_name: String,
+    pub address: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub photo_id_hash: Option<String>,
+    pub emergency_contact: Option<String>,
     pub created_at: Timestamp,
 }
 
@@ -34,14 +38,17 @@ pub struct AgentRole {
 #[derive(Serialize, Deserialize, SerializedBytes)]
 pub enum EntryTypes {
     Person(Person),
-    EncryptedAgentData(EncryptedAgentData),
+
+    #[entry_type(visibility = "private")]
+    PrivateAgentData(PrivateAgentData), // Private entry - only accessible by creating agent
+
     AgentRole(AgentRole),
 }
 
 #[hdk_link_types]
 pub enum LinkTypes {
     AllPeople,
-    PersonToEncryptedData,
+    PersonToPrivateData, // Link from public profile to private data
     PersonToRole,
 }
 

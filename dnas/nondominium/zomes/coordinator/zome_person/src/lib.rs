@@ -49,34 +49,40 @@ pub fn create_person(input: CreatePersonInput) -> ExternResult<CreatePersonOutpu
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct StoreEncryptedDataInput {
-    pub encrypted_data: Vec<u8>,
-    pub encryption_method: String,
+pub struct StorePrivateDataInput {
+    pub legal_name: String,
+    pub address: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub photo_id_hash: Option<String>,
+    pub emergency_contact: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct StoreEncryptedDataOutput {
-    pub encrypted_data_hash: ActionHash,
-    pub encrypted_data: EncryptedAgentData,
+pub struct StorePrivateDataOutput {
+    pub private_data_hash: ActionHash,
+    pub private_data: PrivateAgentData,
 }
 
 #[hdk_extern]
-pub fn store_encrypted_data(
-    input: StoreEncryptedDataInput,
-) -> ExternResult<StoreEncryptedDataOutput> {
+pub fn store_private_data(input: StorePrivateDataInput) -> ExternResult<StorePrivateDataOutput> {
     let agent_info = agent_info()?;
     let now = sys_time()?;
 
-    let encrypted_data = EncryptedAgentData {
-        agent_pub_key: agent_info.agent_initial_pubkey.clone(),
-        encrypted_data: input.encrypted_data,
-        encryption_method: input.encryption_method,
+    let private_data = PrivateAgentData {
+        legal_name: input.legal_name,
+        address: input.address,
+        email: input.email,
+        phone: input.phone,
+        photo_id_hash: input.photo_id_hash,
+        emergency_contact: input.emergency_contact,
         created_at: now,
     };
 
-    let encrypted_data_hash = create_entry(EntryTypes::EncryptedAgentData(encrypted_data.clone()))?;
+    // Create as PRIVATE entry - only accessible by the creating agent
+    let private_data_hash = create_entry(EntryTypes::PrivateAgentData(private_data.clone()))?;
 
-    // Link from person to their encrypted data (if person exists)
+    // Link from person to their private data (if person exists)
     // First, try to find the person record
     let path = Path::from("all_people");
     let anchor_hash = path.path_entry_hash()?;
@@ -94,12 +100,12 @@ pub fn store_encrypted_data(
                     })
                 {
                     if person.agent_pub_key == agent_info.agent_initial_pubkey {
-                        // Link from this person to their encrypted data
+                        // Link from this person to their private data
                         create_link(
                             link.target,
-                            encrypted_data_hash.clone(),
-                            LinkTypes::PersonToEncryptedData,
-                            LinkTag::new("encrypted"),
+                            private_data_hash.clone(),
+                            LinkTypes::PersonToPrivateData,
+                            LinkTag::new("private"),
                         )?;
                         break;
                     }
@@ -108,23 +114,23 @@ pub fn store_encrypted_data(
         }
     }
 
-    Ok(StoreEncryptedDataOutput {
-        encrypted_data_hash,
-        encrypted_data,
+    Ok(StorePrivateDataOutput {
+        private_data_hash,
+        private_data,
     })
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AgentProfileOutput {
     pub person: Option<Person>,
-    pub encrypted_data: Vec<EncryptedAgentData>,
+    pub private_data: Option<PrivateAgentData>, // Only available to the agent themselves
 }
 
 #[hdk_extern]
 pub fn get_agent_profile(agent_pub_key: AgentPubKey) -> ExternResult<AgentProfileOutput> {
     let mut profile = AgentProfileOutput {
         person: None,
-        encrypted_data: Vec::new(),
+        private_data: None,
     };
 
     // Get person profile by searching through all people
@@ -147,6 +153,37 @@ pub fn get_agent_profile(agent_pub_key: AgentPubKey) -> ExternResult<AgentProfil
                 {
                     if person.agent_pub_key == agent_pub_key {
                         profile.person = Some(person);
+
+                        // Only try to get private data if the requesting agent is the same
+                        let current_agent = agent_info()?;
+                        if current_agent.agent_initial_pubkey == agent_pub_key {
+                            // Try to get private data for the agent themselves
+                            let private_links = get_links(
+                                GetLinksInputBuilder::try_new(
+                                    link.target,
+                                    LinkTypes::PersonToPrivateData,
+                                )?
+                                .build(),
+                            )?;
+
+                            for private_link in private_links {
+                                if let Ok(any_dht_hash) = AnyDhtHash::try_from(private_link.target)
+                                {
+                                    if let Some(private_record) =
+                                        get(any_dht_hash, GetOptions::default())?
+                                    {
+                                        if let Ok(Some(EntryTypes::PrivateAgentData(
+                                            private_data,
+                                        ))) =
+                                            private_record.entry().to_app_option::<EntryTypes>()
+                                        {
+                                            profile.private_data = Some(private_data);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         break;
                     }
                 }

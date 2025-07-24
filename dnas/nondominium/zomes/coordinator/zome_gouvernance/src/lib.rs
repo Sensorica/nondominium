@@ -67,7 +67,7 @@ pub fn create_validation_receipt(
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogEconomicEventInput {
-    pub action: String,
+    pub action: VfAction,
     pub provider: AgentPubKey,
     pub receiver: AgentPubKey,
     pub resource_inventoried_as: ActionHash,
@@ -145,7 +145,7 @@ pub fn log_initial_transfer(
     // TODO: In Phase 2, trigger validation process for Simple Agent promotion
 
     let event_input = LogEconomicEventInput {
-        action: "initial-transfer".to_string(),
+        action: VfAction::InitialTransfer,
         provider: agent_info.agent_initial_pubkey,
         receiver: input.receiver,
         resource_inventoried_as: input.resource_hash,
@@ -272,7 +272,7 @@ pub fn check_validation_status(
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProposeCommitmentInput {
-    pub action: String,
+    pub action: VfAction,
     pub resource_hash: Option<ActionHash>,
     pub resource_spec_hash: Option<ActionHash>,
     pub provider: AgentPubKey,
