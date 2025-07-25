@@ -17,20 +17,6 @@ pub enum PersonError {
     LinkCreationFailed(String),
 }
 
-// Helper function to get entry from DHT hash with proper error handling
-fn get_entry_from_hash<T>(hash: AnyDhtHash) -> ExternResult<Option<T>>
-where
-    T: TryFrom<SerializedBytes, Error = SerializedBytesError> + Clone,
-{
-    if let Some(record) = get(hash, GetOptions::default())? {
-        record
-            .entry()
-            .to_app_option::<T>()
-            .map_err(|_| wasm_error!(WasmErrorInner::Guest("Failed to deserialize entry".into())))
-    } else {
-        Ok(None)
-    }
-}
 
 // Helper function to find person by agent pub key
 fn find_person_by_agent(agent_pub_key: &AgentPubKey) -> ExternResult<Option<(AnyDhtHash, Person)>> {

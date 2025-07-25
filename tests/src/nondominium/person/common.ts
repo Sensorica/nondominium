@@ -205,7 +205,7 @@ export async function setupBasicPersons(
   // Create persons for both agents
   const alicePerson = await createPerson(
     alice.cells[0],
-    samplePerson({ name: "Alice" })
+    samplePerson({ name: "Lynn" })
   );
   const bobPerson = await createPerson(
     bob.cells[0],
@@ -230,8 +230,8 @@ export async function setupPersonsWithPrivateData(
   const alicePrivateData = await storePrivateData(
     alice.cells[0],
     samplePrivateData({
-      legal_name: "Alice Smith",
-      email: "alice@example.com",
+      legal_name: "Lynn Smith",
+      email: "lynn@example.com",
     })
   );
 

@@ -30,12 +30,12 @@ test(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Scenario: New community member joins and gets onboarded
 
-        // Step 1: Alice (existing member) creates her profile
-        console.log("Step 1: Alice creates her profile");
+        // Step 1: Lynn (existing member) creates her profile
+        console.log("Step 1: Lynn creates her profile");
         const alicePersonResult = await createPerson(
           alice.cells[0],
           samplePerson({
-            name: "Alice Cooper",
+            name: "Lynn Cooper",
             avatar_url: "https://example.com/alice-avatar.png",
           })
         );
@@ -43,7 +43,7 @@ test(
         await storePrivateData(
           alice.cells[0],
           samplePrivateData({
-            legal_name: "Alice Elizabeth Cooper",
+            legal_name: "Lynn Elizabeth Cooper",
             email: "alice.cooper@example.com",
             address: "123 Harmony Lane, Community Springs, CS 12345",
             phone: "+1-555-ALICE-1",
@@ -53,8 +53,8 @@ test(
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Step 2: Alice gets founder role (self-assigned or system-assigned)
-        console.log("Step 2: Alice becomes community founder");
+        // Step 2: Lynn gets founder role (self-assigned or system-assigned)
+        console.log("Step 2: Lynn becomes community founder");
         await assignRole(
           alice.cells[0],
           sampleRole(
@@ -68,7 +68,7 @@ test(
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Verify Alice's founder status
+        // Verify Lynn's founder status
         const aliceCapability = await getAgentCapabilityLevel(
           alice.cells[0],
           alice.agentPubKey
@@ -104,9 +104,9 @@ test(
         assert.equal(allMembers.agents.length, 2);
 
         const memberNames = allMembers.agents.map((agent) => agent.name).sort();
-        assert.deepEqual(memberNames, ["Alice Cooper", "Bob Williams"]);
+        assert.deepEqual(memberNames, ["Lynn Cooper", "Bob Williams"]);
 
-        // Alice can see Bob's public profile
+        // Lynn can see Bob's public profile
         const bobPublicProfile = await getAgentProfile(
           alice.cells[0],
           bob.agentPubKey
@@ -115,7 +115,7 @@ test(
         assert.equal(bobPublicProfile.person!.name, "Bob Williams");
         assert.isUndefined(bobPublicProfile.private_data); // Privacy maintained
 
-        // Step 5: Alice assigns steward role to Bob
+        // Step 5: Lynn assigns steward role to Bob
         console.log("Step 5: Role assignment and capability delegation");
         await assignRole(
           alice.cells[0],
@@ -159,14 +159,14 @@ test(
         // Final verification: Complete community state
         console.log("Final verification: Complete community state");
 
-        // Alice's complete profile
+        // Lynn's complete profile
         const aliceCompleteProfile = await getMyProfile(alice.cells[0]);
         assert.ok(aliceCompleteProfile.person);
         assert.ok(aliceCompleteProfile.private_data);
-        assert.equal(aliceCompleteProfile.person!.name, "Alice Cooper");
+        assert.equal(aliceCompleteProfile.person!.name, "Lynn Cooper");
         assert.equal(
           aliceCompleteProfile.private_data!.legal_name,
-          "Alice Elizabeth Cooper"
+          "Lynn Elizabeth Cooper"
         );
 
         // Bob's complete profile
@@ -243,7 +243,7 @@ test(
         // Phase 3: Verify governance hierarchy
         console.log("Phase 3: Verify governance hierarchy");
 
-        // Alice has primary capability
+        // Lynn has primary capability
         const aliceCapability = await getAgentCapabilityLevel(
           alice.cells[0],
           alice.agentPubKey
@@ -281,7 +281,7 @@ test(
         assert.isTrue(bobHasCoordinator);
         assert.isFalse(bobHasPrimary);
 
-        // Alice has primary capability
+        // Lynn has primary capability
         const aliceHasPrimary = await hasRoleCapability(
           alice.cells[0],
           alice.agentPubKey,
@@ -304,7 +304,7 @@ test(
           bob.cells[0],
           alice.agentPubKey
         );
-        const bobRolesFromAlice = await getAgentRoles(
+        const bobRolesFromLynn = await getAgentRoles(
           alice.cells[0],
           bob.agentPubKey
         );
@@ -312,8 +312,8 @@ test(
         assert.equal(aliceRolesFromBob.roles.length, 1);
         assert.equal(aliceRolesFromBob.roles[0].role_name, TEST_ROLES.PRIMARY);
 
-        assert.equal(bobRolesFromAlice.roles.length, 2);
-        const bobRoleNames = bobRolesFromAlice.roles
+        assert.equal(bobRolesFromLynn.roles.length, 2);
+        const bobRoleNames = bobRolesFromLynn.roles
           .map((role) => role.role_name)
           .sort();
         assert.deepEqual(bobRoleNames, [
@@ -337,11 +337,11 @@ test(
 
         console.log("Setup: Creating community members with sensitive data");
 
-        // Alice joins with comprehensive profile
+        // Lynn joins with comprehensive profile
         await createPerson(
           alice.cells[0],
           samplePerson({
-            name: "Dr. Alice Smith",
+            name: "Dr. Lynn Smith",
             avatar_url: "https://medical-directory.com/dr-alice.jpg",
           })
         );
@@ -349,7 +349,7 @@ test(
         await storePrivateData(
           alice.cells[0],
           samplePrivateData({
-            legal_name: "Dr. Alice Marie Smith, MD",
+            legal_name: "Dr. Lynn Marie Smith, MD",
             email: "alice.smith@hospital.com",
             address: "789 Medical Plaza, Suite 201, Health City, HC 54321",
             phone: "+1-555-DOCTOR-1",
@@ -388,25 +388,25 @@ test(
           bob.cells[0],
           alice.agentPubKey
         );
-        const bobPublicFromAlice = await getAgentProfile(
+        const bobPublicFromLynn = await getAgentProfile(
           alice.cells[0],
           bob.agentPubKey
         );
 
         // Public data is visible
         assert.ok(alicePublicFromBob.person);
-        assert.equal(alicePublicFromBob.person!.name, "Dr. Alice Smith");
+        assert.equal(alicePublicFromBob.person!.name, "Dr. Lynn Smith");
         assert.equal(
           alicePublicFromBob.person!.avatar_url,
           "https://medical-directory.com/dr-alice.jpg"
         );
 
-        assert.ok(bobPublicFromAlice.person);
-        assert.equal(bobPublicFromAlice.person!.name, "Bob Community");
+        assert.ok(bobPublicFromLynn.person);
+        assert.equal(bobPublicFromLynn.person!.name, "Bob Community");
 
         // Private data is not visible cross-agent
         assert.isUndefined(alicePublicFromBob.private_data);
-        assert.isUndefined(bobPublicFromAlice.private_data);
+        assert.isUndefined(bobPublicFromLynn.private_data);
 
         // Test 2: Self-access to private data
         console.log("Test 2: Self-access to private data");
@@ -418,7 +418,7 @@ test(
         assert.ok(alicePrivateProfile.private_data);
         assert.equal(
           alicePrivateProfile.private_data!.legal_name,
-          "Dr. Alice Marie Smith, MD"
+          "Dr. Lynn Marie Smith, MD"
         );
         assert.equal(
           alicePrivateProfile.private_data!.email,
@@ -471,7 +471,7 @@ test(
           bob.cells[0],
           alice.agentPubKey
         );
-        const bobRolesFromAlice = await getAgentRoles(
+        const bobRolesFromLynn = await getAgentRoles(
           alice.cells[0],
           bob.agentPubKey
         );
@@ -479,9 +479,9 @@ test(
         assert.equal(aliceRolesFromBob.roles.length, 1);
         assert.equal(aliceRolesFromBob.roles[0].role_name, TEST_ROLES.STEWARD);
 
-        assert.equal(bobRolesFromAlice.roles.length, 1);
+        assert.equal(bobRolesFromLynn.roles.length, 1);
         assert.equal(
-          bobRolesFromAlice.roles[0].role_name,
+          bobRolesFromLynn.roles[0].role_name,
           TEST_ROLES.COORDINATOR
         );
 
@@ -549,7 +549,7 @@ test(
         await createPerson(
           alice.cells[0],
           samplePerson({
-            name: "Alice Founder",
+            name: "Lynn Founder",
             avatar_url: "https://community.org/founder.png",
           })
         );
@@ -570,7 +570,7 @@ test(
         // Verify initial state
         let allMembers = await getAllAgents(alice.cells[0]);
         assert.equal(allMembers.agents.length, 1);
-        assert.equal(allMembers.agents[0].name, "Alice Founder");
+        assert.equal(allMembers.agents[0].name, "Lynn Founder");
 
         console.log("Phase 2: First member joins");
 
@@ -590,7 +590,7 @@ test(
         assert.equal(allMembers.agents.length, 2);
 
         const memberNames = allMembers.agents.map((agent) => agent.name).sort();
-        assert.deepEqual(memberNames, ["Alice Founder", "Bob FirstMember"]);
+        assert.deepEqual(memberNames, ["Lynn Founder", "Bob FirstMember"]);
 
         console.log("Phase 3: Role delegation and capability distribution");
 
@@ -665,16 +665,16 @@ test(
           bob.cells[0],
           alice.agentPubKey
         );
-        const bobProfileFromAlice = await getAgentProfile(
+        const bobProfileFromLynn = await getAgentProfile(
           alice.cells[0],
           bob.agentPubKey
         );
 
         assert.ok(aliceProfileFromBob.person);
-        assert.equal(aliceProfileFromBob.person!.name, "Alice Founder");
+        assert.equal(aliceProfileFromBob.person!.name, "Lynn Founder");
 
-        assert.ok(bobProfileFromAlice.person);
-        assert.equal(bobProfileFromAlice.person!.name, "Bob FirstMember");
+        assert.ok(bobProfileFromLynn.person);
+        assert.equal(bobProfileFromLynn.person!.name, "Bob FirstMember");
 
         console.log("Phase 6: Community readiness for further scaling");
 

@@ -32,8 +32,8 @@ test(
   async () => {
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
-        // Alice creates a person
-        const personInput = samplePerson({ name: "Alice" });
+        // Lynn creates a person
+        const personInput = samplePerson({ name: "Lynn" });
         const result = await createPerson(alice.cells[0], personInput);
         
         assert.ok(result);
@@ -47,21 +47,21 @@ test(
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Alice can get her own profile
+        // Lynn can get her own profile
         const aliceProfile = await getMyProfile(alice.cells[0]);
         assert.ok(aliceProfile.person);
-        assert.equal(aliceProfile.person!.name, "Alice");
+        assert.equal(aliceProfile.person!.name, "Lynn");
         assert.isUndefined(aliceProfile.private_data); // No private data stored yet
 
-        // Bob can get Alice's public profile
-        const bobViewOfAlice = await getAgentProfile(bob.cells[0], alice.agentPubKey);
-        assert.ok(bobViewOfAlice.person);
-        assert.equal(bobViewOfAlice.person!.name, "Alice");
-        assert.isUndefined(bobViewOfAlice.private_data); // Bob can't see Alice's private data
+        // Bob can get Lynn's public profile
+        const bobViewOfLynn = await getAgentProfile(bob.cells[0], alice.agentPubKey);
+        assert.ok(bobViewOfLynn.person);
+        assert.equal(bobViewOfLynn.person!.name, "Lynn");
+        assert.isUndefined(bobViewOfLynn.private_data); // Bob can't see Lynn's private data
       }
     );
   },
-  { timeout: 240000 }
+  240000
 );
 
 test(
@@ -69,15 +69,15 @@ test(
   async () => {
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
-        // Alice creates a person first
-        const personInput = samplePerson({ name: "Alice" });
+        // Lynn creates a person first
+        const personInput = samplePerson({ name: "Lynn" });
         await createPerson(alice.cells[0], personInput);
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Alice stores private data
+        // Lynn stores private data
         const privateDataInput = samplePrivateData({
-          legal_name: "Alice Smith",
+          legal_name: "Lynn Smith",
           email: "alice@example.com",
           address: "123 Main St, Anytown, AT 12345",
         });
@@ -94,21 +94,21 @@ test(
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Alice can see her own private data
+        // Lynn can see her own private data
         const aliceProfile = await getMyProfile(alice.cells[0]);
         assert.ok(aliceProfile.person);
         assert.ok(aliceProfile.private_data);
-        assert.equal(aliceProfile.private_data!.legal_name, "Alice Smith");
+        assert.equal(aliceProfile.private_data!.legal_name, "Lynn Smith");
         assert.equal(aliceProfile.private_data!.email, "alice@example.com");
 
-        // Bob cannot see Alice's private data
-        const bobViewOfAlice = await getAgentProfile(bob.cells[0], alice.agentPubKey);
-        assert.ok(bobViewOfAlice.person);
-        assert.isUndefined(bobViewOfAlice.private_data);
+        // Bob cannot see Lynn's private data
+        const bobViewOfLynn = await getAgentProfile(bob.cells[0], alice.agentPubKey);
+        assert.ok(bobViewOfLynn.person);
+        assert.isUndefined(bobViewOfLynn.private_data);
       }
     );
   },
-  { timeout: 240000 }
+  240000
 );
 
 test(
@@ -120,15 +120,15 @@ test(
         let allAgents = await getAllAgents(alice.cells[0]);
         assert.equal(allAgents.agents.length, 0);
 
-        // Alice creates a person
-        await createPerson(alice.cells[0], samplePerson({ name: "Alice" }));
+        // Lynn creates a person
+        await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Now one agent visible
         allAgents = await getAllAgents(bob.cells[0]);
         assert.equal(allAgents.agents.length, 1);
-        assert.equal(allAgents.agents[0].name, "Alice");
+        assert.equal(allAgents.agents[0].name, "Lynn");
 
         // Bob creates a person
         await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
@@ -140,11 +140,11 @@ test(
         assert.equal(allAgents.agents.length, 2);
         
         const names = allAgents.agents.map(agent => agent.name).sort();
-        assert.deepEqual(names, ["Alice", "Bob"]);
+        assert.deepEqual(names, ["Lynn", "Bob"]);
       }
     );
   },
-  { timeout: 240000 }
+  240000
 );
 
 test(
@@ -153,12 +153,12 @@ test(
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create persons for both agents
-        await createPerson(alice.cells[0], samplePerson({ name: "Alice" }));
+        await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
         await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Alice assigns a role to Bob
+        // Lynn assigns a role to Bob
         const roleInput = sampleRole({
           role_name: TEST_ROLES.STEWARD,
           description: "Community steward role",
@@ -183,13 +183,13 @@ test(
         assert.equal(bobRoles.roles[0].role_name, TEST_ROLES.STEWARD);
         assert.equal(bobRoles.roles[0].assigned_to.toString(), bob.agentPubKey.toString());
 
-        // Alice initially has no roles
+        // Lynn initially has no roles
         const aliceRoles = await getAgentRoles(bob.cells[0], alice.agentPubKey);
         assert.equal(aliceRoles.roles.length, 0);
       }
     );
   },
-  { timeout: 240000 }
+  240000
 );
 
 test(
@@ -198,7 +198,7 @@ test(
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create persons
-        await createPerson(alice.cells[0], samplePerson({ name: "Alice" }));
+        await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
         await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -236,7 +236,7 @@ test(
       }
     );
   },
-  { timeout: 240000 }
+  240000
 );
 
 test(
@@ -245,7 +245,7 @@ test(
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Create persons
-        await createPerson(alice.cells[0], samplePerson({ name: "Alice" }));
+        await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
         await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -265,20 +265,20 @@ test(
         capabilityLevel = await getAgentCapabilityLevel(alice.cells[0], bob.agentPubKey);
         assert.equal(capabilityLevel, CAPABILITY_LEVELS.ACCOUNTABLE);
 
-        // Assign primary role to Alice
+        // Assign primary role to Lynn
         await assignRole(bob.cells[0], sampleRole({
           role_name: TEST_ROLES.PRIMARY,
         }, alice.agentPubKey));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Now Alice has primary accountable capability level
+        // Now Lynn has primary accountable capability level
         capabilityLevel = await getAgentCapabilityLevel(bob.cells[0], alice.agentPubKey);
         assert.equal(capabilityLevel, CAPABILITY_LEVELS.PRIMARY);
       }
     );
   },
-  { timeout: 240000 }
+  240000
 );
 
 test(
@@ -301,5 +301,5 @@ test(
       }
     );
   },
-  { timeout: 240000 }
+  240000
 );

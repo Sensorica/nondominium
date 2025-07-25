@@ -9,7 +9,7 @@ import {
 import { decode } from "@msgpack/msgpack";
 import { Base64 } from "js-base64";
 
-const hAppPath = process.cwd() + "/../workdir/nondominium.happ";
+const hAppPath = process.cwd() + "/../workdir/Nondominium.happ";
 const appSource = {
   appBundleSource: {
     type: "path" as const,
@@ -32,7 +32,7 @@ export async function runScenarioWithTwoAgents(
 
     await scenario.shareAllAgents();
 
-    console.log("Running scenario with Alice and Bob");
+    console.log("Running scenario with Lynn and Bob");
 
     await callback(scenario, alice, bob);
 
