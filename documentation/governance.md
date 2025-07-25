@@ -10,8 +10,8 @@ This document outlines the governance system implemented in the Nondominium proj
 
 The governance system is built on the ValueFlows REA (Resource, Event, Agent) ontology:
 
-- **Agents**: Individual persons or organizations who perform Economic Events affecting Economic Resources
-- **Economic Events**: Actions that produce, modify, consume, use, or transfer Economic Resources
+- **Agents**: Individual persons who perform Economic Events affecting Economic Resources
+- **Economic Events**: Actions that produce, modify, use, or transfer Economic Resources
 - **Economic Resources**: Useful goods, services, knowledge, or any other value that agents agree to account for
 
 ### 2. Multi-Layered Ontology
@@ -181,15 +181,33 @@ pub struct Claim {
 - **Transfer Conditions**: Rules for transferring resources between agents
 - **Maintenance Obligations**: Requirements for resource maintenance and care
 
+### 4. Role-Specific Validation Rules
+
+Agents seeking to acquire specialized roles such as **Transport**, **Repair**, and **Storage** must undergo additional validation, as defined in the Nondominium governance model ([Sensorica Nondominium](https://www.sensorica.co/environment/hrea-demo-for-nrp-cas/nondominium)):
+
+- **Eligibility**: Only Accountable Agents or Primary Accountable Agents may request these roles.
+- **Validation Process**:
+  1. The agent submits a request to acquire a specialized role (Transport, Repair, or Storage).
+  2. The request is reviewed by one or more existing Primary Accountable Agents who already hold the relevant role.
+  3. The reviewing agents validate the applicant's credentials, history, and, if required, their identity and prior actions.
+  4. Upon successful validation, a ValidationReceipt is issued, and the role is granted to the agent.
+  5. The system may require a minimum number of validators (e.g., 2-of-3 or majority) depending on the resource or process sensitivity.
+- **Criteria for Validation**:
+  - Demonstrated trustworthiness and accountability (e.g., successful prior transactions, positive validation history)
+  - Sufficient knowledge or credentials for the requested role
+  - Compliance with any additional governance rules or obligations (e.g., maintenance standards for Storage, safety for Transport)
+- **Revocation**: Roles can be revoked if the agent violates governance rules, as determined by a validation process involving other Primary Accountable Agents.
+
+These validation rules ensure that only qualified and trusted agents can access and perform critical roles, supporting the self-governance, capture resistance, and accountability principles of the Nondominium system.
+
 ## Economic Actions (VfAction)
 
-The governance system supports all ValueFlows economic actions:
+The governance system supports almost all ValueFlows economic actions:
 
 ### Standard ValueFlows Actions
 - **Transfer**: Transfer ownership/custody
 - **Move**: Move resources between locations
 - **Use**: Use resources without consuming
-- **Consume**: Consume/destroy resources
 - **Produce**: Create/produce new resources
 - **Work**: Apply work/labor to resources
 - **Modify**: Modify existing resources
@@ -249,7 +267,7 @@ The governance system is implemented in `zome_gouvernance` with the following co
 ### 3. Security and Privacy
 - **Capability-based security**: Access control through capability tokens
 - **Pseudonymity**: Agent identities can be pseudonymous
-- **Encrypted data**: Sensitive information is encrypted
+- **Private entries**: Sensitive information (such as user identity and PII) is stored as Holochain private entries in the agent's source chain, not as encrypted blobs on the DHT. See [Holochain Private Entries](https://developer.holochain.org/build/entries/).
 - **Audit trails**: All actions are recorded for accountability
 
 ## Governance Principles

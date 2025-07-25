@@ -12,7 +12,7 @@ Our testing approach follows **Holochain community best practices** with emphasi
 - **DHT-Aware Testing**: Accounts for distributed timing and synchronization requirements
 - **Multi-Agent Focus**: Validates true peer-to-peer interactions
 - **Real-World Scenarios**: Tests actual governance and community workflows
-- **Privacy Validation**: Ensures proper encryption and access control boundaries
+- **Privacy Validation**: Ensures proper private entry storage and access control boundaries (see https://developer.holochain.org/build/entries/)
 
 ## Test Architecture
 
@@ -65,7 +65,7 @@ tests/
 - Basic Connectivity Test - Verify zome function calls work
 - Person Creation Test - Validate profile creation functionality
 - Person Profile Retrieval Test - Test profile retrieval and validation
-- Encrypted Data Storage Test - Verify private data encryption/storage
+- Private Data Storage Test - Verify private entry storage
 - Get All Agents Test - Validate community discovery functionality
 - Error Handling Test - Test failure scenarios and edge cases
 
@@ -145,7 +145,7 @@ createTestPerson() → Standard person profile
 createTestPersonVariation(suffix) → Unique profiles for multi-agent tests
 
 // Identity and security data  
-createTestEncryptedData() → Sample encrypted identity data
+createTestPrivateData() → Sample private identity data
 createTestRole() → Standard role assignment data
 ```
 
@@ -155,7 +155,7 @@ Comprehensive response validation:
 
 ```typescript
 validatePersonCreation() → Complete person entry validation
-validateEncryptedDataCreation() → Encrypted data validation  
+validatePrivateDataCreation() → Private data validation  
 validateAgentProfile() → Profile retrieval validation
 ```
 

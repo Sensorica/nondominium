@@ -32,17 +32,18 @@ Stores public-facing information about an agent.
 -   **Links**:
     -   `AllAgents -> AgentProfile`: Anchor for discovering all agent profiles.
 
-#### 3.1.2. `EncryptedProfile`
-Stores private, encrypted PII for an agent. The agent grants read access to this data on a case-by-case basis.
--   **Fields**:
-    -   `encrypted_data: Vec<u8>`: Encrypted blob containing fields like legal name, address, email, photo ID hash.
+#### 3.1.2. `PrivateProfile`
+-   **Description**: Stores an agent's private Personal Identifiable Information (PII) as a Holochain private entry in the agent's source chain. The agent can grant access to this data on a case-by-case basis (see https://developer.holochain.org/build/entries/).
+-   `private_data: ...` (fields like legal name, address, email, photo ID hash)
 -   **Links**:
-    -   `AgentProfile -> EncryptedProfile`: Links the public profile to the private data.
+    -   `AgentProfile -> PrivateProfile`: Links the public profile to the private data.
 
 #### 3.1.3. `Role`
-Defines a specific role an agent can have (e.g., `Repair`, `Transport`, `Storage`).
+Defines a specific role an agent can have (e.g., `User`, `Repair`, `Transport`, `Storage`).
 -   **Fields**:
     -   `role_name: String`
+    -   `validated_by: Option<AgentPubKey>`: The Accountable or Primary Accountable Agent who validated the role assignment (fulfills REQ-GOV-06).
+    -   `validation_receipt: Option<ActionHash>`: Link to the ValidationReceipt for this role assignment.
 -   **Links**:
     -   `AgentProfile -> Role`: Assigns a role to an agent. This link's tag could hold validation info (e.g., who validated the role).
 
@@ -109,11 +110,11 @@ Fulfills a `Commitment`.
     -   `Commitment -> Claim`: Shows a commitment has been actioned.
 
 #### 3.3.4. `ValidationReceipt`
-Records validation of resources or events by Accountable Agents.
+Records validation of resources, events, or agent promotions by Accountable Agents.
 -   **Fields**:
     -   `validator: AgentPubKey`: The agent performing the validation
-    -   `validated_item: ActionHash`: Link to the item being validated (Resource, Event, etc.)
-    -   `validation_type: String`: e.g., "resource_approval", "process_validation", "identity_verification"
+    -   `validated_item: ActionHash`: Link to the item being validated (Resource, Event, Role, or Agent promotion)
+    -   `validation_type: String`: e.g., "resource_approval", "process_validation", "identity_verification", "role_assignment", "agent_promotion"
     -   `approved: bool`: Whether the validation was approved or rejected
     -   `notes: Option<String>`: Optional validation notes
 -   **Links**:
@@ -133,10 +134,11 @@ Tracks the overall validation status of a resource requiring peer review.
 ## 4. Zome Functions (Coordinator Zomes)
 
 ### 4.1. `zome_person` Functions
--   `create_profile(name: String, avatar: Option<String>, encrypted_profile: Vec<u8>) -> Record`
+-   `create_profile(name: String, avatar: Option<String>, private_profile: ...) -> Record`
 -   `get_my_profile() -> (Record, Record)`
 -   `get_agent_profile(agent: AgentPubKey) -> Option<Record>`
--   `assign_role(agent: AgentPubKey, role: String) -> ActionHash` (Requires validation by Accountable Agent)
+-   `assign_role(agent: AgentPubKey, role: String) -> ActionHash` (Requires validation by Accountable Agent; for specialized roles, must follow REQ-GOV-06 validation process)
+-   `promote_agent_to_accountable(simple_agent: AgentPubKey, private_profile_hash: ActionHash) -> ValidationReceipt`: Promotes a Simple Agent to Accountable Agent status after successful validation (REQ-GOV-08).
 
 ### 4.2. `zome_resource` Functions
 -   `create_resource_spec(name: String, description: String, governance_rules: Vec<GovernanceRule>) -> Record`: Creates a new resource specification with embedded governance rules. Fulfills `REQ-GOV-06`.
@@ -167,7 +169,7 @@ Tracks the overall validation status of a resource requiring peer review.
     -   **Capability**: `restricted_access`
 -   `validate_process_event(event_hash: ActionHash) -> ValidationReceipt`: Validates an event related to a core process (e.g., Storage, Repair). Fulfills `REQ-USER-A-08` and `REQ-GOV-05`.
     -   **Capability**: `restricted_access`
--   `validate_agent_identity(simple_agent: AgentPubKey, encrypted_profile_hash: ActionHash) -> ValidationReceipt`: Validates a Simple Agent's identity information and their first resource transfer, potentially promoting them to Accountable Agent status. Fulfills `REQ-USER-S-08` and `REQ-GOV-02`.
+-   `validate_agent_identity(simple_agent: AgentPubKey, private_profile_hash: ActionHash) -> ValidationReceipt`: Validates a Simple Agent's identity information and their first resource transfer, potentially promoting them to Accountable Agent status. Full validation requires access to the agent's private entry. Fulfills REQ-GOV-08.
     -   **Capability**: `restricted_access`
 -   `check_validation_status(resource_hash: ActionHash) -> ResourceValidation`: Returns the current validation status of a resource.
     -   **Capability**: `general_access`
@@ -177,7 +179,8 @@ Tracks the overall validation status of a resource requiring peer review.
 ## 5. Security and Validation
 -   **Capability Tokens**: Zome functions will be protected by capability grants. `Simple Agents` get a general token. `Accountable Agents` get a restricted token after their first validated transaction (`REQ-SEC-01`).
 -   **Validation Logic**:
-    -   The `zome_person` integrity zome will validate that only an Accountable Agent can assign a `Role`.
+    -   The `zome_person` integrity zome will validate that only an Accountable Agent can assign a `Role`, and that specialized roles (Transport, Repair, Storage) require validation by existing Primary Accountable Agents per REQ-GOV-06.
+    -   The `zome_person` integrity zome will validate that promotion from Simple Agent to Accountable Agent requires validation by an Accountable or Primary Accountable Agent, following the process in REQ-GOV-08.
     -   The `zome_resource` integrity zome ensures a resource cannot be created without a valid `ResourceSpecification` and enforces embedded governance rules (`REQ-GOV-07`).
     -   The `zome_governance` integrity zome ensures a `Claim` matches its `Commitment` and validates all validation receipts for authenticity.
 -   **Cross-Zome Calls**: Functions will call other zomes to maintain transactional integrity (e.g., `transfer_custody` must create a valid `EconomicEvent` and enforce governance rules).

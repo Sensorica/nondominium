@@ -26,10 +26,9 @@ Based on the [Nondominium project documentation](https://www.sensorica.co/enviro
   - [ ] Implement validation rules for person creation
   - [ ] Add anchor links for agent discovery (`AllPeople -> Person`)
 
-- [ ] **Encrypted Identity Storage**
-  - [ ] Define `EncryptedAgentData` entry type
-  - [ ] Implement encryption/decryption utilities
-  - [ ] Link encrypted data to public profiles
+- [ ] **Private Identity Storage**
+  - [ ] Define `PrivateAgentData` entry type as a Holochain private entry (see https://developer.holochain.org/build/entries/)
+  - [ ] Link private data to public profiles
 
 - [ ] **Role System Foundation**
   - [ ] Define `Role` entry type with validation metadata
@@ -38,7 +37,7 @@ Based on the [Nondominium project documentation](https://www.sensorica.co/enviro
 
 - [ ] **Core Functions**
   - [ ] `create_person()` - Public profile creation
-  - [ ] `store_encrypted_data()` - PII storage
+  - [ ] `store_private_data()` - PII storage as a private entry
   - [ ] `get_agent_profile()` - Profile retrieval
   - [ ] `get_all_agents()` - Network discovery
 
@@ -100,7 +99,7 @@ Based on the [Nondominium project documentation](https://www.sensorica.co/enviro
 
 - [ ] **Agent Identity Validation**
   - [ ] `validate_agent_identity()` - Validate Simple Agent → Accountable Agent promotion
-  - [ ] Implement encrypted profile verification
+  - [ ] Implement private profile verification
   - [ ] Create validation receipt system
 
 ### Phase 3: Access Control & Security Layer
@@ -220,7 +219,7 @@ dnas/nondominium/zomes/
 
 ### 6.3 Security Metrics
 - [ ] No unauthorized capability escalation
-- [ ] All sensitive data properly encrypted
+- [ ] All sensitive data properly stored as private entries
 - [ ] Validation cannot be bypassed
 - [ ] Resource ownership is immutable
 
