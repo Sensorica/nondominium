@@ -143,7 +143,7 @@ Tracks the overall validation status of a resource requiring peer review.
 ### 4.2. `zome_resource` Functions
 -   `create_resource_spec(name: String, description: String, governance_rules: Vec<GovernanceRule>) -> Record`: Creates a new resource specification with embedded governance rules. Fulfills `REQ-GOV-06`.
     -   **Capability**: `restricted_access` (Only Accountable Agents can define new resource types)
--   `create_economic_resource(spec_hash: ActionHash, quantity: f64, unit: String) -> Record`: Creates a new Economic Resource. This is the first step for a Simple Agent (`REQ-USER-S-05`). Automatically triggers validation process (`REQ-GOV-03`).
+-   `create_economic_resource(spec_hash: ActionHash, quantity: f64, unit: String) -> Record`: Creates a new Economic Resource. This is the first step for a Simple Agent (`REQ-USER-S-05`). Automatically triggers validation process (`REQ-GOV-02`).
     -   **Capability**: `general_access`
 -   `get_all_resource_specs() -> Vec<Record>`: Discovery function for all resource specifications.
     -   **Capability**: `general_access`
@@ -165,7 +165,7 @@ Tracks the overall validation status of a resource requiring peer review.
     -   **Capability**: `restricted_access`
 -   `log_initial_transfer(resource_hash: ActionHash, receiver: AgentPubKey, quantity: f64) -> Record`: A simplified function for a `Simple Agent`'s first transaction (`REQ-USER-S-07`). This triggers the validation process for Simple Agent promotion (`REQ-GOV-02`).
     -   **Capability**: `general_access`
--   `validate_new_resource(resource_hash: ActionHash, validation_scheme: String) -> ValidationReceipt`: Peer-validates a newly created Nondominium Resource. Fulfills `REQ-USER-A-07` and `REQ-GOV-03`. Supports configurable validation schemes (`REQ-GOV-04`).
+-   `validate_new_resource(resource_hash: ActionHash, validation_scheme: String) -> ValidationReceipt`: Peer-validates a newly created Nondominium Resource. Fulfills `REQ-USER-A-07` and `REQ-GOV-02`. Supports configurable validation schemes (`REQ-GOV-04`).
     -   **Capability**: `restricted_access`
 -   `validate_process_event(event_hash: ActionHash) -> ValidationReceipt`: Validates an event related to a core process (e.g., Storage, Repair). Fulfills `REQ-USER-A-08` and `REQ-GOV-05`.
     -   **Capability**: `restricted_access`
@@ -179,9 +179,12 @@ Tracks the overall validation status of a resource requiring peer review.
 ## 5. Security and Validation
 -   **Capability Tokens**: Zome functions will be protected by capability grants. `Simple Agents` get a general token. `Accountable Agents` get a restricted token after their first validated transaction (`REQ-SEC-01`).
 -   **Validation Logic**:
-    -   The `zome_person` integrity zome will validate that only an Accountable Agent can assign a `Role`, and that specialized roles (Transport, Repair, Storage) require validation by existing Primary Accountable Agents per REQ-GOV-06.
-    -   The `zome_person` integrity zome will validate that promotion from Simple Agent to Accountable Agent requires validation by an Accountable or Primary Accountable Agent, following the process in REQ-GOV-08.
+    -   The `zome_person` integrity zome will validate that only an Accountable Agent can assign a `Role`, and that specialized roles (Transport, Repair, Storage) require validation by existing Primary Accountable Agents per REQ-GOV-04 (Specialized Role Validation).
+    -   The `zome_person` integrity zome will validate that promotion from Simple Agent to Accountable Agent requires validation by an Accountable or Primary Accountable Agent, following the process in REQ-GOV-03 (Agent Validation).
     -   The `zome_resource` integrity zome ensures a resource cannot be created without a valid `ResourceSpecification` and enforces embedded governance rules (`REQ-GOV-07`).
+    -   The `zome_resource` integrity zome ensures that new resources start in a 'pending validation' state and are set to 'validated' upon successful peer review, as described in REQ-GOV-02 (Resource Validation).
     -   The `zome_governance` integrity zome ensures a `Claim` matches its `Commitment` and validates all validation receipts for authenticity.
+    -   The system supports configurable validation schemes (e.g., 2-of-3, N-of-M reviewers) for Nondominium Resource approval per REQ-GOV-06 (Multi-Reviewer Validation).
+    -   Certain types of validation are restricted to Agents with specific Roles per REQ-GOV-05 (Role-Gated Validation).
 -   **Cross-Zome Calls**: Functions will call other zomes to maintain transactional integrity (e.g., `transfer_custody` must create a valid `EconomicEvent` and enforce governance rules).
 -   **First Resource Requirement**: The system enforces that Simple Agents must create at least one resource before accessing others (`REQ-GOV-01`), implemented through the `check_first_resource_requirement` function.

@@ -10,7 +10,7 @@ This plan details the phased implementation of the Nondominium hApp, a decentral
 
 - **ValueFlows Compliance**: All data structures and flows adhere to the ValueFlows standard.
 - **Agent-Centric Design**: All data and validation flows from the perspective of individual agents.
-- **Progressive Trust**: Agents earn capabilities through validation (Simple → Accountable → Primary Accountable).
+- [ ] Progressive Trust: Agents earn capabilities through validation (Simple → Accountable → Primary Accountable).
 - **Embedded Governance**: Rules and access control are enforced at the resource and agent level.
 - **Capability-Based Security**: All access is managed through Holochain capability tokens.
 

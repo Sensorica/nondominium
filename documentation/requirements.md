@@ -76,26 +76,23 @@ The agent who has physical possession (custodianship) of a material Nondominium 
 
 ### 5.1 Resource Creation Incentive
 -   **REQ-GOV-01: First Resource Requirement**: Simple Agents must create at least one Nondominium Resource before they can access Nondominium Resources created by other Agents in the network.
--   **REQ-GOV-02: Resource Transfer Validation**: The first transaction (transfer) of a newly created Nondominium Resource must be validated by an Accountable Agent before the creating Simple Agent can be promoted to Accountable Agent status.
-
 ### 5.2 Validation Requirements
--   **REQ-GOV-03: Resource Validation**: New Nondominium Resources must be validated by existing Accountable Agents through a peer review process before being fully accepted into the network.
--   **REQ-GOV-04: Multi-Reviewer Validation**: The system should support configurable validation schemes (e.g., 2-of-3, N-of-M reviewers) for Nondominium Resource approval.
--   **REQ-GOV-05: Role-Gated Validation**: Certain types of validation should be restricted to Agents with specific Roles (e.g., only agents with "Maintainer" role can validate repair processes).
--   **REQ-GOV-06: Specialized Role Validation**: Agents seeking to acquire specialized roles such as `Transport`, `Repair`, and `Storage` must undergo additional validation:
-    -   **Eligibility**: Only Accountable Agents or Primary Accountable Agents may request these roles.
+-   **REQ-GOV-02: Resource Validation**: New Nondominium Resources must be validated by existing Accountable Agents through a peer review process before being fully accepted into the network.
+    -   **Eligibility**: All newly created Nondominium Resources that are set to "available", "needs repair" (for material resources), or "needs storage" (for material resources) are eligible for validation.
     -   **Validation Process**:
-        1. The agent submits a request to acquire a specialized role (Transport, Repair, or Storage).
-        2. The request is reviewed by one or more existing Primary Accountable Agents who already hold the relevant role.
-        3. The reviewing agents validate the applicant's credentials, history, and, if required, their identity and prior actions.
-        4. Upon successful validation, a ValidationReceipt is issued, and the role is granted to the agent.
-        5. The system may require a minimum number of validators (e.g., 2-of-3 or majority) depending on the resource or process sensitivity.
+        1. The Agent (Simple Agent, Accountable Agent, etc.) creates a new Nondominium Resource and sets its status to "available", "needs repair", or "needs storage". At this moment the new Resource is in state "pending validation".
+        2. The Agent initiates a transaction, offering the Resource to an Accountable Agent who has expressed interest in accessing it.
+        3. The Accountable Agent (acting as Primary Accountable Agent, Repair Agent, or Storage Agent depending on the resource status) reviews the Resource during the first access event for this new Resource.
+        4. The Accountable Agent validates the Resource's description, functionality, and compliance with network standards.
+        5. Upon successful validation, a ValidationReceipt is issued, and the resource is fully accepted into the network. The Resource is set to state "validated".
+        6. If no Accountable Agent expresses interest in the Resource, it remains as "pending validation" until interest is shown.
     -   **Criteria for Validation**:
-        - Demonstrated trustworthiness and accountability (e.g., successful prior transactions, positive validation history)
-        - Sufficient knowledge or credentials for the requested role
-        - Compliance with any additional governance rules or obligations (e.g., maintenance standards for Storage, safety for Transport)
-    -   **Revocation**: Roles can be revoked if the agent violates governance rules, as determined by a validation process involving other Primary Accountable Agents.
--   **REQ-GOV-08: Agent Validation**: Simple Agents must be validated by Accountable Agents or Primary Agents to be promoted to  Accountable Agents.
+        - Resource matches its description and metadata
+        - Resource complies with network standards and governance rules
+        - Resource is functional and safe for intended use
+        - Resource creator Agent has provided necessary documentation
+    -   **Revocation**: Resource validation can be revoked if subsequent use reveals the Resource does not meet standards, as determined by a validation process involving other Accountable Agents.
+-   **REQ-GOV-03: Agent Validation**: Simple Agents must be validated by Accountable Agents or Primary Agents to be promoted to  Accountable Agents.
     -   **Eligibility**: Only Simple Agents who are in the process of completing their first least Nondominium Resource creation, as they initiate their first transaction, are eligible for validation.
     -   **Validation Process**:
         1. The Simple Agent requests promotion to Accountable Agent status during their first Nondominium Resource transfer.
@@ -108,11 +105,26 @@ The agent who has physical possession (custodianship) of a material Nondominium 
         - Verified identity and profile (private entry)
         - Compliance with network rules and standards
     -   **Revocation**: Accountable Agent status can be revoked if the Agent violates governance rules, as determined by a validation process involving other Accountable or Primary Accountable Agents.
+-   **REQ-GOV-04: Specialized Role Validation**: Agents seeking to acquire specialized roles such as `Transport`, `Repair`, and `Storage` must undergo additional validation:
+    -   **Eligibility**: Only Accountable Agents or Primary Accountable Agents may request these roles.
+    -   **Validation Process**:
+        1. The agent submits a request to acquire a specialized role (Transport, Repair, or Storage).
+        2. The request is reviewed by one or more existing Primary Accountable Agents who already hold the relevant role.
+        3. The reviewing agents validate the applicant's credentials, history, and, if required, their identity and prior actions.
+        4. Upon successful validation, a ValidationReceipt is issued, and the role is granted to the agent.
+        5. The system may require a minimum number of validators (e.g., 2-of-3 or majority) depending on the resource or process sensitivity.
+    -   **Criteria for Validation**:
+        - Demonstrated trustworthiness and accountability (e.g., successful prior transactions, positive validation history)
+        - Sufficient knowledge or credentials for the requested role
+        - Compliance with any additional governance rules or obligations (e.g., maintenance standards for Storage, safety for Transport)
+    -   **Revocation**: Roles can be revoked if the agent violates governance rules, as determined by a validation process involving other Primary Accountable Agents.
+-   **REQ-GOV-05: Role-Gated Validation**: Certain types of validation should be restricted to Agents with specific Roles (e.g., only agents with "Maintainer" role can validate repair processes).
+-   **REQ-GOV-06: Multi-Reviewer Validation**: The system should support configurable validation schemes (e.g., 2-of-3, N-of-M reviewers) for Nondominium Resource approval.
 
 ### 5.3 Resource Governance Rules
--   **REQ-GOV-06: Embedded Rules**: Each ResourceSpecification must contain embedded governance rules that define how Nondominium Resources of that type can be accessed for use, repair, transport or storage.
--   **REQ-GOV-07: Rule Enforcement**: The system must programmatically enforce the governance rules embedded in ResourceSpecifications.
--   **REQ-GOV-08: Rule Transparency**: All governance rules must be publicly visible and machine-readable.
+-   **REQ-GOV-07: Embedded Rules**: Each ResourceSpecification must contain embedded governance rules that define how Nondominium Resources of that type can be accessed for use, repair, transport or storage.
+-   **REQ-GOV-08: Rule Enforcement**: The system must programmatically enforce the governance rules embedded in ResourceSpecifications.
+-   **REQ-GOV-09: Rule Transparency**: All governance rules must be publicly visible and machine-readable.
 
 ## 6. Security & Access Control
 
