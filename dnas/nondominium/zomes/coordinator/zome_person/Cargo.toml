@@ -13,4 +13,3 @@ serde = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
 thiserror = "1.0"
 zome_person_integrity = { path = "../../integrity/zome_person" }
-nondominium_utils = { path = "../../../../../crates/utils" }

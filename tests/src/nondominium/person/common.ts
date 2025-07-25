@@ -2,17 +2,14 @@ import { CallableCell } from "@holochain/tryorama";
 import { ActionHash, Record as HolochainRecord, Link, AgentPubKey } from "@holochain/client";
 import {
   Person,
-  PrivateAgentData,
-  AgentRole,
-  CreatePersonInput,
-  CreatePersonOutput,
-  StorePrivateDataInput,
-  StorePrivateDataOutput,
-  AgentProfileOutput,
-  GetAllAgentsOutput,
-  AssignRoleInput,
-  AssignRoleOutput,
-  GetAgentRolesOutput,
+  PrivatePersonData,
+  PersonRole,
+  PersonInput,
+  PrivatePersonDataInput,
+  PersonRoleInput,
+  PersonProfileOutput,
+  GetAllPersonsOutput,
+  GetPersonRolesOutput,
   MockPersonData,
   MockRoleData,
   RoleType,
@@ -22,23 +19,26 @@ import {
 // Sample data generators
 export function samplePerson(
   partialPerson: Partial<MockPersonData> = {}
-): CreatePersonInput {
+): PersonInput {
   return {
     name: "John Doe",
     avatar_url: "https://example.com/avatar.png",
+    bio: "A community member",
     ...partialPerson,
   };
 }
 
 export function samplePrivateData(
   partialData: Partial<MockPersonData> = {}
-): StorePrivateDataInput {
+): PrivatePersonDataInput {
   return {
     legal_name: "John Doe Smith",
     address: "123 Main St, Anytown, AT 12345",
     email: "john.doe@example.com",
     phone: "+1-555-123-4567",
     emergency_contact: "Jane Doe, +1-555-987-6543",
+    time_zone: "America/New_York",
+    location: "New York, NY",
     ...partialData,
   };
 }
@@ -46,9 +46,9 @@ export function samplePrivateData(
 export function sampleRole(
   partialRole: Partial<MockRoleData> = {},
   agent_pub_key: AgentPubKey
-): AssignRoleInput {
+): PersonRoleInput {
   return {
-    agent_pub_key,
+    agent_pubkey: agent_pub_key,
     role_name: "Simple Member",
     description: "A basic community member",
     ...partialRole,
@@ -58,8 +58,8 @@ export function sampleRole(
 // Zome function wrappers for person management
 export async function createPerson(
   cell: CallableCell,
-  person: CreatePersonInput
-): Promise<CreatePersonOutput> {
+  person: PersonInput
+): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_person",
     fn_name: "create_person",
@@ -69,64 +69,64 @@ export async function createPerson(
 
 export async function storePrivateData(
   cell: CallableCell,
-  privateData: StorePrivateDataInput
-): Promise<StorePrivateDataOutput> {
+  privateData: PrivatePersonDataInput
+): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_person",
-    fn_name: "store_private_data",
+    fn_name: "store_private_person_data",
     payload: privateData,
   });
 }
 
-export async function getAgentProfile(
+export async function getPersonProfile(
   cell: CallableCell,
   agent_pub_key: AgentPubKey
-): Promise<AgentProfileOutput> {
+): Promise<PersonProfileOutput> {
   return cell.callZome({
     zome_name: "zome_person",
-    fn_name: "get_agent_profile",
+    fn_name: "get_person_profile",
     payload: agent_pub_key,
   });
 }
 
 export async function getMyProfile(
   cell: CallableCell
-): Promise<AgentProfileOutput> {
+): Promise<PersonProfileOutput> {
   return cell.callZome({
     zome_name: "zome_person",
-    fn_name: "get_my_profile",
+    fn_name: "get_my_person_profile",
     payload: null,
   });
 }
 
-export async function getAllAgents(
+export async function getAllPersons(
   cell: CallableCell
-): Promise<GetAllAgentsOutput> {
+): Promise<GetAllPersonsOutput> {
   return cell.callZome({
     zome_name: "zome_person",
-    fn_name: "get_all_agents",
+    fn_name: "get_all_persons",
     payload: null,
   });
 }
 
 export async function assignRole(
   cell: CallableCell,
-  roleInput: AssignRoleInput
-): Promise<AssignRoleOutput> {
+  roleInput: PersonRoleInput
+): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_person",
-    fn_name: "assign_role",
+    fn_name: "assign_person_role",
     payload: roleInput,
   });
 }
 
-export async function getAgentRoles(
+export async function getPersonRoles(
   cell: CallableCell,
   agent_pub_key: AgentPubKey
-): Promise<GetAgentRolesOutput> {
+): Promise<GetPersonRolesOutput> {
   return cell.callZome({
     zome_name: "zome_person",
-    fn_name: "get_agent_roles",
+    fn_name: "get_person_roles",
     payload: agent_pub_key,
   });
 }
@@ -138,53 +138,67 @@ export async function hasRoleCapability(
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "zome_person",
-    fn_name: "has_role_capability",
+    fn_name: "has_person_role_capability",
     payload: [agent_pub_key, required_role],
   });
 }
 
-export async function getAgentCapabilityLevel(
+export async function getCapabilityLevel(
   cell: CallableCell,
   agent_pub_key: AgentPubKey
-): Promise<CapabilityLevel> {
+): Promise<string> {
   return cell.callZome({
     zome_name: "zome_person",
-    fn_name: "get_agent_capability_level",
+    fn_name: "get_person_capability_level",
     payload: agent_pub_key,
+  });
+}
+
+export async function getMyPrivateData(
+  cell: CallableCell
+): Promise<PrivatePersonData | null> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "get_my_private_person_data",
+    payload: null,
   });
 }
 
 // Test helper functions
 export function validatePersonData(
-  expected: CreatePersonInput,
+  expected: PersonInput,
   actual: Person
 ): boolean {
   return (
-    expected.name === actual.name && expected.avatar_url === actual.avatar_url
+    expected.name === actual.name &&
+    expected.avatar_url === actual.avatar_url &&
+    expected.bio === actual.bio
   );
 }
 
 export function validatePrivateData(
-  expected: StorePrivateDataInput,
-  actual: PrivateAgentData
+  expected: PrivatePersonDataInput,
+  actual: PrivatePersonData
 ): boolean {
   return (
     expected.legal_name === actual.legal_name &&
     expected.address === actual.address &&
     expected.email === actual.email &&
     expected.phone === actual.phone &&
-    expected.emergency_contact === actual.emergency_contact
+    expected.emergency_contact === actual.emergency_contact &&
+    expected.time_zone === actual.time_zone &&
+    expected.location === actual.location
   );
 }
 
 export function validateRoleData(
-  expected: AssignRoleInput,
-  actual: AgentRole
+  expected: PersonRoleInput,
+  actual: PersonRole
 ): boolean {
   return (
     expected.role_name === actual.role_name &&
     expected.description === actual.description &&
-    expected.agent_pub_key.toString() === actual.assigned_to.toString()
+    expected.agent_pubkey.toString() === actual.assigned_to.toString()
   );
 }
 
@@ -192,10 +206,10 @@ export function validateRoleData(
 export interface PersonTestContext {
   alice: any;
   bob: any;
-  alicePerson?: CreatePersonOutput;
-  bobPerson?: CreatePersonOutput;
-  alicePrivateData?: StorePrivateDataOutput;
-  bobPrivateData?: StorePrivateDataOutput;
+  alicePerson?: HolochainRecord;
+  bobPerson?: HolochainRecord;
+  alicePrivateData?: HolochainRecord;
+  bobPrivateData?: HolochainRecord;
 }
 
 export async function setupBasicPersons(
@@ -253,38 +267,43 @@ export async function setupPersonsWithPrivateData(
 // Role-related test helpers
 export const TEST_ROLES: Record<string, RoleType> = {
   SIMPLE: "Simple Member",
-  STEWARD: "Community Steward",
-  COORDINATOR: "Resource Coordinator",
   ADVOCATE: "Community Advocate",
-  PRIMARY: "Primary Accountable Agent",
   FOUNDER: "Community Founder",
+  COORDINATOR: "Community Coordinator",
+  MODERATOR: "Community Moderator",
+  RESOURCE_COORDINATOR: "Resource Coordinator",
+  RESOURCE_STEWARD: "Resource Steward",
+  GOVERNANCE_COORDINATOR: "Governance Coordinator",
 };
 
 export const CAPABILITY_LEVELS: Record<string, CapabilityLevel> = {
-  SIMPLE: "simple",
-  ACCOUNTABLE: "accountable",
-  PRIMARY: "primary_accountable",
+  MEMBER: "member",
+  STEWARDSHIP: "stewardship",
+  COORDINATION: "coordination",
+  GOVERNANCE: "governance",
 };
 
 export function getExpectedCapabilityLevel(roles: RoleType[]): CapabilityLevel {
-  const hasPlayfulRole = roles.some((role) =>
-    ["Primary Accountable Agent", "Community Founder"].includes(role)
+  const hasGovernanceRole = roles.some((role) =>
+    ["Community Founder", "Governance Coordinator"].includes(role)
   );
 
-  const hasAccountableRole = roles.some((role) =>
-    [
-      "Community Steward",
-      "Resource Coordinator",
-      "Community Advocate",
-    ].includes(role)
+  const hasCoordinationRole = roles.some((role) =>
+    ["Community Coordinator", "Resource Coordinator", "Community Moderator"].includes(role)
   );
 
-  if (hasPlayfulRole) {
-    return CAPABILITY_LEVELS.PRIMARY;
-  } else if (hasAccountableRole) {
-    return CAPABILITY_LEVELS.ACCOUNTABLE;
+  const hasStewardshipRole = roles.some((role) =>
+    ["Community Advocate", "Resource Steward"].includes(role)
+  );
+
+  if (hasGovernanceRole) {
+    return CAPABILITY_LEVELS.GOVERNANCE;
+  } else if (hasCoordinationRole) {
+    return CAPABILITY_LEVELS.COORDINATION;
+  } else if (hasStewardshipRole) {
+    return CAPABILITY_LEVELS.STEWARDSHIP;
   } else {
-    return CAPABILITY_LEVELS.SIMPLE;
+    return CAPABILITY_LEVELS.MEMBER;
   }
 }
 

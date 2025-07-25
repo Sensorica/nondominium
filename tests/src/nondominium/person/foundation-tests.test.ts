@@ -34,7 +34,11 @@ test(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Lynn creates a person
         const personInput = samplePerson({ name: "Lynn" });
+        console.log("Debug: Creating person with input:", JSON.stringify(personInput, null, 2));
+        console.log("Debug: Alice agent key:", alice.agentPubKey.toString());
+        
         const result = await createPerson(alice.cells[0], personInput);
+        console.log("Debug: Create person result:", JSON.stringify(result, null, 2));
         
         assert.ok(result);
         assert.ok(result.person_hash);
@@ -46,9 +50,21 @@ test(
         assert.ok(result.person.created_at);
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        
+        // Add longer wait for DHT propagation (5 seconds)
+        console.log("Debug: Waiting 5 seconds for DHT propagation...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
+        // First let's check if getAllAgents works
+        console.log("Debug: Getting all agents...");
+        const allAgents = await getAllAgents(alice.cells[0]);
+        console.log("Debug: All agents result:", JSON.stringify(allAgents, null, 2));
+        
         // Lynn can get her own profile
+        console.log("Debug: Getting Alice's profile...");
         const aliceProfile = await getMyProfile(alice.cells[0]);
+        console.log("Debug: Alice's profile result:", JSON.stringify(aliceProfile, null, 2));
         assert.ok(aliceProfile.person);
         assert.equal(aliceProfile.person!.name, "Lynn");
         assert.isUndefined(aliceProfile.private_data); // No private data stored yet
@@ -176,9 +192,15 @@ test(
         assert.ok(result.role.assigned_at);
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        
+        // Add additional wait for role link propagation
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Get Bob's roles
+        console.log("Debug: Getting Bob's roles from Alice's cell...");
         const bobRoles = await getAgentRoles(alice.cells[0], bob.agentPubKey);
+        console.log("Debug: Bob's roles result:", JSON.stringify(bobRoles, null, 2));
         assert.equal(bobRoles.roles.length, 1);
         assert.equal(bobRoles.roles[0].role_name, TEST_ROLES.STEWARD);
         assert.equal(bobRoles.roles[0].assigned_to.toString(), bob.agentPubKey.toString());

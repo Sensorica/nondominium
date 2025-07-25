@@ -1190,7 +1190,6 @@ version = "0.0.1"
 dependencies = [
  "hdk",
  "holochain_serialized_bytes",
- "nondominium_utils",
  "serde",
  "thiserror 1.0.69",
  "zome_person_integrity",
