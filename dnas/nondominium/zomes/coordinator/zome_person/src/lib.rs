@@ -80,22 +80,28 @@ pub fn create_person(input: CreatePersonInput) -> ExternResult<CreatePersonOutpu
 
     let person = Person {
         agent_pub_key: agent_info.agent_initial_pubkey.clone(),
-        name: input.name,
+        name: input.name.clone(),
         avatar_url: input.avatar_url,
         created_at: now,
     };
 
+    debug!("Creating person: {}", person.name);
     let person_hash = create_entry(EntryTypes::Person(person.clone()))?;
+    debug!("Person entry created with hash: {:?}", person_hash);
 
     // Create an anchor link for discovering all persons
     let path = Path::from("all_people");
     let anchor_hash = path.path_entry_hash()?;
+    debug!("Creating link from anchor {:?} to person {:?}", anchor_hash, person_hash);
+    
     create_link(
-        anchor_hash,
+        anchor_hash.clone(),
         person_hash.clone(),
         LinkTypes::AllPeople,
         LinkTag::new("person"),
     )?;
+    
+    debug!("Link created successfully for person: {}", person.name);
 
     Ok(CreatePersonOutput {
         person_hash,
@@ -276,25 +282,38 @@ pub fn get_all_agents(_: ()) -> ExternResult<GetAllAgentsOutput> {
     let path = Path::from("all_people");
     let anchor_hash = path.path_entry_hash()?;
 
+    debug!("Getting all agents - anchor hash: {:?}", anchor_hash);
+
     let links =
         get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllPeople)?.build())?;
+
+    debug!("Found {} links for all_people anchor", links.len());
 
     let mut agents = Vec::new();
 
     for link in links {
-        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target) {
-            if let Some(record) = get(any_dht_hash, GetOptions::default())? {
+        debug!("Processing link: {:?}", link);
+        if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
+            if let Some(record) = get(any_dht_hash.clone(), GetOptions::default())? {
                 if let Ok(Some(EntryTypes::Person(person))) =
                     record.entry().to_app_option::<EntryTypes>().map_err(|_| {
                         wasm_error!(WasmErrorInner::Guest("Failed to deserialize person".into()))
                     })
                 {
+                    debug!("Found person: {}", person.name);
                     agents.push(person);
+                } else {
+                    debug!("Failed to deserialize person from record");
                 }
+            } else {
+                debug!("No record found for hash: {:?}", any_dht_hash);
             }
+        } else {
+            debug!("Failed to convert link target to AnyDhtHash");
         }
     }
 
+    debug!("Returning {} agents", agents.len());
     Ok(GetAllAgentsOutput { agents })
 }
 
