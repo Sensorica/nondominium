@@ -1,5 +1,11 @@
 import fs from "fs";
-import { Conductor, Player, PlayerApp, Scenario, runScenario } from "@holochain/tryorama";
+import {
+  Conductor,
+  Player,
+  PlayerApp,
+  Scenario,
+  runScenario,
+} from "@holochain/tryorama";
 import {
   AppRoleManifest,
   AppWebsocket,
@@ -9,7 +15,7 @@ import {
 import { decode } from "@msgpack/msgpack";
 import { Base64 } from "js-base64";
 
-const hAppPath = process.cwd() + "/../workdir/Nondominium.happ";
+const hAppPath = process.cwd() + "/../workdir/nondominium.happ";
 const appSource = {
   appBundleSource: {
     type: "path" as const,
@@ -22,7 +28,11 @@ export type DnaProperties = {
 };
 
 export async function runScenarioWithTwoAgents(
-  callback: (scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => Promise<void>
+  callback: (
+    scenario: Scenario,
+    alice: PlayerApp,
+    bob: PlayerApp
+  ) => Promise<void>
 ): Promise<void> {
   await runScenario(async (scenario) => {
     const [alice, bob] = await scenario.addPlayersWithApps([
@@ -149,7 +159,7 @@ export function createMockImageBuffer(size: number = 1024): Uint8Array {
   // Fill with mock PNG header and random data
   buffer[0] = 0x89;
   buffer[1] = 0x50;
-  buffer[2] = 0x4E;
+  buffer[2] = 0x4e;
   buffer[3] = 0x47;
   for (let i = 4; i < size; i++) {
     buffer[i] = Math.floor(Math.random() * 256);
@@ -164,20 +174,72 @@ export function createMockImageBuffer(size: number = 1024): Uint8Array {
 export function createValidMockImage(): Uint8Array {
   // Minimal valid PNG file (1x1 transparent pixel)
   return new Uint8Array([
-    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
-    0x00, 0x00, 0x00, 0x0D, // IHDR chunk size
-    0x49, 0x48, 0x44, 0x52, // IHDR
-    0x00, 0x00, 0x00, 0x01, // Width: 1
-    0x00, 0x00, 0x00, 0x01, // Height: 1
-    0x08, 0x06, 0x00, 0x00, 0x00, // Bit depth: 8, Color type: 6 (RGBA), Compression: 0, Filter: 0, Interlace: 0
-    0x1F, 0x15, 0xC4, 0x89, // CRC
-    0x00, 0x00, 0x00, 0x0A, // IDAT chunk size
-    0x49, 0x44, 0x41, 0x54, // IDAT
-    0x78, 0x9C, 0x62, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, // Compressed data
-    0xE2, 0x21, 0xBC, 0x33, // CRC
-    0x00, 0x00, 0x00, 0x00, // IEND chunk size
-    0x49, 0x45, 0x4E, 0x44, // IEND
-    0xAE, 0x42, 0x60, 0x82  // CRC
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a, // PNG signature
+    0x00,
+    0x00,
+    0x00,
+    0x0d, // IHDR chunk size
+    0x49,
+    0x48,
+    0x44,
+    0x52, // IHDR
+    0x00,
+    0x00,
+    0x00,
+    0x01, // Width: 1
+    0x00,
+    0x00,
+    0x00,
+    0x01, // Height: 1
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00, // Bit depth: 8, Color type: 6 (RGBA), Compression: 0, Filter: 0, Interlace: 0
+    0x1f,
+    0x15,
+    0xc4,
+    0x89, // CRC
+    0x00,
+    0x00,
+    0x00,
+    0x0a, // IDAT chunk size
+    0x49,
+    0x44,
+    0x41,
+    0x54, // IDAT
+    0x78,
+    0x9c,
+    0x62,
+    0x00,
+    0x00,
+    0x00,
+    0x02,
+    0x00,
+    0x01, // Compressed data
+    0xe2,
+    0x21,
+    0xbc,
+    0x33, // CRC
+    0x00,
+    0x00,
+    0x00,
+    0x00, // IEND chunk size
+    0x49,
+    0x45,
+    0x4e,
+    0x44, // IEND
+    0xae,
+    0x42,
+    0x60,
+    0x82, // CRC
   ]);
 }
 
@@ -186,5 +248,5 @@ export function createValidMockImage(): Uint8Array {
  * @param ms - Milliseconds to wait
  */
 export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

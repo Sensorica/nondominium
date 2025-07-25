@@ -1,6 +1,6 @@
-manifest_version: '1'
-name: Nondominium
+manifest_version: "1"
+name: nondominium
 ui:
   bundled: ../ui/dist.zip
 happ_manifest:
-  bundled: ./Nondominium.happ
+  bundled: ./nondominium.happ

@@ -13,58 +13,63 @@ import type {
   Update,
 } from "@holochain/client";
 
-export type NondominiumSignal = {
-  type: "EntryCreated";
-  action: SignedActionHashed<Create>;
-  app_entry: EntryTypes;
-} | {
-  type: "EntryUpdated";
-  action: SignedActionHashed<Update>;
-  app_entry: EntryTypes;
-  original_app_entry: EntryTypes;
-} | {
-  type: "EntryDeleted";
-  action: SignedActionHashed<Delete>;
-  original_app_entry: EntryTypes;
-} | {
-  type: "LinkCreated";
-  action: SignedActionHashed<CreateLink>;
-  link_type: string;
-} | {
-  type: "LinkDeleted";
-  action: SignedActionHashed<DeleteLink>;
-  link_type: string;
-};
+export type nondominiumSignal =
+  | {
+      type: "EntryCreated";
+      action: SignedActionHashed<Create>;
+      app_entry: EntryTypes;
+    }
+  | {
+      type: "EntryUpdated";
+      action: SignedActionHashed<Update>;
+      app_entry: EntryTypes;
+      original_app_entry: EntryTypes;
+    }
+  | {
+      type: "EntryDeleted";
+      action: SignedActionHashed<Delete>;
+      original_app_entry: EntryTypes;
+    }
+  | {
+      type: "LinkCreated";
+      action: SignedActionHashed<CreateLink>;
+      link_type: string;
+    }
+  | {
+      type: "LinkDeleted";
+      action: SignedActionHashed<DeleteLink>;
+      link_type: string;
+    };
 
 // ValueFlows Action enum matching the Rust implementation
-export type VfAction = 
+export type VfAction =
   // Standard ValueFlows transfer actions
-  | "Transfer"           // Transfer ownership/custody
-  | "Move"              // Move a resource from one location to another
-  
-  // Standard ValueFlows production/consumption actions  
-  | "Use"               // Use a resource without consuming it
-  | "Consume"           // Consume/destroy a resource
-  | "Produce"           // Create/produce a new resource
-  | "Work"              // Apply work/labor to a resource
-  
+  | "Transfer" // Transfer ownership/custody
+  | "Move" // Move a resource from one location to another
+
+  // Standard ValueFlows production/consumption actions
+  | "Use" // Use a resource without consuming it
+  | "Consume" // Consume/destroy a resource
+  | "Produce" // Create/produce a new resource
+  | "Work" // Apply work/labor to a resource
+
   // Standard ValueFlows modification actions
-  | "Modify"            // Modify an existing resource
-  | "Combine"           // Combine multiple resources
-  | "Separate"          // Separate one resource into multiple
-  
+  | "Modify" // Modify an existing resource
+  | "Combine" // Combine multiple resources
+  | "Separate" // Separate one resource into multiple
+
   // Standard ValueFlows quantity adjustment actions
-  | "Raise"             // Increase quantity/value of a resource
-  | "Lower"             // Decrease quantity/value of a resource
-  
+  | "Raise" // Increase quantity/value of a resource
+  | "Lower" // Decrease quantity/value of a resource
+
   // Standard ValueFlows citation/reference actions
-  | "Cite"              // Reference or cite a resource
-  | "Accept"            // Accept delivery or responsibility
-  
-  // Nondominium-specific actions
-  | "InitialTransfer"   // First transfer by a Simple Agent
-  | "AccessForUse"      // Request access to use a resource
-  | "TransferCustody";  // Transfer custody (Nondominium specific)
+  | "Cite" // Reference or cite a resource
+  | "Accept" // Accept delivery or responsibility
+
+  // nondominium-specific actions
+  | "InitialTransfer" // First transfer by a Simple Agent
+  | "AccessForUse" // Request access to use a resource
+  | "TransferCustody"; // Transfer custody (nondominium specific)
 
 export type EconomicEvent = {
   action: VfAction;

@@ -1,4 +1,4 @@
-# Nondominium
+# nondominium
 
 ## Environment Setup
 
@@ -46,8 +46,8 @@ To package the web happ:
 bun run package
 ```
 
-You'll have the `Nondominium.webhapp` in `workdir`. This is what you should distribute so that the Holochain Launcher can install it.
-You will also have its subcomponent `Nondominium.happ` in the same folder`.
+You'll have the `nondominium.webhapp` in `workdir`. This is what you should distribute so that the Holochain Launcher can install it.
+You will also have its subcomponent `nondominium.happ` in the same folder`.
 
 ## Documentation
 

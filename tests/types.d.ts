@@ -1,4 +1,4 @@
-// Type definitions for Nondominium tests
+// Type definitions for nondominium tests
 
 import { AgentPubKey, ActionHash, Timestamp } from "@holochain/client";
 
@@ -86,9 +86,9 @@ export interface TestAgent {
   roles?: AgentRole[];
 }
 
-export type RoleType = 
+export type RoleType =
   | "Community Steward"
-  | "Resource Coordinator" 
+  | "Resource Coordinator"
   | "Community Advocate"
   | "Primary Accountable Agent"
   | "Community Founder"

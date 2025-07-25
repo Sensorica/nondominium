@@ -1,5 +1,5 @@
 {
-  "name": "Nondominium-dev",
+  "name": "nondominium-dev",
   "private": true,
   "workspaces": [
     "ui",
@@ -9,10 +9,10 @@
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network",
     "network": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun run --filter ui start\" \"bun run launch:happ\" \"hc playground\"",
     "test": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test",
-    "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/Nondominium.happ",
+    "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/nondominium.happ",
     "start:tauri": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) bun run network:tauri",
     "network:tauri": "hc sandbox clean && bun run build:happ && UI_PORT=$(get-port) concurrently \"bun run --filter ui start\" \"bun run launch:tauri\" \"hc playground\"",
-    "launch:tauri": "concurrently \"kitsune2-bootstrap-srv --listen \"127.0.0.1:$BOOTSTRAP_PORT\"\" \"echo pass | RUST_LOG=warn hc launch --piped -n $AGENTS workdir/Nondominium.happ --ui-port $UI_PORT network --bootstrap http://127.0.0.1:\"$BOOTSTRAP_PORT\" webrtc ws://127.0.0.1:\"$BOOTSTRAP_PORT\"\"",
+    "launch:tauri": "concurrently \"kitsune2-bootstrap-srv --listen \"127.0.0.1:$BOOTSTRAP_PORT\"\" \"echo pass | RUST_LOG=warn hc launch --piped -n $AGENTS workdir/nondominium.happ --ui-port $UI_PORT network --bootstrap http://127.0.0.1:\"$BOOTSTRAP_PORT\" webrtc ws://127.0.0.1:\"$BOOTSTRAP_PORT\"\"",
     "package": "bun run build:happ && bun run --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "cargo build --release --target wasm32-unknown-unknown"

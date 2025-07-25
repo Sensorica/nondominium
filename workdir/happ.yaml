@@ -1,6 +1,6 @@
 ---
 manifest_version: "1"
-name: Nondominium
+name: nondominium
 description: "A foundational hApp for commons-based ventures using ValueFlows."
 roles:
   - name: nondominium_instance

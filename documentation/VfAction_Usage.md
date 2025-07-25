@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `VfAction` enum provides type-safe representation of ValueFlows actions in the Nondominium system. It replaces the previous string-based approach with a strongly-typed enum that ensures compile-time validation and better documentation.
+The `VfAction` enum provides type-safe representation of ValueFlows actions in the nondominium system. It replaces the previous string-based approach with a strongly-typed enum that ensures compile-time validation and better documentation.
 
 ## Available Actions
 
@@ -31,11 +31,11 @@ The `VfAction` enum provides type-safe representation of ValueFlows actions in t
 - `Cite` - Reference or cite a resource
 - `Accept` - Accept delivery or responsibility
 
-### Nondominium-Specific Actions
+### nondominium-Specific Actions
 
 - `InitialTransfer` - First transfer by a Simple Agent
 - `AccessForUse` - Request access to use a resource
-- `TransferCustody` - Transfer custody (Nondominium specific)
+- `TransferCustody` - Transfer custody (nondominium specific)
 
 ## Usage Examples
 
@@ -149,7 +149,7 @@ pub enum VfAction {
     // ... existing actions
     
     // New actions
-    CustomAction,    // Custom Nondominium action
+    CustomAction,    // Custom nondominium action
     Delegate,        // Delegate responsibility
     // etc.
 }

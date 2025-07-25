@@ -1,8 +1,8 @@
-# Testing Infrastructure for Nondominium hApp
+# Testing Infrastructure for nondominium hApp
 
 ## Overview
 
-The Nondominium hApp employs a comprehensive, multi-layered testing strategy designed specifically for Holochain applications. This testing infrastructure ensures robust validation of distributed functionality, proper DHT synchronization, and real-world usage patterns while providing clear debugging pathways for development.
+The nondominium hApp employs a comprehensive, multi-layered testing strategy designed specifically for Holochain applications. This testing infrastructure ensures robust validation of distributed functionality, proper DHT synchronization, and real-world usage patterns while providing clear debugging pathways for development.
 
 ## Testing Philosophy
 
@@ -264,7 +264,7 @@ DEBUG=true nix develop --command npm run test:debug
 ### Recent Fixes Applied
 
 1. **API Compatibility**: Updated all tests for HDK 0.5.3 and Tryorama 0.18.x
-2. **Bundle Paths**: Fixed hApp bundle path to use correct capitalization (`Nondominium.happ`)
+2. **Bundle Paths**: Fixed hApp bundle path to use correct capitalization (`nondominium.happ`)
 3. **Type Definitions**: Added proper TypeScript interfaces for all zome outputs
 4. **Player Configuration**: Removed unsupported `agentName` property from player setup
 5. **Environment Integration**: Documented Nix environment requirements
@@ -291,7 +291,7 @@ The layered approach enables systematic debugging:
 Common issues and solutions:
 
 1. **Missing Binaries**: Run tests inside `nix develop` environment
-2. **Bundle Not Found**: Verify `workdir/Nondominium.happ` exists
+2. **Bundle Not Found**: Verify `workdir/nondominium.happ` exists
 3. **API Errors**: Check HDK version compatibility
 4. **Timeout Issues**: Increase DHT sync delays for complex operations
 
@@ -386,7 +386,7 @@ Planned test coverage for:
 
 ## Conclusion
 
-This testing infrastructure provides a robust foundation for ensuring the reliability and functionality of the Nondominium hApp. The layered approach enables systematic development and debugging while the scenario-based testing validates real-world usage patterns.
+This testing infrastructure provides a robust foundation for ensuring the reliability and functionality of the nondominium hApp. The layered approach enables systematic development and debugging while the scenario-based testing validates real-world usage patterns.
 
 **Current Status**: Foundation and Integration tests are API-compatible and ready for environment testing. The infrastructure is designed to scale with the application's complexity, providing clear pathways for adding new test coverage as additional features are implemented.
 

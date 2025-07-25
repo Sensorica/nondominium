@@ -1,8 +1,8 @@
-# Nondominium Implementation Plan
+# nondominium Implementation Plan
 
 ## 1. Executive Summary
 
-This plan details the phased implementation of the Nondominium hApp, a decentralized, organization-agnostic resource management system built on Holochain and ValueFlows. The plan ensures progressive trust, embedded governance, and strict compliance with the requirements and technical specifications.
+This plan details the phased implementation of the nondominium hApp, a decentralized, organization-agnostic resource management system built on Holochain and ValueFlows. The plan ensures progressive trust, embedded governance, and strict compliance with the requirements and technical specifications.
 
 ---
 
@@ -132,4 +132,4 @@ This plan details the phased implementation of the Nondominium hApp, a decentral
 
 ---
 
-This plan ensures the Nondominium hApp will fulfill its vision of decentralized, commons-based resource management, with robust governance and validation at every layer, in strict alignment with the requirements and technical specifications. 
+This plan ensures the nondominium hApp will fulfill its vision of decentralized, commons-based resource management, with robust governance and validation at every layer, in strict alignment with the requirements and technical specifications. 

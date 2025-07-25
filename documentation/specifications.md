@@ -1,10 +1,10 @@
 
-# Nondominium - Technical Specifications
+# nondominium - Technical Specifications
 
 ## 1. Introduction
 
 ### 1.1 Purpose
-This document provides the detailed technical specifications for the Nondominium Holochain application (hApp). It is based on the requirements outlined in `requirements.md` and the architecture described in the Nondominium project document. It is intended for Holochain developers.
+This document provides the detailed technical specifications for the nondominium Holochain application (hApp). It is based on the requirements outlined in `requirements.md` and the architecture described in the nondominium project document. It is intended for Holochain developers.
 
 ### 1.2 Guiding Principles
 -   **Valueflows Compliance**: Data structures will adhere to the Valueflows standard.
@@ -50,7 +50,7 @@ Defines a specific role an agent can have (e.g., `User`, `Repair`, `Transport`, 
 ### 3.2. `zome_resource` Entries
 
 #### 3.2.1. `ResourceSpecification`
-A template for a class of Nondominium resources.
+A template for a class of nondominium resources.
 -   **Fields**:
     -   `name: String`
     -   `description: String`
@@ -67,7 +67,7 @@ A rule embedded within a ResourceSpecification that defines how resources can be
     -   `enforced_by: Option<AgentRole>`: Role required to enforce this rule
 
 #### 3.2.3. `EconomicResource`
-A concrete instance of a Nondominium resource.
+A concrete instance of a nondominium resource.
 -   **Fields**:
     -   `conforms_to: ActionHash`: Link to the `ResourceSpecification`.
     -   `quantity: f64`
@@ -165,7 +165,7 @@ Tracks the overall validation status of a resource requiring peer review.
     -   **Capability**: `restricted_access`
 -   `log_initial_transfer(resource_hash: ActionHash, receiver: AgentPubKey, quantity: f64) -> Record`: A simplified function for a `Simple Agent`'s first transaction (`REQ-USER-S-07`). This triggers the validation process for Simple Agent promotion (`REQ-GOV-02`).
     -   **Capability**: `general_access`
--   `validate_new_resource(resource_hash: ActionHash, validation_scheme: String) -> ValidationReceipt`: Peer-validates a newly created Nondominium Resource. Fulfills `REQ-USER-A-07` and `REQ-GOV-02`. Supports configurable validation schemes (`REQ-GOV-04`).
+-   `validate_new_resource(resource_hash: ActionHash, validation_scheme: String) -> ValidationReceipt`: Peer-validates a newly created nondominium Resource. Fulfills `REQ-USER-A-07` and `REQ-GOV-02`. Supports configurable validation schemes (`REQ-GOV-04`).
     -   **Capability**: `restricted_access`
 -   `validate_process_event(event_hash: ActionHash) -> ValidationReceipt`: Validates an event related to a core process (e.g., Storage, Repair). Fulfills `REQ-USER-A-08` and `REQ-GOV-05`.
     -   **Capability**: `restricted_access`
@@ -184,7 +184,7 @@ Tracks the overall validation status of a resource requiring peer review.
     -   The `zome_resource` integrity zome ensures a resource cannot be created without a valid `ResourceSpecification` and enforces embedded governance rules (`REQ-GOV-07`).
     -   The `zome_resource` integrity zome ensures that new resources start in a 'pending validation' state and are set to 'validated' upon successful peer review, as described in REQ-GOV-02 (Resource Validation).
     -   The `zome_governance` integrity zome ensures a `Claim` matches its `Commitment` and validates all validation receipts for authenticity.
-    -   The system supports configurable validation schemes (e.g., 2-of-3, N-of-M reviewers) for Nondominium Resource approval per REQ-GOV-06 (Multi-Reviewer Validation).
+    -   The system supports configurable validation schemes (e.g., 2-of-3, N-of-M reviewers) for nondominium Resource approval per REQ-GOV-06 (Multi-Reviewer Validation).
     -   Certain types of validation are restricted to Agents with specific Roles per REQ-GOV-05 (Role-Gated Validation).
 -   **Cross-Zome Calls**: Functions will call other zomes to maintain transactional integrity (e.g., `transfer_custody` must create a valid `EconomicEvent` and enforce governance rules).
 -   **First Resource Requirement**: The system enforces that Simple Agents must create at least one resource before accessing others (`REQ-GOV-01`), implemented through the `check_first_resource_requirement` function.

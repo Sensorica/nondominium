@@ -1,47 +1,56 @@
 use hdi::prelude::*;
 
 /// ValueFlows Action enum representing all valid economic actions
-/// Based on the ValueFlows vocabulary with Nondominium-specific extensions
+/// Based on the ValueFlows vocabulary with nondominium-specific extensions
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum VfAction {
     // Standard ValueFlows transfer actions
-    Transfer,           // Transfer ownership/custody
-    Move,              // Move a resource from one location to another
-    
-    // Standard ValueFlows production/consumption actions  
-    Use,               // Use a resource without consuming it
-    Consume,           // Consume/destroy a resource
-    Produce,           // Create/produce a new resource
-    Work,              // Apply work/labor to a resource
-    
+    Transfer, // Transfer ownership/custody
+    Move,     // Move a resource from one location to another
+
+    // Standard ValueFlows production/consumption actions
+    Use,     // Use a resource without consuming it
+    Consume, // Consume/destroy a resource
+    Produce, // Create/produce a new resource
+    Work,    // Apply work/labor to a resource
+
     // Standard ValueFlows modification actions
-    Modify,            // Modify an existing resource
-    Combine,           // Combine multiple resources
-    Separate,          // Separate one resource into multiple
-    
+    Modify,   // Modify an existing resource
+    Combine,  // Combine multiple resources
+    Separate, // Separate one resource into multiple
+
     // Standard ValueFlows quantity adjustment actions
-    Raise,             // Increase quantity/value of a resource
-    Lower,             // Decrease quantity/value of a resource
-    
+    Raise, // Increase quantity/value of a resource
+    Lower, // Decrease quantity/value of a resource
+
     // Standard ValueFlows citation/reference actions
-    Cite,              // Reference or cite a resource
-    Accept,            // Accept delivery or responsibility
-    
-    // Nondominium-specific actions
-    InitialTransfer,   // First transfer by a Simple Agent
-    AccessForUse,      // Request access to use a resource
-    TransferCustody,   // Transfer custody (Nondominium specific)
+    Cite,   // Reference or cite a resource
+    Accept, // Accept delivery or responsibility
+
+    // nondominium-specific actions
+    InitialTransfer, // First transfer by a Simple Agent
+    AccessForUse,    // Request access to use a resource
+    TransferCustody, // Transfer custody (nondominium specific)
 }
 
 impl VfAction {
     /// Returns true if this action requires the resource to already exist
     pub fn requires_existing_resource(&self) -> bool {
         match self {
-            VfAction::Transfer | VfAction::TransferCustody | VfAction::Use | 
-            VfAction::Consume | VfAction::Move | VfAction::Modify |
-            VfAction::Combine | VfAction::Separate | VfAction::Raise |
-            VfAction::Lower | VfAction::Cite | VfAction::Accept |
-            VfAction::InitialTransfer | VfAction::AccessForUse => true,
+            VfAction::Transfer
+            | VfAction::TransferCustody
+            | VfAction::Use
+            | VfAction::Consume
+            | VfAction::Move
+            | VfAction::Modify
+            | VfAction::Combine
+            | VfAction::Separate
+            | VfAction::Raise
+            | VfAction::Lower
+            | VfAction::Cite
+            | VfAction::Accept
+            | VfAction::InitialTransfer
+            | VfAction::AccessForUse => true,
             VfAction::Produce | VfAction::Work => false,
         }
     }
@@ -57,8 +66,12 @@ impl VfAction {
     /// Returns true if this action modifies resource quantity
     pub fn modifies_quantity(&self) -> bool {
         match self {
-            VfAction::Consume | VfAction::Produce | VfAction::Raise | 
-            VfAction::Lower | VfAction::Combine | VfAction::Separate => true,
+            VfAction::Consume
+            | VfAction::Produce
+            | VfAction::Raise
+            | VfAction::Lower
+            | VfAction::Combine
+            | VfAction::Separate => true,
             _ => false,
         }
     }
@@ -66,8 +79,7 @@ impl VfAction {
     /// Returns true if this action changes custody/ownership
     pub fn changes_custody(&self) -> bool {
         match self {
-            VfAction::Transfer | VfAction::TransferCustody | 
-            VfAction::InitialTransfer => true,
+            VfAction::Transfer | VfAction::TransferCustody | VfAction::InitialTransfer => true,
             _ => false,
         }
     }

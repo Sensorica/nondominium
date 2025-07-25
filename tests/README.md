@@ -1,6 +1,6 @@
-# 🧪 Nondominium hApp Tests
+# 🧪 nondominium hApp Tests
 
-Comprehensive test suite for the Nondominium Holochain application using Tryorama testing framework.
+Comprehensive test suite for the nondominium Holochain application using Tryorama testing framework.
 
 ## Quick Start
 

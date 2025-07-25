@@ -1,8 +1,8 @@
-# Governance in Nondominium
+# Governance in nondominium
 
 ## Overview
 
-This document outlines the governance system implemented in the Nondominium project, built on Holochain and using ValueFlows vocabulary and patterns. The governance system is implemented in the `zome_gouvernance` zome and provides the infrastructure for managing economic activities, validation, and accountability in a decentralized sharing economy.
+This document outlines the governance system implemented in the nondominium project, built on Holochain and using ValueFlows vocabulary and patterns. The governance system is implemented in the `zome_gouvernance` zome and provides the infrastructure for managing economic activities, validation, and accountability in a decentralized sharing economy.
 
 ## Core Governance Concepts
 
@@ -138,8 +138,8 @@ pub struct Claim {
 ### 1. Simple Agent
 - **Capabilities**: General capability token
 - **Permissions**:
-  - Search and discover Nondominium resources
-  - Create new Nondominium resources
+  - Search and discover nondominium resources
+  - Create new nondominium resources
   - Complete identity verification
   - Make first transaction to become Accountable Agent
 
@@ -183,7 +183,7 @@ pub struct Claim {
 
 ### 4. Role-Specific Validation Rules
 
-Agents seeking to acquire specialized roles such as **Transport**, **Repair**, and **Storage** must undergo additional validation, as defined in the Nondominium governance model ([Sensorica Nondominium](https://www.sensorica.co/environment/hrea-demo-for-nrp-cas/nondominium)):
+Agents seeking to acquire specialized roles such as **Transport**, **Repair**, and **Storage** must undergo additional validation, as defined in the nondominium governance model ([Sensorica nondominium](https://www.sensorica.co/environment/hrea-demo-for-nrp-cas/nondominium)):
 
 - **Eligibility**: Only Accountable Agents or Primary Accountable Agents may request these roles.
 - **Validation Process**:
@@ -198,7 +198,7 @@ Agents seeking to acquire specialized roles such as **Transport**, **Repair**, a
   - Compliance with any additional governance rules or obligations (e.g., maintenance standards for Storage, safety for Transport)
 - **Revocation**: Roles can be revoked if the agent violates governance rules, as determined by a validation process involving other Primary Accountable Agents.
 
-These validation rules ensure that only qualified and trusted agents can access and perform critical roles, supporting the self-governance, capture resistance, and accountability principles of the Nondominium system.
+These validation rules ensure that only qualified and trusted agents can access and perform critical roles, supporting the self-governance, capture resistance, and accountability principles of the nondominium system.
 
 ## Economic Actions (VfAction)
 
@@ -218,15 +218,15 @@ The governance system supports almost all ValueFlows economic actions:
 - **Cite**: Reference or cite resources
 - **Accept**: Accept delivery or responsibility
 
-### Nondominium-Specific Actions
+### nondominium-Specific Actions
 - **InitialTransfer**: First transfer by a Simple Agent
 - **AccessForUse**: Request access to use a resource
-- **TransferCustody**: Transfer custody (Nondominium specific)
+- **TransferCustody**: Transfer custody (nondominium specific)
 
 ## Governance Workflows
 
 ### 1. Resource Creation and Validation
-1. Simple Agent creates new Nondominium resource
+1. Simple Agent creates new nondominium resource
 2. Resource enters "pending_validation" state
 3. Accountable Agents validate resource
 4. Resource becomes available for access
@@ -315,5 +315,5 @@ The governance system is implemented in `zome_gouvernance` with the following co
 
 - [ValueFlows Core Concepts](https://www.valueflo.ws/introduction/core/)
 - [ValueFlows Governance Patterns](https://www.valueflo.ws/concepts/flows/)
-- [Nondominium Project Documentation](https://www.sensorica.co/environment/hrea-demo-for-nrp-cas/nondominium)
+- [nondominium Project Documentation](https://www.sensorica.co/environment/hrea-demo-for-nrp-cas/nondominium)
 - [Holochain Governance Documentation](https://developer.holochain.org/) 

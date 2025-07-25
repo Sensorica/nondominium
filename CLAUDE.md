@@ -47,7 +47,7 @@ bun run --filter tests test        # Backend test execution
 
 ## Architecture Overview
 
-Nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant resource sharing:
+nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant resource sharing:
 
 ### Zome Architecture
 - **`zome_person`**: Agent identity, profiles, roles, capability-based access

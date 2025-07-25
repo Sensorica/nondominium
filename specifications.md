@@ -1,12 +1,12 @@
-# Nondominium - Technical Specifications
+# nondominium - Technical Specifications
 
 ## 1. Introduction
 
 ### 1.1 Purpose
-This document provides the detailed technical specifications for the Nondominium Holochain application (hApp). It translates the `requirements.md` document into a concrete implementation plan for developers. It is based on the architecture described in the [Nondominium project document](https://www.sensorica.co/environment/hrea-demo-for-nrp-cas/nondominium).
+This document provides the detailed technical specifications for the nondominium Holochain application (hApp). It translates the `requirements.md` document into a concrete implementation plan for developers. It is based on the architecture described in the [nondominium project document](https://www.sensorica.co/environment/hrea-demo-for-nrp-cas/nondominium).
 
 ### 1.2 Guiding Principles
--   **Explicit Naming**: Zomes and entry types will follow the naming convention proposed in the Nondominium document (`zome_person`, `zome_resource`, `zome_gouvernance`).
+-   **Explicit Naming**: Zomes and entry types will follow the naming convention proposed in the nondominium document (`zome_person`, `zome_resource`, `zome_gouvernance`).
 -   **ValueFlows Mapping**: While using the project's naming, the underlying data structures will be compliant with the ValueFlows vocabulary to ensure interoperability.
 -   **Capability-Based Security**: Zome functions will be protected by Holochain's capability grant/claim mechanism to enforce the distinction between `Simple Agent` and `Accountable Agent` roles.
 
@@ -15,7 +15,7 @@ This document provides the detailed technical specifications for the Nondominium
 The DNA will be composed of three coordinator zomes, each with its own corresponding integrity zome.
 
 -   **`zome_person`**: Manages agent identity, profiles, roles, and validation.
--   **`zome_resource`**: Manages the lifecycle of Nondominium Resources and their specifications.
+-   **`zome_resource`**: Manages the lifecycle of nondominium Resources and their specifications.
 -   **`zome_gouvernance`**: Manages the interaction protocols: commitments, claims, and events.
 
 ## 3. Data Structures (Integrity Zome Entries)
@@ -55,7 +55,7 @@ The DNA will be composed of three coordinator zomes, each with its own correspon
     -   `AllResourceSpecifications -> ResourceSpecification`: Anchor for discovery.
 
 #### 3.2.2. `Resource`
--   **Description**: Represents a concrete `EconomicResource` in the ValueFlows vocabulary. A specific instance of a Nondominium resource. Fulfills `REQ-RES-01` to `REQ-RES-07`.
+-   **Description**: Represents a concrete `EconomicResource` in the ValueFlows vocabulary. A specific instance of a nondominium resource. Fulfills `REQ-RES-01` to `REQ-RES-07`.
 -   **Fields**:
     -   `conforms_to: ActionHash`: Link to its `ResourceSpecification`.
     -   `quantity: f64`
