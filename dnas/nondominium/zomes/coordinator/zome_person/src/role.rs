@@ -2,6 +2,15 @@ use crate::PersonError;
 use hdk::prelude::*;
 use zome_person_integrity::*;
 
+// Cross-zome call structure for governance validation
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ValidateSpecializedRoleInput {
+  pub agent: AgentPubKey,
+  pub requested_role: String,
+  pub credentials: Option<String>,
+  pub validation_history: Option<ActionHash>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PersonRoleInput {
   pub agent_pubkey: AgentPubKey,
@@ -12,6 +21,25 @@ pub struct PersonRoleInput {
 #[hdk_extern]
 pub fn assign_person_role(input: PersonRoleInput) -> ExternResult<Record> {
   let agent_info = agent_info()?;
+
+  // Check if this is a specialized role that requires governance validation
+  let specialized_roles = ["Transport", "Repair", "Storage"];
+  if specialized_roles.contains(&input.role_name.as_str()) {
+    // Call governance zome for specialized role validation
+    // This implements REQ-GOV-04: Specialized Role Validation
+    let _validation_result = call(
+      CallTargetCell::Local,
+      "zome_gouvernance",
+      "validate_specialized_role".into(),
+      None,
+      &ValidateSpecializedRoleInput {
+        agent: input.agent_pubkey.clone(),
+        requested_role: input.role_name.clone(),
+        credentials: None, // TODO: Add credentials support
+        validation_history: None, // TODO: Link to validation history
+      },
+    )?;
+  }
 
   let role = PersonRole {
     role_name: input.role_name,

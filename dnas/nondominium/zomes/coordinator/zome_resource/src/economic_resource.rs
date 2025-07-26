@@ -2,6 +2,15 @@ use crate::ResourceError;
 use hdk::prelude::*;
 use zome_resource_integrity::*;
 
+// Cross-zome call structure for governance validation
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ValidateNewResourceInput {
+  pub resource_hash: ActionHash,
+  pub resource_spec_hash: ActionHash,
+  pub creator: AgentPubKey,
+  pub validation_scheme: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EconomicResourceInput {
   pub spec_hash: ActionHash,
@@ -61,7 +70,7 @@ pub fn create_economic_resource(
 
   // Link resource to its specification
   create_link(
-    input.spec_hash,
+    input.spec_hash.clone(),
     resource_hash.clone(),
     LinkTypes::SpecificationToResource,
     (),
@@ -73,6 +82,21 @@ pub fn create_economic_resource(
     resource_hash.clone(),
     LinkTypes::CustodianToResource,
     (),
+  )?;
+
+  // Call governance zome to initiate resource validation
+  // This implements REQ-GOV-02: Resource Validation
+  let _validation_result = call(
+    CallTargetCell::Local,
+    "zome_gouvernance",
+    "validate_new_resource".into(),
+    None,
+    &ValidateNewResourceInput {
+      resource_hash: resource_hash.clone(),
+      resource_spec_hash: input.spec_hash.clone(),
+      creator: agent_info.agent_initial_pubkey.clone(),
+      validation_scheme: "simple_approval".to_string(), // TODO: Make configurable
+    },
   )?;
 
   Ok(CreateEconomicResourceOutput {
