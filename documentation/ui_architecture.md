@@ -6,7 +6,7 @@
 The **requests-and-offers** project demonstrates sophisticated architecture:
 
 **Technology Stack:**
-- SvelteKit + Svelte 5 + TypeScript + TailwindCSS + SkeletonUI ✅
+- SvelteKit + Svelte 5 + TypeScript + TailwindCSS ✅
 - **Effect-TS** for functional programming paradigms
 - Comprehensive testing (Unit, Integration, E2E)
 - 7-layer architecture pattern
@@ -160,7 +160,7 @@ get_my_private_person_data() -> Option<PrivatePersonData>
 ### Phase 1: Foundation Setup
 1. **Migrate to SvelteKit** - Convert from vanilla Svelte
 2. **Add Effect-TS dependencies** - `effect` + related packages
-3. **Setup TailwindCSS + SkeletonUI** - Design system
+3. **Setup TailwindCSS** - Styling framework (sufficient for PoC)
 4. **Create HolochainClientService** - Connection layer with Effect integration
 
 ### Phase 2: Service Layer
@@ -338,11 +338,11 @@ const createAndLinkProfile = (input: PersonInput): E.Effect<Person, PersonError>
 - Basic Svelte 5 setup with Holochain client connection
 - No UI components yet - minimal scaffolding only
 - TypeScript support configured
-- Missing: SvelteKit, TailwindCSS, SkeletonUI, Effect-TS
+- Missing: SvelteKit, TailwindCSS, Effect-TS
 
 ### Migration Steps
 1. **Convert to SvelteKit**: Update build config and routing
-2. **Add dependencies**: Effect-TS, TailwindCSS, SkeletonUI
+2. **Add dependencies**: Effect-TS, TailwindCSS
 3. **Create service layer**: HolochainClientService with Effect integration
 4. **Implement stores**: PersonStore, RoleStore with Effect patterns
 5. **Build components**: Starting with PersonProfile and community directory
