@@ -1212,6 +1212,7 @@ dependencies = [
  "holochain_serialized_bytes",
  "nondominium_utils",
  "serde",
+ "thiserror 1.0.69",
  "zome_resource_integrity",
 ]
 

@@ -1,19 +1,14 @@
 use hdi::prelude::*;
 
 // TODO: Add transport state
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
 pub enum ResourceState {
+    #[default]
     PendingValidation,
     Active,
     Maintenance,
     Retired,
     Reserved,
-}
-
-impl Default for ResourceState {
-    fn default() -> Self {
-        ResourceState::PendingValidation
-    }
 }
 
 impl std::fmt::Display for ResourceState {
@@ -75,6 +70,7 @@ pub enum EntryTypes {
 }
 
 #[hdk_link_types]
+#[derive(Serialize, Deserialize)]
 pub enum LinkTypes {
     // Discovery anchors (inspired by Requests & Offers patterns)
     AllResourceSpecifications,
@@ -89,6 +85,7 @@ pub enum LinkTypes {
     // Agent-centric patterns (from R&O)
     AgentToOwnedSpecs,            // Agent -> ResourceSpecs they created
     AgentToManagedResources,      // Agent -> Resources they manage
+    AgentToOwnedRules,            // Agent -> GovernanceRules they created
     
     // Service-type patterns (inspired by R&O ServiceType queries)
     SpecsByCategory,              // Category -> ResourceSpecs
@@ -98,6 +95,11 @@ pub enum LinkTypes {
     // Governance patterns
     RulesByType,                  // RuleType -> GovernanceRules
     ResourceToValidation,         // EconomicResource -> ValidationRecords
+    
+    // Update patterns (following person zome)
+    ResourceSpecificationUpdates, // Original -> Updated ResourceSpec
+    EconomicResourceUpdates,      // Original -> Updated EconomicResource
+    GovernanceRuleUpdates,        // Original -> Updated GovernanceRule
 }
 
 #[hdk_extern]

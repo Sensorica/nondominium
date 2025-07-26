@@ -24,3 +24,6 @@
 .hc*
 .running
 .hc
+
+# local files
+**/*.local.*
