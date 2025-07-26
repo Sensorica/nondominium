@@ -20,11 +20,11 @@ import {
   validateRoleData,
   TEST_ROLES,
   CAPABILITY_LEVELS,
-} from "./common.js";
+} from "./common.ts";
 import {
   runScenarioWithTwoAgents,
-} from "../utils.js";
-import { Person } from "../../../types.js";
+} from "../utils.ts";
+import { Person } from "../../types.d.ts";
 
 test(
   "create and retrieve Person",
@@ -79,7 +79,7 @@ test(
         // Lynn stores private data
         const privateDataInput = samplePrivateData({
           legal_name: "Lynn Smith",
-          email: "alice@example.com",
+          email: "lynn@example.com",
           address: "123 Main St, Anytown, AT 12345",
         });
 
@@ -95,7 +95,7 @@ test(
         assert.ok(aliceProfile.person);
         assert.ok(aliceProfile.private_data);
         assert.equal(aliceProfile.private_data!.legal_name, "Lynn Smith");
-        assert.equal(aliceProfile.private_data!.email, "alice@example.com");
+        assert.equal(aliceProfile.private_data!.email, "lynn@example.com");
 
         // Bob cannot see Lynn's private data
         const bobViewOfLynn = await getPersonProfile(bob.cells[0], alice.agentPubKey);

@@ -19,8 +19,8 @@ import {
   TEST_ROLES,
   CAPABILITY_LEVELS,
   PersonTestContext,
-} from "./common.js";
-import { runScenarioWithTwoAgents } from "../utils.js";
+} from "./common.ts";
+import { runScenarioWithTwoAgents } from "../utils.ts";
 
 test(
   "Complete user onboarding workflow",
@@ -43,7 +43,7 @@ test(
           alice.cells[0],
           samplePrivateData({
             legal_name: "Lynn Elizabeth Cooper",
-            email: "alice.cooper@example.com",
+            email: "lynn.foster@example.com",
             address: "123 Harmony Lane, Community Springs, CS 12345",
             phone: "+1-555-ALICE-1",
             emergency_contact: "Bob Cooper (spouse), +1-555-BOB-EMG",
@@ -112,7 +112,7 @@ test(
         );
         assert.ok(bobPublicProfile.person);
         assert.equal(bobPublicProfile.person!.name, "Bob Williams");
-        assert.isUndefined(bobPublicProfile.private_data); // Privacy maintained
+        assert.isNull(bobPublicProfile.private_data); // Privacy maintained
 
         // Step 5: Lynn assigns steward role to Bob
         console.log("Step 5: Role assignment and capability delegation");
@@ -182,7 +182,7 @@ test(
       }
     );
   },
-  { timeout: 300000 } // 5 minutes for complex scenario
+  300000 // 5 minutes for complex scenario
 );
 
 test(
@@ -324,7 +324,7 @@ test(
       }
     );
   },
-  { timeout: 300000 }
+  300000
 );
 
 test(
@@ -403,8 +403,8 @@ test(
         assert.equal(bobPublicFromLynn.person!.name, "Bob Community");
 
         // Private data is not visible cross-agent
-        assert.isUndefined(alicePublicFromBob.private_data);
-        assert.isUndefined(bobPublicFromLynn.private_data);
+        assert.isNull(alicePublicFromBob.private_data);
+        assert.isNull(bobPublicFromLynn.private_data);
 
         // Test 2: Self-access to private data
         console.log("Test 2: Self-access to private data");
@@ -489,8 +489,8 @@ test(
           bob.agentPubKey
         );
 
-        assert.isUndefined(alicePublicAfterRole.private_data);
-        assert.isUndefined(bobPublicAfterRole.private_data);
+        assert.isNull(alicePublicAfterRole.private_data);
+        assert.isNull(bobPublicAfterRole.private_data);
 
         // Test 4: Capability checking works without private data exposure
         console.log("Test 4: Capability checking with privacy intact");
@@ -527,7 +527,7 @@ test(
       }
     );
   },
-  { timeout: 300000 }
+  300000
 );
 
 test(
@@ -706,6 +706,6 @@ test(
       }
     );
   },
-  { timeout: 300000 }
+  300000
 );
 

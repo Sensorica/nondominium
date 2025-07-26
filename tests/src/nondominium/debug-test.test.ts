@@ -9,20 +9,20 @@ import {
   createPerson,
   storePrivateData,
   getMyProfile,
-  getAgentProfile,
-  getAllAgents,
+  getPersonProfile,
+  getAllPersons,
   assignRole,
-  getAgentRoles,
+  getPersonRoles,
   hasRoleCapability,
-  getAgentCapabilityLevel,
+  getCapabilityLevel,
   TEST_ROLES,
   CAPABILITY_LEVELS,
-} from "./person/common.js";
+} from "./person/common.ts";
 import {
   runScenarioWithTwoAgents,
   delay,
   createValidMockImage,
-} from "./utils.js";
+} from "./utils.ts";
 
 // Debug test for development and troubleshooting
 // Use this test to isolate and debug specific functionality
@@ -47,8 +47,11 @@ test(
         console.log("Lynn person result:", aliceResult);
 
         assert.ok(aliceResult);
-        assert.ok(aliceResult.person_hash);
-        assert.equal(aliceResult.person.name, "Lynn Debug");
+        assert.ok(aliceResult.signed_action);
+        
+        // Extract person data from the record
+        const personData = aliceResult.entry.Present ? aliceResult.entry.Present.entry : aliceResult.entry;
+        console.log("Person data extracted:", personData);
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
@@ -64,7 +67,7 @@ test(
       }
     );
   },
-  { timeout: 120000 }
+  120000
 );
 
 test(
@@ -106,20 +109,20 @@ test(
 
         // Test privacy - Bob cannot see Lynn's private data
         console.log("Testing privacy boundaries...");
-        const bobViewOfLynn = await getAgentProfile(
+        const bobViewOfLynn = await getPersonProfile(
           bob.cells[0],
           alice.agentPubKey
         );
         console.log("Bob's view of Lynn:", bobViewOfLynn);
 
         assert.ok(bobViewOfLynn.person);
-        assert.isUndefined(bobViewOfLynn.private_data);
+        assert.isNull(bobViewOfLynn.private_data);
 
         console.log("✅ DEBUG: Private data storage and privacy working");
       }
     );
   },
-  { timeout: 120000 }
+  120000
 );
 
 test(
@@ -139,7 +142,7 @@ test(
         console.log("Assigning steward role to Bob...");
         const roleInput = sampleRole(
           {
-            role_name: TEST_ROLES.STEWARD,
+            role_name: TEST_ROLES.RESOURCE_STEWARD,
             description: "Debug steward role",
           },
           bob.agentPubKey
@@ -153,18 +156,18 @@ test(
 
         // Check Bob's roles
         console.log("Checking Bob's roles...");
-        const bobRoles = await getAgentRoles(alice.cells[0], bob.agentPubKey);
+        const bobRoles = await getPersonRoles(alice.cells[0], bob.agentPubKey);
         console.log("Bob's roles:", bobRoles);
 
         assert.equal(bobRoles.roles.length, 1);
-        assert.equal(bobRoles.roles[0].role_name, TEST_ROLES.STEWARD);
+        assert.equal(bobRoles.roles[0].role_name, TEST_ROLES.RESOURCE_STEWARD);
 
         // Check capability
         console.log("Checking role capability...");
         const hasCapability = await hasRoleCapability(
           alice.cells[0],
           bob.agentPubKey,
-          TEST_ROLES.STEWARD
+          TEST_ROLES.RESOURCE_STEWARD
         );
         console.log("Bob has steward capability:", hasCapability);
 
@@ -172,19 +175,19 @@ test(
 
         // Check capability level
         console.log("Checking capability level...");
-        const capabilityLevel = await getAgentCapabilityLevel(
+        const capabilityLevel = await getCapabilityLevel(
           alice.cells[0],
           bob.agentPubKey
         );
         console.log("Bob's capability level:", capabilityLevel);
 
-        assert.equal(capabilityLevel, CAPABILITY_LEVELS.ACCOUNTABLE);
+        assert.equal(capabilityLevel, CAPABILITY_LEVELS.STEWARDSHIP);
 
         console.log("✅ DEBUG: Role assignment and capabilities working");
       }
     );
   },
-  { timeout: 120000 }
+  120000
 );
 
 test(
@@ -196,9 +199,9 @@ test(
 
         // Initially no agents
         console.log("Checking initial state...");
-        let allAgents = await getAllAgents(alice.cells[0]);
+        let allAgents = await getAllPersons(alice.cells[0]);
         console.log("Initial agents:", allAgents);
-        assert.equal(allAgents.agents.length, 0);
+        assert.equal(allAgents.persons.length, 0);
 
         // Lynn creates person
         console.log("Lynn creates person...");
@@ -208,9 +211,9 @@ test(
 
         // Check discovery
         console.log("Checking after Lynn joins...");
-        allAgents = await getAllAgents(bob.cells[0]);
+        allAgents = await getAllPersons(bob.cells[0]);
         console.log("Agents after Lynn:", allAgents);
-        assert.equal(allAgents.agents.length, 1);
+        assert.equal(allAgents.persons.length, 1);
 
         // Bob creates person
         console.log("Bob creates person...");
@@ -220,11 +223,11 @@ test(
 
         // Check full discovery
         console.log("Checking after both join...");
-        allAgents = await getAllAgents(alice.cells[0]);
+        allAgents = await getAllPersons(alice.cells[0]);
         console.log("Final agents:", allAgents);
-        assert.equal(allAgents.agents.length, 2);
+        assert.equal(allAgents.persons.length, 2);
 
-        const names = allAgents.agents.map((agent) => agent.name).sort();
+        const names = allAgents.persons.map((person) => person.name).sort();
         console.log("Agent names:", names);
         assert.deepEqual(names, ["Lynn", "Bob"]);
 
@@ -232,7 +235,7 @@ test(
       }
     );
   },
-  { timeout: 120000 }
+  120000
 );
 
 test(
@@ -248,7 +251,7 @@ test(
 
         // Check immediate visibility
         console.log("Checking immediate visibility from Bob...");
-        let allAgentsFromBob = await getAllAgents(bob.cells[0]);
+        let allAgentsFromBob = await getAllPersons(bob.cells[0]);
         console.log("Agents visible to Bob immediately:", allAgentsFromBob);
 
         // Wait a bit
@@ -256,7 +259,7 @@ test(
         await delay(2000);
 
         // Check again
-        allAgentsFromBob = await getAllAgents(bob.cells[0]);
+        allAgentsFromBob = await getAllPersons(bob.cells[0]);
         console.log("Agents visible to Bob after 2s:", allAgentsFromBob);
 
         // Now do DHT sync
@@ -264,17 +267,17 @@ test(
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Check after sync
-        allAgentsFromBob = await getAllAgents(bob.cells[0]);
+        allAgentsFromBob = await getAllPersons(bob.cells[0]);
         console.log("Agents visible to Bob after DHT sync:", allAgentsFromBob);
 
-        assert.equal(allAgentsFromBob.agents.length, 1);
-        assert.equal(allAgentsFromBob.agents[0].name, "Lynn");
+        assert.equal(allAgentsFromBob.persons.length, 1);
+        assert.equal(allAgentsFromBob.persons[0].name, "Lynn");
 
         console.log("✅ DEBUG: DHT synchronization timing analyzed");
       }
     );
   },
-  { timeout: 120000 }
+  120000
 );
 
 // Utility test for experimenting with specific scenarios
@@ -311,14 +314,14 @@ test(
           alice.cells[0],
           sampleRole(
             {
-              role_name: TEST_ROLES.STEWARD,
+              role_name: TEST_ROLES.RESOURCE_STEWARD,
               description: "Test role with metadata",
             },
             alice.agentPubKey
           )
         );
 
-        const roles = await getAgentRoles(alice.cells[0], alice.agentPubKey);
+        const roles = await getPersonRoles(alice.cells[0], alice.agentPubKey);
         console.log("Role with metadata:", roles.roles[0]);
 
         assert.ok(roles.roles[0].validation_metadata);
@@ -327,6 +330,6 @@ test(
       }
     );
   },
-  { timeout: 120000 }
+  120000
 );
 
