@@ -164,6 +164,8 @@ pub fn get_all_persons(_: ()) -> ExternResult<GetAllPersonsOutput> {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PersonProfileOutput {
     pub person: Option<Person>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub private_data: Option<PrivatePersonData>,
 }
 
 #[hdk_extern]
@@ -175,16 +177,57 @@ pub fn get_person_profile(agent_pubkey: AgentPubKey) -> ExternResult<PersonProfi
             if let Ok(person) = get_latest_person(action_hash) {
                 return Ok(PersonProfileOutput {
                     person: Some(person),
+                    private_data: None, // Private data is only available through get_my_person_profile
                 });
             }
         }
     }
 
-    Ok(PersonProfileOutput { person: None })
+    Ok(PersonProfileOutput { 
+        person: None,
+        private_data: None,
+    })
 }
 
 #[hdk_extern]
 pub fn get_my_person_profile(_: ()) -> ExternResult<PersonProfileOutput> {
     let agent_info = agent_info()?;
-    get_person_profile(agent_info.agent_initial_pubkey)
+    let links = get_agent_person(agent_info.agent_initial_pubkey.clone())?;
+
+    if let Some(link) = links.first() {
+        if let Some(action_hash) = link.target.clone().into_action_hash() {
+            if let Ok(person) = get_latest_person(action_hash.clone()) {
+                let private_data = get_private_data_for_person(action_hash)?;
+                
+                return Ok(PersonProfileOutput {
+                    person: Some(person),
+                    private_data,
+                });
+            }
+        }
+    }
+
+    Ok(PersonProfileOutput { 
+        person: None,
+        private_data: None,
+    })
+}
+
+// Helper function to get private data for a person
+fn get_private_data_for_person(person_hash: ActionHash) -> ExternResult<Option<PrivatePersonData>> {
+    let private_data_links = get_links(
+        GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToPrivateData)?.build(),
+    )?;
+
+    if let Some(private_data_link) = private_data_links.first() {
+        if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
+            if let Some(record) = get(action_hash, GetOptions::default())? {
+                if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
+                    return Ok(Some(private_data));
+                }
+            }
+        }
+    }
+
+    Ok(None)
 }

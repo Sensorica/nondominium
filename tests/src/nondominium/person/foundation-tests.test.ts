@@ -1,6 +1,5 @@
-import { assert, expect, test } from "vitest";
+import { assert, test } from "vitest";
 import { Scenario, PlayerApp, dhtSync } from "@holochain/tryorama";
-import { Record as HolochainRecord } from "@holochain/client";
 
 import {
   samplePerson,
@@ -9,12 +8,13 @@ import {
   createPerson,
   storePrivateData,
   getMyProfile,
-  getAgentProfile,
-  getAllAgents,
+  getPersonProfile,
+  getAllPersons,
   assignRole,
-  getAgentRoles,
+  getPersonRoles,
   hasRoleCapability,
-  getAgentCapabilityLevel,
+  getCapabilityLevel,
+  getMyPrivateData,
   validatePersonData,
   validatePrivateData,
   validateRoleData,
@@ -22,10 +22,9 @@ import {
   CAPABILITY_LEVELS,
 } from "./common.js";
 import {
-  decodeRecord,
   runScenarioWithTwoAgents,
-  createValidMockImage,
 } from "../utils.js";
+import { Person } from "../../../types.js";
 
 test(
   "create and retrieve Person",
@@ -34,46 +33,32 @@ test(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Lynn creates a person
         const personInput = samplePerson({ name: "Lynn" });
-        console.log("Debug: Creating person with input:", JSON.stringify(personInput, null, 2));
-        console.log("Debug: Alice agent key:", alice.agentPubKey.toString());
-        
         const result = await createPerson(alice.cells[0], personInput);
-        console.log("Debug: Create person result:", JSON.stringify(result, null, 2));
         
         assert.ok(result);
-        assert.ok(result.person_hash);
-        assert.ok(result.person);
+        assert.ok(result.signed_action);
         
-        // Validate person data
-        assert.isTrue(validatePersonData(personInput, result.person));
-        assert.equal(result.person.agent_pub_key.toString(), alice.agentPubKey.toString());
-        assert.ok(result.person.created_at);
+        // Extract and validate person data
+        const person: Person = await alice.cells[0].callZome({
+          zome_name: "zome_person",
+          fn_name: "get_latest_person",
+          payload: result.signed_action.hashed.hash,
+        });
+        assert.isTrue(validatePersonData(personInput, person));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
-        
-        // Add longer wait for DHT propagation (5 seconds)
-        console.log("Debug: Waiting 5 seconds for DHT propagation...");
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
-
-        // First let's check if getAllAgents works
-        console.log("Debug: Getting all agents...");
-        const allAgents = await getAllAgents(alice.cells[0]);
-        console.log("Debug: All agents result:", JSON.stringify(allAgents, null, 2));
         
         // Lynn can get her own profile
-        console.log("Debug: Getting Alice's profile...");
         const aliceProfile = await getMyProfile(alice.cells[0]);
-        console.log("Debug: Alice's profile result:", JSON.stringify(aliceProfile, null, 2));
         assert.ok(aliceProfile.person);
         assert.equal(aliceProfile.person!.name, "Lynn");
-        assert.isUndefined(aliceProfile.private_data); // No private data stored yet
+        assert.isNull(aliceProfile.private_data); // No private data stored yet
 
         // Bob can get Lynn's public profile
-        const bobViewOfLynn = await getAgentProfile(bob.cells[0], alice.agentPubKey);
+        const bobViewOfLynn = await getPersonProfile(bob.cells[0], alice.agentPubKey);
         assert.ok(bobViewOfLynn.person);
         assert.equal(bobViewOfLynn.person!.name, "Lynn");
-        assert.isUndefined(bobViewOfLynn.private_data); // Bob can't see Lynn's private data
+        assert.isNull(bobViewOfLynn.private_data); // Bob can't see Lynn's private data
       }
     );
   },
@@ -101,12 +86,7 @@ test(
         const result = await storePrivateData(alice.cells[0], privateDataInput);
         
         assert.ok(result);
-        assert.ok(result.private_data_hash);
-        assert.ok(result.private_data);
-        
-        // Validate private data
-        assert.isTrue(validatePrivateData(privateDataInput, result.private_data));
-        assert.ok(result.private_data.created_at);
+        assert.ok(result.signed_action);
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
@@ -118,9 +98,9 @@ test(
         assert.equal(aliceProfile.private_data!.email, "alice@example.com");
 
         // Bob cannot see Lynn's private data
-        const bobViewOfLynn = await getAgentProfile(bob.cells[0], alice.agentPubKey);
+        const bobViewOfLynn = await getPersonProfile(bob.cells[0], alice.agentPubKey);
         assert.ok(bobViewOfLynn.person);
-        assert.isUndefined(bobViewOfLynn.private_data);
+        assert.isNull(bobViewOfLynn.private_data);
       }
     );
   },
@@ -132,31 +112,31 @@ test(
   async () => {
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
-        // Initially no agents
-        let allAgents = await getAllAgents(alice.cells[0]);
-        assert.equal(allAgents.agents.length, 0);
+        // Initially no persons
+        let allPersons = await getAllPersons(alice.cells[0]);
+        assert.equal(allPersons.persons.length, 0);
 
         // Lynn creates a person
         await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Now one agent visible
-        allAgents = await getAllAgents(bob.cells[0]);
-        assert.equal(allAgents.agents.length, 1);
-        assert.equal(allAgents.agents[0].name, "Lynn");
+        // Now one person visible
+        allPersons = await getAllPersons(bob.cells[0]);
+        assert.equal(allPersons.persons.length, 1);
+        assert.equal(allPersons.persons[0].name, "Lynn");
 
         // Bob creates a person
         await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Now two agents visible
-        allAgents = await getAllAgents(alice.cells[0]);
-        assert.equal(allAgents.agents.length, 2);
+        // Now two persons visible
+        allPersons = await getAllPersons(alice.cells[0]);
+        assert.equal(allPersons.persons.length, 2);
         
-        const names = allAgents.agents.map(agent => agent.name).sort();
-        assert.deepEqual(names, ["Lynn", "Bob"]);
+        const names = allPersons.persons.map(person => person.name).sort();
+        assert.deepEqual(names, ["Bob", "Lynn"]);
       }
     );
   },
@@ -176,37 +156,25 @@ test(
 
         // Lynn assigns a role to Bob
         const roleInput = sampleRole({
-          role_name: TEST_ROLES.STEWARD,
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
           description: "Community steward role",
         }, bob.agentPubKey);
 
         const result = await assignRole(alice.cells[0], roleInput);
         
         assert.ok(result);
-        assert.ok(result.role_hash);
-        assert.ok(result.role);
-        
-        // Validate role data
-        assert.isTrue(validateRoleData(roleInput, result.role));
-        assert.equal(result.role.assigned_by.toString(), alice.agentPubKey.toString());
-        assert.ok(result.role.assigned_at);
+        assert.ok(result.signed_action);
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
-        
-        // Add additional wait for role link propagation
-        await new Promise(resolve => setTimeout(resolve, 1000));
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Get Bob's roles
-        console.log("Debug: Getting Bob's roles from Alice's cell...");
-        const bobRoles = await getAgentRoles(alice.cells[0], bob.agentPubKey);
-        console.log("Debug: Bob's roles result:", JSON.stringify(bobRoles, null, 2));
+        const bobRoles = await getPersonRoles(alice.cells[0], bob.agentPubKey);
         assert.equal(bobRoles.roles.length, 1);
-        assert.equal(bobRoles.roles[0].role_name, TEST_ROLES.STEWARD);
+        assert.equal(bobRoles.roles[0].role_name, TEST_ROLES.RESOURCE_STEWARD);
         assert.equal(bobRoles.roles[0].assigned_to.toString(), bob.agentPubKey.toString());
 
         // Lynn initially has no roles
-        const aliceRoles = await getAgentRoles(bob.cells[0], alice.agentPubKey);
+        const aliceRoles = await getPersonRoles(bob.cells[0], alice.agentPubKey);
         assert.equal(aliceRoles.roles.length, 0);
       }
     );
@@ -229,13 +197,13 @@ test(
         let hasCapability = await hasRoleCapability(
           alice.cells[0], 
           bob.agentPubKey, 
-          TEST_ROLES.STEWARD
+          TEST_ROLES.RESOURCE_STEWARD
         );
         assert.isFalse(hasCapability);
 
         // Assign steward role to Bob
         await assignRole(alice.cells[0], sampleRole({
-          role_name: TEST_ROLES.STEWARD,
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
         }, bob.agentPubKey));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -244,7 +212,7 @@ test(
         hasCapability = await hasRoleCapability(
           alice.cells[0], 
           bob.agentPubKey, 
-          TEST_ROLES.STEWARD
+          TEST_ROLES.RESOURCE_STEWARD
         );
         assert.isTrue(hasCapability);
 
@@ -252,7 +220,7 @@ test(
         hasCapability = await hasRoleCapability(
           alice.cells[0], 
           bob.agentPubKey, 
-          TEST_ROLES.COORDINATOR
+          TEST_ROLES.RESOURCE_COORDINATOR
         );
         assert.isFalse(hasCapability);
       }
@@ -272,31 +240,31 @@ test(
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Initially Bob has simple capability level
-        let capabilityLevel = await getAgentCapabilityLevel(alice.cells[0], bob.agentPubKey);
-        assert.equal(capabilityLevel, CAPABILITY_LEVELS.SIMPLE);
+        // Initially Bob has member capability level
+        let capabilityLevel = await getCapabilityLevel(alice.cells[0], bob.agentPubKey);
+        assert.equal(capabilityLevel, CAPABILITY_LEVELS.MEMBER);
 
-        // Assign accountable role to Bob
+        // Assign stewardship role to Bob
         await assignRole(alice.cells[0], sampleRole({
-          role_name: TEST_ROLES.STEWARD,
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
         }, bob.agentPubKey));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Now Bob has accountable capability level
-        capabilityLevel = await getAgentCapabilityLevel(alice.cells[0], bob.agentPubKey);
-        assert.equal(capabilityLevel, CAPABILITY_LEVELS.ACCOUNTABLE);
+        // Now Bob has stewardship capability level
+        capabilityLevel = await getCapabilityLevel(alice.cells[0], bob.agentPubKey);
+        assert.equal(capabilityLevel, CAPABILITY_LEVELS.STEWARDSHIP);
 
-        // Assign primary role to Lynn
+        // Assign founder role to Lynn
         await assignRole(bob.cells[0], sampleRole({
-          role_name: TEST_ROLES.PRIMARY,
+          role_name: TEST_ROLES.FOUNDER,
         }, alice.agentPubKey));
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        // Now Lynn has primary accountable capability level
-        capabilityLevel = await getAgentCapabilityLevel(bob.cells[0], alice.agentPubKey);
-        assert.equal(capabilityLevel, CAPABILITY_LEVELS.PRIMARY);
+        // Now Lynn has governance capability level
+        capabilityLevel = await getCapabilityLevel(bob.cells[0], alice.agentPubKey);
+        assert.equal(capabilityLevel, CAPABILITY_LEVELS.GOVERNANCE);
       }
     );
   },
@@ -309,14 +277,14 @@ test(
     await runScenarioWithTwoAgents(
       async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
         // Try to get profile for agent without person record
-        const profile = await getAgentProfile(alice.cells[0], bob.agentPubKey);
+        const profile = await getPersonProfile(alice.cells[0], bob.agentPubKey);
         
         // Should return empty profile
         assert.isUndefined(profile.person);
-        assert.isUndefined(profile.private_data);
+        assert.isNull(profile.private_data);
 
         // Try to get roles for agent without person record
-        const roles = await getAgentRoles(alice.cells[0], bob.agentPubKey);
+        const roles = await getPersonRoles(alice.cells[0], bob.agentPubKey);
         
         // Should return empty roles array
         assert.equal(roles.roles.length, 0);
