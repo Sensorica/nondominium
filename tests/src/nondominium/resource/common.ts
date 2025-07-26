@@ -182,13 +182,23 @@ export async function transferCustody(
 
 export async function updateResourceState(
   cell: CallableCell,
-  resource_hash: ActionHash,
-  new_state: ResourceState
+  input: { resource_hash: ActionHash; new_state: ResourceState }
 ): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_resource",
     fn_name: "update_resource_state",
-    payload: { resource_hash, new_state },
+    payload: input,
+  });
+}
+
+export async function getAgentEconomicResources(
+  cell: CallableCell,
+  agent_pubkey: AgentPubKey
+): Promise<Link[]> {
+  return cell.callZome({
+    zome_name: "zome_resource",
+    fn_name: "get_agent_economic_resources",
+    payload: agent_pubkey,
   });
 }
 
@@ -252,6 +262,10 @@ export interface ResourceTestContext {
   bobResource?: CreateEconomicResourceOutput;
   aliceRule?: HolochainRecord;
   bobRule?: HolochainRecord;
+  aliceSpecHash?: ActionHash;
+  bobSpecHash?: ActionHash;
+  aliceResourceHash?: ActionHash;
+  bobResourceHash?: ActionHash;
 }
 
 export async function setupBasicResourceSpecifications(
@@ -262,7 +276,7 @@ export async function setupBasicResourceSpecifications(
   const aliceSpec = await createResourceSpecification(
     alice.cells[0],
     sampleResourceSpecification({
-      name: "Lynn's Tool",
+      name: "Alice's Tool",
       category: "personal_tools",
     })
   );
@@ -280,6 +294,103 @@ export async function setupBasicResourceSpecifications(
     bob,
     aliceSpec,
     bobSpec,
+    aliceSpecHash: aliceSpec.spec_hash,
+    bobSpecHash: bobSpec.spec_hash,
+  };
+}
+
+export async function setupBasicResources(
+  alice: any,
+  bob: any
+): Promise<ResourceTestContext> {
+  const context = await setupBasicResourceSpecifications(alice, bob);
+
+  // Create economic resources based on the specifications
+  const aliceResource = await createEconomicResource(
+    alice.cells[0],
+    sampleEconomicResource(context.aliceSpec!.spec_hash, {
+      quantity: 2.0,
+      unit: "pieces",
+      current_location: "Alice's Workspace",
+    })
+  );
+
+  const bobResource = await createEconomicResource(
+    bob.cells[0],
+    sampleEconomicResource(context.bobSpec!.spec_hash, {
+      quantity: 1.0,
+      unit: "set",
+      current_location: "Bob's Workshop",
+    })
+  );
+
+  return {
+    ...context,
+    aliceResource,
+    bobResource,
+    aliceResourceHash: aliceResource.resource_hash,
+    bobResourceHash: bobResource.resource_hash,
+  };
+}
+
+export async function setupResourcesWithGovernance(
+  alice: any,
+  bob: any
+): Promise<ResourceTestContext> {
+  // Create resource specifications with more governance rules
+  const aliceSpec = await createResourceSpecification(
+    alice.cells[0],
+    sampleResourceSpecification({
+      name: "Alice's Tool",
+      category: "tools",
+      governance_rules: [
+        {
+          rule_type: "usage_limit",
+          rule_data: JSON.stringify({ max_hours_per_day: 8 }),
+          enforced_by: "Resource Steward",
+        },
+        {
+          rule_type: "access_control",
+          rule_data: JSON.stringify({ min_level: "member" }),
+          enforced_by: "Community",
+        },
+      ],
+    })
+  );
+  
+  const bobSpec = await createResourceSpecification(
+    bob.cells[0],
+    sampleResourceSpecification({
+      name: "Bob's Equipment", 
+      category: "equipment",
+      governance_rules: [
+        {
+          rule_type: "maintenance_schedule",
+          rule_data: JSON.stringify({ interval_days: 30 }),
+          enforced_by: "Resource Coordinator",
+        },
+      ],
+    })
+  );
+
+  // Create additional standalone governance rule
+  const additionalRule = await createGovernanceRule(
+    alice.cells[0],
+    sampleGovernanceRule({
+      rule_type: "safety_protocol",
+      rule_data: JSON.stringify({ certification_required: true }),
+      enforced_by: "Safety Officer",
+    })
+  );
+
+  return {
+    alice,
+    bob,
+    aliceSpec,
+    bobSpec,
+    aliceSpecHash: aliceSpec.spec_hash,
+    bobSpecHash: bobSpec.spec_hash,
+    aliceRule: additionalRule,
   };
 }
 
