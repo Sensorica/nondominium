@@ -280,7 +280,7 @@ test(
         const profile = await getPersonProfile(alice.cells[0], bob.agentPubKey);
         
         // Should return empty profile
-        assert.isUndefined(profile.person);
+        assert.isNull(profile.person);
         assert.isNull(profile.private_data);
 
         // Try to get roles for agent without person record
