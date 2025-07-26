@@ -1172,6 +1172,7 @@ dependencies = [
  "holochain_serialized_bytes",
  "nondominium_utils",
  "serde",
+ "thiserror 2.0.12",
  "zome_gouvernance_integrity",
 ]
 

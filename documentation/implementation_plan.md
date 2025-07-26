@@ -49,24 +49,29 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 
 ---
 
-### Phase 2: Governance Layer ⚠️ **IN PROGRESS**
+### Phase 2: Governance Layer 🔄 **IN PROGRESS**
 
-#### 3.4 Economic Event System (`zome_governance`) 🔄 **NEXT PRIORITY**
-- [ ] **Integration Priority**: Cross-zome calls from resource zome to governance validation
-- [ ] Implement `EconomicEvent`, `Commitment`, and `Claim` entries
-- [ ] Functions:
-  - [ ] `validate_new_resource()` (called from resource zome, peer validation schemes)
-  - [ ] `validate_agent_identity()` (agent promotion workflow)
-  - [ ] `log_economic_event()`, `propose_commitment()`, `claim_commitment()`
-  - [ ] `check_validation_status()`, `get_validation_history()`
+#### 3.4 Economic Event System (`zome_governance`) ✅ **CORE COMPLETE**
+- [x] **Basic Functions**: `log_economic_event()`, `propose_commitment()`, `log_initial_transfer()`
+- [x] **Validation Infrastructure**: `create_validation_receipt()`, `get_validation_history()`
+- [x] **Resource Validation**: `create_resource_validation()`, `check_validation_status()`
+- [x] **Discovery Functions**: `get_all_validation_receipts()`, `get_all_economic_events()`
+- [x] **Error Handling**: `GovernanceError` enum with comprehensive error types
+- [x] **Critical Cross-Zome Functions**:
+  - [x] `validate_new_resource()` (called from resource zome during creation)
+  - [x] `validate_agent_identity()` (called during Simple → Accountable promotion)
+  - [x] `validate_specialized_role()` (called during role assignment)
+- [ ] **Modular Architecture**: Refactor into modules (`validation.rs`, `economic_event.rs`, `commitment.rs`)
+- [ ] **Cross-Zome Integration**: Implement calls from person/resource zomes to governance functions
 
 #### 3.5 Peer Validation & Promotion 🔄 **NEXT PRIORITY**
-- [ ] **Critical Integration**: Connect resource creation with governance validation
-- [ ] Implement validation workflows:
-  - [ ] Resource validation (REQ-GOV-03, REQ-GOV-04) - **blocks resource finalization**
-  - [ ] Specialized role validation (REQ-GOV-06) - **blocks role assignment**
-  - [ ] Agent promotion (REQ-GOV-08) - **blocks capability escalation**
-- [ ] Validation receipt linking and audit trail completion
+- [ ] **Cross-Zome Integration**: Resource creation triggers governance validation workflow
+- [ ] **Validation Workflows** (REQ-GOV-02, REQ-GOV-03, REQ-GOV-04):
+  - [ ] Resource validation during first access event - **blocks resource finalization**
+  - [ ] Simple Agent → Accountable Agent promotion - **blocks capability escalation** 
+  - [ ] Specialized role validation (Transport, Repair, Storage) - **blocks role assignment**
+- [ ] **Validation Schemes**: 2-of-3, N-of-M reviewer support (REQ-GOV-06)
+- [ ] **Audit Trail**: Complete validation receipt linking and status tracking
 
 ---
 
