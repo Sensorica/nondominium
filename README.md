@@ -1,59 +1,162 @@
-# nondominium
+# Nondominium
+
+A **ValueFlows-compliant resource sharing Holochain application** implementing distributed, agent-centric resource management with embedded governance.
+
+## Overview
+
+Nondominium is a 3-zome Holochain hApp that enables decentralized resource sharing through:
+
+- **Agent identity management** with role-based access control
+- **Resource lifecycle tracking** following ValueFlows standards
+- **Embedded governance** for access and transfer rules
+- **Capability-based security** using Holochain's native features
+
+### Architecture
+
+**Zome Structure:**
+
+- `zome_person`: Agent profiles, roles, and capability-based access
+- `zome_resource`: Resource specifications and lifecycle management
+- `zome_gouvernance`: Commitments, economic events, and governance rules
+
+**Technology Stack:**
+
+- Backend: Rust (Holochain HDK/HDI 0.5.x-0.6.x) compiled to WASM
+- Frontend: Svelte 5.0 + TypeScript + Vite 6.2.5
+- Testing: Vitest 3.1.3 + @holochain/tryorama 0.18.2
+- Client: @holochain/client 0.19.0
 
 ## Environment Setup
 
-> PREREQUISITE: set up the [holochain development environment](https://developer.holochain.org/docs/install/).
+> **PREREQUISITE**: Set up the [Holochain development environment](https://developer.holochain.org/docs/install/).
 
-Enter the nix shell by running this in the root folder of the repository: 
-
-```bash
-nix develop
-bun install
-```
-
-**Run all the other instructions in this README from inside this nix shell, otherwise they won't work**.
-
-## Running 2 agents
- 
-```bash
-bun run start
-```
-
-This will create a network of 2 nodes connected to each other and their respective UIs.
-It will also bring up the Holochain Playground for advanced introspection of the conductors.
-
-## Running the backend tests
+Enter the nix shell by running this in the root folder of the repository:
 
 ```bash
-bun run test
+nix develop              # Enter reproducible environment (REQUIRED)
+bun install              # Install all dependencies
 ```
 
-## Bootstrapping a network
+**⚠️ Run all commands from within the nix shell, otherwise they won't work.**
 
-Create a custom network of nodes connected to each other and their respective UIs with:
+## Development Workflow
+
+### Quick Start
 
 ```bash
-AGENTS=3 bun run network
+bun run start           # Start 2-agent development network with UIs
 ```
 
-Substitute the "3" for the number of nodes that you want to bootstrap in your network.
-This will also bring up the Holochain Playground for advanced introspection of the conductors.
+This creates a network of 2 nodes with their respective UIs and the Holochain Playground for conductor introspection.
 
-## Packaging
+### Custom Network
+
+```bash
+AGENTS=3 bun run network    # Bootstrap custom agent network (replace 3 with desired count)
+```
+
+### Testing
+
+```bash
+bun run test                    # Run full test suite
+npm run test:foundation         # Basic zome connectivity tests
+npm run test:integration        # Multi-agent interaction tests
+npm run test:scenarios          # Complete workflow simulations
+npm run test:person             # Person management test suite
+npm run test:debug              # Verbose test output
+```
+
+### Build Pipeline
+
+```bash
+bun run build:zomes     # Compile Rust zomes to WASM
+bun run build:happ      # Package DNA into .happ bundle
+bun run package         # Create final .webhapp distribution
+```
+
+### Individual Workspaces
+
+```bash
+bun run --filter ui start      # Frontend development server
+bun run --filter tests test    # Backend test execution
+```
+
+## Data Model
+
+### Core Principles
+
+- **Agent-Centric**: All data tied to individual agents with public/private separation
+- **ValueFlows Compliance**: EconomicResource, EconomicEvent, Commitment data structures
+- **Privacy by Design**: Public profiles with encrypted private data
+- **Capability-Based Security**: Role-based access using Holochain capability tokens
+
+### Entry Patterns
+
+All zomes follow consistent patterns for:
+
+- `create_[entry_type]`: Creates entries with discovery anchor links
+- `get_[entry_type]`: Retrieves entries by hash
+- `get_all_[entry_type]`: Discovery via anchor traversal
+- `update_[entry_type]`: Updates with validation
+- `delete_[entry_type]`: Soft deletion marking
+
+## Testing Architecture
+
+**4-Layer Strategy:**
+
+1. **Foundation**: Basic zome function calls and connectivity
+2. **Integration**: Cross-zome interactions and multi-agent scenarios
+3. **Scenarios**: Complete user journeys and workflows
+4. **Performance**: Load and stress testing (planned)
+
+**Test Configuration:**
+
+- Timeout: 4 minutes for complex multi-agent scenarios
+- Concurrency: Single fork execution for DHT consistency
+- Agent Simulation: Supports 2+ distributed agents per test
+
+## Distribution
 
 To package the web happ:
-``` bash
+
+```bash
 bun run package
 ```
 
-You'll have the `nondominium.webhapp` in `workdir`. This is what you should distribute so that the Holochain Launcher can install it.
-You will also have its subcomponent `nondominium.happ` in the same folder`.
+This generates:
+
+- `nondominium.webhapp` in `workdir/` (for Holochain Launcher installation)
+- `nondominium.happ` (subcomponent bundle)
+
+## Development Status
+
+- ✅ **Phase 1**: Person management with role-based access control
+- 🔄 **Phase 2**: Resource lifecycle and governance implementation
 
 ## Documentation
 
-This repository is using these tools:
-- [NPM Workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces/): npm v7's built-in monorepo capabilities.
-- [hc](https://github.com/holochain/holochain/tree/develop/crates/hc): Holochain CLI to easily manage Holochain development instances.
-- [@holochain/tryorama](https://www.npmjs.com/package/@holochain/tryorama): test framework.
-- [@holochain/client](https://www.npmjs.com/package/@holochain/client): client library to connect to Holochain from the UI.
-- [hc playground](https://github.com/darksoil-studio/holochain-playground): introspection tooling to understand what's going on in the Holochain nodes.
+### Project Documentation
+
+- [Requirements](documentation/requirements.md) - Project goals and functional requirements
+- [Specifications](documentation/specifications.md) - Detailed technical specifications
+- [Implementation Plan](documentation/implementation_plan.md) - Development roadmap and phase breakdown
+- [Governance](documentation/governance.md) - Governance model and decision-making processes
+- [UI Architecture](documentation/ui_architecture.md) - Frontend architecture and design patterns
+- [Testing Infrastructure](documentation/Testing_Infrastructure.md) - Testing strategy and framework details
+- [ValueFlows Action Usage](documentation/VfAction_Usage.md) - ValueFlows implementation patterns
+
+### Zome Documentation
+
+- [Architecture Overview](documentation/zomes/architecture_overview.md) - Overall zome architecture and interactions
+- [Person Zome](documentation/zomes/person_zome.md) - Agent identity and profile management
+- [Resource Zome](documentation/zomes/resource_zome.md) - Resource lifecycle and management
+
+## Technology Stack
+
+- [Holochain](https://holochain.org/): Distributed application framework
+- [NPM Workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces/): Monorepo management
+- [hc](https://github.com/holochain/holochain/tree/develop/crates/hc): Holochain CLI development tool
+- [@holochain/tryorama](https://www.npmjs.com/package/@holochain/tryorama): Testing framework
+- [@holochain/client](https://www.npmjs.com/package/@holochain/client): UI-to-Holochain client library
+- [Holochain Playground](https://github.com/darksoil-studio/holochain-playground): Development introspection tools
+- [ValueFlows](https://www.valuefflows.org/): Economic coordination ontology
