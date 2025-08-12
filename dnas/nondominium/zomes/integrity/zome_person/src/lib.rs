@@ -95,6 +95,70 @@ impl FromStr for RoleType {
   }
 }
 
+/// Status of a data access request
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum RequestStatus {
+  Pending,
+  Approved,
+  Denied,
+  Expired,
+  Revoked,
+}
+
+impl Display for RequestStatus {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Pending => write!(f, "pending"),
+      Self::Approved => write!(f, "approved"),
+      Self::Denied => write!(f, "denied"),
+      Self::Expired => write!(f, "expired"),
+      Self::Revoked => write!(f, "revoked"),
+    }
+  }
+}
+
+/// Represents a grant of access to specific private data fields
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct DataAccessGrant {
+  /// Agent who is granted access
+  pub granted_to: AgentPubKey,
+  /// Agent who granted the access (data owner)
+  pub granted_by: AgentPubKey,
+  /// Specific fields that are accessible (e.g., ["email", "phone", "location"])
+  pub fields_granted: Vec<String>,
+  /// Context for the access (e.g., "custodian_transfer")
+  pub context: String,
+  /// Optional link to specific resource for context
+  pub resource_hash: Option<ActionHash>,
+  /// When this grant expires
+  pub expires_at: Timestamp,
+  /// When this grant was created
+  pub created_at: Timestamp,
+}
+
+/// Represents a request for access to private data
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct DataAccessRequest {
+  /// Agent from whom data is requested
+  pub requested_from: AgentPubKey,
+  /// Agent who is making the request
+  pub requested_by: AgentPubKey,
+  /// Specific fields being requested
+  pub fields_requested: Vec<String>,
+  /// Context for the request
+  pub context: String,
+  /// Optional link to specific resource for context
+  pub resource_hash: Option<ActionHash>,
+  /// Justification for why access is needed
+  pub justification: String,
+  /// Current status of the request
+  pub status: RequestStatus,
+  /// When this request was created
+  pub created_at: Timestamp,
+}
+
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
@@ -102,6 +166,8 @@ pub enum EntryTypes {
   #[entry_type(visibility = "private")]
   PrivatePersonData(PrivatePersonData),
   PersonRole(PersonRole),
+  DataAccessGrant(DataAccessGrant),
+  DataAccessRequest(DataAccessRequest),
 }
 
 #[hdk_link_types]
@@ -118,6 +184,15 @@ pub enum LinkTypes {
   PersonToRoles,
   // Role updates (for versioning)
   RoleUpdates,
+  // Data access management
+  AgentToDataGrants,        // Track grants given by agent
+  AgentToDataRequests,      // Track requests made by agent
+  AgentToIncomingRequests,  // Track requests received by agent
+  ResourceToDataGrants,     // Link grants to specific resource transfers
+  PersonToAccessLog,        // Audit trail of data access
+  // Data access updates (for versioning)
+  DataAccessGrantUpdates,
+  DataAccessRequestUpdates,
 }
 
 #[hdk_extern]
@@ -148,6 +223,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
           EntryTypes::PersonRole(role) => {
             return validate_person_role(role);
+          }
+          EntryTypes::DataAccessGrant(grant) => {
+            return validate_data_access_grant(grant);
+          }
+          EntryTypes::DataAccessRequest(request) => {
+            return validate_data_access_request(request);
           }
         }
       }
@@ -210,6 +291,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
           EntryTypes::PersonRole(_) => {
             return validate_delete_person_role();
+          }
+          EntryTypes::DataAccessGrant(_) => {
+            return validate_delete_data_access_grant();
+          }
+          EntryTypes::DataAccessRequest(_) => {
+            return validate_delete_data_access_request();
           }
         }
       }
@@ -305,4 +392,85 @@ pub fn validate_delete_private_person_data() -> ExternResult<ValidateCallbackRes
 
 pub fn validate_delete_person_role() -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid) // Allow role deletion for role transfers
+}
+
+pub fn validate_data_access_grant(grant: DataAccessGrant) -> ExternResult<ValidateCallbackResult> {
+  // Validate fields_granted contains only allowed fields
+  let allowed_fields = ["email", "phone", "location", "time_zone", "emergency_contact"];
+  for field in &grant.fields_granted {
+    if !allowed_fields.contains(&field.as_str()) {
+      return Ok(ValidateCallbackResult::Invalid(format!(
+        "Field '{}' is not allowed to be shared. Allowed fields: {:?}",
+        field, allowed_fields
+      )));
+    }
+  }
+
+  // Validate context is not empty
+  if grant.context.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Data access grant context cannot be empty".to_string(),
+    ));
+  }
+
+  // Validate expiration is in the future
+  if grant.expires_at <= grant.created_at {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Data access grant expiration must be in the future".to_string(),
+    ));
+  }
+
+  // Validate max expiration time (7 days from creation)
+  let max_duration = 7 * 24 * 60 * 60 * 1_000_000; // 7 days in microseconds
+  if grant.expires_at.as_micros() - grant.created_at.as_micros() > max_duration {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Data access grant cannot exceed 7 days duration".to_string(),
+    ));
+  }
+
+  Ok(ValidateCallbackResult::Valid)
+}
+
+pub fn validate_data_access_request(request: DataAccessRequest) -> ExternResult<ValidateCallbackResult> {
+  // Validate fields_requested contains only allowed fields
+  let allowed_fields = ["email", "phone", "location", "time_zone", "emergency_contact"];
+  for field in &request.fields_requested {
+    if !allowed_fields.contains(&field.as_str()) {
+      return Ok(ValidateCallbackResult::Invalid(format!(
+        "Field '{}' is not allowed to be requested. Allowed fields: {:?}",
+        field, allowed_fields
+      )));
+    }
+  }
+
+  // Validate context is not empty
+  if request.context.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Data access request context cannot be empty".to_string(),
+    ));
+  }
+
+  // Validate justification is not empty
+  if request.justification.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Data access request justification cannot be empty".to_string(),
+    ));
+  }
+
+  // Validate justification is reasonable length
+  if request.justification.len() > 500 {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Data access request justification too long (max 500 characters)".to_string(),
+    ));
+  }
+
+  Ok(ValidateCallbackResult::Valid)
+}
+
+pub fn validate_delete_data_access_grant() -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Valid) // Allow deletion for revocation
+}
+
+pub fn validate_delete_data_access_request() -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Valid) // Allow deletion for cleanup
 }

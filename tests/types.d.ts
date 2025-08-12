@@ -256,3 +256,61 @@ export interface TransferCustodyOutput {
   updated_resource_hash: ActionHash;
   updated_resource: EconomicResource;
 }
+
+// Private Data Sharing types
+export type RequestStatus = "Pending" | "Approved" | "Denied" | "Expired" | "Revoked";
+
+export interface DataAccessGrant {
+  granted_to: AgentPubKey;
+  granted_by: AgentPubKey;
+  fields_granted: string[];
+  context: string;
+  resource_hash?: ActionHash;
+  expires_at: Timestamp;
+  created_at: Timestamp;
+}
+
+export interface DataAccessRequest {
+  requested_from: AgentPubKey;
+  requested_by: AgentPubKey;
+  fields_requested: string[];
+  context: string;
+  resource_hash?: ActionHash;
+  justification: string;
+  status: RequestStatus;
+  created_at: Timestamp;
+}
+
+export interface DataAccessRequestInput {
+  requested_from: AgentPubKey;
+  fields_requested: string[];
+  context: string;
+  resource_hash?: ActionHash;
+  justification: string;
+}
+
+export interface DataAccessGrantInput {
+  granted_to: AgentPubKey;
+  fields_granted: string[];
+  context: string;
+  resource_hash?: ActionHash;
+  duration_days?: number;
+}
+
+export interface RespondToDataRequestInput {
+  request_hash: ActionHash;
+  approve: boolean;
+  duration_days?: number;
+}
+
+export interface SharedPrivateData {
+  fields: { [key: string]: string };
+  granted_by: AgentPubKey;
+  context: string;
+  expires_at: Timestamp;
+}
+
+export interface RequestCoordinationInfoInput {
+  resource_hash: ActionHash;
+  previous_custodian: AgentPubKey;
+}

@@ -2,10 +2,12 @@ use hdk::prelude::*;
 
 pub mod person;
 pub mod private_data;
+pub mod private_data_sharing;
 pub mod role;
 
 pub use person::*;
 pub use private_data::*;
+pub use private_data_sharing::*;
 pub use role::*;
 
 #[derive(Debug, thiserror::Error)]

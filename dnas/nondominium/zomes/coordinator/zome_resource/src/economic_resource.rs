@@ -317,6 +317,17 @@ pub fn check_first_resource_requirement(agent_pub_key: AgentPubKey) -> ExternRes
 pub struct TransferCustodyInput {
   pub resource_hash: ActionHash,
   pub new_custodian: AgentPubKey,
+  pub request_contact_info: Option<bool>, // Whether to auto-request private data for coordination
+}
+
+// Cross-zome call structure for requesting private data access
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DataAccessRequestInput {
+  pub requested_from: AgentPubKey,
+  pub fields_requested: Vec<String>,
+  pub context: String,
+  pub resource_hash: Option<ActionHash>,
+  pub justification: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -349,6 +360,20 @@ pub fn transfer_custody(input: TransferCustodyInput) -> ExternResult<TransferCus
 
   // TODO: In Phase 2, check governance rules and validate with zome_governance
   // TODO: In Phase 2, check that the calling agent has restricted_access capability
+
+  // If requested, create a private data access request for coordination
+  // This allows the new custodian to request contact info from the current custodian
+  if input.request_contact_info.unwrap_or(true) {
+    // We can't directly create a request on behalf of another agent
+    // Instead, we'll create a special entry that the new custodian can use to auto-request
+    // This is logged for now - in practice, the UI would handle this workflow
+    debug!(
+      "Custody transfer initiated from {} to {} for resource {}. New custodian should request contact info for coordination.",
+      agent_info.agent_initial_pubkey,
+      input.new_custodian,
+      input.resource_hash
+    );
+  }
 
   // Update the custodian
   resource.custodian = input.new_custodian.clone();
@@ -433,4 +458,58 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
   )?;
 
   Ok(record)
+}
+
+/// Helper function for new custodian to request coordination info from previous custodian
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RequestCoordinationInfoInput {
+  pub resource_hash: ActionHash,
+  pub previous_custodian: AgentPubKey,
+}
+
+#[hdk_extern]
+pub fn request_coordination_info(input: RequestCoordinationInfoInput) -> ExternResult<()> {
+  let agent_info = agent_info()?;
+
+  // Verify the calling agent is the current custodian of this resource
+  let resource_record = get(input.resource_hash.clone(), GetOptions::default())?.ok_or(
+    ResourceError::EconomicResourceNotFound("EconomicResource not found".to_string()),
+  )?;
+
+  let resource: EconomicResource = resource_record
+    .entry()
+    .to_app_option()
+    .map_err(|e| ResourceError::SerializationError(format!("Failed to deserialize: {:?}", e)))?
+    .ok_or(ResourceError::EconomicResourceNotFound(
+      "Invalid EconomicResource entry".to_string(),
+    ))?;
+
+  if resource.custodian != agent_info.agent_initial_pubkey {
+    return Err(ResourceError::NotCustodian.into());
+  }
+
+  // Create a data access request for coordination
+  let data_request = DataAccessRequestInput {
+    requested_from: input.previous_custodian,
+    fields_requested: vec![
+      "email".to_string(),
+      "phone".to_string(),
+      "location".to_string(),
+      "time_zone".to_string(),
+    ],
+    context: format!("custodian_transfer_{}", input.resource_hash.to_string()),
+    resource_hash: Some(input.resource_hash),
+    justification: "New custodian requesting contact information from previous custodian for resource handover coordination.".to_string(),
+  };
+
+  // Call person zome to create the data access request
+  call(
+    CallTargetCell::Local,
+    "zome_person",
+    "request_private_data_access".into(),
+    None,
+    &data_request,
+  )?;
+
+  Ok(())
 }
