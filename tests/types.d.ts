@@ -243,7 +243,7 @@ export interface GetAllGovernanceRulesOutput {
 }
 
 export interface GetResourceSpecWithRulesOutput {
-  spec: ResourceSpecification;
+  specification: ResourceSpecification;
   governance_rules: GovernanceRule[];
 }
 

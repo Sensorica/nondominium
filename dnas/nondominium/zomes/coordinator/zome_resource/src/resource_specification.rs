@@ -310,7 +310,7 @@ pub fn get_resource_specification_profile(
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetResourceSpecWithRulesOutput {
-  pub spec: ResourceSpecification,
+  pub specification: ResourceSpecification,
   pub governance_rules: Vec<GovernanceRule>,
 }
 
@@ -349,7 +349,7 @@ pub fn get_resource_specification_with_rules(
   }
 
   Ok(GetResourceSpecWithRulesOutput {
-    spec,
+    specification: spec,
     governance_rules,
   })
 }
