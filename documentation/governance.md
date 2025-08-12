@@ -223,10 +223,22 @@ The governance system supports almost all ValueFlows economic actions:
 - **AccessForUse**: Request access to use a resource
 - **TransferCustody**: Transfer custody (nondominium specific)
 
+## Conflict Resolution
+
+Resolve disputes at the edge of the network, among agents that have interacted in the past and are about to interact. Avoid the creation of super users or admin roles. Disputes arrise during custodian transfer events, for example when a Resource is stolen (made unavailable) by an agent, i.e. when a current custodian doesn't fulfill its role and responsability visavi the Nondominium Resource.
+
+- Any Accountable Agent makes a request to access a Resource listed as available.
+- The current Custodian of the said Resource is non responsive.
+- The said Accountable Agent raises a red flag, which triggers a litigaton process.
+- The Resource metadata can be access to reveal its past custodian transfers (transactions).
+- The last agents, up to the last fourth, that have interacted in the past with the current Custodian are notified to participate in the litigation process. All these agents must have access to the current Custodian private data, which allows them to physically locate the person in the role of current Custodian. This can trigger legal procedures, since the current Custodian has commited to legal obligations (contract) when has acquired the Resource. At least one of the said agents can pursue the litigation process.
+- If non of these agents want to pursue the litigation process their profile is marked as having missed to fulfill their responsibility of defending or protecting the Nondomonium network, which is a data entry in their reputation metadata.
+
+
 ## Governance Workflows
 
 ### 1. Resource Creation and Validation
-1. Simple Agent creates new nondominium resource
+1. Simple or Accountable Agent creates new nondominium resource
 2. Resource enters "pending_validation" state
 3. Accountable Agents validate resource
 4. Resource becomes available for access
@@ -238,7 +250,7 @@ The governance system supports almost all ValueFlows economic actions:
 4. Access is granted or denied based on rules and validation
 
 ### 3. Custody Transfer
-1. Current custodian initiates transfer
+1. Current Primary Accountable Agent (custodian) initiates transfer
 2. New custodian accepts responsibility
 3. Transfer event is recorded
 4. Links are updated to reflect new custody
@@ -249,6 +261,14 @@ The governance system supports almost all ValueFlows economic actions:
 3. Validators review and approve/reject
 4. Validation status is updated
 5. Resource becomes available or rejected
+
+### 5. Conflict Resolution
+1. Accountable Agent makes request to access available Resource
+2. Current Primary Accountable Agent (custodian) of Resource becomes non-responsive once Resource becomes available, or refuses to provide access to Resource based on rules.
+3. Accountable Agent raises redf lag.
+4. A litigation process is triggered.
+5. Accountable Agents who have interacted with current Primary Accountable Agent (custodian) coordinate conflict resolution and litigation process.
+
 
 ## Implementation Details
 
@@ -274,7 +294,7 @@ The governance system is implemented in `zome_gouvernance` with the following co
 
 ### 1. Decentralized Authority
 - No single point of control
-- Governance distributed among network participants
+- Governance distributed among network participants, no super-users
 - Rules embedded in digital substrate
 
 ### 2. Transparency and Accountability

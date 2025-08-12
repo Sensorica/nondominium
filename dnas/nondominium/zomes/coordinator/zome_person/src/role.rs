@@ -35,7 +35,7 @@ pub fn assign_person_role(input: PersonRoleInput) -> ExternResult<Record> {
       &ValidateSpecializedRoleInput {
         agent: input.agent_pubkey.clone(),
         requested_role: input.role_name.clone(),
-        credentials: None, // TODO: Add credentials support
+        credentials: None,        // TODO: Add credentials support
         validation_history: None, // TODO: Link to validation history
       },
     )?;

@@ -3,7 +3,7 @@
 ## Analysis Summary
 
 ### Reference Project Architecture Analysis
-The **requests-and-offers** project demonstrates sophisticated architecture:
+The **Nondominium** project demonstrates sophisticated architecture:
 
 **Technology Stack:**
 - SvelteKit + Svelte 5 + TypeScript + TailwindCSS ✅
@@ -48,7 +48,7 @@ Pages/Routes (Application structure)
 ### Recommended Architecture for Nondominium
 
 ```
-Phase 1 (Person Management) Multi-Layer Structure:
+Multi-Layer Structure:
 
 ┌─────────────────────────────────────────────────┐
 │ PAGES/ROUTES                                    │
@@ -57,7 +57,7 @@ Phase 1 (Person Management) Multi-Layer Structure:
                          ↓
 ┌─────────────────────────────────────────────────┐
 │ COMPONENTS                                      │
-│ PersonProfile, PersonCard, RoleManager, etc.   │
+│ PersonProfile, PersonCard, RoleManager, etc.    │
 └─────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────┐
@@ -72,7 +72,9 @@ Phase 1 (Person Management) Multi-Layer Structure:
                          ↓
 ┌─────────────────────────────────────────────────┐
 │ SERVICES                                        │
-│ PersonService, RoleService, PrivateDataService  │
+│ PersonService, RoleService, PrivateDataService  |
+| ResourceService                                 |
+| GovernanceService                               │
 └─────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────┐
@@ -80,18 +82,20 @@ Phase 1 (Person Management) Multi-Layer Structure:
 │ Connection, callZome, error handling            │
 └─────────────────────────────────────────────────┘
                          ↓
-┌─────────────────────────────────────────────────┐
-│ DNA LAYER (Already Implemented)                 │
-│ zome_person: Person, PrivateData, PersonRole    │
-└─────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│ DNA LAYER (Already Implemented)                               │
+│ zome_person: Person, PrivateData, PersonRole                  |
+| zome_resource: Resource, Resource specification               |
+| zome_governance: Rule, Commitments, claims, economic events   |
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ## Current Backend Analysis
 
 ### Existing Zome Structure (Phase 1 Complete)
 - **zome_person**: Agent identity, profiles, roles, capability-based access
-- **zome_resource**: Resource specifications (Phase 2)  
-- **zome_gouvernance**: Commitments, claims, economic events (Phase 2)
+- **zome_resource**: Resource specifications   
+- **zome_gouvernance**: Commitments, claims, economic events
 
 ### Data Model
 ```typescript
@@ -122,14 +126,11 @@ PersonRole {
 
 // Role hierarchy (from backend)
 RoleType = 
-  | "Simple Member"
-  | "Community Advocate" 
-  | "Community Founder"
-  | "Community Coordinator"
-  | "Community Moderator"
-  | "Resource Coordinator"
-  | "Resource Steward"
-  | "Governance Coordinator"
+  | "Simple Agent"
+  | "Accountable Agent" 
+  | "Primary Accountable Agent"
+  | "Storage Agent"
+  | "Transporter Agent"
 ```
 
 ### Available Zome Functions
