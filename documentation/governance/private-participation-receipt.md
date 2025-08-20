@@ -224,7 +224,7 @@ graph TD
         CommitmentReceipt1[Receipt: Commitment Accepted]
         CommitmentReceipt2[Receipt: Good Faith Transfer]
         FulfillmentReceipt1[Receipt: Fulfillment Completed]
-        FulfillmentReceipt2[Receipt: Resource Claim Verified]
+        FulfillmentReceipt2[Receipt: Custody Acceptance]
 
         ServiceCommitment --> ServiceAgent
         ServiceCommitment --> CustodianAgent
