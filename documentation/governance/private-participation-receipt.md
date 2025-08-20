@@ -35,7 +35,7 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 - **Generated Receipts** (2 total):
   1. **Creator Agent**: Receives "successful resource contribution" receipt
   2. **Validator Agent**: Receives "network validation performed" receipt
-- **Special Case**: Resource creation is the only event requiring explicit validation receipts, as it establishes the resource's entry into the network
+- **Special Case**: Resource creation is an event requiring explicit validation receipts, as it establishes the resource's entry into the network
 
 ### 2. Core Usage Role - Custodianship
 
@@ -49,19 +49,11 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 
 ### 3. Intermediate Roles - Specialized Services
 
-#### Role Chaining Mechanics
-- **Multi-role Agents**: Agents can hold multiple intermediate roles simultaneously
-- **Action Chaining**: Agents can chain multiple actions (transport → repair → transport) within a single commitment
-- **Participant Structure**: Involves 2-3 agents (original custodian, intermediate service provider, final recipient)
-
-#### Flexibility Features
-- **Dynamic Recipients**: Final recipient may differ from original custodian
-- **Self-Managed Chains**: Intermediate steps don't require external validation
-- **Atomic Transactions**: Entire chain treated as single commitment/fulfillment cycle
-
 #### Specialized Service Receipts
+**Participant Structure**: Involves 2 or 3 agents (original custodian, intermediate service provider, final recipient).Thus, the Resource is transferred from original custodian (User) to intermediate service provider, back to another or the same User.
 
-**3.1 Maintenance Service**
+
+**3.1 Maintenance Service** 
 - **Commitment Phase**: Service provider commits to maintenance duties
 - **Generated Receipts** (2 total):
   1. **Maintenance Agent**: Receives "maintenance commitment accepted" receipt
@@ -69,7 +61,7 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 - **Fulfillment Phase**: Commitment is fulfilled through completed maintenance and resource available again
 - **Generated Receipts** (2 total):
   1. **Maintenance Agent**: Receives "maintenance fulfillment completed" receipt
-  2. **Resource Recipient**: Receives "maintained resource claim verified" receipt
+  2. **Resource Recipient**: Receives "custody acceptance" receipt
 
 **3.2 Storage Service**
 - **Commitment Phase**: Service provider commits to storage duties
@@ -79,7 +71,7 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 - **Fulfillment Phase**: Commitment is fulfilled through resource custodian transfer
 - **Generated Receipts** (2 total):
   1. **Storage Agent**: Receives "storage fulfillment completed" receipt
-  2. **Resource Recipient**: Receives "stored resource claim verified" receipt
+  2. **Resource Recipient**: Receives "custody acceptance" receipt
 
 **3.3 Transport Service**
 - **Commitment Phase**: Service provider commits to transport duties
@@ -89,7 +81,13 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 - **Fulfillment Phase**: Commitment is fulfilled through completed transport and resource delivery
 - **Generated Receipts** (2 total):
   1. **Transport Agent**: Receives "transport fulfillment completed" receipt
-  2. **Resource Recipient**: Receives "transported resource claim verified" receipt
+  2. **Resource Recipient**: Receives "custody acceptance" receipt
+
+#### Role Chaining Mechanics
+- **Multi-role Agents**: Agents can hold multiple intermediate roles simultaneously, ex. they can hold credencials for transport, maintenance and storage at the same time.
+- **Action Chaining**: Service Agents can chain multiple actions (transport → repair → transport) within a single commitment
+- **Self-Managed Chains**: Intermediate steps don't require external validation
+- **Atomic Transactions**: Entire chain treated as single commitment/fulfillment cycle
 
 #### Example Workflow: Transport + Repair Service
 ```
@@ -104,13 +102,13 @@ Commitment Phase:
 
 Execution Phase:
 3. Bob executes action chain without intermediate validation
-4. Internal status changes (transport → repair → transport) are self-managed
+4. Internal status changes (transport → repair → transport) for the resource are self-managed, pending validation.
 
 Completion Phase:
-5. Resource delivered to final recipient (Lynn or designated third party)
+5. Resource delivered to final recipient (Lynn or another recipient agent)
 6. Final bi-directional receipts:
-   - Bob → Recipient: "Service completion" receipt
-   - Recipient → Bob: "Custody transfer acknowledgment" receipt
+   - Bob → Recipient: "custody acceptance" receipt
+   - Recipient → Bob: "Transport + Repair fulfillment completed" receipt
 ```
 
 ## Additional PPR Contexts

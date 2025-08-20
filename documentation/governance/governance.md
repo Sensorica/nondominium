@@ -223,16 +223,16 @@ The governance system supports almost all ValueFlows economic actions:
 - **AccessForUse**: Request access to use a resource
 - **TransferCustody**: Transfer custody (nondominium specific)
 
-## Conflict Resolution
+## Dispute Resolution
 
-Resolve disputes at the edge of the network, among agents that have interacted in the past and are about to interact. Avoid the creation of super users or admin roles. Disputes arrise during custodian transfer events, for example when a Resource is stolen (made unavailable) by an agent, i.e. when a current custodian doesn't fulfill its role and responsability visavi the Nondominium Resource.
+Resolve disputes at the edge of the network, among agents that have interacted in the past and are about to interact. Avoid the creation of super users or admin roles. Disputes arise during custodian transfer events, for example when a Resource is stolen (made unavailable) by an agent, i.e. when a current custodian doesn't fulfill its role and responsibility vis avi the Nondominium Resource.
 
 - Any Accountable Agent makes a request to access a Resource listed as available.
 - The current Custodian of the said Resource is non responsive.
-- The said Accountable Agent raises a red flag, which triggers a litigaton process.
+- The said Accountable Agent raises a red flag, which triggers a dispute resolution process.
 - The Resource metadata can be access to reveal its past custodian transfers (transactions).
-- The last agents, up to the last fourth, that have interacted in the past with the current Custodian are notified to participate in the litigation process. All these agents must have access to the current Custodian private data, which allows them to physically locate the person in the role of current Custodian. This can trigger legal procedures, since the current Custodian has commited to legal obligations (contract) when has acquired the Resource. At least one of the said agents can pursue the litigation process.
-- If non of these agents want to pursue the litigation process their profile is marked as having missed to fulfill their responsibility of defending or protecting the Nondomonium network, which is a data entry in their reputation metadata.
+- The last agents, up to the last fourth, that have interacted in the past with the current Custodian are notified to participate in the dispute resolution process. All these agents must have access to the current Custodian private data, which allows them to physically locate the person in the role of current Custodian. This can trigger legal procedures, since the current Custodian has committed to legal obligations (contract) when has acquired the Resource. At least one of the said agents can pursue the dispute resolution process.
+- If none of these agents want to pursue the dispute resolution process their profile is marked as having missed to fulfill their responsibility of defending or protecting the Nondomonium network, which is a data entry in their reputation metadata.
 
 
 ## Governance Workflows
@@ -262,7 +262,7 @@ Resolve disputes at the edge of the network, among agents that have interacted i
 4. Validation status is updated
 5. Resource becomes available or rejected
 
-### 5. Conflict Resolution
+### 5. Dispute Resolution
 1. Accountable Agent makes request to access available Resource
 2. Current Primary Accountable Agent (custodian) of Resource becomes non-responsive once Resource becomes available, or refuses to provide access to Resource based on rules.
 3. Accountable Agent raises redf lag.
