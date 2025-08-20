@@ -9,7 +9,9 @@ pub enum VfAction {
   Move,     // Move a resource from one location to another
 
   // Standard ValueFlows production/consumption actions
-  Use,     // Use a resource without consuming it
+  Use, // Use a resource without consuming it
+
+  // TODO: No consumable in the PoC, but we have to think about hte end of life of a resource.
   Consume, // Consume/destroy a resource
   Produce, // Create/produce a new resource
   Work,    // Apply work/labor to a resource
