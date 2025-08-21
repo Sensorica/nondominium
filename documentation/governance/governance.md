@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document outlines the governance system implemented in the nondominium project, built on Holochain and using ValueFlows vocabulary and patterns. The governance system is implemented in the `zome_gouvernance` zome and provides the infrastructure for managing economic activities, validation, and accountability in a decentralized sharing economy.
+This document outlines the comprehensive governance system implemented in the nondominium project, built on Holochain and using ValueFlows vocabulary and patterns. The governance system spans across three zomes (`zome_person`, `zome_resource`, `zome_governance`) and provides the infrastructure for managing economic activities, validation, accountability, and reputation tracking in a decentralized sharing economy.
+
+The governance system implements a complete agent lifecycle from Simple Agent through Accountable Agent to Primary Accountable Agent, with embedded governance rules, comprehensive validation schemes, structured Economic Processes, and a cryptographically-secured Private Participation Receipt (PPR) system for reputation tracking.
 
 ## Core Governance Concepts
 
@@ -10,21 +12,32 @@ This document outlines the governance system implemented in the nondominium proj
 
 The governance system is built on the ValueFlows REA (Resource, Event, Agent) ontology:
 
-- **Agents**: Individual persons who perform Economic Events affecting Economic Resources
-- **Economic Events**: Actions that produce, modify, use, or transfer Economic Resources
-- **Economic Resources**: Useful goods, services, knowledge, or any other value that agents agree to account for
+- **Agents**: Individual persons with progressive capability levels (Simple → Accountable → Primary Accountable) who perform Economic Events affecting Economic Resources
+- **Economic Events**: Actions using VfAction enum that produce, modify, use, or transfer Economic Resources within structured Economic Processes
+- **Economic Resources**: Material and digital assets with embedded governance rules, managed lifecycle states, and custodian tracking
+- **Economic Processes**: Structured activities (Use, Transport, Storage, Repair) that transform Economic Resources or provide ecosystem services with role-based access control
 
 ### 2. Multi-Layered Ontology
 
 The governance system operates across three levels as defined in ValueFlows:
 
-- **Knowledge Level**: Policies, procedures, rules, and patterns (governance rules and validation schemes)
-- **Plan Level**: Offers, requests, schedules, and promises (commitments and intents)
-- **Observation Level**: What actually happened (events, claims, and their fulfillment)
+- **Knowledge Level**: Embedded governance rules, validation schemes, process requirements, and agent role definitions stored in ResourceSpecifications and process templates
+- **Plan Level**: Commitments with VfAction types, process initiation requests, and validation workflows linking agents to future economic activities
+- **Observation Level**: Completed Economic Events, fulfilled Claims, issued ValidationReceipts, and Private Participation Receipts (PPRs) providing cryptographically-signed reputation tracking
+
+### 3. Agent Capability Progression
+
+The governance system implements a progressive trust model through three agent types:
+
+- **Simple Agent**: Entry-level with general capability token, can create Resources and make first transaction
+- **Accountable Agent**: Validated agent with restricted capability token, can access Resources, validate others, and participate in specialized Economic Processes
+- **Primary Accountable Agent (Custodian)**: Advanced agent with full capability token, holds physical custody of Resources, can validate role requests, and participate in dispute resolution 
 
 ## Governance Structures
 
 ### 1. Validation System
+
+The validation system implements comprehensive peer review and verification across all governance activities, supporting configurable validation schemes and role-based access control.
 
 #### ValidationReceipt
 ```rust
@@ -38,13 +51,15 @@ pub struct ValidationReceipt {
 }
 ```
 
-**Purpose**: Records validation decisions made by accountable agents on resources, events, or other agents.
+**Purpose**: Records validation decisions made by Accountable and Primary Accountable agents on resources, events, processes, agent promotions, and role assignments.
 
-**Governance Functions**:
-- **Resource Approval**: Validating that resources meet quality and safety standards
-- **Process Validation**: Ensuring processes follow agreed-upon protocols
-- **Identity Verification**: Confirming agent identities and credentials
-- **Compliance Checking**: Verifying adherence to governance rules
+**Validation Types**:
+- **resource_approval**: Validating new Resources during first access events  
+- **process_validation**: Validating Economic Process completions and outcomes
+- **identity_verification**: Confirming agent identities for Simple Agent promotion
+- **role_assignment**: Validating specialized role requests (Transport, Repair, Storage)
+- **agent_promotion**: Validating Simple Agent promotion to Accountable Agent
+- **end_of_life_validation**: Validating Resource end-of-life declarations
 
 #### ResourceValidation
 ```rust
@@ -61,10 +76,16 @@ pub struct ResourceValidation {
 
 **Purpose**: Manages validation workflows for resources requiring multiple validators.
 
-**Governance Functions**:
-- **Multi-Signature Validation**: Requiring multiple validators for high-value resources
-- **Validation Schemes**: Supporting different validation protocols (e.g., "2-of-3", "simple_majority")
-- **Status Tracking**: Monitoring validation progress and outcomes
+**Validation Schemes**:
+- **"simple_majority"**: More than 50% of required validators must approve
+- **"2-of-3"**: Exactly 2 out of 3 designated validators must approve
+- **"N-of-M"**: N validators out of M designated validators must approve
+- **"consensus"**: All required validators must approve
+
+**Status Values**:
+- **"pending"**: Validation in progress, awaiting validator responses
+- **"approved"**: Sufficient validators have approved
+- **"rejected"**: Validation failed or was explicitly rejected
 
 ### 2. Economic Event Tracking
 
@@ -125,13 +146,109 @@ pub struct Claim {
 }
 ```
 
-**Purpose**: Links commitments to their fulfillment through economic events.
+**Purpose**: Links commitments to their fulfillment through economic events (public governance record).
 
 **Governance Functions**:
 - **Obligation Tracking**: Monitoring fulfillment of commitments
 - **Reciprocal Claims**: Managing reciprocal obligations in exchanges
 - **Dispute Resolution**: Supporting claims and counter-claims
 - **Performance Measurement**: Tracking agent reliability and performance
+- **PPR Generation**: Triggers automatic Private Participation Receipt issuance for reputation tracking
+
+### 3. Economic Process Management
+
+The governance system manages structured Economic Processes that provide ecosystem services with role-based access control and comprehensive validation.
+
+#### EconomicProcess
+```rust
+pub struct EconomicProcess {
+    pub process_type: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub required_role: String,
+    pub inputs: Vec<ActionHash>,
+    pub outputs: Vec<ActionHash>,
+    pub started_by: AgentPubKey,
+    pub started_at: Timestamp,
+    pub completed_at: Option<Timestamp>,
+    pub location: Option<String>,
+    pub status: ProcessStatus,
+}
+```
+
+**Process Types & Role Requirements**:
+- **Use**: Core nondominium process accessible to all Accountable Agents
+- **Transport**: Material Resource movement between locations (requires Transport role)
+- **Storage**: Temporary Resource custody until new Agent requests access (requires Storage role)  
+- **Repair**: Resource maintenance and restoration, may change Resource state (requires Repair role)
+
+**Process Status Values**:
+- **Planned**: Process is planned but not yet started
+- **InProgress**: Process is currently active
+- **Completed**: Process finished successfully with validation
+- **Suspended**: Process temporarily paused
+- **Cancelled**: Process cancelled before completion
+- **Failed**: Process failed to complete successfully
+
+**Governance Functions**:
+- **Role Enforcement**: Only agents with appropriate roles can initiate specialized processes
+- **Process Chaining**: Agents with multiple roles can chain actions (transport → repair → transport)
+- **State Management**: Proper Resource state transitions based on process type
+- **Validation Requirements**: Process completion validation according to process-specific criteria
+
+### 4. Private Participation Receipt (PPR) System
+
+The governance system implements a comprehensive reputation tracking mechanism through cryptographically-signed Private Participation Receipts stored as private entries.
+
+#### PrivateParticipationClaim
+```rust
+pub struct PrivateParticipationClaim {
+    // Standard ValueFlows fields
+    pub fulfills: ActionHash,
+    pub fulfilled_by: ActionHash,
+    pub claimed_at: Timestamp,
+    
+    // PPR-specific extensions
+    pub claim_type: ParticipationClaimType,
+    pub counterparty: AgentPubKey,
+    pub performance_metrics: PerformanceMetrics,
+    pub bilateral_signature: CryptographicSignature,
+    pub interaction_context: String,
+    pub role_context: Option<String>,
+    pub resource_reference: Option<ActionHash>,
+}
+```
+
+**PPR Issuance Categories**:
+
+**Genesis Role - Network Entry**:
+- **ResourceContribution**: Receipt for successfully creating and validating a Resource
+- **NetworkValidation**: Receipt for performing validation duties
+
+**Core Usage Role - Custodianship**:
+- **ResponsibleTransfer**: Receipt for properly transferring Resource custody
+- **CustodyAcceptance**: Receipt for accepting Resource custody responsibly
+
+**Intermediate Roles - Specialized Services**:
+- **ServiceCommitmentAccepted**: Receipt for accepting service commitments (Transport, Repair, Storage)
+- **GoodFaithTransfer**: Receipt for transferring Resource in good faith for service
+- **ServiceFulfillmentCompleted**: Receipt for completing services successfully
+- **MaintenanceFulfillment, StorageFulfillment, TransportFulfillment**: Service-specific completion receipts
+
+**Network Governance**:
+- **DisputeResolutionParticipation**: Receipt for constructive participation in conflict resolution
+- **GovernanceCompliance**: Receipt for consistent adherence to governance protocols
+
+**Resource End-of-Life**:
+- **EndOfLifeDeclaration**: Receipt for declaring Resource end-of-life
+- **EndOfLifeValidation**: Receipt for validating Resource end-of-life (enhanced security)
+
+**PPR Governance Principles**:
+- **Bi-directional Issuance**: Every economic interaction generates exactly 2 receipts between participating agents
+- **Cryptographic Integrity**: All receipts are cryptographically signed for authenticity
+- **Privacy Preservation**: Stored as Holochain private entries accessible only to owning agent
+- **Performance Tracking**: Quantitative metrics (timeliness, quality, reliability, communication scores)
+- **Reputation Derivation**: Agents can calculate and selectively share reputation summaries
 
 ## Agent Roles and Permissions
 
@@ -223,6 +340,16 @@ The governance system supports almost all ValueFlows economic actions:
 - **AccessForUse**: Request access to use a resource
 - **TransferCustody**: Transfer custody (nondominium specific)
 
+## Economic Processes (VfAction)
+The governance system supports the following Nondominium-specific processes:
+
+- **Use**: This is the core Nondominium process, a Resource is used by agents acording to its rules and in accordance to the network governance.  
+- **Transport**: A material Economic Resource is moved from one location to another. The process is only accessible by Agents that hold credencials (capability tokens) for the Transport role. The Economic Resource is unchanged by the process.
+- **Storage**: A material Economic Resource is placed in storage until a new Accountable Agent request access. The process is only accessible by Agents that hold credencials (capability tokens) for the Storage role. The Economic Resource is unchanged by the process.
+- **Repair**: A material Economic Resource is repaired. The Economic Resource is changed by the process, perhaps from a broken state to a working/functional state.
+
+These processes apply to material Economic Resources and are seen as part of ecosystem services, provided by agents in intermediate roles, gated by their credencials.
+
 ## Dispute Resolution
 
 Resolve disputes at the edge of the network, among agents that have interacted in the past and are about to interact. Avoid the creation of super users or admin roles. Disputes arise during custodian transfer events, for example when a Resource is stolen (made unavailable) by an agent, i.e. when a current custodian doesn't fulfill its role and responsibility vis avi the Nondominium Resource.
@@ -262,74 +389,151 @@ Resolve disputes at the edge of the network, among agents that have interacted i
 4. Validation status is updated
 5. Resource becomes available or rejected
 
-### 5. Dispute Resolution
-1. Accountable Agent makes request to access available Resource
-2. Current Primary Accountable Agent (custodian) of Resource becomes non-responsive once Resource becomes available, or refuses to provide access to Resource based on rules.
-3. Accountable Agent raises redf lag.
-4. A litigation process is triggered.
-5. Accountable Agents who have interacted with current Primary Accountable Agent (custodian) coordinate conflict resolution and litigation process.
+### 5. Agent Onboarding and Progression
+
+#### Simple Agent to Accountable Agent Promotion
+1. Simple Agent creates their first nondominium Resource with embedded governance rules
+2. Simple Agent initiates first transaction (Initial Transfer) to interested Accountable Agent
+3. Receiving Accountable Agent validates both the Resource and the Simple Agent's identity (private entry access)
+4. Upon successful validation:
+   - ValidationReceipt issued for both Resource and Agent promotion
+   - Simple Agent promoted to Accountable Agent with restricted capability token
+   - Bi-directional PPRs issued (ResourceContribution + NetworkValidation)
+5. Resource state changes from "pending_validation" to "validated"
+
+#### Specialized Role Acquisition
+1. Accountable Agent requests specialized role (Transport, Repair, Storage)
+2. Request reviewed by existing Primary Accountable Agents holding the relevant role
+3. Validators assess credentials, history, and compliance with role requirements
+4. ValidationReceipt issued upon approval, role granted
+5. PPRs issued for validation participation
+
+### 6. Economic Process Workflows
+
+#### Process Initiation and Completion
+1. Accountable Agent with appropriate role initiates Economic Process
+2. Commitment created with specific VfAction and process details
+3. Process status tracked (Planned → InProgress → Completed)
+4. Process completion validated according to process-specific requirements
+5. Economic Event recorded upon completion
+6. Claim created linking Commitment to Economic Event
+7. Bi-directional PPRs automatically issued based on process type
+
+#### Process Chaining Example (Transport + Repair)
+1. Agent with Transport + Repair roles creates single Commitment for chained actions
+2. Process initiated: receive → transport → repair → transport → deliver
+3. Internal process status updates managed by executing agent
+4. Final delivery triggers completion validation
+5. Bi-directional PPRs issued: "Transport + Repair fulfillment completed" + "custody acceptance"
+
+### 7. Resource End-of-Life Management
+1. Agent declares Resource end-of-life with evidence documentation
+2. Multiple expert validators required (minimum 2-3, depending on Resource value)
+3. Past custodians notified, challenge period initiated (7-14 days)
+4. Expert validators review evidence and Resource condition
+5. If no challenges raised, Resource moved to final disposal/storage
+6. Enhanced PPRs issued with strict validation requirements
+7. Resource state updated to "decommissioned"
+
+### 8. Dispute Resolution
+1. Accountable Agent requests access to available Resource
+2. Current custodian becomes non-responsive or refuses access improperly
+3. Requesting agent raises dispute flag
+4. System identifies last four agents who interacted with current custodian
+5. Past interaction partners notified (must have custodian's private data access)
+6. At least one past partner must pursue dispute resolution
+7. Failure to participate impacts reputation through negative PPR entries
+8. Resolution process can trigger legal procedures based on custodian contracts
 
 
 ## Implementation Details
 
 ### 1. Zome Structure
-The governance system is implemented in `zome_gouvernance` with the following components:
+The governance system spans across three integrated zomes:
 
-- **Entry Types**: ValidationReceipt, EconomicEvent, Commitment, Claim, ResourceValidation
-- **Link Types**: Various link types for connecting governance entities
-- **Functions**: CRUD operations for all governance entities
+#### `zome_person`
+- **Entry Types**: Person, PrivatePersonData, PersonRole, DataAccessGrant, DataAccessRequest
+- **Functions**: Agent identity management, role assignment, reputation tracking, private data sharing
+- **Capabilities**: PPR storage and retrieval, reputation summary calculation
 
-### 2. Integration with Other Zomes
-- **zome_person**: Agent identity and role management
-- **zome_resource**: Resource specification and economic resource management
-- **Cross-zome validation**: Governance rules applied across all zomes
+#### `zome_resource`  
+- **Entry Types**: ResourceSpecification, EconomicResource, GovernanceRule, EconomicProcess, ProcessStatus
+- **Functions**: Resource lifecycle management, process initiation and completion, embedded rule enforcement
+- **Capabilities**: Process chaining, role-based access control, state management
+
+#### `zome_governance`
+- **Entry Types**: ValidationReceipt, EconomicEvent, Commitment, Claim, ResourceValidation, PrivateParticipationClaim
+- **Functions**: Validation workflows, PPR issuance, cross-zome validation, dispute resolution support
+- **Capabilities**: Multi-signature validation, cryptographic signature verification, reputation derivation
+
+### 2. Cross-Zome Integration
+- **Role Validation**: `zome_person` validates agent roles before `zome_resource` allows process initiation
+- **Governance Enforcement**: `zome_resource` calls `zome_governance` for validation and PPR issuance
+- **Identity Verification**: `zome_governance` accesses `zome_person` private entries for agent validation
+- **Transactional Integrity**: All economic interactions span multiple zomes with atomic operations
 
 ### 3. Security and Privacy
-- **Capability-based security**: Access control through capability tokens
-- **Pseudonymity**: Agent identities can be pseudonymous
-- **Private entries**: Sensitive information (such as user identity and PII) is stored as Holochain private entries in the agent's source chain, not as encrypted blobs on the DHT. See [Holochain Private Entries](https://developer.holochain.org/build/entries/).
-- **Audit trails**: All actions are recorded for accountability
+- **Capability-based security**: Progressive access control through capability tokens (general → restricted → full)
+- **Role-based access control**: Economic Processes enforce specialized role requirements with validated credentials
+- **Private entries**: Sensitive information (PII, PPRs) stored as Holochain private entries in agent's source chain
+- **Cryptographic integrity**: All PPRs cryptographically signed for authenticity and non-repudiation
+- **Selective disclosure**: Agents control sharing of private data and reputation summaries
+- **Audit trails**: Complete record of all economic activities, validations, and governance actions
+- **End-of-life security**: Enhanced validation requirements prevent resource theft through false end-of-life claims
 
 ## Governance Principles
 
 ### 1. Decentralized Authority
-- No single point of control
-- Governance distributed among network participants, no super-users
-- Rules embedded in digital substrate
+- No single point of control or super-users in the network
+- Governance distributed among network participants through progressive trust model
+- Rules embedded in ResourceSpecifications and enforced programmatically
+- Edge-based dispute resolution involving recent interaction partners
 
 ### 2. Transparency and Accountability
-- All actions recorded and auditable
-- Clear validation and approval processes
-- Public governance rules and procedures
+- All economic activities recorded as Economic Events with complete audit trails
+- Public governance rules and validation schemes machine-readable and transparent
+- Clear validation processes with cryptographically-signed ValidationReceipts
+- Comprehensive reputation tracking through Private Participation Receipts
 
 ### 3. Inclusive Participation
-- Permissionless access under defined rules
-- Multiple agent roles and capabilities
-- Stakeholder-driven governance
+- Permissionless entry under defined governance rules (Simple Agent level)
+- Progressive capability model enabling advancement through validated participation
+- Multiple specialized roles supporting diverse ecosystem services
+- Stakeholder-driven governance through peer validation and role-based access
 
 ### 4. Capture Resistance
-- Resources cannot be monopolized
-- Governance rules prevent capture
-- Distributed validation and approval
+- Resources cannot be monopolized due to embedded governance rules
+- Distributed validation prevents capture by single actors
+- End-of-life security measures prevent resource theft
+- Multi-reviewer validation schemes ensure no single point of failure
 
-### 5. Scalable and Flexible
-- Governance rules can be customized per resource
-- Support for different validation schemes
-- Extensible action and role system
+### 5. Privacy-Preserving Accountability
+- Private Participation Receipts enable reputation without compromising privacy
+- Selective disclosure allows agents to control information sharing
+- Cryptographic signatures ensure authenticity while preserving autonomy
+- Private entries protect sensitive information while enabling governance
+
+### 6. Process-Aware Governance
+- Structured Economic Processes with role-based access control
+- Process chaining enables complex service delivery
+- State management ensures proper Resource lifecycle tracking
+- Performance metrics support quality assurance and continuous improvement
 
 ## Future Enhancements
 
-### Phase 2 Enhancements
-- Advanced governance rule engine
-- Automated validation workflows
-- Dispute resolution mechanisms
-- Performance metrics and reputation systems
+### Phase 2 Enhancements (Building on Current Foundation)
+- **Advanced Governance Rule Engine**: Conditional logic and smart contract-like governance rules
+- **Automated Validation Workflows**: AI-assisted validation and anomaly detection
+- **Enhanced Dispute Resolution**: Formal mediation protocols and reputation-weighted resolution
+- **Cross-Network Resource Sharing**: Federation with other nondominium networks
+- **Economic Incentive Mechanisms**: Value accounting and contribution-based incentives
 
-### Phase 3 Enhancements
-- Cross-network governance
-- Advanced role hierarchies
-- Automated compliance checking
-- Integration with external governance systems
+### Phase 3 Enhancements (Advanced Network Features)
+- **Integration with External Governance**: Legal system integration and compliance frameworks
+- **Advanced Reputation Algorithms**: Machine learning-based trust prediction and recommendation systems
+- **Scalable Validation Schemes**: Optimized validation for large-scale networks
+- **Multi-Network Identity**: Cross-platform agent identity and reputation portability
+- **Automated Compliance Checking**: Real-time governance rule compliance monitoring
 
 ## References
 
