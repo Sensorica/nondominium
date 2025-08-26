@@ -1,5 +1,8 @@
 use hdi::prelude::*;
 
+pub mod ppr;
+pub use ppr::*;
+
 /// ValueFlows Action enum representing all valid economic actions
 /// Based on the ValueFlows vocabulary with nondominium-specific extensions
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -155,6 +158,8 @@ pub enum EntryTypes {
   Commitment(Commitment),
   Claim(Claim),
   ResourceValidation(ResourceValidation),
+  #[entry_type(visibility = "private")]
+  PrivateParticipationClaim(PrivateParticipationClaim),
 }
 
 #[hdk_link_types]
@@ -168,6 +173,11 @@ pub enum LinkTypes {
   AllCommitments,
   AllClaims,
   AllResourceValidations,
+  // PPR-related links
+  AgentToPrivateParticipationClaims, // Link from agent to their PPR claims
+  EventToPrivateParticipationClaims, // Link from economic event to generated PPR claims
+  CommitmentToPrivateParticipationClaims, // Link from commitment to its PPR claims
+  ResourceToPrivateParticipationClaims, // Link from resource to PPR claims related to it
 }
 
 #[hdk_extern]
@@ -184,8 +194,43 @@ pub fn validate_agent_joining(
 }
 
 #[hdk_extern]
-pub fn validate(_op: Op) -> ExternResult<ValidateCallbackResult> {
-  // For Phase 1, we'll implement basic validation
-  // More complex validation will be added in Phase 2
+pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
+  // Basic validation for PPR entries
+  if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
+    match store_entry {
+      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
+        match app_entry {
+          EntryTypes::PrivateParticipationClaim(claim) => {
+            return validate_private_participation_claim(claim);
+          }
+          _ => (),
+        }
+      }
+      _ => (),
+    }
+  }
+
+  // For Phase 1, other validations remain basic
+  Ok(ValidateCallbackResult::Valid)
+}
+
+/// Validate a Private Participation Claim entry
+pub fn validate_private_participation_claim(
+  claim: PrivateParticipationClaim,
+) -> ExternResult<ValidateCallbackResult> {
+  // Validate performance metrics
+  if let Err(e) = claim.performance_metrics.validate() {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "Invalid performance metrics: {}",
+      e
+    )));
+  }
+
+  // For now, skip timestamp validation in integrity zome since sys_time() is not available
+  // This validation would be done in the coordinator zome
+
+  // Validate claim type description exists (ensures enum is valid)
+  let _description = claim.claim_type.description();
+
   Ok(ValidateCallbackResult::Valid)
 }

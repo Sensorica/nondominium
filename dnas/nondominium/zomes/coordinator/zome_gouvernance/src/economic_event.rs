@@ -1,5 +1,6 @@
 use hdk::prelude::*;
 use zome_gouvernance_integrity::*;
+use crate::ppr::*;
 
 // ============================================================================
 // Economic Event Management
@@ -13,12 +14,15 @@ pub struct LogEconomicEventInput {
   pub resource_inventoried_as: ActionHash,
   pub resource_quantity: f64,
   pub note: Option<String>,
+  pub commitment_hash: Option<ActionHash>, // Optional link to commitment being fulfilled
+  pub generate_pprs: Option<bool>,         // Whether to auto-generate PPR claims
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogEconomicEventOutput {
   pub event_hash: ActionHash,
   pub event: EconomicEvent,
+  pub ppr_claims: Option<IssueParticipationReceiptsOutput>, // Generated PPR claims if requested
 }
 
 #[hdk_extern]
@@ -29,14 +33,14 @@ pub fn log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEcono
   // TODO: In Phase 2, validate the resource exists and check governance rules
 
   let event = EconomicEvent {
-    action: input.action,
-    provider: input.provider,
-    receiver: input.receiver,
+    action: input.action.clone(),
+    provider: input.provider.clone(),
+    receiver: input.receiver.clone(),
     resource_inventoried_as: input.resource_inventoried_as.clone(),
     affects: input.resource_inventoried_as.clone(), // For now, same as inventoried_as
     resource_quantity: input.resource_quantity,
     event_time: now,
-    note: input.note,
+    note: input.note.clone(),
   };
 
   let event_hash = create_entry(&EntryTypes::EconomicEvent(event.clone()))?;
@@ -59,7 +63,32 @@ pub fn log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEcono
     (),
   )?;
 
-  Ok(LogEconomicEventOutput { event_hash, event })
+  // Generate PPR claims if requested (default is true for Phase 2)
+  let generate_pprs = input.generate_pprs.unwrap_or(true);
+  let ppr_claims = if generate_pprs {
+    // Use commitment hash if provided, otherwise create a placeholder
+    let commitment_hash = input.commitment_hash.unwrap_or_else(|| event_hash.clone());
+    
+    match generate_pprs_for_economic_event(&event, commitment_hash, event_hash.clone()) {
+      Ok(pprs) => {
+        debug!("Generated PPR claims for economic event: {:?}", event_hash);
+        Some(pprs)
+      },
+      Err(e) => {
+        // Log error but don't fail the whole operation
+        error!("Failed to generate PPR claims for economic event {}: {:?}", event_hash, e);
+        None
+      }
+    }
+  } else {
+    None
+  };
+
+  Ok(LogEconomicEventOutput { 
+    event_hash, 
+    event,
+    ppr_claims,
+  })
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -73,6 +102,7 @@ pub struct LogInitialTransferInput {
 pub struct LogInitialTransferOutput {
   pub event_hash: ActionHash,
   pub event: EconomicEvent,
+  pub ppr_claims: Option<IssueParticipationReceiptsOutput>, // Generated PPR claims for agent promotion
 }
 
 #[hdk_extern]
@@ -82,7 +112,7 @@ pub fn log_initial_transfer(
   let agent_info = agent_info()?;
 
   // This is for Simple Agents making their first transaction
-  // TODO: In Phase 2, trigger validation process for Simple Agent promotion
+  // Generate PPRs automatically for agent promotion tracking
 
   let event_input = LogEconomicEventInput {
     action: VfAction::InitialTransfer,
@@ -91,13 +121,23 @@ pub fn log_initial_transfer(
     resource_inventoried_as: input.resource_hash,
     resource_quantity: input.quantity,
     note: Some("First resource transfer by Simple Agent".to_string()),
+    commitment_hash: None,   // Initial transfers don't typically have commitments
+    generate_pprs: Some(true), // Always generate PPRs for initial transfers
   };
 
   let result = log_economic_event(event_input)?;
 
+  // The PPR generation is crucial for Simple Agent promotion tracking
+  if result.ppr_claims.is_some() {
+    debug!("PPR claims generated for initial transfer - agent promotion tracking enabled");
+  } else {
+    warn!("Failed to generate PPR claims for initial transfer - may impact agent promotion");
+  }
+
   Ok(LogInitialTransferOutput {
     event_hash: result.event_hash,
     event: result.event,
+    ppr_claims: result.ppr_claims,
   })
 }
 

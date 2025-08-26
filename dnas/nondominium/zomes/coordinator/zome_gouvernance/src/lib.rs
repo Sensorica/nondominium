@@ -3,10 +3,12 @@ use zome_gouvernance_integrity::*;
 
 pub mod commitment;
 pub mod economic_event;
+pub mod ppr;
 pub mod validation;
 
 pub use commitment::*;
 pub use economic_event::*;
+pub use ppr::*;
 pub use validation::*;
 
 #[derive(Debug, thiserror::Error)]
@@ -106,6 +108,48 @@ fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
     }
     _ => Ok(()),
   }
+}
+
+// ============================================================================
+// Agent Promotion Helper Functions with PPR Integration
+// ============================================================================
+
+/// Generate PPRs for agent promotion validation process
+fn generate_promotion_validation_pprs(
+  promoted_agent: AgentPubKey,
+  validator_agent: AgentPubKey,
+  resource_hash: ActionHash,
+  validation_hash: ActionHash,
+) -> ExternResult<IssueParticipationReceiptsOutput> {
+  // Create appropriate claim types for agent promotion
+  let claim_types = vec![
+    ParticipationClaimType::ResourceValidation,    // Validator gets this
+    ParticipationClaimType::RuleCompliance,       // Promoted agent gets this
+  ];
+  
+  // Use good performance metrics for promotion validation
+  let good_metrics = PerformanceMetrics {
+    timeliness: 1.0,
+    quality: 1.0,
+    reliability: 1.0,
+    communication: 1.0,
+    overall_satisfaction: 1.0,
+    notes: Some("Agent promotion validation completed successfully".to_string()),
+  };
+  
+  let input = IssueParticipationReceiptsInput {
+    fulfills: validation_hash.clone(), // The validation acts as both commitment and fulfillment
+    fulfilled_by: validation_hash,     // The validation event
+    provider: validator_agent,         // Validator is the provider
+    receiver: promoted_agent,          // Promoted agent is the receiver
+    claim_types,
+    provider_metrics: good_metrics.clone(),
+    receiver_metrics: good_metrics,
+    resource_hash: Some(resource_hash),
+    notes: Some("Agent promotion validation with PPR generation".to_string()),
+  };
+  
+  issue_participation_receipts(input)
 }
 
 fn get_entry_for_action(action_hash: &ActionHash) -> ExternResult<Option<EntryTypes>> {
