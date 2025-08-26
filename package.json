@@ -15,7 +15,8 @@
     "launch:tauri": "concurrently \"kitsune2-bootstrap-srv --listen \"127.0.0.1:$BOOTSTRAP_PORT\"\" \"echo pass | RUST_LOG=warn hc launch --piped -n $AGENTS workdir/nondominium.happ --ui-port $UI_PORT network --bootstrap http://127.0.0.1:\"$BOOTSTRAP_PORT\" webrtc ws://127.0.0.1:\"$BOOTSTRAP_PORT\"\"",
     "package": "bun run build:happ && bun run --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
-    "build:zomes": "cargo build --release --target wasm32-unknown-unknown"
+    "build:zomes": "cargo build --release --target wasm32-unknown-unknown",
+    "check": "cd ui && bun run check"
   },
   "devDependencies": {
     "@holochain/hc-spin": "^0.500.1",

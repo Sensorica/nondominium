@@ -3,7 +3,7 @@ manifest_version: "1"
 name: nondominium
 description: "A foundational hApp for commons-based ventures using ValueFlows."
 roles:
-  - name: nondominium_instance
+  - name: nondominium
     provisioning:
       strategy: create
       deferred: false
