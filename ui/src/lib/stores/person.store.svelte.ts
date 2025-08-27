@@ -1,6 +1,6 @@
 import type { ActionHash, AgentPubKey } from '@holochain/client';
 import { personService } from '../services/zomes/person.service.js';
-import type { Person, EncryptedProfile, PersonRole } from '../types/holochain.js';
+import type { Person, EncryptedProfile, PersonRole } from '@nondominium/shared-types';
 
 export type PersonLoadingState = 'idle' | 'loading' | 'success' | 'error';
 

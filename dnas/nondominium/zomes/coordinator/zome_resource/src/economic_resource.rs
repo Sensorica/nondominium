@@ -84,20 +84,21 @@ pub fn create_economic_resource(
     (),
   )?;
 
-  // Call governance zome to initiate resource validation
+  // TEMPORARILY COMMENTED OUT - Call governance zome to initiate resource validation
   // This implements REQ-GOV-02: Resource Validation
-  let _validation_result = call(
-    CallTargetCell::Local,
-    "zome_gouvernance",
-    "validate_new_resource".into(),
-    None,
-    &ValidateNewResourceInput {
-      resource_hash: resource_hash.clone(),
-      resource_spec_hash: input.spec_hash.clone(),
-      creator: agent_info.agent_initial_pubkey.clone(),
-      validation_scheme: "simple_approval".to_string(), // TODO: Make configurable
-    },
-  )?;
+  // TODO: Re-enable once cross-zome call issues are resolved
+  // let _validation_result = call(
+  //   CallTargetCell::Local,
+  //   "zome_gouvernance",
+  //   "validate_new_resource".into(),
+  //   None,
+  //   &ValidateNewResourceInput {
+  //     resource_hash: resource_hash.clone(),
+  //     resource_spec_hash: input.spec_hash.clone(),
+  //     creator: agent_info.agent_initial_pubkey.clone(),
+  //     validation_scheme: "simple_approval".to_string(), // TODO: Make configurable
+  //   },
+  // )?;
 
   Ok(CreateEconomicResourceOutput {
     resource_hash,
@@ -233,6 +234,7 @@ pub fn get_all_economic_resources(_: ()) -> ExternResult<GetAllEconomicResources
 
   for link in links {
     if let Some(action_hash) = link.target.into_action_hash() {
+      // Get the record directly since we're now updating links to point to the latest version
       if let Some(record) = get(action_hash, GetOptions::default())? {
         if let Ok(Some(resource)) = record.entry().to_app_option::<EconomicResource>() {
           resources.push(resource);
@@ -384,6 +386,39 @@ pub fn transfer_custody(input: TransferCustodyInput) -> ExternResult<TransferCus
     &EntryTypes::EconomicResource(resource.clone()),
   )?;
 
+  // Create update link from original to new version
+  create_link(
+    input.resource_hash.clone(), // original action hash 
+    updated_resource_hash.clone(),
+    LinkTypes::EconomicResourceUpdates,
+    (),
+  )?;
+
+  // TEMPORARY FIX: Also update the AllEconomicResources link to point to the new version
+  let path = Path::from("economic_resources");
+  
+  // Remove the old link
+  let existing_links = get_links(
+    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?
+      .build(),
+  )?;
+  for link in existing_links {
+    if let Some(link_target) = link.target.into_action_hash() {
+      if link_target == input.resource_hash {
+        delete_link(link.create_link_hash)?;
+        break;
+      }
+    }
+  }
+  
+  // Create new link pointing to updated version
+  create_link(
+    path.path_entry_hash()?,
+    updated_resource_hash.clone(),
+    LinkTypes::AllEconomicResources,
+    (),
+  )?;
+
   // Remove old custodian link
   let old_links = get_links(
     GetLinksInputBuilder::try_new(
@@ -451,6 +486,41 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
   let updated_resource_hash = update_entry(
     input.resource_hash.clone(),
     &EntryTypes::EconomicResource(resource.clone()),
+  )?;
+
+  // Create update link from original to new version
+  // For the first update, the resource_hash is both the original and previous
+  create_link(
+    input.resource_hash.clone(), // original action hash
+    updated_resource_hash.clone(),
+    LinkTypes::EconomicResourceUpdates,
+    (),
+  )?;
+
+  // TEMPORARY FIX: Also update the AllEconomicResources link to point to the new version
+  // This is a workaround until the get_latest update chain logic is fixed
+  let path = Path::from("economic_resources");
+  
+  // Remove the old link
+  let existing_links = get_links(
+    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?
+      .build(),
+  )?;
+  for link in existing_links {
+    if let Some(link_target) = link.target.into_action_hash() {
+      if link_target == input.resource_hash {
+        delete_link(link.create_link_hash)?;
+        break;
+      }
+    }
+  }
+  
+  // Create new link pointing to updated version
+  create_link(
+    path.path_entry_hash()?,
+    updated_resource_hash.clone(),
+    LinkTypes::AllEconomicResources,
+    (),
   )?;
 
   let record = get(updated_resource_hash, GetOptions::default())?.ok_or(

@@ -1,6 +1,6 @@
 import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
 import holochainService from '../holochain.service.svelte.js';
-import type { Commitment, EconomicEvent } from '../../types/holochain.js';
+import type { Commitment, EconomicEvent } from '@nondominium/shared-types';
 
 /**
  * Governance zome service - clean architecture without Effect

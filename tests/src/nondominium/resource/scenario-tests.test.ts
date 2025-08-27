@@ -34,7 +34,7 @@ import {
   GovernanceRule,
   CreateResourceSpecificationOutput,
   CreateEconomicResourceOutput,
-} from "../../../types";
+} from "@nondominium/shared-types";
 import { runScenarioWithTwoAgents } from "../utils.js";
 
 test(
@@ -675,7 +675,7 @@ test(
         const maintenanceStart = await updateResourceState(
           bob.cells[0],
           {
-            resource_hash: initialTransfer.updated_resource_hash,
+            resource_hash: activationResult.signed_action.hashed.hash,
             new_state: RESOURCE_STATES.MAINTENANCE,
           }
         );
@@ -696,10 +696,10 @@ test(
         console.log(`✅ Resource in maintenance - community informed`);
 
         // Complete maintenance and return to active
-        await updateResourceState(
+        const maintenanceComplete = await updateResourceState(
           bob.cells[0],
           {
-            resource_hash: initialTransfer.updated_resource_hash,
+            resource_hash: maintenanceStart.signed_action.hashed.hash,
             new_state: RESOURCE_STATES.ACTIVE,
           }
         );
@@ -715,7 +715,7 @@ test(
         const projectTransfer = await transferCustody(
           bob.cells[0],
           {
-            resource_hash: initialTransfer.updated_resource_hash,
+            resource_hash: maintenanceComplete.signed_action.hashed.hash,
             new_custodian: alice.agentPubKey,
           }
         );

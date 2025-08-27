@@ -1,6 +1,6 @@
 import type { ActionHash, AgentPubKey } from '@holochain/client';
 import holochainService from '../holochain.service.svelte.js';
-import type { Person, EncryptedProfile, PersonRole } from '../../types/holochain.js';
+import type { Person, EncryptedProfile, PersonRole } from '@nondominium/shared-types';
 
 /**
  * Person zome service - clean architecture without Effect

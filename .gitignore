@@ -6,7 +6,7 @@
 .DS_Store
 
 # build
-/dist/
+dist/
 /target/
 /.cargo/
 
@@ -24,6 +24,7 @@
 .hc*
 .running
 .hc
+**.tmp
 
 # local files
 **/*.local.*

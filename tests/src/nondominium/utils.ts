@@ -31,8 +31,8 @@ export async function runScenarioWithTwoAgents(
   callback: (
     scenario: Scenario,
     alice: PlayerApp,
-    bob: PlayerApp
-  ) => Promise<void>
+    bob: PlayerApp,
+  ) => Promise<void>,
 ): Promise<void> {
   await runScenario(async (scenario) => {
     const [alice, bob] = await scenario.addPlayersWithApps([
@@ -132,7 +132,7 @@ export function serializeHash(hash: Uint8Array) {
  * @returns Promise<ArrayBuffer> - The image as ArrayBuffer
  */
 export function imagePathToArrayBuffer(
-  imagePath: string
+  imagePath: string,
 ): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     fs.readFile(imagePath, (err, buffer) => {

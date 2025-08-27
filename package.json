@@ -2,6 +2,7 @@
   "name": "nondominium-dev",
   "private": true,
   "workspaces": [
+    "packages/*",
     "ui",
     "tests"
   ],
@@ -16,7 +17,25 @@
     "package": "bun run build:happ && bun run --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "cargo build --release --target wasm32-unknown-unknown",
-    "check": "cd ui && bun run check"
+    "check": "cd ui && bun run check",
+    "test:watch": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:watch",
+    "test:debug": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:debug",
+    "test:coverage": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:coverage",
+    "test:foundation": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:foundation",
+    "test:integration": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:integration",
+    "test:scenarios": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:scenarios",
+    "test:person": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:person",
+    "test:resource": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:resource",
+    "test:governance": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:governance",
+    "test:ppr": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:ppr",
+    "test:ppr-foundation": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:ppr-foundation",
+    "test:ppr-integration": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:ppr-integration",
+    "test:ppr-scenarios": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:ppr-scenarios",
+    "test:ppr-performance": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:ppr-performance",
+    "test:roles": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:roles",
+    "test:resources-lifecycle": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:resources-lifecycle",
+    "lint:tests": "bun run --filter tests check",
+    "lint:tests:fix": "bun run --filter tests lint:fix"
   },
   "devDependencies": {
     "@holochain/hc-spin": "^0.500.1",

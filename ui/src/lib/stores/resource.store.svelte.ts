@@ -1,6 +1,6 @@
 import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
 import { resourceService } from '../services/zomes/resource.service.js';
-import type { ResourceSpecification, EconomicResource } from '../types/holochain.js';
+import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
 
 export type ResourceLoadingState = 'idle' | 'loading' | 'success' | 'error';
 

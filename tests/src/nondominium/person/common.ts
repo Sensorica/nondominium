@@ -14,7 +14,7 @@ import {
   MockRoleData,
   RoleType,
   CapabilityLevel,
-} from "../../../types";
+} from "@nondominium/shared-types";
 
 // Sample data generators
 export function samplePerson(

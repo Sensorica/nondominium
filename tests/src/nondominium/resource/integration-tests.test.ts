@@ -34,7 +34,7 @@ import {
   GovernanceRule,
   CreateResourceSpecificationOutput,
   CreateEconomicResourceOutput,
-} from "../../../types";
+} from "@nondominium/shared-types";
 import { runScenarioWithTwoAgents } from "../utils.js";
 
 test(

@@ -16,7 +16,7 @@ import {
   ResourceState,
   TransferCustodyInput,
   TransferCustodyOutput,
-} from "../../../types";
+} from "@nondominium/shared-types";
 
 // Sample data generators
 export function sampleResourceSpecification(

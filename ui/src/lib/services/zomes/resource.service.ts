@@ -1,6 +1,6 @@
 import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
 import holochainService from '../holochain.service.svelte.js';
-import type { ResourceSpecification, EconomicResource } from '../../types/holochain.js';
+import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
 
 /**
  * Resource zome service - clean architecture without Effect

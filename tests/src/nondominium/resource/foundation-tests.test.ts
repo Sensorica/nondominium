@@ -32,7 +32,7 @@ import {
   GovernanceRule,
   CreateResourceSpecificationOutput,
   CreateEconomicResourceOutput,
-} from "../../../types";
+} from "@nondominium/shared-types";
 const hAppPath = process.cwd() + "/../workdir/nondominium.happ";
 const appSource = {
   appBundleSource: {
