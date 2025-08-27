@@ -1,0 +1,38 @@
+{
+  "tab_size": 2,
+  "indent_guides": {
+    "enabled": true,
+    "line_width": 1,
+    "active_line_width": 2,
+    "coloring": "indent_aware"
+  },
+  "hard_tabs": false,
+  "format_on_save": "on",
+  "formatter": "prettier",
+  "languages": {
+    "TypeScript": {
+      "tab_size": 2,
+      "hard_tabs": false
+    },
+    "JavaScript": {
+      "tab_size": 2,
+      "hard_tabs": false
+    },
+    "Svelte": {
+      "tab_size": 2,
+      "hard_tabs": false
+    },
+    "JSON": {
+      "tab_size": 2,
+      "hard_tabs": false
+    },
+    "CSS": {
+      "tab_size": 2,
+      "hard_tabs": false
+    },
+    "HTML": {
+      "tab_size": 2,
+      "hard_tabs": false
+    }
+  }
+}
