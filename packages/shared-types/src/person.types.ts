@@ -41,12 +41,14 @@ export interface PersonRole {
 }
 
 export type RoleType =
-  | "Simple Agent"
-  | "Accountable Agent"
-  | "Primary Accountable Agent"
-  | "Transport Agent"
-  | "Repair Agent"
-  | "Storage Agent";
+  | "Simple Member"
+  | "Community Advocate"
+  | "Community Founder"
+  | "Community Coordinator"
+  | "Community Moderator"
+  | "Resource Coordinator"
+  | "Resource Steward"
+  | "Governance Coordinator";
 
 export type CapabilityLevel = "governance" | "coordination" | "stewardship" | "member";
 

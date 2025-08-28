@@ -32,7 +32,7 @@ export function sampleResourceSpecification(
       {
         rule_type: "access_requirement",
         rule_data: JSON.stringify({ min_member_level: "verified" }),
-        enforced_by: "Storage Agent",
+        enforced_by: "Resource Steward",
       },
     ],
     ...partialSpec,
@@ -280,7 +280,7 @@ export async function setupBasicResourceSpecifications(
       category: "personal_tools",
     })
   );
-
+  
   const bobSpec = await createResourceSpecification(
     bob.cells[0],
     sampleResourceSpecification({
@@ -347,21 +347,21 @@ export async function setupResourcesWithGovernance(
         {
           rule_type: "usage_limit",
           rule_data: JSON.stringify({ max_hours_per_day: 8 }),
-          enforced_by: "Storage Agent",
+          enforced_by: "Resource Steward",
         },
         {
           rule_type: "access_control",
           rule_data: JSON.stringify({ min_level: "member" }),
-          enforced_by: "Primary Accountable Agent",
+          enforced_by: "Community",
         },
       ],
     })
   );
-
+  
   const bobSpec = await createResourceSpecification(
     bob.cells[0],
     sampleResourceSpecification({
-      name: "Bob's Equipment",
+      name: "Bob's Equipment", 
       category: "equipment",
       governance_rules: [
         {
@@ -476,7 +476,7 @@ export const TEST_CATEGORIES = {
 
 export const TEST_TAGS = {
   SHARED: "shared",
-  COMMUNITY: "community",
+  COMMUNITY: "community", 
   PERSONAL: "personal",
   VERIFIED: "verified",
   EXPERIMENTAL: "experimental",

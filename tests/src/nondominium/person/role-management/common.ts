@@ -32,51 +32,51 @@ export interface RoleTestScenario {
 
 export const ROLE_TEST_SCENARIOS: RoleTestScenario[] = [
   {
-    name: "Simple Agent",
-    description: "Basic agent with simple capabilities",
-    roles: ["Simple Agent"],
+    name: "New Community Member",
+    description: "Basic member with simple capabilities",
+    roles: ["Simple Member"],
     expectedCapability: "member",
     expectedPermissions: ["view_public_resources", "create_basic_requests"],
     testComplexity: "simple",
   },
   {
-    name: "Transport Agent",
-    description: "Specialized transport service provider",
-    roles: ["Transport Agent"],
-    expectedCapability: "stewardship",
-    expectedPermissions: ["transport_resources", "coordinate_movement", "validate_transfers"],
+    name: "Community Advocate",
+    description: "Stewardship level member with resource guidance capabilities",
+    roles: ["Community Advocate"],
+    expectedCapability: "stewardship", 
+    expectedPermissions: ["view_public_resources", "guide_resource_usage", "moderate_discussions"],
     testComplexity: "moderate",
   },
   {
-    name: "Accountable Agent",
-    description: "Coordination level agent with validation capabilities",
-    roles: ["Accountable Agent"],
+    name: "Resource Coordinator",
+    description: "Coordination level member with resource management capabilities",
+    roles: ["Resource Coordinator"],
     expectedCapability: "coordination",
-    expectedPermissions: ["validate_transactions", "access_resources", "coordinate_activities"],
+    expectedPermissions: ["manage_resources", "assign_stewards", "coordinate_activities"],
     testComplexity: "moderate",
   },
   {
-    name: "Multi-Service Specialist",
-    description: "Agent with multiple specialized service roles",
-    roles: ["Transport Agent", "Storage Agent"],
+    name: "Multi-Role Steward",
+    description: "Member with multiple stewardship roles",
+    roles: ["Community Advocate", "Resource Steward"],
     expectedCapability: "stewardship",
-    expectedPermissions: ["transport_resources", "storage_management", "coordinate_services"],
+    expectedPermissions: ["guide_resource_usage", "steward_specific_resources", "moderate_discussions"],
     testComplexity: "moderate",
   },
   {
-    name: "Primary Accountable Agent",
-    description: "Governance level agent with full custodian capabilities",
-    roles: ["Primary Accountable Agent"],
+    name: "Community Founder",
+    description: "Governance level founder with all capabilities",
+    roles: ["Community Founder"],
     expectedCapability: "governance",
-    expectedPermissions: ["physical_custody", "validate_specialized_roles", "dispute_resolution"],
+    expectedPermissions: ["full_governance", "modify_structures", "assign_all_roles"],
     testComplexity: "complex",
   },
   {
-    name: "Full Service Provider",
-    description: "Agent with all specialized service capabilities",
-    roles: ["Transport Agent", "Repair Agent", "Storage Agent"],
-    expectedCapability: "stewardship",
-    expectedPermissions: ["transport_resources", "repair_services", "storage_management"],
+    name: "Complex Multi-Role Leader", 
+    description: "Member with roles spanning multiple capability levels",
+    roles: ["Community Coordinator", "Resource Coordinator", "Governance Coordinator"],
+    expectedCapability: "governance",
+    expectedPermissions: ["coordinate_community", "manage_resources", "governance_decisions"],
     testComplexity: "complex",
   },
 ];
@@ -92,25 +92,25 @@ export interface RoleAssignmentPattern {
 
 export const ROLE_PROGRESSION_PATTERNS: RoleAssignmentPattern[] = [
   {
-    pattern_name: "Standard Agent Progression",
-    description: "Typical progression from simple to specialized agent",
-    role_sequence: ["Simple Agent", "Transport Agent", "Accountable Agent"],
-    validation_points: ["initial_capability", "specialization", "validation_authority"],
-    expected_progression: ["member", "stewardship", "coordination"],
-  },
-  {
-    pattern_name: "Custodian Track",
-    description: "Progression toward primary custodian role",
-    role_sequence: ["Simple Agent", "Accountable Agent", "Primary Accountable Agent"],
-    validation_points: ["member_level", "accountable_level", "custodian_level"],
-    expected_progression: ["member", "coordination", "governance"],
-  },
-  {
-    pattern_name: "Service Specialist Track",
-    description: "Specialized progression in service provision",
-    role_sequence: ["Simple Agent", "Repair Agent", "Storage Agent"],
-    validation_points: ["basic_agent", "repair_specialist", "storage_specialist"],
+    pattern_name: "Standard Member Progression",
+    description: "Typical progression from member to steward",
+    role_sequence: ["Simple Member", "Community Advocate", "Resource Steward"],
+    validation_points: ["initial_capability", "stewardship_upgrade", "resource_specialization"],
     expected_progression: ["member", "stewardship", "stewardship"],
+  },
+  {
+    pattern_name: "Leadership Track",
+    description: "Progression toward coordination and governance",
+    role_sequence: ["Simple Member", "Community Advocate", "Community Coordinator", "Governance Coordinator"],
+    validation_points: ["member_level", "steward_level", "coordinator_level", "governance_level"],
+    expected_progression: ["member", "stewardship", "coordination", "governance"],
+  },
+  {
+    pattern_name: "Resource Specialist Track",
+    description: "Specialized progression in resource management",
+    role_sequence: ["Simple Member", "Resource Steward", "Resource Coordinator"],
+    validation_points: ["basic_member", "resource_steward", "resource_coordinator"],
+    expected_progression: ["member", "stewardship", "coordination"],
   },
 ];
 
@@ -125,32 +125,32 @@ export interface AccessControlScenario {
 
 export const ACCESS_CONTROL_SCENARIOS: AccessControlScenario[] = [
   {
-    scenario_name: "Simple Agent tries governance action",
-    roles: ["Simple Agent"],
-    protected_actions: ["modify_governance_rules", "assign_specialized_roles"],
+    scenario_name: "Member tries governance action",
+    roles: ["Simple Member"],
+    protected_actions: ["modify_governance_rules", "assign_governance_roles"],
     should_have_access: false,
-    test_context: "basic_agent_limitations",
+    test_context: "basic_member_limitations",
   },
   {
-    scenario_name: "Transport Agent tries validation",
-    roles: ["Transport Agent"],
-    protected_actions: ["validate_other_agents", "assign_agent_roles"],
+    scenario_name: "Advocate tries resource coordination",
+    roles: ["Community Advocate"],
+    protected_actions: ["assign_resource_steward", "modify_resource_policies"],
     should_have_access: false,
-    test_context: "service_level_limits",
+    test_context: "stewardship_level_limits",
   },
   {
-    scenario_name: "Accountable Agent validates transactions",
-    roles: ["Accountable Agent"],
-    protected_actions: ["validate_transactions", "access_resources", "participate_in_processes"],
+    scenario_name: "Coordinator manages resources",
+    roles: ["Resource Coordinator"],
+    protected_actions: ["assign_resource_steward", "modify_resource_policies", "coordinate_resource_usage"],
     should_have_access: true,
-    test_context: "accountable_level_access",
+    test_context: "coordination_level_access",
   },
   {
-    scenario_name: "Primary Accountable Agent has full custody access",
-    roles: ["Primary Accountable Agent"],
-    protected_actions: ["physical_custody", "validate_specialized_roles", "dispute_resolution"],
+    scenario_name: "Founder has full access",
+    roles: ["Community Founder"],
+    protected_actions: ["modify_governance_rules", "assign_all_roles", "system_administration"],
     should_have_access: true,
-    test_context: "primary_custodian_full_access",
+    test_context: "governance_level_full_access",
   },
 ];
 
@@ -161,20 +161,20 @@ export function validateRoleProgression(
 ): { valid: boolean; reason?: string } {
   const currentCapability = getExpectedCapabilityLevel(currentRoles);
   const newCapability = getExpectedCapabilityLevel([...currentRoles, newRole]);
-
+  
   // Check if progression makes sense
   const capabilityOrder: CapabilityLevel[] = ["member", "stewardship", "coordination", "governance"];
   const currentIndex = capabilityOrder.indexOf(currentCapability);
   const newIndex = capabilityOrder.indexOf(newCapability);
-
+  
   // Allow same level or progression
   if (newIndex >= currentIndex) {
     return { valid: true };
   }
-
-  return {
-    valid: false,
-    reason: `Cannot assign role that decreases capability level from ${currentCapability} to ${newCapability}`
+  
+  return { 
+    valid: false, 
+    reason: `Cannot assign role that decreases capability level from ${currentCapability} to ${newCapability}` 
   };
 }
 
@@ -185,7 +185,7 @@ export function validateCapabilityPermissions(
   const permissionMatrix: Record<CapabilityLevel, string[]> = {
     member: [
       "view_public_resources",
-      "create_basic_requests",
+      "create_basic_requests", 
       "participate_in_discussions",
     ],
     stewardship: [
@@ -196,7 +196,7 @@ export function validateCapabilityPermissions(
     ],
     coordination: [
       "manage_resources",
-      "assign_stewards",
+      "assign_stewards", 
       "coordinate_activities",
       "resolve_conflicts",
       "approve_resource_transfers",
@@ -213,7 +213,7 @@ export function validateCapabilityPermissions(
   // Get all permissions for this capability level and below
   const capabilityOrder: CapabilityLevel[] = ["member", "stewardship", "coordination", "governance"];
   const currentIndex = capabilityOrder.indexOf(capability);
-
+  
   const allPermissions = capabilityOrder
     .slice(0, currentIndex + 1)
     .flatMap(level => permissionMatrix[level]);
@@ -228,18 +228,18 @@ export async function assignMultipleRoles(
   roles: RoleType[]
 ): Promise<HolochainRecord[]> {
   const results: HolochainRecord[] = [];
-
+  
   for (const role of roles) {
     const roleInput: PersonRoleInput = {
       agent_pubkey: agent_pub_key,
       role_name: role,
       description: `${role} assigned for testing`,
     };
-
+    
     const result = await assignRole(cell, roleInput);
     results.push(result);
   }
-
+  
   return results;
 }
 
@@ -254,18 +254,18 @@ export async function testRoleProgressionScenario(
 }> {
   const progression_results: CapabilityLevel[] = [];
   const validation_results: boolean[] = [];
-
+  
   for (let i = 0; i < pattern.role_sequence.length; i++) {
     const role = pattern.role_sequence[i];
-
+    
     // Get current roles
     const currentRolesOutput = await getPersonRoles(cell, agent_pub_key);
     const currentRoles: RoleType[] = currentRolesOutput.roles.map(r => r.role_name as RoleType);
-
+    
     // Validate progression
     const validation = validateRoleProgression(currentRoles, role);
     validation_results.push(validation.valid);
-
+    
     if (validation.valid) {
       // Assign role
       await assignRole(cell, {
@@ -273,18 +273,18 @@ export async function testRoleProgressionScenario(
         role_name: role,
         description: `Role progression: ${role}`,
       });
-
+      
       // Check resulting capability
       const capability = await getCapabilityLevel(cell, agent_pub_key);
       progression_results.push(capability as CapabilityLevel);
     }
   }
-
+  
   const final_capability = await getCapabilityLevel(cell, agent_pub_key);
-
+  
   return {
     progression_results,
-    validation_results,
+    validation_results, 
     final_capability: final_capability as CapabilityLevel,
   };
 }
@@ -298,17 +298,17 @@ export interface RoleConflict {
 
 export function detectRoleConflicts(roles: RoleType[]): RoleConflict[] {
   const conflicts: RoleConflict[] = [];
-
+  
   // Example conflicts (customize based on your governance model)
   const conflictMatrix: Record<string, { conflicts_with: RoleType[]; reason: string; severity: "warning" | "error" }> = {
-    "Primary Accountable Agent": {
-      conflicts_with: ["Transport Agent", "Repair Agent", "Storage Agent"],
-      reason: "Primary custodian should not provide services to avoid conflicts of interest",
+    "Community Moderator": {
+      conflicts_with: ["Resource Steward"],
+      reason: "Potential bias in moderating resource-related conflicts",
       severity: "warning",
     },
     // Add more conflict rules as needed
   };
-
+  
   for (const role of roles) {
     const conflictRule = conflictMatrix[role];
     if (conflictRule) {
@@ -323,7 +323,7 @@ export function detectRoleConflicts(roles: RoleType[]): RoleConflict[] {
       }
     }
   }
-
+  
   return conflicts;
 }
 
@@ -343,14 +343,14 @@ export async function setupRoleManagementTest(
 ): Promise<RoleTestContext> {
   const agentRoles = new Map<string, RoleType[]>();
   const agentCapabilities = new Map<string, CapabilityLevel>();
-
+  
   // Set up basic persons first
   await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
-  await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
+  await createPerson(bob.cells[0], samplePerson({ name: "Bob" })); 
   if (lynn) {
     await createPerson(lynn.cells[0], samplePerson({ name: "Charlie" }));
   }
-
+  
   return {
     alice,
     bob,

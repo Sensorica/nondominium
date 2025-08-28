@@ -49,8 +49,26 @@ pub fn create_resource_specification(
       created_at: now,
     };
 
-    let rule_hash = create_entry(&EntryTypes::GovernanceRule(rule))?;
-    governance_rule_hashes.push(rule_hash);
+    let rule_hash = create_entry(&EntryTypes::GovernanceRule(rule.clone()))?;
+    governance_rule_hashes.push(rule_hash.clone());
+
+    // Create discovery link for this governance rule (same as in create_governance_rule)
+    let rules_path = Path::from("governance_rules");
+    create_link(
+      rules_path.path_entry_hash()?,
+      rule_hash.clone(),
+      LinkTypes::AllGovernanceRules,
+      (),
+    )?;
+
+    // Create type-based discovery link
+    let type_path = Path::from(format!("rules_by_type_{}", rule.rule_type));
+    create_link(
+      type_path.path_entry_hash()?,
+      rule_hash.clone(),
+      LinkTypes::RulesByType,
+      LinkTag::new(rule.rule_type.as_str()),
+    )?;
   }
 
   // Create the resource specification

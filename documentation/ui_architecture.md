@@ -3,15 +3,18 @@
 ## Analysis Summary
 
 ### Enhanced Backend Architecture Analysis
+
 The **Nondominium** project has evolved into a sophisticated, production-ready ecosystem requiring comprehensive UI support:
 
 **Technology Stack:**
+
 - SvelteKit + Svelte 5 + TypeScript + TailwindCSS ✅
 - **Effect-TS** for functional programming paradigms with Economic Process and PPR state management
 - Comprehensive testing (Unit, Integration, E2E) including Economic Process workflows
 - Enhanced 7-layer architecture pattern supporting complex cross-zome interactions
 
 **Enhanced 7-Layer Architecture Pattern:**
+
 ```
 DNA Layer (3-Zome Backend - Fully Implemented)
   ↓ (Economic Processes, PPR System, Private Data Sharing)
@@ -33,6 +36,7 @@ Comprehensive Pages/Routes (Complete Economic Process and governance workflows)
 ### Why Effect-TS is Critical for Enhanced Nondominium
 
 **✅ Enhanced Advantages:**
+
 1. **Complex Error Handling**: Comprehensive error types across Economic Processes, PPR operations, and cross-zome interactions
 2. **Economic Process Composition**: Clean composition of multi-step workflows (Transport → Repair → Transport)
 3. **PPR State Management**: Type-safe handling of private reputation data with selective disclosure
@@ -41,6 +45,7 @@ Comprehensive Pages/Routes (Complete Economic Process and governance workflows)
 6. **Production Scalability**: Supports sophisticated governance workflows and reputation system complexity
 
 **⚠️ Considerations:**
+
 - Learning curve for Effect-TS paradigms
 - More complex setup than vanilla reactive stores
 - Overkill for simple PoC features
@@ -52,26 +57,26 @@ Multi-Layer Structure with Economic Processes & PPR:
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ PAGES/ROUTES (Enhanced)                                                         │
-│ /dashboard, /profile, /people, /processes, /reputation, /governance, /settings  │
-│ + Economic Process workflows, PPR tracking, role progression                    │
+│ /dashboard, /profile, /people, /processes, /reputation, /governance, /settings │
+│ + Economic Process workflows, PPR tracking, role progression                   │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ COMPONENTS (Process-Aware)                                                      │
-│ PersonProfile, ProcessWorkflow, ReputationDashboard, RoleProgression,           │
-│ PrivateDataManager, ResourceLifecycle, ValidationInterface                      │
+│ COMPONENTS (Process-Aware)                                                     │
+│ PersonProfile, ProcessWorkflow, ReputationDashboard, RoleProgression,         │
+│ PrivateDataManager, ResourceLifecycle, ValidationInterface                    │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ COMPOSABLES (Economic Process & PPR Integration)                                │
-│ useEconomicProcess, usePPRTracking, useAgentProgression, usePrivateDataSharing, │
-│ useReputationManagement, useValidationWorkflows, useRoleManagement              │
+│ COMPOSABLES (Economic Process & PPR Integration)                               │
+│ useEconomicProcess, usePPRTracking, useAgentProgression, usePrivateDataSharing,│
+│ useReputationManagement, useValidationWorkflows, useRoleManagement             │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ STORES (Advanced Effect-TS with Cross-Zome State)                               │
-│ personStore, resourceStore, processStore, reputationStore, governanceStore,     │
-│ validationStore, roleStore, authStore - with PPR integration                    │
+│ STORES (Advanced Effect-TS with Cross-Zome State)                              │
+│ personStore, resourceStore, processStore, reputationStore, governanceStore,   │
+│ validationStore, roleStore, authStore - with PPR integration                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────┐
@@ -97,11 +102,13 @@ Multi-Layer Structure with Economic Processes & PPR:
 ## Enhanced Backend Analysis
 
 ### Comprehensive Zome Structure (Phase 2 Complete)
+
 - **zome_person**: Enhanced agent identity, profiles, roles, private data sharing (request/grant workflows), capability progression, PPR integration
 - **zome_resource**: Resource specifications, Economic Resources, Economic Processes (Use, Transport, Storage, Repair), lifecycle management, custody transfers
 - **zome_gouvernance**: Commitments, claims, economic events, PPR system (14 categories), validation workflows, agent progression, VfAction enum
 
 ### Enhanced Data Model
+
 ```typescript
 // Core entities reflecting comprehensive backend
 Person {
@@ -151,13 +158,20 @@ PersonRole {
 }
 
 // Enhanced role hierarchy with Economic Process specializations
-RoleType = 
-  | "Simple Agent"           // Simple Agent capabilities
-  | "Accountable Agent"      // Accountable Agent level
-  | "Primary Accountable Agent" // Primary Accountable Agent level
-  | "Transport Agent"        // Transport process access
-  | "Repair Agent"           // Repair process access
-  | "Storage Agent"          // Storage process access
+RoleType =
+  | "SimpleMember"           // Simple Agent capabilities
+  | "CommunityAdvocate"      // Accountable Agent level
+  | "CommunityFounder"       // Primary Accountable Agent level
+  | "CommunityCoordinator"   // Coordination capabilities
+  | "CommunityModerator"     // Moderation capabilities
+  | "ResourceCoordinator"    // Resource management coordination
+  | "ResourceSteward"        // Resource stewardship
+  | "GovernanceCoordinator"  // Governance process coordination
+
+  // Economic Process Specialized Roles
+  | "Transport"              // Transport process access
+  | "Repair"                 // Repair process access
+  | "Storage"                // Storage process access
 
 // Economic Process structures
 EconomicProcess {
@@ -174,8 +188,8 @@ EconomicProcess {
   status: ProcessStatus
 }
 
-ProcessStatus = 
-  | "Planned" | "InProgress" | "Completed" 
+ProcessStatus =
+  | "Planned" | "InProgress" | "Completed"
   | "Suspended" | "Cancelled" | "Failed"
 
 // Private Participation Receipt system
@@ -192,13 +206,13 @@ PrivateParticipationClaim {
   resource_reference?: ActionHash
 }
 
-ParticipationClaimType = 
+ParticipationClaimType =
   // Genesis Role - Network Entry
   | "ResourceContribution" | "NetworkValidation"
-  // Core Usage Role - Custodianship  
+  // Core Usage Role - Custodianship
   | "ResponsibleTransfer" | "CustodyAcceptance"
   // Intermediate Roles - Specialized Services
-  | "ServiceCommitmentAccepted" | "GoodFaithTransfer" 
+  | "ServiceCommitmentAccepted" | "GoodFaithTransfer"
   | "ServiceFulfillmentCompleted" | "MaintenanceFulfillment"
   | "StorageFulfillment" | "TransportFulfillment"
   // Network Governance
@@ -207,7 +221,7 @@ ParticipationClaimType =
 
 PerformanceMetrics {
   timeliness_score: number,     // 0.0-1.0
-  quality_score: number,        // 0.0-1.0  
+  quality_score: number,        // 0.0-1.0
   reliability_score: number,    // 0.0-1.0
   communication_score: number,  // 0.0-1.0
   completion_rate: number,      // 0.0-1.0
@@ -230,6 +244,7 @@ ReputationSummary {
 ```
 
 ### Comprehensive Zome Functions
+
 ```rust
 // Person management (enhanced)
 create_person(PersonInput) -> Record
@@ -307,12 +322,14 @@ get_all_claims() -> Vec<Claim>
 ## Enhanced Implementation Strategy for Comprehensive System
 
 ### Phase 1: Enhanced Foundation Setup
+
 1. **Migrate to SvelteKit** - Convert from vanilla Svelte with Economic Process support
 2. **Add Effect-TS dependencies** - `effect` + related packages for complex state management
 3. **Setup TailwindCSS** - Design system supporting role-based UI and process workflows
 4. **Create Enhanced HolochainClientService** - Connection layer with cross-zome coordination and PPR integration
 
 ### Phase 2: Comprehensive Service Layer
+
 1. **PersonService** - Enhanced CRUD operations + private data sharing + agent progression
 2. **ResourceService** - Resource management + Economic Process coordination + custody transfers
 3. **GovernanceService** - Validation workflows + PPR management + agent promotion
@@ -322,6 +339,7 @@ get_all_claims() -> Vec<Claim>
 7. **Error handling** - Comprehensive error types across all Economic Process and PPR operations
 
 ### Phase 3: Advanced Store Layer (Effect-TS)
+
 1. **PersonStore** - Enhanced profiles + private data sharing + capability progression tracking
 2. **ResourceStore** - Resources + processes + custody + state transitions + process scheduling
 3. **GovernanceStore** - Validation workflows + PPR tracking + reputation summaries
@@ -332,6 +350,7 @@ get_all_claims() -> Vec<Claim>
 8. **Cross-Store Event System** - Complex workflow coordination across all stores
 
 ### Phase 4: Process-Aware Composables + Components
+
 1. **Enhanced Composables** - Economic Process workflows, PPR tracking, agent progression, private data sharing
 2. **Process-Aware Components** - Economic Process UI, reputation dashboards, role progression, validation interfaces
 3. **Comprehensive Pages** - Complete Economic Process and governance workflows with role-based access
@@ -339,9 +358,10 @@ get_all_claims() -> Vec<Claim>
 ## Enhanced Pages & Layout Design for Comprehensive System
 
 ### Comprehensive Application Structure
+
 ```
-/                         # Enhanced Dashboard (community overview + Economic Process summary)
-/profile                  # Enhanced Personal profile management
+/                          # Enhanced Dashboard (community overview + Economic Process summary)
+/profile                   # Enhanced Personal profile management
 /profile/edit             # Edit personal profile
 /profile/private          # Enhanced Private data management
 /profile/data-sharing     # Private data sharing management (NEW)
@@ -380,13 +400,16 @@ get_all_claims() -> Vec<Claim>
 ```
 
 ### Enhanced Component Architecture
+
 **Layout Components:**
+
 - `AppShell` - Main navigation + content area with Economic Process integration
 - `EnhancedNavigation` - Role-based menu items + process status indicators + reputation context
 - `Header` - User profile + notifications + capability progression indicators
 - `CapabilityGuard` - Enhanced role-based access control for Economic Processes
 
 **Person Management (Enhanced):**
+
 - `PersonProfile` - Profile view/edit + reputation summary + capability progression
 - `PersonCard` - Directory listing + reputation indicators + role badges
 - `RoleManager` - Role assignment + specialized role validation (governance only)
@@ -396,6 +419,7 @@ get_all_claims() -> Vec<Claim>
 - `AgentProgressionTracker` - Visual capability advancement tracking
 
 **Economic Process Components (NEW):**
+
 - `ProcessWorkflow` - Economic Process initiation + tracking + completion
 - `ProcessTypeSelector` - Role-based process type selection (Use, Transport, Storage, Repair)
 - `ProcessStatusTracker` - Real-time process status updates
@@ -404,6 +428,7 @@ get_all_claims() -> Vec<Claim>
 - `ProcessRoleValidation` - Role requirement validation for process access
 
 **Resource Management (Enhanced):**
+
 - `ResourceProfile` - Resource view + process history + custody tracking
 - `ResourceLifecycle` - Complete resource lifecycle management
 - `CustodyTransferInterface` - Custody transfer workflows with coordination
@@ -411,6 +436,7 @@ get_all_claims() -> Vec<Claim>
 - `ResourceProcessHistory` - Audit trail of all processes affecting resource
 
 **Reputation & PPR Components (NEW):**
+
 - `ReputationDashboard` - Comprehensive reputation tracking + performance analytics
 - `PPRManager` - Private Participation Receipt management + selective disclosure
 - `PPRTracker` - Real-time PPR generation tracking
@@ -419,6 +445,7 @@ get_all_claims() -> Vec<Claim>
 - `SelectiveSharing` - Privacy-preserving reputation sharing controls
 
 **Governance & Validation (Enhanced):**
+
 - `ValidationInterface` - Multi-reviewer validation workflows
 - `ValidationStatusTracker` - Real-time validation progress tracking
 - `AgentValidation` - Agent promotion validation workflows
@@ -427,6 +454,7 @@ get_all_claims() -> Vec<Claim>
 - `GovernanceAuditTrail` - Complete governance decision tracking
 
 **Core Features (Enhanced):**
+
 - `AgentConnector` - Connection status + cross-zome coordination health
 - `RoleIndicator` - Visual role representation + specialization badges + capability level
 - `DataTable` - Enhanced listing components with process/reputation filtering
@@ -437,88 +465,103 @@ get_all_claims() -> Vec<Claim>
 ## Enhanced Role-Based UI Access Control
 
 ### Enhanced Capability Levels & Agent Progression
-```typescript
-type CapabilityLevel = 
-  | "member"      // Simple Agent: Basic profile management, can create resources
-  | "stewardship" // Accountable Agent: Community advocacy, resource stewardship, Use processes
-  | "coordination"// Primary Accountable Agent: Resource/community coordination, custody, specialized processes
-  | "governance"  // Primary Accountable Agent: Community founding, governance coordination, all capabilities
 
-type SpecializedRole = 
-  | "Transport"   // Transport process access (requires validation)
-  | "Repair"      // Repair process access (requires validation)  
-  | "Storage"     // Storage process access (requires validation)
+```typescript
+type CapabilityLevel =
+  | "member" // Simple Agent: Basic profile management, can create resources
+  | "stewardship" // Accountable Agent: Community advocacy, resource stewardship, Use processes
+  | "coordination" // Primary Accountable Agent: Resource/community coordination, custody, specialized processes
+  | "governance"; // Primary Accountable Agent: Community founding, governance coordination, all capabilities
+
+type SpecializedRole =
+  | "Transport" // Transport process access (requires validation)
+  | "Repair" // Repair process access (requires validation)
+  | "Storage"; // Storage process access (requires validation)
 ```
 
 ### Comprehensive UI Permission Matrix
-| Feature | Simple Agent | Accountable Agent | Primary Accountable Agent | Governance |
-|---------|--------------|-------------------|---------------------------|------------|
-| **Profile Management** |
-| View own profile | ✅ | ✅ | ✅ | ✅ |
-| Edit own profile | ✅ | ✅ | ✅ | ✅ |
-| Manage private data | ✅ | ✅ | ✅ | ✅ |
-| Share private data | ❌ | ✅ | ✅ | ✅ |
-| View reputation summary | ❌ | ✅ | ✅ | ✅ |
-| **Community Features** |
-| View community directory | ✅ | ✅ | ✅ | ✅ |
-| View others' profiles | ✅ | ✅ | ✅ | ✅ |
-| Request private data access | ❌ | ✅ | ✅ | ✅ |
-| View reputation context | ❌ | ✅ | ✅ | ✅ |
-| **Resource Management** |
-| Create resources | ✅ | ✅ | ✅ | ✅ |
-| View all resources | ✅ | ✅ | ✅ | ✅ |
-| Hold custody | ❌ | ❌ | ✅ | ✅ |
-| Transfer custody | ❌ | ❌ | ✅ | ✅ |
-| **Economic Processes** |
-| View processes | ✅ | ✅ | ✅ | ✅ |
-| Initiate Use process | ❌ | ✅ | ✅ | ✅ |
-| Initiate Transport process | ❌ | Transport Role | Transport Role | ✅ |
-| Initiate Storage process | ❌ | Storage Role | Storage Role | ✅ |
-| Initiate Repair process | ❌ | Repair Role | Repair Role | ✅ |
-| Complete processes | ❌ | ✅ | ✅ | ✅ |
-| **Validation & Governance** |
-| Participate in validation | ❌ | ✅ | ✅ | ✅ |
-| Validate resources | ❌ | ✅ | ✅ | ✅ |
-| Validate agents | ❌ | ❌ | ✅ | ✅ |
-| Validate specialized roles | ❌ | ❌ | ✅ | ✅ |
-| Assign basic roles | ❌ | ❌ | ❌ | ✅ |
-| Assign specialized roles | ❌ | ❌ | ❌ | ✅ |
-| Access governance workflows | ❌ | ❌ | ❌ | ✅ |
-| **PPR & Reputation** |
-| Generate PPRs | ❌ | ✅ | ✅ | ✅ |
-| View own PPRs | ❌ | ✅ | ✅ | ✅ |
-| Derive reputation | ❌ | ✅ | ✅ | ✅ |
-| Share reputation selectively | ❌ | ✅ | ✅ | ✅ |
-| View performance analytics | ❌ | ✅ | ✅ | ✅ |
+
+| Feature                      | Simple Agent | Accountable Agent | Primary Accountable Agent | Governance |
+| ---------------------------- | ------------ | ----------------- | ------------------------- | ---------- |
+| **Profile Management**       |
+| View own profile             | ✅           | ✅                | ✅                        | ✅         |
+| Edit own profile             | ✅           | ✅                | ✅                        | ✅         |
+| Manage private data          | ✅           | ✅                | ✅                        | ✅         |
+| Share private data           | ❌           | ✅                | ✅                        | ✅         |
+| View reputation summary      | ❌           | ✅                | ✅                        | ✅         |
+| **Community Features**       |
+| View community directory     | ✅           | ✅                | ✅                        | ✅         |
+| View others' profiles        | ✅           | ✅                | ✅                        | ✅         |
+| Request private data access  | ❌           | ✅                | ✅                        | ✅         |
+| View reputation context      | ❌           | ✅                | ✅                        | ✅         |
+| **Resource Management**      |
+| Create resources             | ✅           | ✅                | ✅                        | ✅         |
+| View all resources           | ✅           | ✅                | ✅                        | ✅         |
+| Hold custody                 | ❌           | ❌                | ✅                        | ✅         |
+| Transfer custody             | ❌           | ❌                | ✅                        | ✅         |
+| **Economic Processes**       |
+| View processes               | ✅           | ✅                | ✅                        | ✅         |
+| Initiate Use process         | ❌           | ✅                | ✅                        | ✅         |
+| Initiate Transport process   | ❌           | Transport Role    | Transport Role            | ✅         |
+| Initiate Storage process     | ❌           | Storage Role      | Storage Role              | ✅         |
+| Initiate Repair process      | ❌           | Repair Role       | Repair Role               | ✅         |
+| Complete processes           | ❌           | ✅                | ✅                        | ✅         |
+| **Validation & Governance**  |
+| Participate in validation    | ❌           | ✅                | ✅                        | ✅         |
+| Validate resources           | ❌           | ✅                | ✅                        | ✅         |
+| Validate agents              | ❌           | ❌                | ✅                        | ✅         |
+| Validate specialized roles   | ❌           | ❌                | ✅                        | ✅         |
+| Assign basic roles           | ❌           | ❌                | ❌                        | ✅         |
+| Assign specialized roles     | ❌           | ❌                | ❌                        | ✅         |
+| Access governance workflows  | ❌           | ❌                | ❌                        | ✅         |
+| **PPR & Reputation**         |
+| Generate PPRs                | ❌           | ✅                | ✅                        | ✅         |
+| View own PPRs                | ❌           | ✅                | ✅                        | ✅         |
+| Derive reputation            | ❌           | ✅                | ✅                        | ✅         |
+| Share reputation selectively | ❌           | ✅                | ✅                        | ✅         |
+| View performance analytics   | ❌           | ✅                | ✅                        | ✅         |
 
 ## Data Flow Strategy
 
 ### Effect-TS Store Architecture
+
 ```typescript
 // Example PersonStore structure
-export const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceTag> =>
+export const createPersonStore = (): E.Effect<
+  PersonStore,
+  never,
+  PersonServiceTag
+> =>
   E.gen(function* () {
     const personService = yield* PersonServiceTag;
-    
+
     // Reactive state
     let currentUser = $state<Person | null>(null);
     let communityMembers = $state<Person[]>([]);
     let loading = $state(false);
     let error = $state<string | null>(null);
-    
+
     // Methods with Effect composition
     const createProfile = (input: PersonInput): E.Effect<Person, PersonError> =>
       pipe(
         personService.createPerson(input),
-        E.tap((person) => E.sync(() => currentUser = person)),
-        E.tap((person) => emitEvent('person:created', person))
+        E.tap((person) => E.sync(() => (currentUser = person))),
+        E.tap((person) => emitEvent("person:created", person)),
       );
-    
+
     return {
-      get currentUser() { return currentUser; },
-      get communityMembers() { return communityMembers; },
-      get loading() { return loading; },
-      get error() { return error; },
+      get currentUser() {
+        return currentUser;
+      },
+      get communityMembers() {
+        return communityMembers;
+      },
+      get loading() {
+        return loading;
+      },
+      get error() {
+        return error;
+      },
       createProfile,
       // ... other methods
     };
@@ -526,6 +569,7 @@ export const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceT
 ```
 
 ### State Management Patterns
+
 - **Holochain Stores**: Reactive stores for zome calls with Effect error handling
 - **Profile Store**: Current agent profile + roles with capability checking
 - **Community Store**: All persons + public data with search/filter
@@ -535,6 +579,7 @@ export const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceT
 ## Enhanced Architecture Benefits for Comprehensive Nondominium
 
 **Immediate Benefits (Phase 1-2 Complete):**
+
 - Clean separation of concerns across Economic Processes and PPR system
 - Type-safe Holochain interactions with cross-zome coordination
 - Comprehensive error handling for complex workflows
@@ -544,6 +589,7 @@ export const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceT
 - Privacy-preserving reputation management with selective disclosure
 
 **Advanced Benefits (Phase 2-3):**
+
 - Complete Economic Process integration with role-based workflows
 - Sophisticated governance workflows with PPR-weighted validation
 - Multi-agent coordination across complex Economic Process chains
@@ -554,6 +600,7 @@ export const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceT
 - Scalable testing infrastructure for production-ready governance workflows
 
 **Production-Ready Capabilities:**
+
 - Agent capability progression (Simple → Accountable → Primary Accountable Agent)
 - Economic Process management (Use, Transport, Storage, Repair) with specialized role access
 - Private data sharing with request/grant workflows and Economic Process coordination
@@ -565,37 +612,45 @@ export const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceT
 ## Technical Implementation Notes
 
 ### Effect-TS Integration Patterns
+
 ```typescript
 // Service layer with dependency injection
-export class PersonServiceTag extends Context.Tag('PersonService')<
-  PersonServiceTag, PersonService
+export class PersonServiceTag extends Context.Tag("PersonService")<
+  PersonServiceTag,
+  PersonService
 >() {}
 
 // Error handling with context
-export const PersonError = Data.TaggedError('PersonError')<{
+export const PersonError = Data.TaggedError("PersonError")<{
   message: string;
   context?: string;
   cause?: unknown;
 }>();
 
 // Composable async operations
-const createAndLinkProfile = (input: PersonInput): E.Effect<Person, PersonError> =>
+const createAndLinkProfile = (
+  input: PersonInput,
+): E.Effect<Person, PersonError> =>
   pipe(
     personService.createPerson(input),
     E.flatMap((person) => linkToAgent(person)),
     E.flatMap((person) => updateCommunityDirectory(person)),
-    E.catchAll((error) => PersonError({ message: 'Profile creation failed', cause: error }))
+    E.catchAll((error) =>
+      PersonError({ message: "Profile creation failed", cause: error }),
+    ),
   );
 ```
 
 ### Holochain Integration Patterns
+
 - Wrap zome calls in Effect for consistent error handling
-- Cache management with expiration policies  
+- Cache management with expiration policies
 - Reactive updates via Holochain signals
 - Capability-based access control in UI components
 - Private data encryption/decryption flows
 
 ### Testing Strategy
+
 - **Unit Tests**: Services and stores with mocked dependencies
 - **Integration Tests**: Cross-layer interactions with test Holochain setup
 - **E2E Tests**: Complete user workflows (profile creation, role assignment)
@@ -605,12 +660,14 @@ const createAndLinkProfile = (input: PersonInput): E.Effect<Person, PersonError>
 ## Migration from Current Setup
 
 ### Current State
+
 - Basic Svelte 5 setup with Holochain client connection
 - No UI components yet - minimal scaffolding only
 - TypeScript support configured
 - Missing: SvelteKit, TailwindCSS, Effect-TS
 
 ### Migration Steps
+
 1. **Convert to SvelteKit**: Update build config and routing
 2. **Add dependencies**: Effect-TS, TailwindCSS
 3. **Create service layer**: HolochainClientService with Effect integration

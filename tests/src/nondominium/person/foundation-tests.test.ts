@@ -48,7 +48,7 @@ test("create and retrieve Person", async () => {
       const aliceProfile = await getMyProfile(alice.cells[0]);
       assert.ok(aliceProfile.person);
       assert.equal(aliceProfile.person!.name, "Lynn");
-      assert.isNull(aliceProfile.private_data); // No private data stored yet
+      assert.isUndefined(aliceProfile.private_data); // No private data stored yet
 
       // Bob can get Lynn's public profile
       const bobViewOfLynn = await getPersonProfile(
@@ -57,7 +57,7 @@ test("create and retrieve Person", async () => {
       );
       assert.ok(bobViewOfLynn.person);
       assert.equal(bobViewOfLynn.person!.name, "Lynn");
-      assert.isNull(bobViewOfLynn.private_data); // Bob can't see Lynn's private data
+      assert.isUndefined(bobViewOfLynn.private_data); // Bob can't see Lynn's private data
     },
   );
 }, 240000);
@@ -98,7 +98,7 @@ test("store and retrieve private data", async () => {
         alice.agentPubKey,
       );
       assert.ok(bobViewOfLynn.person);
-      assert.isNull(bobViewOfLynn.private_data);
+      assert.isUndefined(bobViewOfLynn.private_data);
     },
   );
 }, 240000);
@@ -292,7 +292,7 @@ test("error handling - missing person profile", async () => {
 
       // Should return empty profile
       assert.isNull(profile.person);
-      assert.isNull(profile.private_data);
+      assert.isUndefined(profile.private_data);
 
       // Try to get roles for agent without person record
       const roles = await getPersonRoles(alice.cells[0], bob.agentPubKey);
