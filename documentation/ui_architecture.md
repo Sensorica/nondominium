@@ -52,26 +52,26 @@ Multi-Layer Structure with Economic Processes & PPR:
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ PAGES/ROUTES (Enhanced)                                                         │
-│ /dashboard, /profile, /people, /processes, /reputation, /governance, /settings │
-│ + Economic Process workflows, PPR tracking, role progression                   │
+│ /dashboard, /profile, /people, /processes, /reputation, /governance, /settings  │
+│ + Economic Process workflows, PPR tracking, role progression                    │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ COMPONENTS (Process-Aware)                                                     │
-│ PersonProfile, ProcessWorkflow, ReputationDashboard, RoleProgression,         │
-│ PrivateDataManager, ResourceLifecycle, ValidationInterface                    │
+│ COMPONENTS (Process-Aware)                                                      │
+│ PersonProfile, ProcessWorkflow, ReputationDashboard, RoleProgression,           │
+│ PrivateDataManager, ResourceLifecycle, ValidationInterface                      │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ COMPOSABLES (Economic Process & PPR Integration)                               │
-│ useEconomicProcess, usePPRTracking, useAgentProgression, usePrivateDataSharing,│
-│ useReputationManagement, useValidationWorkflows, useRoleManagement             │
+│ COMPOSABLES (Economic Process & PPR Integration)                                │
+│ useEconomicProcess, usePPRTracking, useAgentProgression, usePrivateDataSharing, │
+│ useReputationManagement, useValidationWorkflows, useRoleManagement              │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ STORES (Advanced Effect-TS with Cross-Zome State)                              │
-│ personStore, resourceStore, processStore, reputationStore, governanceStore,   │
-│ validationStore, roleStore, authStore - with PPR integration                  │
+│ STORES (Advanced Effect-TS with Cross-Zome State)                               │
+│ personStore, resourceStore, processStore, reputationStore, governanceStore,     │
+│ validationStore, roleStore, authStore - with PPR integration                    │
 └─────────────────────────────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────┐
@@ -152,18 +152,12 @@ PersonRole {
 
 // Enhanced role hierarchy with Economic Process specializations
 RoleType = 
-  | "SimpleMember"           // Simple Agent capabilities
-  | "CommunityAdvocate"      // Accountable Agent level
-  | "CommunityFounder"       // Primary Accountable Agent level
-  | "CommunityCoordinator"   // Coordination capabilities
-  | "CommunityModerator"     // Moderation capabilities
-  | "ResourceCoordinator"    // Resource management coordination
-  | "ResourceSteward"        // Resource stewardship
-  | "GovernanceCoordinator"  // Governance process coordination
-  // Economic Process Specialized Roles
-  | "Transport"              // Transport process access
-  | "Repair"                 // Repair process access
-  | "Storage"                // Storage process access
+  | "Simple Agent"           // Simple Agent capabilities
+  | "Accountable Agent"      // Accountable Agent level
+  | "Primary Accountable Agent" // Primary Accountable Agent level
+  | "Transport Agent"        // Transport process access
+  | "Repair Agent"           // Repair process access
+  | "Storage Agent"          // Storage process access
 
 // Economic Process structures
 EconomicProcess {
@@ -346,8 +340,8 @@ get_all_claims() -> Vec<Claim>
 
 ### Comprehensive Application Structure
 ```
-/                          # Enhanced Dashboard (community overview + Economic Process summary)
-/profile                   # Enhanced Personal profile management
+/                         # Enhanced Dashboard (community overview + Economic Process summary)
+/profile                  # Enhanced Personal profile management
 /profile/edit             # Edit personal profile
 /profile/private          # Enhanced Private data management
 /profile/data-sharing     # Private data sharing management (NEW)

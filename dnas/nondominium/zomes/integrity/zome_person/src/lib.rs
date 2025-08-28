@@ -52,27 +52,23 @@ pub struct PersonRole {
 /// Allowed role types in the system
 #[derive(Debug, Clone, PartialEq)]
 pub enum RoleType {
-  SimpleMember,
-  CommunityAdvocate,
-  CommunityFounder,
-  CommunityCoordinator,
-  CommunityModerator,
-  ResourceCoordinator,
-  ResourceSteward,
-  GovernanceCoordinator,
+  SimpleAgent,             // Simple Agent capabilities
+  AccountableAgent,        // Accountable Agent level
+  PrimaryAccountableAgent, // Primary Accountable Agent level
+  Transport,               // Transport process access
+  Repair,                  // Repair process access
+  Storage,                 // Storage process access
 }
 
 impl Display for RoleType {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::SimpleMember => write!(f, "Simple Member"),
-      Self::CommunityAdvocate => write!(f, "Community Advocate"),
-      Self::CommunityFounder => write!(f, "Community Founder"),
-      Self::CommunityCoordinator => write!(f, "Community Coordinator"),
-      Self::CommunityModerator => write!(f, "Community Moderator"),
-      Self::ResourceCoordinator => write!(f, "Resource Coordinator"),
-      Self::ResourceSteward => write!(f, "Resource Steward"),
-      Self::GovernanceCoordinator => write!(f, "Governance Coordinator"),
+      Self::SimpleAgent => write!(f, "Simple Agent"),
+      Self::AccountableAgent => write!(f, "Accountable Agent"),
+      Self::PrimaryAccountableAgent => write!(f, "Primary Accountable Agent"),
+      Self::Transport => write!(f, "Transport Agent"),
+      Self::Repair => write!(f, "Repair Agent"),
+      Self::Storage => write!(f, "Storage Agent"),
     }
   }
 }
@@ -82,14 +78,12 @@ impl FromStr for RoleType {
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     match s {
-      "Simple Member" => Ok(Self::SimpleMember),
-      "Community Advocate" => Ok(Self::CommunityAdvocate),
-      "Community Founder" => Ok(Self::CommunityFounder),
-      "Community Coordinator" => Ok(Self::CommunityCoordinator),
-      "Community Moderator" => Ok(Self::CommunityModerator),
-      "Resource Coordinator" => Ok(Self::ResourceCoordinator),
-      "Resource Steward" => Ok(Self::ResourceSteward),
-      "Governance Coordinator" => Ok(Self::GovernanceCoordinator),
+      "Simple Agent" => Ok(Self::SimpleAgent),
+      "Accountable Agent" => Ok(Self::AccountableAgent),
+      "Primary Accountable Agent" => Ok(Self::PrimaryAccountableAgent),
+      "Transport Agent" => Ok(Self::Transport),
+      "Repair Agent" => Ok(Self::Repair),
+      "Storage Agent" => Ok(Self::Storage),
       _ => Err(()),
     }
   }
@@ -185,11 +179,11 @@ pub enum LinkTypes {
   // Role updates (for versioning)
   RoleUpdates,
   // Data access management
-  AgentToDataGrants,        // Track grants given by agent
-  AgentToDataRequests,      // Track requests made by agent
-  AgentToIncomingRequests,  // Track requests received by agent
-  ResourceToDataGrants,     // Link grants to specific resource transfers
-  PersonToAccessLog,        // Audit trail of data access
+  AgentToDataGrants,       // Track grants given by agent
+  AgentToDataRequests,     // Track requests made by agent
+  AgentToIncomingRequests, // Track requests received by agent
+  ResourceToDataGrants,    // Link grants to specific resource transfers
+  PersonToAccessLog,       // Audit trail of data access
   // Data access updates (for versioning)
   DataAccessGrantUpdates,
   DataAccessRequestUpdates,
@@ -396,7 +390,13 @@ pub fn validate_delete_person_role() -> ExternResult<ValidateCallbackResult> {
 
 pub fn validate_data_access_grant(grant: DataAccessGrant) -> ExternResult<ValidateCallbackResult> {
   // Validate fields_granted contains only allowed fields
-  let allowed_fields = ["email", "phone", "location", "time_zone", "emergency_contact"];
+  let allowed_fields = [
+    "email",
+    "phone",
+    "location",
+    "time_zone",
+    "emergency_contact",
+  ];
   for field in &grant.fields_granted {
     if !allowed_fields.contains(&field.as_str()) {
       return Ok(ValidateCallbackResult::Invalid(format!(
@@ -431,9 +431,17 @@ pub fn validate_data_access_grant(grant: DataAccessGrant) -> ExternResult<Valida
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_data_access_request(request: DataAccessRequest) -> ExternResult<ValidateCallbackResult> {
+pub fn validate_data_access_request(
+  request: DataAccessRequest,
+) -> ExternResult<ValidateCallbackResult> {
   // Validate fields_requested contains only allowed fields
-  let allowed_fields = ["email", "phone", "location", "time_zone", "emergency_contact"];
+  let allowed_fields = [
+    "email",
+    "phone",
+    "location",
+    "time_zone",
+    "emergency_contact",
+  ];
   for field in &request.fields_requested {
     if !allowed_fields.contains(&field.as_str()) {
       return Ok(ValidateCallbackResult::Invalid(format!(

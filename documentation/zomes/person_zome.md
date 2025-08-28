@@ -46,19 +46,12 @@ pub struct PersonRole {
 ### Role Types Hierarchy
 ```rust
 pub enum RoleType {
-    SimpleMember,           // Basic community participation
-    CommunityAdvocate,      // Community support and advocacy
-    CommunityFounder,       // Founding member privileges
-    CommunityCoordinator,   // Community coordination responsibilities
-    CommunityModerator,     // Moderation capabilities
-    ResourceCoordinator,    // Resource management coordination
-    ResourceSteward,        // Resource stewardship responsibilities
-    GovernanceCoordinator,  // Governance process coordination
-    
-    // Economic Process Specialized Roles
-    Transport,              // Material resource movement between locations
-    Repair,                 // Resource maintenance and restoration services
-    Storage,                // Temporary resource custody and warehousing
+    SimpleAgent,             // Simple Agent capabilities
+    AccountableAgent,        // Accountable Agent level
+    PrimaryAccountableAgent, // Primary Accountable Agent level
+    Transport,               // Transport process access
+    Repair,                  // Repair process access
+    Storage,                 // Storage process access
 }
 ```
 
@@ -68,11 +61,10 @@ pub enum RoleType {
 - **Primary Accountable Agent** (Custodian): Full capability token, holds physical custody, validates specialized roles, participates in dispute resolution
 
 **Capability Levels for Role Assignment**:
-- **governance**: Community Founder, Governance Coordinator (full governance rights)
-- **coordination**: Community/Resource Coordinator, Community Moderator (operational coordination)
-- **stewardship**: Community Advocate, Resource Steward (resource stewardship)
-- **member**: Simple Member (default capabilities)
-- **specialized**: Transport, Repair, Storage (Economic Process expertise)
+- **governance**: Primary Accountable Agent (full governance rights and physical custody)
+- **coordination**: Accountable Agent (validation and resource access)
+- **stewardship**: Transport, Repair, Storage (Economic Process expertise)
+- **member**: Simple Agent (default capabilities)
 
 ### Private Data Sharing Structures
 

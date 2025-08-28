@@ -23,7 +23,7 @@ pub fn assign_person_role(input: PersonRoleInput) -> ExternResult<Record> {
   let agent_info = agent_info()?;
 
   // Check if this is a specialized role that requires governance validation
-  let specialized_roles = ["Transport", "Repair", "Storage"];
+  let specialized_roles = ["Transport Agent", "Repair Agent", "Storage Agent"];
   if specialized_roles.contains(&input.role_name.as_str()) {
     // Call governance zome for specialized role validation
     // This implements REQ-GOV-04: Specialized Role Validation
@@ -212,14 +212,17 @@ pub fn get_person_capability_level(agent_pubkey: AgentPubKey) -> ExternResult<St
 
   for role in roles_output.roles {
     match role.role_name.as_str() {
-      "Community Founder" | "Governance Coordinator" => {
+      "Primary Accountable Agent" => {
         has_governance_role = true;
       }
-      "Community Coordinator" | "Resource Coordinator" | "Community Moderator" => {
+      "Accountable Agent" => {
         has_coordination_role = true;
       }
-      "Community Advocate" | "Resource Steward" => {
+      "Transport Agent" | "Repair Agent" | "Storage Agent" => {
         has_stewardship_role = true;
+      }
+      "Simple Agent" => {
+        // Basic member level - no change to flags
       }
       _ => {}
     }
