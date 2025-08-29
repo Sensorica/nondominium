@@ -20,9 +20,9 @@ import {
   validateRoleData,
   TEST_ROLES,
   CAPABILITY_LEVELS,
-} from "./common.ts";
-import { runScenarioWithTwoAgents } from "../utils.ts";
-import { Person } from "../../types.d.ts";
+} from "./common";
+import { runScenarioWithTwoAgents } from "../utils";
+import { Person } from "@nondominium/shared-types";
 
 test("create and retrieve Person", async () => {
   await runScenarioWithTwoAgents(
@@ -165,7 +165,7 @@ test("assign and retrieve agent roles", async () => {
       assert.equal(bobRoles.roles.length, 1);
       assert.equal(bobRoles.roles[0].role_name, TEST_ROLES.RESOURCE_STEWARD);
       assert.equal(
-        bobRoles.roles[0].assigned_to.toString(),
+        bobRoles.roles[0].assigned_to?.toString(),
         bob.agentPubKey.toString(),
       );
 

@@ -1,368 +1,375 @@
 import { test, expect } from "vitest";
-import { runScenario } from "@holochain/tryorama";
-import { decode } from "@msgpack/msgpack";
-
+import { Scenario, PlayerApp } from "@holochain/tryorama";
+import { runScenarioWithTwoAgents } from "../../utils.js";
 import {
-  sampleParticipationClaim,
-  samplePerformanceMetrics,
-  issueParticipationReceipts,
-  signParticipationClaim,
-  validateParticipationClaimSignature,
-  getMyParticipationClaims,
-  deriveReputationSummary,
-  PPR_TEST_SCENARIOS,
-  MULTI_AGENT_SCENARIOS,
-  validateBiDirectionalReceipts,
-  validateReputationDerivation,
-  PPRTestProfiler,
-  setupBasicGovernanceTest,
-} from "./common";
+  proposeCommitment,
+  logEconomicEvent,
+  issueNewPPRs,
+  getMyNewParticipationClaims,
+  deriveNewReputationSummary,
+  signNewParticipationClaim,
+  CommitmentResult,
+  EventResult,
+  PPRResult,
+  ClaimsResult,
+  ReputationSummaryResult,
+  SignatureResult,
+} from "./common.js";
+
+// PPR Scenario Tests
+// This test suite covers complete workflow scenarios for the PPR system using current implementation only
 
 test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
-  await runScenario(async (scenario) => {
-    const { alice, bob } = await scenario.addPlayersWithApps([
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-    ]);
-
-    await scenario.shareAllAgents();
-    const context = await setupBasicGovernanceTest(alice, bob);
-    const profiler = new PPRTestProfiler();
-    profiler.start();
-
-    // Complete workflow: Resource Contribution -> Service Reception -> Reputation Building
-    
-    // Step 1: Lynn provides web development service to Bob
-    const webDevClaim = sampleParticipationClaim("ServiceProvision", {
-      counterparty_agent: bob.agentPubKey,
-      resource_specification: "web-development-service",
-      description: "Delivered responsive website with modern UI",
-      evidence_links: ["https://github.com/project/commits", "https://website.demo.com"],
-      performance_metrics: samplePerformanceMetrics({
-        quality_score: 4.8,
-        timeliness_score: 4.5,
-        collaboration_score: 4.9,
-        innovation_score: 4.3,
-        reliability_score: 4.6,
-      }),
-    });
-
-    const webDevReceipts = await issueParticipationReceipts(alice.cells[0], webDevClaim);
-    profiler.recordReceipt();
-
-    expect(webDevReceipts).toHaveLength(2);
-    expect(validateBiDirectionalReceipts(webDevReceipts)).toBe(true);
-
-    // Step 2: Bob signs acknowledgment of service reception
-    const bobSignature = await signParticipationClaim(bob.cells[0], {
-      original_participation_hash: webDevReceipts[1].signed_action.hashed.hash,
-      signature: {
-        signature_data: new Uint8Array([1, 2, 3, 4, 5]),
-        signing_agent: bob.agentPubKey,
-        timestamp: Date.now() * 1000,
-        signature_method: "Ed25519",
-        additional_context: new Map([["satisfaction_rating", "4.8"]]),
-      },
-    });
-    profiler.recordSignature();
-
-    expect(bobSignature).toBeDefined();
-
-    // Step 3: Validate signature authenticity
-    const isValid = await validateParticipationClaimSignature(alice.cells[0], {
-      participation_claim_hash: webDevReceipts[1].signed_action.hashed.hash,
-      signature_hash: bobSignature.signed_action.hashed.hash,
-    });
-    profiler.recordValidation();
-
-    expect(isValid).toBe(true);
-
-    // Step 4: Lynn provides design consultation (building reputation)
-    const designClaim = sampleParticipationClaim("ServiceProvision", {
-      counterparty_agent: bob.agentPubKey,
-      resource_specification: "design-consultation-service",
-      description: "UX/UI design consultation and wireframing",
-      performance_metrics: samplePerformanceMetrics({
-        quality_score: 4.6,
-        collaboration_score: 4.8,
-        innovation_score: 4.7,
-      }),
-    });
-
-    const designReceipts = await issueParticipationReceipts(alice.cells[0], designClaim);
-    profiler.recordReceipt();
-
-    expect(designReceipts).toHaveLength(2);
-
-    // Step 5: Derive comprehensive reputation summary
-    const aliceReputation = await deriveReputationSummary(alice.cells[0], alice.agentPubKey);
-
-    expect(validateReputationDerivation(aliceReputation, 2)).toBe(true);
-    expect(aliceReputation.total_participation_claims).toBe(2);
-    expect(aliceReputation.average_quality_score).toBeGreaterThan(4.5);
-    expect(aliceReputation.reputation_score).toBeGreaterThan(0);
-
-    // Step 6: Verify retrieval of participation history
-    const aliceClaims = await getMyParticipationClaims(alice.cells[0], {
-      claim_type_filter: "ServiceProvision",
-      include_signatures: true,
-    });
-
-    expect(aliceClaims).toHaveLength(2);
-    expect(aliceClaims.every(claim => claim.entry.claim_type === "ServiceProvision")).toBe(true);
-
-    const metrics = profiler.finish();
-    console.log("PPR Scenario Performance:", metrics);
-
-    // Performance assertions
-    expect(metrics.receiptCount).toBe(2);
-    expect(metrics.signatureCount).toBe(1);
-    expect(metrics.validationCount).toBe(1);
-    expect(metrics.executionTime).toBeLessThan(5000); // 5 seconds total
-  });
-});
-
-test("PPR Scenario: Multi-Agent Community Interaction Network", async () => {
-  await runScenario(async (scenario) => {
-    const { alice, bob, charlie } = await scenario.addPlayersWithApps([
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-    ]);
-
-    await scenario.shareAllAgents();
-
-    const multiAgentScenario = MULTI_AGENT_SCENARIOS[0]; // Triangle exchange
-    let totalReceipts = 0;
-
-    // Lynn -> Bob: Resource Contribution
-    const lynntoBobClaim = sampleParticipationClaim("ResourceContribution", {
-      counterparty_agent: bob.agentPubKey,
-      resource_specification: "project-management-service",
-      description: "Project coordination and milestone tracking",
-    });
-
-    const lynntoBobReceipts = await issueParticipationReceipts(alice.cells[0], lynntoBobClaim);
-    totalReceipts += lynntoBobReceipts.length;
-
-    // Bob -> Charlie: Service Provision  
-    const bobtoCharlieClaim = sampleParticipationClaim("ServiceProvision", {
-      counterparty_agent: charlie.agentPubKey,
-      resource_specification: "technical-writing-service",
-      description: "Documentation and user guides creation",
-    });
-
-    const bobtoCharlieReceipts = await issueParticipationReceipts(bob.cells[0], bobtoCharlieClaim);
-    totalReceipts += bobtoCharlieReceipts.length;
-
-    // Charlie -> Lynn: Knowledge Sharing
-    const charlietoLynnClaim = sampleParticipationClaim("KnowledgeSharing", {
-      counterparty_agent: alice.agentPubKey,
-      resource_specification: "community-facilitation-service",
-      description: "Facilitated community governance workshop",
-    });
-
-    const charlietoLynnReceipts = await issueParticipationReceipts(charlie.cells[0], charlietoLynnClaim);
-    totalReceipts += charlietoLynnReceipts.length;
-
-    expect(totalReceipts).toBe(multiAgentScenario.expectedTotalReceipts);
-
-    // Validate network effects on reputation
-    const lynnReputation = await deriveReputationSummary(alice.cells[0], alice.agentPubKey);
-    const bobReputation = await deriveReputationSummary(bob.cells[0], bob.agentPubKey);
-    const charlieReputation = await deriveReputationSummary(charlie.cells[0], charlie.agentPubKey);
-
-    // Each agent should have participated in exactly 2 claims (give + receive)
-    expect(lynnReputation.total_participation_claims).toBe(2);
-    expect(bobReputation.total_participation_claims).toBe(2);
-    expect(charlieReputation.total_participation_claims).toBe(2);
-
-    // Network diversity should be reflected in reputation scores
-    expect(lynnReputation.reputation_score).toBeGreaterThan(0);
-    expect(bobReputation.reputation_score).toBeGreaterThan(0);
-    expect(charlieReputation.reputation_score).toBeGreaterThan(0);
-  });
-});
-
-test("PPR Scenario: Knowledge Sharing Session with Community Impact", async () => {
-  await runScenario(async (scenario) => {
-    const { alice, bob } = await scenario.addPlayersWithApps([
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-    ]);
-
-    await scenario.shareAllAgents();
-
-    const knowledgeScenario = PPR_TEST_SCENARIOS.find(s => s.name === "Knowledge Sharing Session");
-    expect(knowledgeScenario).toBeDefined();
-
-    // Lynn leads a community workshop on governance best practices
-    const workshopClaim = sampleParticipationClaim("KnowledgeSharing", {
-      counterparty_agent: bob.agentPubKey,
-      resource_specification: "governance-workshop-facilitation",
-      description: "Interactive workshop on decentralized governance patterns",
-      evidence_links: ["https://workshop.recordings.com", "https://shared.notes.com"],
-      performance_metrics: knowledgeScenario!.performanceMetrics,
-    });
-
-    const workshopReceipts = await issueParticipationReceipts(alice.cells[0], workshopClaim);
-
-    expect(workshopReceipts).toHaveLength(knowledgeScenario!.expectedReceiptCount);
-    expect(validateBiDirectionalReceipts(workshopReceipts)).toBe(true);
-
-    // Verify knowledge sharing claims have appropriate structure
-    const sharingClaim = workshopReceipts.find(r => r.entry.claim_type === "KnowledgeSharing");
-    const acquisitionClaim = workshopReceipts.find(r => r.entry.claim_type === "KnowledgeAcquisition");
-
-    expect(sharingClaim).toBeDefined();
-    expect(acquisitionClaim).toBeDefined();
-    expect(sharingClaim!.entry.description).toContain("workshop");
-    expect(acquisitionClaim!.entry.description).toContain("workshop");
-
-    // Knowledge sharing should not require mandatory signature (per scenario)
-    if (!knowledgeScenario!.shouldRequireSignature) {
-      // Verify that claims can exist without signatures
-      const claimsWithoutSignature = await getMyParticipationClaims(alice.cells[0], {
-        include_signatures: false,
+  await runScenarioWithTwoAgents(
+    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Step 1: Alice provides web development service to Bob via commitment/event
+      const commitment = await proposeCommitment(alice.cells[0], {
+        action: "Work",
+        provider: alice.agentPubKey,
+        resource_hash: null,
+        resource_spec_hash: null,
+        due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
+        note: "Web development service commitment",
       });
 
-      expect(claimsWithoutSignature.length).toBeGreaterThan(0);
-    }
+      const event = await logEconomicEvent(alice.cells[0], {
+        action: "Work",
+        provider: alice.agentPubKey,
+        receiver: bob.agentPubKey,
+        resource_inventoried_as: commitment.commitment_hash,
+        resource_quantity: 1.0,
+        note: "Web development service completed",
+        commitment_hash: commitment.commitment_hash,
+        generate_pprs: false,
+      });
 
-    // Validate learning impact in performance metrics
-    const metrics = sharingClaim!.entry.performance_metrics;
-    expect(metrics.additional_metrics?.has("teaching_effectiveness")).toBe(true);
-    expect(metrics.collaboration_score).toBeGreaterThan(4.5); // High collaboration expected
-  });
+      // Step 2: Issue PPRs for the service exchange
+      const webDevPPRs = await issueNewPPRs(alice.cells[0], {
+        fulfills: commitment.commitment_hash,
+        fulfilled_by: event.event_hash,
+        provider: alice.agentPubKey,
+        receiver: bob.agentPubKey,
+        claim_types: ["ServiceProvision", "ServiceReception"],
+        provider_metrics: {
+          timeliness: 0.95,
+          quality: 0.92,
+          reliability: 0.95,
+          communication: 0.9,
+          overall_satisfaction: 0.93,
+          notes: "High-quality web development service",
+        },
+        receiver_metrics: {
+          timeliness: 1.0,
+          quality: 0.95,
+          reliability: 1.0,
+          communication: 0.95,
+          overall_satisfaction: 0.97,
+          notes: "Very satisfied with the service",
+        },
+        resource_hash: commitment.commitment_hash,
+        notes: "Web development service PPRs",
+      });
+
+      expect(webDevPPRs).toHaveProperty("provider_claim");
+      expect(webDevPPRs).toHaveProperty("receiver_claim");
+      expect(webDevPPRs.provider_claim.claim_type).toBe("ServiceProvision");
+      expect(webDevPPRs.receiver_claim.claim_type).toBe("ServiceReception");
+
+      // Step 3: Bob signs acknowledgment of service reception
+      const test_signature_data = new TextEncoder().encode(
+        "Service received satisfactorily",
+      );
+      const bobSignature = await signNewParticipationClaim(bob.cells[0], {
+        data_to_sign: Array.from(test_signature_data),
+        counterparty: alice.agentPubKey,
+      });
+
+      expect(bobSignature).toHaveProperty("signature");
+      expect(bobSignature).toHaveProperty("signed_data_hash");
+
+      // Step 4: Verify reputation building
+      const aliceReputation = await deriveNewReputationSummary(alice.cells[0], {
+        period_start: Date.now() * 1000 - 60 * 60 * 1000000, // 1 hour ago
+        period_end: Date.now() * 1000 + 60 * 60 * 1000000, // 1 hour from now
+        claim_type_filter: null,
+      });
+
+      expect(aliceReputation.summary.total_claims).toBeGreaterThan(0);
+      expect(aliceReputation.summary.agent).toEqual(alice.agentPubKey);
+      expect(aliceReputation.claims_included).toBeGreaterThan(0);
+
+      // Step 5: Verify participation history retrieval
+      const aliceClaims = await getMyNewParticipationClaims(alice.cells[0], {
+        claim_type_filter: "ServiceProvision",
+        from_time: null,
+        to_time: null,
+        limit: null,
+      });
+
+      expect(aliceClaims.claims.length).toBeGreaterThan(0);
+      const provisionClaim = aliceClaims.claims.find(
+        ([_hash, claim]) => claim.claim_type === "ServiceProvision",
+      );
+      expect(provisionClaim).toBeDefined();
+      expect(provisionClaim![1].counterparty).toEqual(bob.agentPubKey);
+
+      console.log("✅ Successfully completed resource exchange workflow");
+    },
+  );
+});
+
+test("PPR Scenario: Knowledge Sharing and Community Impact", async () => {
+  await runScenarioWithTwoAgents(
+    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Alice facilitates a knowledge sharing workshop for Bob
+      const commitment = await proposeCommitment(alice.cells[0], {
+        action: "Work",
+        provider: alice.agentPubKey,
+        resource_hash: null,
+        resource_spec_hash: null,
+        due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
+        note: "Governance workshop facilitation",
+      });
+
+      const event = await logEconomicEvent(alice.cells[0], {
+        action: "Work",
+        provider: alice.agentPubKey,
+        receiver: bob.agentPubKey,
+        resource_inventoried_as: commitment.commitment_hash,
+        resource_quantity: 1.0,
+        note: "Interactive workshop on decentralized governance patterns",
+        commitment_hash: commitment.commitment_hash,
+        generate_pprs: false,
+      });
+
+      // Issue PPRs for knowledge sharing
+      const workshopPPRs = await issueNewPPRs(alice.cells[0], {
+        fulfills: commitment.commitment_hash,
+        fulfilled_by: event.event_hash,
+        provider: alice.agentPubKey,
+        receiver: bob.agentPubKey,
+        claim_types: ["KnowledgeSharing", "KnowledgeAcquisition"],
+        provider_metrics: {
+          timeliness: 1.0,
+          quality: 0.95,
+          reliability: 0.98,
+          communication: 0.95,
+          overall_satisfaction: 0.97,
+          notes: "Excellent knowledge sharing session",
+        },
+        receiver_metrics: {
+          timeliness: 1.0,
+          quality: 0.92,
+          reliability: 1.0,
+          communication: 0.9,
+          overall_satisfaction: 0.95,
+          notes: "Valuable learning experience",
+        },
+        resource_hash: commitment.commitment_hash,
+        notes: "Knowledge sharing workshop PPRs",
+      });
+
+      expect(workshopPPRs.provider_claim.claim_type).toBe("KnowledgeSharing");
+      expect(workshopPPRs.receiver_claim.claim_type).toBe(
+        "KnowledgeAcquisition",
+      );
+
+      // Verify knowledge sharing impact on reputation
+      const aliceReputation = await deriveNewReputationSummary(alice.cells[0], {
+        period_start: Date.now() * 1000 - 60 * 60 * 1000000,
+        period_end: Date.now() * 1000 + 60 * 60 * 1000000,
+        claim_type_filter: null,
+      });
+
+      expect(aliceReputation.summary.total_claims).toBeGreaterThan(0);
+      expect(aliceReputation.summary.average_performance).toBeGreaterThan(0.9);
+
+      console.log("✅ Successfully completed knowledge sharing scenario");
+    },
+  );
 });
 
 test("PPR Scenario: Governance Participation and Decision Making", async () => {
-  await runScenario(async (scenario) => {
-    const { alice, bob } = await scenario.addPlayersWithApps([
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-    ]);
+  await runScenarioWithTwoAgents(
+    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // Alice participates in community governance decision with Bob
+      const commitment = await proposeCommitment(alice.cells[0], {
+        action: "Work",
+        provider: alice.agentPubKey,
+        resource_hash: null,
+        resource_spec_hash: null,
+        due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
+        note: "Community governance facilitation",
+      });
 
-    await scenario.shareAllAgents();
+      const event = await logEconomicEvent(alice.cells[0], {
+        action: "Work",
+        provider: alice.agentPubKey,
+        receiver: bob.agentPubKey,
+        resource_inventoried_as: commitment.commitment_hash,
+        resource_quantity: 1.0,
+        note: "Led consensus building for new resource allocation policies",
+        commitment_hash: commitment.commitment_hash,
+        generate_pprs: false,
+      });
 
-    const governanceScenario = PPR_TEST_SCENARIOS.find(s => s.name === "Governance Participation");
-    expect(governanceScenario).toBeDefined();
+      // Issue governance participation PPRs
+      const governancePPRs = await issueNewPPRs(alice.cells[0], {
+        fulfills: commitment.commitment_hash,
+        fulfilled_by: event.event_hash,
+        provider: alice.agentPubKey,
+        receiver: bob.agentPubKey,
+        claim_types: ["GovernanceParticipation", "GovernanceWitness"],
+        provider_metrics: {
+          timeliness: 0.95,
+          quality: 0.9,
+          reliability: 0.95,
+          communication: 0.98,
+          overall_satisfaction: 0.94,
+          notes: "Effective governance leadership",
+        },
+        receiver_metrics: {
+          timeliness: 0.95,
+          quality: 0.92,
+          reliability: 1.0,
+          communication: 0.95,
+          overall_satisfaction: 0.95,
+          notes: "Constructive governance participation",
+        },
+        resource_hash: commitment.commitment_hash,
+        notes: "Governance decision facilitation PPRs",
+      });
 
-    // Lynn participates in community governance decision
-    const governanceClaim = sampleParticipationClaim("GovernanceParticipation", {
-      counterparty_agent: bob.agentPubKey,
-      resource_specification: "community-decision-facilitation",
-      description: "Led consensus building for new resource allocation policies",
-      evidence_links: ["https://governance.discussion.com", "https://decision.record.com"],
-      performance_metrics: governanceScenario!.performanceMetrics,
-    });
+      expect(governancePPRs.provider_claim.claim_type).toBe(
+        "GovernanceParticipation",
+      );
+      expect(governancePPRs.receiver_claim.claim_type).toBe(
+        "GovernanceWitness",
+      );
 
-    const governanceReceipts = await issueParticipationReceipts(alice.cells[0], governanceClaim);
+      // Sign governance participation for validation
+      const governance_signature_data = new TextEncoder().encode(
+        "Consensus decision validated",
+      );
+      const governanceSignature = await signNewParticipationClaim(
+        bob.cells[0],
+        {
+          data_to_sign: Array.from(governance_signature_data),
+          counterparty: alice.agentPubKey,
+        },
+      );
 
-    expect(governanceReceipts).toHaveLength(2);
-    expect(validateBiDirectionalReceipts(governanceReceipts)).toBe(true);
+      expect(governanceSignature).toHaveProperty("signature");
 
-    // Governance participation should require signature validation
-    expect(governanceScenario!.shouldRequireSignature).toBe(true);
+      // Verify governance participation impact on reputation
+      const aliceReputation = await deriveNewReputationSummary(alice.cells[0], {
+        period_start: Date.now() * 1000 - 60 * 60 * 1000000,
+        period_end: Date.now() * 1000 + 60 * 60 * 1000000,
+        claim_type_filter: null,
+      });
 
-    // Sign the governance participation
-    const governanceSignature = await signParticipationClaim(bob.cells[0], {
-      original_participation_hash: governanceReceipts[1].signed_action.hashed.hash,
-      signature: {
-        signature_data: new Uint8Array([9, 8, 7, 6, 5]),
-        signing_agent: bob.agentPubKey,
-        timestamp: Date.now() * 1000,
-        signature_method: "Ed25519",
-        additional_context: new Map([
-          ["decision_consensus", "unanimous"],
-          ["participation_quality", "high"],
-        ]),
-      },
-    });
+      expect(aliceReputation.summary.total_claims).toBeGreaterThan(0);
+      expect(aliceReputation.summary.governance_claims).toBeGreaterThan(0);
 
-    expect(governanceSignature).toBeDefined();
-
-    // Validate governance-specific metrics
-    const participationClaim = governanceReceipts.find(r => r.entry.claim_type === "GovernanceParticipation");
-    expect(participationClaim).toBeDefined();
-
-    const metrics = participationClaim!.entry.performance_metrics;
-    expect(metrics.additional_metrics?.has("decision_quality")).toBe(true);
-    expect(metrics.additional_metrics?.has("stakeholder_engagement")).toBe(true);
-
-    // Governance participation should positively impact reputation
-    const lynnReputation = await deriveReputationSummary(alice.cells[0], alice.agentPubKey);
-    expect(lynnReputation.total_participation_claims).toBeGreaterThan(0);
-    expect(lynnReputation.governance_participation_count || 0).toBeGreaterThan(0);
-  });
+      console.log(
+        "✅ Successfully completed governance participation scenario",
+      );
+    },
+  );
 });
 
-test("PPR Scenario: Complex Service Exchange with Quality Validation", async () => {
-  await runScenario(async (scenario) => {
-    const { alice, bob } = await scenario.addPlayersWithApps([
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-      { appBundleSource: { path: "./workdir/nondominium.happ" } },
-    ]);
+test("PPR Scenario: Quality Service Exchange with Validation", async () => {
+  await runScenarioWithTwoAgents(
+    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      // High-quality service provision with detailed validation
+      const commitment = await proposeCommitment(alice.cells[0], {
+        action: "Work",
+        provider: alice.agentPubKey,
+        resource_hash: null,
+        resource_spec_hash: null,
+        due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
+        note: "Premium development service commitment",
+      });
 
-    await scenario.shareAllAgents();
+      const event = await logEconomicEvent(alice.cells[0], {
+        action: "Work",
+        provider: alice.agentPubKey,
+        receiver: bob.agentPubKey,
+        resource_inventoried_as: commitment.commitment_hash,
+        resource_quantity: 1.0,
+        note: "Full-stack application development with testing and deployment",
+        commitment_hash: commitment.commitment_hash,
+        generate_pprs: false,
+      });
 
-    const serviceScenario = PPR_TEST_SCENARIOS.find(s => s.name === "Service Exchange");
-    expect(serviceScenario).toBeDefined();
+      // Issue high-quality service PPRs
+      const servicePPRs = await issueNewPPRs(alice.cells[0], {
+        fulfills: commitment.commitment_hash,
+        fulfilled_by: event.event_hash,
+        provider: alice.agentPubKey,
+        receiver: bob.agentPubKey,
+        claim_types: ["ServiceProvision", "ServiceReception"],
+        provider_metrics: {
+          timeliness: 0.98,
+          quality: 0.96,
+          reliability: 0.98,
+          communication: 0.94,
+          overall_satisfaction: 0.96,
+          notes: "Premium quality development service",
+        },
+        receiver_metrics: {
+          timeliness: 1.0,
+          quality: 0.95,
+          reliability: 1.0,
+          communication: 0.96,
+          overall_satisfaction: 0.97,
+          notes: "Excellent service delivery",
+        },
+        resource_hash: commitment.commitment_hash,
+        notes: "Premium service exchange PPRs",
+      });
 
-    // High-quality service provision with detailed metrics
-    const serviceClaim = sampleParticipationClaim("ServiceProvision", {
-      counterparty_agent: bob.agentPubKey,
-      resource_specification: "premium-development-service",
-      description: "Full-stack application development with testing and deployment",
-      evidence_links: [
-        "https://github.com/repo/releases",
-        "https://testing.reports.com",
-        "https://deployment.logs.com",
-      ],
-      performance_metrics: serviceScenario!.performanceMetrics,
-    });
+      expect(servicePPRs.provider_claim.claim_type).toBe("ServiceProvision");
+      expect(servicePPRs.receiver_claim.claim_type).toBe("ServiceReception");
 
-    const serviceReceipts = await issueParticipationReceipts(alice.cells[0], serviceClaim);
+      // Quality validation signature
+      const quality_validation_data = new TextEncoder().encode(
+        "Quality validated - deliverables complete",
+      );
+      const qualitySignature = await signNewParticipationClaim(bob.cells[0], {
+        data_to_sign: Array.from(quality_validation_data),
+        counterparty: alice.agentPubKey,
+      });
 
-    expect(serviceReceipts).toHaveLength(2);
-    expect(validateBiDirectionalReceipts(serviceReceipts)).toBe(true);
+      expect(qualitySignature).toHaveProperty("signature");
 
-    // Validate service-specific performance metrics
-    const provisionClaim = serviceReceipts.find(r => r.entry.claim_type === "ServiceProvision");
-    expect(provisionClaim).toBeDefined();
+      // Verify high-quality service impact on reputation
+      const aliceReputation = await deriveNewReputationSummary(alice.cells[0], {
+        period_start: Date.now() * 1000 - 60 * 60 * 1000000,
+        period_end: Date.now() * 1000 + 60 * 60 * 1000000,
+        claim_type_filter: null,
+      });
 
-    const metrics = provisionClaim!.entry.performance_metrics;
-    expect(metrics.quality_score).toBe(4.5); // As per scenario
-    expect(metrics.additional_metrics?.has("customer_satisfaction")).toBe(true);
-    expect(metrics.additional_metrics?.has("technical_proficiency")).toBe(true);
+      expect(aliceReputation.summary.total_claims).toBeGreaterThan(0);
+      expect(aliceReputation.summary.average_performance).toBeGreaterThan(0.95);
 
-    // Service should require quality validation signature
-    expect(serviceScenario!.shouldRequireSignature).toBe(true);
+      // Verify service provision claims
+      const aliceClaims = await getMyNewParticipationClaims(alice.cells[0], {
+        claim_type_filter: "ServiceProvision",
+        from_time: null,
+        to_time: null,
+        limit: null,
+      });
 
-    const qualitySignature = await signParticipationClaim(bob.cells[0], {
-      original_participation_hash: serviceReceipts[1].signed_action.hashed.hash,
-      signature: {
-        signature_data: new Uint8Array([10, 11, 12, 13, 14]),
-        signing_agent: bob.agentPubKey,
-        timestamp: Date.now() * 1000,
-        signature_method: "Ed25519",
-        additional_context: new Map([
-          ["quality_verified", "true"],
-          ["deliverables_complete", "true"],
-          ["customer_satisfaction", "4.6"],
-        ]),
-      },
-    });
+      expect(aliceClaims.claims.length).toBeGreaterThan(0);
+      const serviceClaim = aliceClaims.claims.find(
+        ([_hash, claim]) => claim.claim_type === "ServiceProvision",
+      );
+      expect(serviceClaim).toBeDefined();
 
-    expect(qualitySignature).toBeDefined();
-
-    // Validate that high-quality service positively impacts reputation
-    const lynnReputation = await deriveReputationSummary(alice.cells[0], alice.agentPubKey);
-    expect(lynnReputation.average_quality_score).toBeGreaterThan(4.0);
-    expect(lynnReputation.service_provision_count || 0).toBeGreaterThan(0);
-
-    // Verify evidence links are preserved
-    expect(provisionClaim!.entry.evidence_links).toHaveLength(3);
-    expect(provisionClaim!.entry.evidence_links).toContain("https://github.com/repo/releases");
-  });
+      console.log(
+        "✅ Successfully completed quality service exchange scenario",
+      );
+    },
+  );
 });

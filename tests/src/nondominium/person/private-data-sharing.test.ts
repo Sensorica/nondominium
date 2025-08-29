@@ -10,7 +10,7 @@ import {
 test("private data sharing workflow for custodianship transfer", async () => {
   await runScenario(async (scenario) => {
     // Set up the app
-    const { alice, bob } = await scenario.addPlayersWithApps([
+    const [alice, bob] = await scenario.addPlayersWithApps([
       { appName: "nondominium" },
       { appName: "nondominium" },
     ]);
@@ -19,28 +19,37 @@ test("private data sharing workflow for custodianship transfer", async () => {
 
     // Create persons for both agents
     console.log("Setting up personas...");
-    
+
     // Alice (current custodian) creates her profile and private data
-    const alicePersonRecord = await createPerson(alice.cells[0], samplePerson({
-      name: "Alice Custodian",
-      bio: "Current resource custodian"
-    }));
+    const alicePersonRecord = await createPerson(
+      alice.cells[0],
+      samplePerson({
+        name: "Alice Custodian",
+        bio: "Current resource custodian",
+      }),
+    );
     assert.ok(alicePersonRecord);
 
-    const alicePrivateDataRecord = await storePrivateData(alice.cells[0], samplePrivateData({
-      legal_name: "Alice Marie Custodian",
-      email: "alice.custodian@example.com",
-      phone: "+1-555-111-2222",
-      location: "Seattle, WA",
-      time_zone: "America/Los_Angeles"
-    }));
+    const alicePrivateDataRecord = await storePrivateData(
+      alice.cells[0],
+      samplePrivateData({
+        legal_name: "Alice Marie Custodian",
+        email: "alice.custodian@example.com",
+        phone: "+1-555-111-2222",
+        location: "Seattle, WA",
+        time_zone: "America/Los_Angeles",
+      }),
+    );
     assert.ok(alicePrivateDataRecord);
 
     // Bob (new custodian) creates his profile
-    const bobPersonRecord = await createPerson(bob.cells[0], samplePerson({
-      name: "Bob NewCustodian", 
-      bio: "Incoming resource custodian"
-    }));
+    const bobPersonRecord = await createPerson(
+      bob.cells[0],
+      samplePerson({
+        name: "Bob NewCustodian",
+        bio: "Incoming resource custodian",
+      }),
+    );
     assert.ok(bobPersonRecord);
 
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -56,7 +65,8 @@ test("private data sharing workflow for custodianship transfer", async () => {
         fields_requested: ["email", "phone", "location", "time_zone"],
         context: "custodian_transfer_simulation",
         resource_hash: null, // Simulating without actual resource for this test
-        justification: "New custodian requesting contact information for resource handover coordination.",
+        justification:
+          "New custodian requesting contact information for resource handover coordination.",
       },
     });
     assert.ok(dataRequest);
@@ -79,7 +89,7 @@ test("private data sharing workflow for custodianship transfer", async () => {
     // 3. Alice approves the request
     const requestHash = (dataRequest as any).signed_action.hashed.hash;
     const grantResponse = await alice.cells[0].callZome({
-      zome_name: "zome_person", 
+      zome_name: "zome_person",
       fn_name: "respond_to_data_request",
       payload: {
         request_hash: requestHash,
@@ -95,13 +105,13 @@ test("private data sharing workflow for custodianship transfer", async () => {
     // 4. Bob retrieves Alice's shared contact information
     const sharedData = await bob.cells[0].callZome({
       zome_name: "zome_person",
-      fn_name: "get_granted_private_data", 
+      fn_name: "get_granted_private_data",
       payload: alice.agentPubKey,
     });
     assert.ok(sharedData);
     assert.equal(sharedData.granted_by, alice.agentPubKey);
     assert.equal(sharedData.context, "custodian_transfer_simulation");
-    
+
     // Verify only granted fields are accessible
     assert.ok(sharedData.fields.email);
     assert.equal(sharedData.fields.email, "alice.custodian@example.com");
@@ -111,12 +121,15 @@ test("private data sharing workflow for custodianship transfer", async () => {
     assert.equal(sharedData.fields.location, "Seattle, WA");
     assert.ok(sharedData.fields.time_zone);
     assert.equal(sharedData.fields.time_zone, "America/Los_Angeles");
-    
+
     // Verify sensitive fields are NOT accessible
     assert.ok(!sharedData.fields.legal_name);
     assert.ok(!sharedData.fields.address);
-    
-    console.log("Bob successfully retrieved Alice's contact info:", sharedData.fields);
+
+    console.log(
+      "Bob successfully retrieved Alice's contact info:",
+      sharedData.fields,
+    );
 
     // 5. Verify Alice can see her active grants
     const aliceGrants = await alice.cells[0].callZome({
@@ -165,10 +178,13 @@ test("direct data access grant without request", async () => {
 
     // Set up profiles
     await createPerson(alice.cells[0], samplePerson({ name: "Alice Granter" }));
-    await storePrivateData(alice.cells[0], samplePrivateData({
-      email: "alice@example.com",
-      phone: "+1-555-999-8888"
-    }));
+    await storePrivateData(
+      alice.cells[0],
+      samplePrivateData({
+        email: "alice@example.com",
+        phone: "+1-555-999-8888",
+      }),
+    );
     await createPerson(bob.cells[0], samplePerson({ name: "Bob Grantee" }));
 
     await dhtSync([alice, bob], alice.cells[0].cell_id[0]);

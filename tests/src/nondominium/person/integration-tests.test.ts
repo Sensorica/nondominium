@@ -19,8 +19,8 @@ import {
   TEST_ROLES,
   CAPABILITY_LEVELS,
   PersonTestContext,
-} from "./common.ts";
-import { runScenarioWithTwoAgents } from "../utils.ts";
+} from "./common";
+import { runScenarioWithTwoAgents } from "../utils";
 
 test("multi-agent person discovery and interaction", async () => {
   await runScenarioWithTwoAgents(
@@ -39,11 +39,11 @@ test("multi-agent person discovery and interaction", async () => {
       // Verify both can see each other's public profiles
       const aliceViewOfBob = await getPersonProfile(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       const bobViewOfLynn = await getPersonProfile(
         bob.cells[0],
-        alice.agentPubKey
+        alice.agentPubKey,
       );
 
       assert.ok(aliceViewOfBob.person);
@@ -53,7 +53,7 @@ test("multi-agent person discovery and interaction", async () => {
       assert.ok(bobViewOfLynn.person);
       assert.equal(bobViewOfLynn.person!.name, "Lynn");
       assert.isNull(bobViewOfLynn.private_data);
-    }
+    },
   );
 }, 240000);
 
@@ -81,7 +81,7 @@ test("privacy boundaries - private data isolation", async () => {
       // Lynn cannot see Bob's private data
       const aliceViewOfBob = await getPersonProfile(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       assert.ok(aliceViewOfBob.person);
       assert.isNull(aliceViewOfBob.private_data);
@@ -89,11 +89,11 @@ test("privacy boundaries - private data isolation", async () => {
       // Bob cannot see Lynn's private data
       const bobViewOfLynn = await getPersonProfile(
         bob.cells[0],
-        alice.agentPubKey
+        alice.agentPubKey,
       );
       assert.ok(bobViewOfLynn.person);
       assert.isNull(bobViewOfLynn.private_data);
-    }
+    },
   );
 }, 240000);
 
@@ -112,8 +112,8 @@ test("cross-agent role assignment and validation", async () => {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
             description: "Community steward assigned by Lynn",
           },
-          bob.agentPubKey
-        )
+          bob.agentPubKey,
+        ),
       );
 
       // Bob assigns coordinator role to Lynn
@@ -124,8 +124,8 @@ test("cross-agent role assignment and validation", async () => {
             role_name: TEST_ROLES.RESOURCE_COORDINATOR,
             description: "Resource coordinator assigned by Bob",
           },
-          alice.agentPubKey
-        )
+          alice.agentPubKey,
+        ),
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -133,54 +133,54 @@ test("cross-agent role assignment and validation", async () => {
       // Verify role assignments from both perspectives
       const bobRolesFromLynn = await getPersonRoles(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       const bobRolesFromBob = await getPersonRoles(
         bob.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
 
       assert.equal(bobRolesFromLynn.roles.length, 1);
       assert.equal(bobRolesFromBob.roles.length, 1);
       assert.equal(
         bobRolesFromLynn.roles[0].role_name,
-        TEST_ROLES.RESOURCE_STEWARD
+        TEST_ROLES.RESOURCE_STEWARD,
       );
       assert.equal(
         bobRolesFromBob.roles[0].role_name,
-        TEST_ROLES.RESOURCE_STEWARD
+        TEST_ROLES.RESOURCE_STEWARD,
       );
 
       const aliceRolesFromLynn = await getPersonRoles(
         alice.cells[0],
-        alice.agentPubKey
+        alice.agentPubKey,
       );
       const aliceRolesFromBob = await getPersonRoles(
         bob.cells[0],
-        alice.agentPubKey
+        alice.agentPubKey,
       );
 
       assert.equal(aliceRolesFromLynn.roles.length, 1);
       assert.equal(aliceRolesFromBob.roles.length, 1);
       assert.equal(
         aliceRolesFromLynn.roles[0].role_name,
-        TEST_ROLES.RESOURCE_COORDINATOR
+        TEST_ROLES.RESOURCE_COORDINATOR,
       );
       assert.equal(
         aliceRolesFromBob.roles[0].role_name,
-        TEST_ROLES.RESOURCE_COORDINATOR
+        TEST_ROLES.RESOURCE_COORDINATOR,
       );
 
       // Verify capability checking from both agents
       const bobHasStewardFromLynn = await hasRoleCapability(
         alice.cells[0],
         bob.agentPubKey,
-        TEST_ROLES.RESOURCE_STEWARD
+        TEST_ROLES.RESOURCE_STEWARD,
       );
       const bobHasStewardFromBob = await hasRoleCapability(
         bob.cells[0],
         bob.agentPubKey,
-        TEST_ROLES.RESOURCE_STEWARD
+        TEST_ROLES.RESOURCE_STEWARD,
       );
 
       assert.isTrue(bobHasStewardFromLynn);
@@ -189,17 +189,17 @@ test("cross-agent role assignment and validation", async () => {
       const aliceHasCoordinatorFromLynn = await hasRoleCapability(
         alice.cells[0],
         alice.agentPubKey,
-        TEST_ROLES.RESOURCE_COORDINATOR
+        TEST_ROLES.RESOURCE_COORDINATOR,
       );
       const aliceHasCoordinatorFromBob = await hasRoleCapability(
         bob.cells[0],
         alice.agentPubKey,
-        TEST_ROLES.RESOURCE_COORDINATOR
+        TEST_ROLES.RESOURCE_COORDINATOR,
       );
 
       assert.isTrue(aliceHasCoordinatorFromLynn);
       assert.isTrue(aliceHasCoordinatorFromBob);
-    }
+    },
   );
 }, 240000);
 
@@ -213,19 +213,19 @@ test("capability level consistency across agents", async () => {
       // Initially both have member capability level
       let aliceCapFromLynn = await getCapabilityLevel(
         alice.cells[0],
-        alice.agentPubKey
+        alice.agentPubKey,
       );
       let aliceCapFromBob = await getCapabilityLevel(
         bob.cells[0],
-        alice.agentPubKey
+        alice.agentPubKey,
       );
       let bobCapFromLynn = await getCapabilityLevel(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       let bobCapFromBob = await getCapabilityLevel(
         bob.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
 
       assert.equal(aliceCapFromLynn, CAPABILITY_LEVELS.MEMBER);
@@ -240,8 +240,8 @@ test("capability level consistency across agents", async () => {
           {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
           },
-          bob.agentPubKey
-        )
+          bob.agentPubKey,
+        ),
       );
 
       // Bob assigns governance role to Lynn
@@ -251,8 +251,8 @@ test("capability level consistency across agents", async () => {
           {
             role_name: TEST_ROLES.FOUNDER,
           },
-          alice.agentPubKey
-        )
+          alice.agentPubKey,
+        ),
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -260,15 +260,15 @@ test("capability level consistency across agents", async () => {
       // Verify capability levels are consistent across agents
       aliceCapFromLynn = await getCapabilityLevel(
         alice.cells[0],
-        alice.agentPubKey
+        alice.agentPubKey,
       );
       aliceCapFromBob = await getCapabilityLevel(
         bob.cells[0],
-        alice.agentPubKey
+        alice.agentPubKey,
       );
       bobCapFromLynn = await getCapabilityLevel(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       bobCapFromBob = await getCapabilityLevel(bob.cells[0], bob.agentPubKey);
 
@@ -276,7 +276,7 @@ test("capability level consistency across agents", async () => {
       assert.equal(aliceCapFromBob, CAPABILITY_LEVELS.GOVERNANCE);
       assert.equal(bobCapFromLynn, CAPABILITY_LEVELS.STEWARDSHIP);
       assert.equal(bobCapFromBob, CAPABILITY_LEVELS.STEWARDSHIP);
-    }
+    },
   );
 }, 240000);
 
@@ -295,8 +295,8 @@ test("multiple role assignments and capability aggregation", async () => {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
             description: "Community steward role",
           },
-          bob.agentPubKey
-        )
+          bob.agentPubKey,
+        ),
       );
 
       await assignRole(
@@ -306,8 +306,8 @@ test("multiple role assignments and capability aggregation", async () => {
             role_name: TEST_ROLES.RESOURCE_COORDINATOR,
             description: "Resource coordinator role",
           },
-          bob.agentPubKey
-        )
+          bob.agentPubKey,
+        ),
       );
 
       await assignRole(
@@ -317,8 +317,8 @@ test("multiple role assignments and capability aggregation", async () => {
             role_name: TEST_ROLES.ADVOCATE,
             description: "Community advocate role",
           },
-          bob.agentPubKey
-        )
+          bob.agentPubKey,
+        ),
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -338,22 +338,22 @@ test("multiple role assignments and capability aggregation", async () => {
       const hasSteward = await hasRoleCapability(
         alice.cells[0],
         bob.agentPubKey,
-        TEST_ROLES.RESOURCE_STEWARD
+        TEST_ROLES.RESOURCE_STEWARD,
       );
       const hasCoordinator = await hasRoleCapability(
         alice.cells[0],
         bob.agentPubKey,
-        TEST_ROLES.RESOURCE_COORDINATOR
+        TEST_ROLES.RESOURCE_COORDINATOR,
       );
       const hasAdvocate = await hasRoleCapability(
         alice.cells[0],
         bob.agentPubKey,
-        TEST_ROLES.ADVOCATE
+        TEST_ROLES.ADVOCATE,
       );
       const hasFounder = await hasRoleCapability(
         alice.cells[0],
         bob.agentPubKey,
-        TEST_ROLES.FOUNDER
+        TEST_ROLES.FOUNDER,
       );
 
       assert.isTrue(hasSteward);
@@ -364,10 +364,10 @@ test("multiple role assignments and capability aggregation", async () => {
       // Verify capability level is coordination (highest of the assigned roles)
       const capabilityLevel = await getCapabilityLevel(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       assert.equal(capabilityLevel, CAPABILITY_LEVELS.COORDINATION);
-    }
+    },
   );
 }, 240000);
 
@@ -401,8 +401,8 @@ test("DHT synchronization and eventual consistency", async () => {
           {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
           },
-          bob.agentPubKey
-        )
+          bob.agentPubKey,
+        ),
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -410,24 +410,24 @@ test("DHT synchronization and eventual consistency", async () => {
       // Both agents should see the role assignment
       const bobRolesFromLynn = await getPersonRoles(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       const bobRolesFromBob = await getPersonRoles(
         bob.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
 
       assert.equal(bobRolesFromLynn.roles.length, 1);
       assert.equal(bobRolesFromBob.roles.length, 1);
       assert.equal(
         bobRolesFromLynn.roles[0].role_name,
-        TEST_ROLES.RESOURCE_STEWARD
+        TEST_ROLES.RESOURCE_STEWARD,
       );
       assert.equal(
         bobRolesFromBob.roles[0].role_name,
-        TEST_ROLES.RESOURCE_STEWARD
+        TEST_ROLES.RESOURCE_STEWARD,
       );
-    }
+    },
   );
 }, 240000);
 
@@ -437,7 +437,7 @@ test("agent interaction without prior person creation", async () => {
       // Try to get profile for agent who hasn't created person record yet
       const bobProfileFromLynn = await getPersonProfile(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       assert.isNull(bobProfileFromLynn.person);
       assert.isNull(bobProfileFromLynn.private_data);
@@ -450,8 +450,8 @@ test("agent interaction without prior person creation", async () => {
           {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
           },
-          bob.agentPubKey
-        )
+          bob.agentPubKey,
+        ),
       );
 
       assert.ok(roleResult);
@@ -468,7 +468,7 @@ test("agent interaction without prior person creation", async () => {
       const hasCapability = await hasRoleCapability(
         alice.cells[0],
         bob.agentPubKey,
-        TEST_ROLES.RESOURCE_STEWARD
+        TEST_ROLES.RESOURCE_STEWARD,
       );
       assert.isTrue(hasCapability);
 
@@ -480,16 +480,16 @@ test("agent interaction without prior person creation", async () => {
       // Now Lynn should see Bob's person and his existing roles
       const bobProfileAfterCreation = await getPersonProfile(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       assert.ok(bobProfileAfterCreation.person);
       assert.equal(bobProfileAfterCreation.person!.name, "Bob");
 
       const bobRolesAfterCreation = await getPersonRoles(
         alice.cells[0],
-        bob.agentPubKey
+        bob.agentPubKey,
       );
       assert.equal(bobRolesAfterCreation.roles.length, 1);
-    }
+    },
   );
 }, 240000);

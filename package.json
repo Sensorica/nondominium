@@ -18,6 +18,7 @@
     "build:happ": "bun run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "cargo build --release --target wasm32-unknown-unknown",
     "check": "cd ui && bun run check",
+    "check:tests": "bun run --filter tests check",
     "test:watch": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:watch",
     "test:debug": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:debug",
     "test:coverage": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:coverage",
@@ -33,9 +34,7 @@
     "test:ppr-scenarios": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:ppr-scenarios",
     "test:ppr-performance": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:ppr-performance",
     "test:roles": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:roles",
-    "test:resources-lifecycle": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:resources-lifecycle",
-    "lint:tests": "bun run --filter tests check",
-    "lint:tests:fix": "bun run --filter tests lint:fix"
+    "test:resources-lifecycle": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:resources-lifecycle"
   },
   "devDependencies": {
     "@holochain/hc-spin": "^0.500.1",

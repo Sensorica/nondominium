@@ -20,9 +20,7 @@
     "test:ppr-performance": "vitest run governance/ppr-system/performance/",
     "test:roles": "vitest run person/role-management/",
     "test:resources-lifecycle": "vitest run resource/lifecycle/",
-    "check": "eslint src/",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix"
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@eslint/js": "^9.34.0",

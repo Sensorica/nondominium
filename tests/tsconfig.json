@@ -3,6 +3,8 @@
     "target": "ES2017",
     "module": "ESNext",
     "moduleResolution": "node",
+    "noImplicitAny": true,
+    "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   }

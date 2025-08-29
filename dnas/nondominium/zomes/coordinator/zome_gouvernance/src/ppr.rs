@@ -1,4 +1,6 @@
 use hdk::prelude::*;
+use hdk::hash::hash_blake2b;
+use hdk::ed25519::{sign, verify_signature};
 use zome_gouvernance_integrity::*;
 use crate::GovernanceError;
 
@@ -98,30 +100,75 @@ pub fn issue_participation_receipts(
     input.receiver_metrics.validate()
         .map_err(|e| GovernanceError::InvalidInput(format!("Receiver metrics invalid: {}", e)))?;
     
-    // Create signed data hash for both claims (same data, different perspectives)
+    // Create signed data for cryptographic signing
     let signing_data = create_signing_data(&input)?;
-    let signed_data_hash = hash_data(&signing_data)?;
-    
-    // For this foundational implementation, we'll create placeholder signatures
-    // In a full implementation, this would involve proper cryptographic signing
-    let placeholder_sig = create_placeholder_signature()?;
+    let signed_data_hash = create_secure_hash(&signing_data)?;
     
     let now = sys_time()?;
     
-    // Create cryptographic signatures for both claims
-    let provider_signature = CryptographicSignature::new(
-        placeholder_sig.clone(),
-        placeholder_sig.clone(),
-        signed_data_hash,
-        now,
-    );
+    // Get the calling agent (who is creating these PPRs)
+    let calling_agent = agent_info()?.agent_initial_pubkey;
     
-    let receiver_signature = CryptographicSignature::new(
-        placeholder_sig.clone(),
-        placeholder_sig.clone(),
-        signed_data_hash,
-        now,
-    );
+    // DEBUG: Log agent information
+    debug!("Calling agent: {:?}", calling_agent);
+    debug!("Provider: {:?}", input.provider);  
+    debug!("Receiver: {:?}", input.receiver);
+    
+    // Create signing context for the calling agent
+    let calling_agent_signing_data = if calling_agent == input.provider {
+        debug!("Calling agent is the provider");
+        create_provider_signing_context(&input, &signing_data)?
+    } else if calling_agent == input.receiver {
+        debug!("Calling agent is the receiver");  
+        create_receiver_signing_context(&input, &signing_data)?
+    } else {
+        return Err(GovernanceError::InvalidInput(
+            format!("Calling agent must be either provider or receiver. Calling: {:?}, Provider: {:?}, Receiver: {:?}", 
+                calling_agent, input.provider, input.receiver)
+        ).into());
+    };
+    
+    // Sign data with calling agent's key (only the calling agent can sign)
+    debug!("About to sign with calling agent key");
+    let calling_agent_signature = sign(calling_agent.clone(), calling_agent_signing_data)?;
+    debug!("Successfully signed with calling agent key");
+    
+    // For now, we'll use a placeholder for the other party's signature
+    // In a production system, the other party would need to call a separate function to add their signature
+    let placeholder_signature = Signature([0u8; 64]);
+    
+    // Create cryptographic signature structures based on who is calling
+    let (provider_signature, receiver_signature) = if calling_agent == input.provider {
+        // Provider is signing
+        let provider_sig = CryptographicSignature::new(
+            calling_agent_signature.clone(),
+            placeholder_signature.clone(),
+            signed_data_hash,
+            now,
+        );
+        let receiver_sig = CryptographicSignature::new(
+            placeholder_signature.clone(),
+            calling_agent_signature.clone(),
+            signed_data_hash,
+            now,
+        );
+        (provider_sig, receiver_sig)
+    } else {
+        // Receiver is signing
+        let provider_sig = CryptographicSignature::new(
+            placeholder_signature.clone(),
+            calling_agent_signature.clone(),
+            signed_data_hash,
+            now,
+        );
+        let receiver_sig = CryptographicSignature::new(
+            calling_agent_signature.clone(),
+            placeholder_signature.clone(),
+            signed_data_hash,
+            now,
+        );
+        (provider_sig, receiver_sig)
+    };
     
     // Create the provider's PPR claim
     let provider_claim = PrivateParticipationClaim::new(
@@ -213,14 +260,17 @@ pub fn issue_participation_receipts(
 pub fn sign_participation_claim(
     input: SignParticipationClaimInput,
 ) -> ExternResult<SignParticipationClaimOutput> {
-    // Create hash of the data to be signed
-    let signed_data_hash = hash_data(&input.data_to_sign)?;
+    // Create cryptographically secure hash of the data to be signed
+    let signed_data_hash = create_secure_hash(&input.data_to_sign)?;
     
     // Get agent info for signing
     let agent_info = agent_info()?;
     
-    // Sign the data hash with the agent's private key
-    let signature = sign(agent_info.agent_initial_pubkey, input.data_to_sign)?;
+    // Create signing context that includes counterparty for bilateral authentication
+    let signing_context = create_bilateral_signing_context(&input.data_to_sign, &input.counterparty)?;
+    
+    // Sign the contextual data with the agent's Ed25519 private key
+    let signature = sign(agent_info.agent_initial_pubkey, signing_context)?;
     
     Ok(SignParticipationClaimOutput {
         signature,
@@ -233,7 +283,63 @@ pub fn sign_participation_claim(
 pub fn validate_participation_claim_signature(
     input: ValidateParticipationClaimSignatureInput,
 ) -> ExternResult<bool> {
-    input.signature.verify_signatures(&input.owner, &input.counterparty)
+    // Verify owner signature against the signed data hash
+    let owner_valid = verify_signature(
+        input.owner.clone(),
+        input.signature.recipient_signature.clone(),
+        input.signature.signed_data_hash.to_vec(),
+    )?;
+    
+    // Verify counterparty signature against the signed data hash
+    let counterparty_valid = verify_signature(
+        input.counterparty.clone(),
+        input.signature.counterparty_signature.clone(),
+        input.signature.signed_data_hash.to_vec(),
+    )?;
+    
+    Ok(owner_valid && counterparty_valid)
+}
+
+/// Enhanced signature validation with full context reconstruction
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnhancedValidateParticipationClaimSignatureInput {
+    pub signature: CryptographicSignature,
+    pub owner: AgentPubKey,
+    pub counterparty: AgentPubKey,
+    pub original_signing_data: Vec<u8>,
+    pub owner_claim_type: ParticipationClaimType,
+    pub counterparty_claim_type: ParticipationClaimType,
+}
+
+/// Validate cryptographic signatures with full context verification
+#[hdk_extern]
+pub fn validate_participation_claim_signature_enhanced(
+    input: EnhancedValidateParticipationClaimSignatureInput,
+) -> ExternResult<bool> {
+    // Get verification contexts from the integrity zome
+    let (owner_context, counterparty_context) = input.signature.get_verification_context(
+        &input.owner,
+        &input.counterparty,
+        &input.original_signing_data,
+        &input.owner_claim_type,
+        &input.counterparty_claim_type,
+    );
+    
+    // Verify owner signature with proper context
+    let owner_valid = verify_signature(
+        input.owner.clone(),
+        input.signature.recipient_signature.clone(),
+        owner_context,
+    )?;
+    
+    // Verify counterparty signature with proper context
+    let counterparty_valid = verify_signature(
+        input.counterparty.clone(),
+        input.signature.counterparty_signature.clone(),
+        counterparty_context,
+    )?;
+    
+    Ok(owner_valid && counterparty_valid)
 }
 
 /// Get private participation claims for the calling agent
@@ -391,33 +497,95 @@ fn create_signing_data(input: &IssueParticipationReceiptsInput) -> ExternResult<
     Ok(signing_data)
 }
 
-/// Create a hash from data
-fn hash_data(data: &[u8]) -> ExternResult<[u8; 32]> {
-    // Use a simple SHA256-like approach by converting data to consistent format
-    // In a full implementation, this would use proper cryptographic hashing
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
+/// Create a cryptographically secure hash using BLAKE2b
+fn create_secure_hash(data: &[u8]) -> ExternResult<[u8; 32]> {
+    // Use BLAKE2b-256 for cryptographically secure hashing (32 bytes output)
+    let hash_output = hash_blake2b(data.to_vec(), 32)?;
     
-    let mut hasher = DefaultHasher::new();
-    data.hash(&mut hasher);
-    let hash_value = hasher.finish();
-    
-    // Convert to 32-byte array by repeating and truncating as needed
-    let mut hash_array = [0u8; 32];
-    let hash_bytes = hash_value.to_le_bytes();
-    for i in 0..32 {
-        hash_array[i] = hash_bytes[i % hash_bytes.len()];
+    // Convert Vec<u8> to [u8; 32] array
+    if hash_output.len() != 32 {
+        return Err(wasm_error!(WasmErrorInner::Guest(
+            "Hash output is not 32 bytes".into()
+        )));
     }
+    
+    let mut hash_array = [0u8; 32];
+    hash_array.copy_from_slice(&hash_output);
     
     Ok(hash_array)
 }
 
-/// Create a placeholder signature for foundational implementation
-/// TODO: Replace with proper cryptographic signing in full implementation
-fn create_placeholder_signature() -> ExternResult<Signature> {
-    let agent_info = agent_info()?;
-    let placeholder_data = b"placeholder_signature_data";
-    sign(agent_info.agent_initial_pubkey, placeholder_data.to_vec())
+/// Create provider-specific signing context for bilateral authentication
+fn create_provider_signing_context(
+    input: &IssueParticipationReceiptsInput,
+    base_data: &[u8],
+) -> ExternResult<Vec<u8>> {
+    let mut context_data = Vec::new();
+    
+    // Add role identifier
+    context_data.extend_from_slice(b"PROVIDER_PPR_SIGNATURE");
+    
+    // Add base signing data
+    context_data.extend_from_slice(base_data);
+    
+    // Add provider-specific context
+    context_data.extend_from_slice(&input.provider.get_raw_39());
+    context_data.extend_from_slice(&input.receiver.get_raw_39());
+    
+    // Add claim types for provider
+    if !input.claim_types.is_empty() {
+        context_data.extend_from_slice(format!("{:?}", input.claim_types[0]).as_bytes());
+    }
+    
+    Ok(context_data)
+}
+
+/// Create receiver-specific signing context for bilateral authentication
+fn create_receiver_signing_context(
+    input: &IssueParticipationReceiptsInput,
+    base_data: &[u8],
+) -> ExternResult<Vec<u8>> {
+    let mut context_data = Vec::new();
+    
+    // Add role identifier
+    context_data.extend_from_slice(b"RECEIVER_PPR_SIGNATURE");
+    
+    // Add base signing data
+    context_data.extend_from_slice(base_data);
+    
+    // Add receiver-specific context
+    context_data.extend_from_slice(&input.receiver.get_raw_39());
+    context_data.extend_from_slice(&input.provider.get_raw_39());
+    
+    // Add claim types for receiver
+    if input.claim_types.len() > 1 {
+        context_data.extend_from_slice(format!("{:?}", input.claim_types[1]).as_bytes());
+    }
+    
+    Ok(context_data)
+}
+
+/// Create bilateral signing context for general participation claim signing
+fn create_bilateral_signing_context(
+    data: &[u8],
+    counterparty: &AgentPubKey,
+) -> ExternResult<Vec<u8>> {
+    let mut context_data = Vec::new();
+    
+    // Add context identifier
+    context_data.extend_from_slice(b"BILATERAL_PPR_CLAIM");
+    
+    // Add original data
+    context_data.extend_from_slice(data);
+    
+    // Add counterparty for bilateral context
+    context_data.extend_from_slice(&counterparty.get_raw_39());
+    
+    // Add timestamp for uniqueness and replay protection
+    let timestamp = sys_time()?;
+    context_data.extend_from_slice(&timestamp.as_micros().to_le_bytes());
+    
+    Ok(context_data)
 }
 
 /// Extract a PrivateParticipationClaim from a record

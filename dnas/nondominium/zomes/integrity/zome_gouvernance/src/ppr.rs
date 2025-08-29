@@ -190,27 +190,36 @@ impl CryptographicSignature {
         }
     }
     
-    /// Verify both signatures against the signed data hash
-    pub fn verify_signatures(
+    /// Get signing context data for verification
+    /// This method returns the context data needed for signature verification
+    /// The actual verification must be done in the coordinator zome with HDK functions
+    pub fn get_verification_context(
         &self,
         recipient_pubkey: &AgentPubKey,
         counterparty_pubkey: &AgentPubKey,
-    ) -> ExternResult<bool> {
-        // Verify recipient signature
-        let recipient_valid = verify_signature(
-            recipient_pubkey.clone(),
-            self.recipient_signature.clone(),
-            self.signed_data_hash.to_vec(),
-        )?;
+        original_signing_data: &[u8],
+        recipient_claim_type: &ParticipationClaimType,
+        counterparty_claim_type: &ParticipationClaimType,
+    ) -> (Vec<u8>, Vec<u8>) {
+        // Reconstruct recipient signing context
+        let recipient_context = create_signature_verification_context(
+            original_signing_data,
+            recipient_pubkey,
+            counterparty_pubkey,
+            recipient_claim_type,
+            "RECEIVER_PPR_SIGNATURE",
+        );
         
-        // Verify counterparty signature  
-        let counterparty_valid = verify_signature(
-            counterparty_pubkey.clone(),
-            self.counterparty_signature.clone(),
-            self.signed_data_hash.to_vec(),
-        )?;
+        // Reconstruct counterparty signing context
+        let counterparty_context = create_signature_verification_context(
+            original_signing_data,
+            counterparty_pubkey,
+            recipient_pubkey,
+            counterparty_claim_type,
+            "PROVIDER_PPR_SIGNATURE",
+        );
         
-        Ok(recipient_valid && counterparty_valid)
+        (recipient_context.unwrap_or_default(), counterparty_context.unwrap_or_default())
     }
 }
 
@@ -264,9 +273,21 @@ impl PrivateParticipationClaim {
         })
     }
     
-    /// Verify the cryptographic signatures on this claim
-    pub fn verify_signatures(&self, owner: &AgentPubKey) -> ExternResult<bool> {
-        self.bilateral_signature.verify_signatures(owner, &self.counterparty)
+    /// Get verification context for the cryptographic signatures on this claim
+    /// The actual verification must be done in the coordinator zome with HDK functions
+    pub fn get_signature_verification_contexts(&self, 
+        owner: &AgentPubKey, 
+        original_signing_data: &[u8],
+        owner_claim_type: &ParticipationClaimType,
+        counterparty_claim_type: &ParticipationClaimType,
+    ) -> (Vec<u8>, Vec<u8>) {
+        self.bilateral_signature.get_verification_context(
+            owner, 
+            &self.counterparty, 
+            original_signing_data,
+            owner_claim_type,
+            counterparty_claim_type,
+        )
     }
     
     /// Get a summary of this claim for reputation calculation
@@ -402,4 +423,31 @@ impl ReputationSummary {
         let category_weight = count as f64 / self.total_claims as f64;
         Some(self.average_performance * category_weight)
     }
+}
+
+/// Helper function to create signature verification context
+/// This reconstructs the signing context used during signature creation
+fn create_signature_verification_context(
+    base_data: &[u8],
+    signer_pubkey: &AgentPubKey,
+    counterparty_pubkey: &AgentPubKey,
+    claim_type: &ParticipationClaimType,
+    role_prefix: &str,
+) -> Result<Vec<u8>, String> {
+    let mut context_data = Vec::new();
+    
+    // Add role identifier
+    context_data.extend_from_slice(role_prefix.as_bytes());
+    
+    // Add base signing data
+    context_data.extend_from_slice(base_data);
+    
+    // Add signer and counterparty context
+    context_data.extend_from_slice(&signer_pubkey.get_raw_39());
+    context_data.extend_from_slice(&counterparty_pubkey.get_raw_39());
+    
+    // Add claim type context
+    context_data.extend_from_slice(format!("{:?}", claim_type).as_bytes());
+    
+    Ok(context_data)
 }
