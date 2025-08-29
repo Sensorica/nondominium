@@ -1,4 +1,4 @@
-import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
+import type { ActionHash, AgentPubKey, Timestamp } from "@holochain/client";
 
 // Core Person Types
 export interface Person {
@@ -41,16 +41,18 @@ export interface PersonRole {
 }
 
 export type RoleType =
-  | "Simple Member"
-  | "Community Advocate"
-  | "Community Founder"
-  | "Community Coordinator"
-  | "Community Moderator"
-  | "Resource Coordinator"
-  | "Resource Steward"
-  | "Governance Coordinator";
+  | "SimpleAgent"
+  | "AccountableAgent"
+  | "PrimaryAccountableAgent"
+  | "Transport"
+  | "Repair"
+  | "Storage";
 
-export type CapabilityLevel = "governance" | "coordination" | "stewardship" | "member";
+export type CapabilityLevel =
+  | "governance"
+  | "coordination"
+  | "stewardship"
+  | "member";
 
 // Input/Output types for zome functions
 export interface PersonInput {
@@ -137,7 +139,12 @@ export interface GetAgentRolesOutput {
 }
 
 // Private Data Sharing types
-export type RequestStatus = "Pending" | "Approved" | "Denied" | "Expired" | "Revoked";
+export type RequestStatus =
+  | "Pending"
+  | "Approved"
+  | "Denied"
+  | "Expired"
+  | "Revoked";
 
 export interface DataAccessGrant {
   granted_to: AgentPubKey;
@@ -205,11 +212,13 @@ export interface PersonTestScenario {
 
 // Zome Function Types
 export interface PersonZomeFunctions {
-  create_person: (person: Omit<Person, 'agent_pub_key' | 'created_at'>) => Promise<ActionHash>;
+  create_person: (
+    person: Omit<Person, "agent_pub_key" | "created_at">,
+  ) => Promise<ActionHash>;
   get_person: (hash: ActionHash) => Promise<Person>;
   get_all_persons: () => Promise<Person[]>;
   create_encrypted_profile: (
-    profile: Omit<EncryptedProfile, 'agent_pub_key' | 'created_at'>
+    profile: Omit<EncryptedProfile, "agent_pub_key" | "created_at">,
   ) => Promise<ActionHash>;
   get_encrypted_profile: (hash: ActionHash) => Promise<EncryptedProfile>;
   assign_role: (agent: AgentPubKey, role: string) => Promise<ActionHash>;

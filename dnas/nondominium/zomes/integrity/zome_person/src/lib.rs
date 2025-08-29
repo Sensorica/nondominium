@@ -37,7 +37,7 @@ pub struct PrivatePersonData {
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct PersonRole {
-  /// The name of the role (e.g., "Community Steward")
+  /// The name of the role (e.g., "Primary Accountable Agent")
   pub role_name: String,
   /// Optional description of the role's responsibilities
   pub description: Option<String>,

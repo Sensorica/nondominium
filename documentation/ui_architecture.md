@@ -159,14 +159,9 @@ PersonRole {
 
 // Enhanced role hierarchy with Economic Process specializations
 RoleType =
-  | "SimpleMember"           // Simple Agent capabilities
-  | "CommunityAdvocate"      // Accountable Agent level
-  | "CommunityFounder"       // Primary Accountable Agent level
-  | "CommunityCoordinator"   // Coordination capabilities
-  | "CommunityModerator"     // Moderation capabilities
-  | "ResourceCoordinator"    // Resource management coordination
-  | "ResourceSteward"        // Resource stewardship
-  | "GovernanceCoordinator"  // Governance process coordination
+  | "SimpleAgent"           // Simple Agent capabilities
+  | "AccountableAgent"      // Accountable Agent level
+  | "PrimaryAccountableAgent"       // Primary Accountable Agent level
 
   // Economic Process Specialized Roles
   | "Transport"              // Transport process access
