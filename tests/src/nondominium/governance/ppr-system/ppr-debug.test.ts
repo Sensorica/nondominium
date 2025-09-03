@@ -5,6 +5,7 @@ import {
   proposeCommitment,
   logEconomicEvent,
   issueNewPPRs,
+  getMyNewParticipationClaims,
   CommitmentResult,
   EventResult,
   PPRResult,
@@ -140,6 +141,30 @@ test("PPR Debug: PPR creation test (potential hang point)", async () => {
       expect(ppr_result).toHaveProperty("receiver_claim_hash");
       expect(ppr_result).toHaveProperty("provider_claim");
       expect(ppr_result).toHaveProperty("receiver_claim");
+      
+      // Wait for DHT sync before retrieving claims
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      
+      // Test claim retrieval like in integration test
+      const alice_claims = await getMyNewParticipationClaims(alice.cells[0], {
+        claim_type_filter: null,
+        from_time: null,
+        to_time: null,
+        limit: null,
+      });
+
+      const bob_claims = await getMyNewParticipationClaims(bob.cells[0], {
+        claim_type_filter: null,
+        from_time: null,
+        to_time: null,
+        limit: null,
+      });
+
+      console.log("🔍 Debug - Alice claims:", alice_claims.claims.length);
+      console.log("🔍 Debug - Bob claims:", bob_claims.claims.length);
+      
+      // Check that claims are properly linked
+      expect(alice_claims.claims.length + bob_claims.claims.length).toBeGreaterThan(0);
     },
   );
 });

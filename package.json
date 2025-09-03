@@ -20,6 +20,7 @@
     "check": "cd ui && bun run check",
     "check:tests": "bun run --filter tests check",
     "test:watch": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:watch",
+    "test:filter": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter",
     "test:debug": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:debug",
     "test:coverage": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:coverage",
     "test:foundation": "bun run build:zomes && hc app pack workdir --recursive && bun run --filter tests test:foundation",

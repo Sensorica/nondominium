@@ -16,6 +16,7 @@ bun install              # Install all dependencies
 ## Core Development Commands
 
 ### Development Workflow
+
 ```bash
 bun run start            # Start 2-agent development network with UIs
 bun run network          # Custom agent network: AGENTS=3 bun run network
@@ -23,6 +24,7 @@ bun run test             # Run full test suite (foundation, integration, scenari
 ```
 
 ### Build Pipeline
+
 ```bash
 bun run build:zomes      # Compile Rust zomes to WASM
 bun run build:happ       # Package DNA into .happ bundle
@@ -30,16 +32,27 @@ bun run package          # Create final .webhapp distribution
 ```
 
 ### Testing Commands
+
 ```bash
 npm test                    # All tests
 npm run test:foundation     # Basic zome connectivity tests
-npm run test:integration    # Multi-agent interaction tests  
+npm run test:integration    # Multi-agent interaction tests
 npm run test:scenarios      # Complete workflow simulations
 npm run test:person         # Person management test suite
 npm run test:debug          # Verbose test output with DEBUG=true
+npm run test:filter <path>  # Run specific test file or pattern
+
+# PPR-Specific Tests
+npm run test:ppr            # All PPR system tests
+npm run test:ppr-foundation # PPR foundation functionality
+npm run test:ppr-integration # PPR integration with economic events
+npm run test:ppr-scenarios  # Complete PPR workflow scenarios
 ```
 
+**IMPORTANT**: Always use these standard package.json commands instead of custom npm test parameters to avoid timeout issues. Use `npm run test:filter <specific-file>` for targeted testing.
+
 ### Individual Workspace Commands
+
 ```bash
 bun run --filter ui start          # Frontend development server
 bun run --filter tests test        # Backend test execution
@@ -50,17 +63,20 @@ bun run --filter tests test        # Backend test execution
 nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant resource sharing:
 
 ### Zome Architecture
+
 - **`zome_person`**: Agent identity, profiles, roles, capability-based access
 - **`zome_resource`**: Resource specifications and lifecycle management
 - **`zome_gouvernance`**: Commitments, claims, economic events, governance rules
 
 ### Technology Stack
+
 - **Backend**: Rust (Holochain HDK/HDI 0.5.x-0.6.x), WASM compilation target
 - **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
 - **Testing**: Vitest 3.1.3 + @holochain/tryorama 0.18.2
 - **Client**: @holochain/client 0.19.0 for DHT interaction
 
 ### Data Model Foundations
+
 - **Agent-Centric**: All data tied to individual agents with public/private separation
 - **Capability-Based Security**: Role-based access using Holochain capability tokens
 - **ValueFlows Compliance**: EconomicResource, EconomicEvent, Commitment data structures
@@ -69,6 +85,7 @@ nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant res
 ## Key Development Patterns
 
 ### Entry Creation Pattern
+
 ```rust
 // All zomes follow this pattern for creating entries
 let entry = EntryType {
@@ -84,11 +101,13 @@ create_link(path.path_entry_hash()?, hash.clone(), LinkTypes::AnchorType, LinkTa
 ```
 
 ### Privacy Model
+
 - **Public Data**: `Person` entries with name/avatar (discoverable)
 - **Private Data**: `EncryptedProfile` entries with PII (access-controlled)
 - **Role Assignments**: Linked to profiles with validation metadata in link tags
 
 ### Function Naming Convention
+
 - `create_[entry_type]`: Creates new entries with anchor links
 - `get_[entry_type]`: Retrieves entries by hash
 - `get_all_[entry_type]`: Discovery via anchor links
@@ -98,17 +117,20 @@ create_link(path.path_entry_hash()?, hash.clone(), LinkTypes::AnchorType, LinkTa
 ## Test Architecture
 
 ### 4-Layer Testing Strategy
+
 1. **Foundation Tests**: Basic zome function calls and connectivity
-2. **Integration Tests**: Cross-zome interactions and multi-agent scenarios  
+2. **Integration Tests**: Cross-zome interactions and multi-agent scenarios
 3. **Scenario Tests**: Complete user journeys and workflows
 4. **Performance Tests**: (Planned) Load and stress testing
 
 ### Test Configuration
+
 - **Timeout**: 4 minutes for complex multi-agent scenarios
 - **Concurrency**: Single fork execution for DHT consistency
 - **Agent Simulation**: Supports 2+ distributed agents per test
 
 ### Current Test Coverage
+
 - ✅ Person management (profiles, roles, discovery)
 - ✅ Identity storage with privacy layers
 - ✅ Role assignment and capability validation
@@ -121,4 +143,3 @@ create_link(path.path_entry_hash()?, hash.clone(), LinkTypes::AnchorType, LinkTa
 **Phase 2 (In Progress)**: Resource lifecycle and governance implementation
 
 The codebase follows Holochain best practices with comprehensive testing, clear zome separation, and ValueFlows standard compliance.
-

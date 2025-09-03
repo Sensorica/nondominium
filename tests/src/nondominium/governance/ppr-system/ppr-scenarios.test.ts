@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { Scenario, PlayerApp } from "@holochain/tryorama";
+import { Scenario, PlayerApp, dhtSync } from "@holochain/tryorama";
 import { runScenarioWithTwoAgents } from "../../utils.js";
 import {
   proposeCommitment,
@@ -49,7 +49,7 @@ test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
         fulfilled_by: event.event_hash,
         provider: alice.agentPubKey,
         receiver: bob.agentPubKey,
-        claim_types: ["ServiceProvision", "ServiceReception"],
+        claim_types: ["MaintenanceFulfillmentCompleted", "GoodFaithTransfer"],
         provider_metrics: {
           timeliness: 0.95,
           quality: 0.92,
@@ -70,10 +70,13 @@ test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
         notes: "Web development service PPRs",
       });
 
+      // Wait for DHT sync before proceeding
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
       expect(webDevPPRs).toHaveProperty("provider_claim");
       expect(webDevPPRs).toHaveProperty("receiver_claim");
-      expect(webDevPPRs.provider_claim.claim_type).toBe("ServiceProvision");
-      expect(webDevPPRs.receiver_claim.claim_type).toBe("ServiceReception");
+      expect(webDevPPRs.provider_claim.claim_type).toBe("MaintenanceFulfillmentCompleted");
+      expect(webDevPPRs.receiver_claim.claim_type).toBe("GoodFaithTransfer");
 
       // Step 3: Bob signs acknowledgment of service reception
       const test_signature_data = new TextEncoder().encode(
@@ -100,7 +103,7 @@ test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
 
       // Step 5: Verify participation history retrieval
       const aliceClaims = await getMyNewParticipationClaims(alice.cells[0], {
-        claim_type_filter: "ServiceProvision",
+        claim_type_filter: "MaintenanceFulfillmentCompleted",
         from_time: null,
         to_time: null,
         limit: null,
@@ -108,7 +111,7 @@ test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
 
       expect(aliceClaims.claims.length).toBeGreaterThan(0);
       const provisionClaim = aliceClaims.claims.find(
-        ([_hash, claim]) => claim.claim_type === "ServiceProvision",
+        ([_hash, claim]) => claim.claim_type === "MaintenanceFulfillmentCompleted",
       );
       expect(provisionClaim).toBeDefined();
       expect(provisionClaim![1].counterparty).toEqual(bob.agentPubKey);
@@ -148,7 +151,7 @@ test("PPR Scenario: Knowledge Sharing and Community Impact", async () => {
         fulfilled_by: event.event_hash,
         provider: alice.agentPubKey,
         receiver: bob.agentPubKey,
-        claim_types: ["KnowledgeSharing", "KnowledgeAcquisition"],
+        claim_types: ["ValidationActivity", "RuleCompliance"],
         provider_metrics: {
           timeliness: 1.0,
           quality: 0.95,
@@ -169,9 +172,12 @@ test("PPR Scenario: Knowledge Sharing and Community Impact", async () => {
         notes: "Knowledge sharing workshop PPRs",
       });
 
-      expect(workshopPPRs.provider_claim.claim_type).toBe("KnowledgeSharing");
+      // Wait for DHT sync before proceeding
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+      expect(workshopPPRs.provider_claim.claim_type).toBe("ValidationActivity");
       expect(workshopPPRs.receiver_claim.claim_type).toBe(
-        "KnowledgeAcquisition",
+        "RuleCompliance",
       );
 
       // Verify knowledge sharing impact on reputation
@@ -219,7 +225,7 @@ test("PPR Scenario: Governance Participation and Decision Making", async () => {
         fulfilled_by: event.event_hash,
         provider: alice.agentPubKey,
         receiver: bob.agentPubKey,
-        claim_types: ["GovernanceParticipation", "GovernanceWitness"],
+        claim_types: ["DisputeResolutionParticipation", "ValidationActivity"],
         provider_metrics: {
           timeliness: 0.95,
           quality: 0.9,
@@ -240,11 +246,14 @@ test("PPR Scenario: Governance Participation and Decision Making", async () => {
         notes: "Governance decision facilitation PPRs",
       });
 
+      // Wait for DHT sync before proceeding
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
       expect(governancePPRs.provider_claim.claim_type).toBe(
-        "GovernanceParticipation",
+        "DisputeResolutionParticipation",
       );
       expect(governancePPRs.receiver_claim.claim_type).toBe(
-        "GovernanceWitness",
+        "ValidationActivity",
       );
 
       // Sign governance participation for validation
@@ -308,7 +317,7 @@ test("PPR Scenario: Quality Service Exchange with Validation", async () => {
         fulfilled_by: event.event_hash,
         provider: alice.agentPubKey,
         receiver: bob.agentPubKey,
-        claim_types: ["ServiceProvision", "ServiceReception"],
+        claim_types: ["MaintenanceFulfillmentCompleted", "GoodFaithTransfer"],
         provider_metrics: {
           timeliness: 0.98,
           quality: 0.96,
@@ -329,8 +338,11 @@ test("PPR Scenario: Quality Service Exchange with Validation", async () => {
         notes: "Premium service exchange PPRs",
       });
 
-      expect(servicePPRs.provider_claim.claim_type).toBe("ServiceProvision");
-      expect(servicePPRs.receiver_claim.claim_type).toBe("ServiceReception");
+      // Wait for DHT sync before proceeding
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+      expect(servicePPRs.provider_claim.claim_type).toBe("MaintenanceFulfillmentCompleted");
+      expect(servicePPRs.receiver_claim.claim_type).toBe("GoodFaithTransfer");
 
       // Quality validation signature
       const quality_validation_data = new TextEncoder().encode(
@@ -355,7 +367,7 @@ test("PPR Scenario: Quality Service Exchange with Validation", async () => {
 
       // Verify service provision claims
       const aliceClaims = await getMyNewParticipationClaims(alice.cells[0], {
-        claim_type_filter: "ServiceProvision",
+        claim_type_filter: "MaintenanceFulfillmentCompleted",
         from_time: null,
         to_time: null,
         limit: null,
@@ -363,7 +375,7 @@ test("PPR Scenario: Quality Service Exchange with Validation", async () => {
 
       expect(aliceClaims.claims.length).toBeGreaterThan(0);
       const serviceClaim = aliceClaims.claims.find(
-        ([_hash, claim]) => claim.claim_type === "ServiceProvision",
+        ([_hash, claim]) => claim.claim_type === "MaintenanceFulfillmentCompleted",
       );
       expect(serviceClaim).toBeDefined();
 

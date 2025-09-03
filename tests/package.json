@@ -9,6 +9,7 @@
     "test:integration": "vitest run integration-tests.test.ts",
     "test:scenarios": "vitest run scenario-tests.test.ts",
     "test:debug": "DEBUG=true vitest run --reporter=verbose",
+    "test:filter": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:person": "vitest run person/",
     "test:resource": "vitest run resource/",
