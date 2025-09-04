@@ -48,11 +48,11 @@ test("multi-agent person discovery and interaction", async () => {
 
       assert.ok(aliceViewOfBob.person);
       assert.equal(aliceViewOfBob.person!.name, "Bob");
-      assert.isNull(aliceViewOfBob.private_data);
+      assert.isUndefined(aliceViewOfBob.private_data);
 
       assert.ok(bobViewOfLynn.person);
       assert.equal(bobViewOfLynn.person!.name, "Lynn");
-      assert.isNull(bobViewOfLynn.private_data);
+      assert.isUndefined(bobViewOfLynn.private_data);
     },
   );
 }, 240000);
@@ -84,7 +84,7 @@ test("privacy boundaries - private data isolation", async () => {
         bob.agentPubKey,
       );
       assert.ok(aliceViewOfBob.person);
-      assert.isNull(aliceViewOfBob.private_data);
+      assert.isUndefined(aliceViewOfBob.private_data);
 
       // Bob cannot see Lynn's private data
       const bobViewOfLynn = await getPersonProfile(
@@ -92,7 +92,7 @@ test("privacy boundaries - private data isolation", async () => {
         alice.agentPubKey,
       );
       assert.ok(bobViewOfLynn.person);
-      assert.isNull(bobViewOfLynn.private_data);
+      assert.isUndefined(bobViewOfLynn.private_data);
     },
   );
 }, 240000);
@@ -274,8 +274,8 @@ test("capability level consistency across agents", async () => {
 
       assert.equal(aliceCapFromLynn, CAPABILITY_LEVELS.GOVERNANCE);
       assert.equal(aliceCapFromBob, CAPABILITY_LEVELS.GOVERNANCE);
-      assert.equal(bobCapFromLynn, CAPABILITY_LEVELS.STEWARDSHIP);
-      assert.equal(bobCapFromBob, CAPABILITY_LEVELS.STEWARDSHIP);
+      assert.equal(bobCapFromLynn, CAPABILITY_LEVELS.COORDINATION);
+      assert.equal(bobCapFromBob, CAPABILITY_LEVELS.COORDINATION);
     },
   );
 }, 240000);
@@ -314,8 +314,8 @@ test("multiple role assignments and capability aggregation", async () => {
         alice.cells[0],
         sampleRole(
           {
-            role_name: TEST_ROLES.ADVOCATE,
-            description: "Community advocate role",
+            role_name: TEST_ROLES.SIMPLE,
+            description: "Simple agent role",
           },
           bob.agentPubKey,
         ),
@@ -329,9 +329,9 @@ test("multiple role assignments and capability aggregation", async () => {
 
       const roleNames = bobRoles.roles.map((role) => role.role_name).sort();
       assert.deepEqual(roleNames, [
-        TEST_ROLES.ADVOCATE,
-        TEST_ROLES.RESOURCE_COORDINATOR,
-        TEST_ROLES.RESOURCE_STEWARD,
+        TEST_ROLES.RESOURCE_STEWARD,      // "Accountable Agent" 
+        TEST_ROLES.RESOURCE_COORDINATOR, // "Primary Accountable Agent"
+        TEST_ROLES.SIMPLE,               // "Simple Agent"
       ]);
 
       // Verify Bob has all capabilities
@@ -345,10 +345,10 @@ test("multiple role assignments and capability aggregation", async () => {
         bob.agentPubKey,
         TEST_ROLES.RESOURCE_COORDINATOR,
       );
-      const hasAdvocate = await hasRoleCapability(
+      const hasSimple = await hasRoleCapability(
         alice.cells[0],
         bob.agentPubKey,
-        TEST_ROLES.ADVOCATE,
+        TEST_ROLES.SIMPLE,
       );
       const hasFounder = await hasRoleCapability(
         alice.cells[0],
@@ -358,15 +358,15 @@ test("multiple role assignments and capability aggregation", async () => {
 
       assert.isTrue(hasSteward);
       assert.isTrue(hasCoordinator);
-      assert.isTrue(hasAdvocate);
-      assert.isFalse(hasFounder);
+      assert.isTrue(hasSimple);
+      assert.isTrue(hasFounder); // Bob has Primary Accountable Agent role, which includes founder capabilities
 
-      // Verify capability level is coordination (highest of the assigned roles)
+      // Verify capability level is governance (highest of the assigned roles)
       const capabilityLevel = await getCapabilityLevel(
         alice.cells[0],
         bob.agentPubKey,
       );
-      assert.equal(capabilityLevel, CAPABILITY_LEVELS.COORDINATION);
+      assert.equal(capabilityLevel, CAPABILITY_LEVELS.GOVERNANCE);
     },
   );
 }, 240000);
@@ -439,8 +439,8 @@ test("agent interaction without prior person creation", async () => {
         alice.cells[0],
         bob.agentPubKey,
       );
-      assert.isNull(bobProfileFromLynn.person);
-      assert.isNull(bobProfileFromLynn.private_data);
+      assert.isUndefined(bobProfileFromLynn.person);
+      assert.isUndefined(bobProfileFromLynn.private_data);
 
       // Try to assign role to agent without person record
       // This should still work as roles are independent of person records

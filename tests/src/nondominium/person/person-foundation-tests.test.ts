@@ -254,12 +254,12 @@ test("agent capability levels", async () => {
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-      // Now Bob has stewardship capability level
+      // Now Bob has coordination capability level (Accountable Agent maps to coordination)
       capabilityLevel = await getCapabilityLevel(
         alice.cells[0],
         bob.agentPubKey,
       );
-      assert.equal(capabilityLevel, CAPABILITY_LEVELS.STEWARDSHIP);
+      assert.equal(capabilityLevel, CAPABILITY_LEVELS.COORDINATION);
 
       // Assign founder role to Lynn
       await assignRole(

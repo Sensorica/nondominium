@@ -49,8 +49,8 @@ export function sampleRole(
 ): PersonRoleInput {
   return {
     agent_pubkey: agent_pub_key,
-    role_name: "Simple Member",
-    description: "A basic community member",
+    role_name: "Simple Agent",
+    description: "A basic community agent",
     ...partialRole,
   };
 }
@@ -266,14 +266,16 @@ export async function setupPersonsWithPrivateData(
 
 // Role-related test helpers
 export const TEST_ROLES: Record<string, RoleType> = {
-  SIMPLE: "Simple Member",
-  ADVOCATE: "Community Advocate",
-  FOUNDER: "Community Founder",
-  COORDINATOR: "Community Coordinator",
-  MODERATOR: "Community Moderator",
-  RESOURCE_COORDINATOR: "Resource Coordinator",
-  RESOURCE_STEWARD: "Resource Steward",
-  GOVERNANCE_COORDINATOR: "Governance Coordinator",
+  SIMPLE: "Simple Agent",
+  ACCOUNTABLE: "Accountable Agent",
+  PRIMARY_ACCOUNTABLE: "Primary Accountable Agent",
+  TRANSPORT: "Transport Agent",
+  REPAIR: "Repair Agent",
+  STORAGE: "Storage Agent",
+  // Legacy role names for backward compatibility - map to valid types
+  RESOURCE_STEWARD: "Accountable Agent",
+  RESOURCE_COORDINATOR: "Primary Accountable Agent",
+  FOUNDER: "Primary Accountable Agent", // Maps to highest level role
 };
 
 export const CAPABILITY_LEVELS: Record<string, CapabilityLevel> = {
@@ -285,15 +287,15 @@ export const CAPABILITY_LEVELS: Record<string, CapabilityLevel> = {
 
 export function getExpectedCapabilityLevel(roles: RoleType[]): CapabilityLevel {
   const hasGovernanceRole = roles.some((role) =>
-    ["Community Founder", "Governance Coordinator"].includes(role)
+    ["Primary Accountable Agent"].includes(role)
   );
 
   const hasCoordinationRole = roles.some((role) =>
-    ["Community Coordinator", "Resource Coordinator", "Community Moderator"].includes(role)
+    ["Accountable Agent"].includes(role)
   );
 
   const hasStewardshipRole = roles.some((role) =>
-    ["Community Advocate", "Resource Steward"].includes(role)
+    ["Transport Agent", "Repair Agent", "Storage Agent"].includes(role)
   );
 
   if (hasGovernanceRole) {

@@ -11,8 +11,8 @@ import {
   RESOURCE_STATES,
   TEST_CATEGORIES,
   TEST_TAGS,
-} from "./resource/common";
-import { runScenarioWithTwoAgents } from "./utils.ts";
+} from "./common";
+import { runScenarioWithTwoAgents } from "../utils";
 
 test("basic resource state update", async () => {
   await runScenarioWithTwoAgents(
@@ -29,7 +29,7 @@ test("basic resource state update", async () => {
           category: TEST_CATEGORIES.TOOLS,
           tags: [TEST_TAGS.SHARED],
           governance_rules: [], // No governance rules to keep it simple
-        })
+        }),
       );
 
       console.log(`✅ Created resource specification: ${toolSpec.spec_hash}`);
@@ -44,27 +44,29 @@ test("basic resource state update", async () => {
           quantity: 1.0,
           unit: "tool",
           current_location: "Workshop",
-        })
+        }),
       );
 
-      console.log(`✅ Created economic resource: ${testResource.resource_hash}`);
+      console.log(
+        `✅ Created economic resource: ${testResource.resource_hash}`,
+      );
       console.log(`Initial state: ${testResource.resource.state}`);
-      
+
       // Verify initial state is PendingValidation
       assert.equal(testResource.resource.state, RESOURCE_STATES.PENDING);
-      assert.equal(testResource.resource.custodian.toString(), alice.agentPubKey.toString());
+      assert.equal(
+        testResource.resource.custodian.toString(),
+        alice.agentPubKey.toString(),
+      );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       // Step 3: Alice activates the resource
       console.log("Step 3: Alice activates the resource");
-      const activationResult = await updateResourceState(
-        alice.cells[0],
-        {
-          resource_hash: testResource.resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
-        }
-      );
+      const activationResult = await updateResourceState(alice.cells[0], {
+        resource_hash: testResource.resource_hash,
+        new_state: RESOURCE_STATES.ACTIVE,
+      });
 
       console.log(`✅ Resource activation call completed`);
       assert.ok(activationResult);
@@ -75,18 +77,18 @@ test("basic resource state update", async () => {
       console.log("Step 4: Verify resource state was updated");
       const allResources = await getAllEconomicResources(alice.cells[0]);
       console.log(`Found ${allResources.resources.length} resources`);
-      
+
       const updatedResource = allResources.resources.find(
-        r => r.created_by.toString() === alice.agentPubKey.toString()
+        (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
       );
 
       assert.ok(updatedResource, "Resource should be found");
       console.log(`Current state: ${updatedResource!.state}`);
       console.log(`Expected state: ${RESOURCE_STATES.ACTIVE}`);
-      
+
       assert.equal(updatedResource!.state, RESOURCE_STATES.ACTIVE);
 
       console.log("✅ Basic resource state update test successful");
-    }
+    },
   );
 }, 120000); // 2 minutes timeout
