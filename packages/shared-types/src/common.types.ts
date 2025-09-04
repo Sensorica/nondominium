@@ -1,4 +1,9 @@
-import type { ActionHash, AgentPubKey, EntryHash, Timestamp } from '@holochain/client';
+import type {
+  ActionHash,
+  AgentPubKey,
+  EntryHash,
+  Timestamp,
+} from "@holochain/client";
 
 // Core Holochain types
 export type HolochainHash = ActionHash | EntryHash;
@@ -22,12 +27,15 @@ export interface TestAgent {
 export interface MockPersonData {
   name: string;
   avatar_url?: string;
+  bio?: string;
   legal_name?: string;
   address?: string;
   email?: string;
   phone?: string;
   photo_id_hash?: string;
   emergency_contact?: string;
+  location?: string;
+  time_zone?: string;
 }
 
 export interface MockRoleData {

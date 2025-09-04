@@ -5,11 +5,13 @@ pub mod commitment;
 pub mod economic_event;
 pub mod ppr;
 pub mod validation;
+pub mod private_data_validation;
 
 pub use commitment::*;
 pub use economic_event::*;
 pub use ppr::*;
 pub use validation::*;
+pub use private_data_validation::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GovernanceError {

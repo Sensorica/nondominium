@@ -4,11 +4,13 @@ pub mod person;
 pub mod private_data;
 pub mod private_data_sharing;
 pub mod role;
+pub mod audit_and_notifications;
 
 pub use person::*;
 pub use private_data::*;
 pub use private_data_sharing::*;
 pub use role::*;
+pub use audit_and_notifications::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PersonError {
@@ -38,6 +40,9 @@ pub enum PersonError {
 
   #[error("Invalid input: {0}")]
   InvalidInput(String),
+
+  #[error("Insufficient capability level: {0}")]
+  InsufficientCapability(String),
 }
 
 impl From<PersonError> for WasmError {

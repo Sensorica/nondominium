@@ -175,6 +175,15 @@ export interface DataAccessRequestInput {
   justification: string;
 }
 
+// Input type for the request_private_data_access function
+export interface RequestPrivateDataAccessInput {
+  requested_from: AgentPubKey;
+  fields_requested: string[];
+  context: string;
+  resource_hash?: ActionHash;
+  justification: string;
+}
+
 export interface DataAccessGrantInput {
   granted_to: AgentPubKey;
   fields_granted: string[];

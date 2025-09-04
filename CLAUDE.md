@@ -58,12 +58,21 @@ npm run test:resources-lifecycle # Resource lifecycle tests
 
 **Running specific test files**: Use `npm run test:filter` followed by the test file path or pattern.
 
-**Test Development Tip**: Use `.only()` on `describe` or `it` blocks to run specific tests during development:
+**Test Development Tips**:
+
+1. **Test Isolation**: Use `.only()` on `describe` or `it` blocks to run specific tests during development:
 ```typescript
 describe.only('specific test suite', () => { ... })  // Run only this suite
 it.only('specific test', async () => { ... })       // Run only this test
 ```
-This significantly speeds up the test feedback loop when working on specific functionality.
+
+2. **Rust Debugging**: Use the `warn!` macro in Rust zome functions to log debugging information that will appear in test output:
+```rust
+warn!("Debug info: variable = {:?}", some_variable);
+warn!("Checkpoint reached in function_name");
+warn!("Processing entry: {}", entry_hash);
+```
+The `warn!` macro output is visible in the test console, making it invaluable for debugging complex Holochain interactions and understanding execution flow during test development.
 
 ### Individual Workspace Commands
 

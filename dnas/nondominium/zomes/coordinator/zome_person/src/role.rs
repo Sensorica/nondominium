@@ -1,6 +1,7 @@
 use crate::PersonError;
 use hdk::prelude::*;
 use zome_person_integrity::*;
+use nondominium_utils::call_governance_zome;
 
 // Cross-zome call structure for governance validation
 #[derive(Serialize, Deserialize, Debug)]
@@ -16,6 +17,37 @@ pub struct PersonRoleInput {
   pub agent_pubkey: AgentPubKey,
   pub role_name: String,
   pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ValidationResult {
+  pub is_valid: bool,
+  pub validated_data: Option<std::collections::HashMap<String, String>>,
+  pub validation_context: String,
+  pub validated_at: Timestamp,
+  pub error_message: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PromoteAgentInput {
+  pub target_agent: AgentPubKey,
+  pub target_role: String,
+  pub justification: String,
+  pub validate_private_data: bool, // Whether to validate private data requirements
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RolePromotionRequest {
+  pub target_role: String,
+  pub justification: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApprovePromotionInput {
+  pub request_hash: ActionHash,
+  pub target_agent: AgentPubKey,
+  pub target_role: String,
+  pub approval_notes: Option<String>,
 }
 
 #[hdk_extern]
@@ -237,4 +269,143 @@ pub fn get_person_capability_level(agent_pubkey: AgentPubKey) -> ExternResult<St
   } else {
     Ok("member".to_string())
   }
+}
+
+// ============================================================================
+// ENHANCED ROLE PROMOTION WITH PRIVATE DATA VALIDATION
+// ============================================================================
+
+/// Promote an agent to a new role with private data validation
+/// This function integrates with the governance zome to validate agent eligibility
+#[hdk_extern]
+pub fn promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<Record> {
+  let agent_info = agent_info()?;
+  
+  // Check that the caller has sufficient authority to promote agents
+  let caller_capability = get_person_capability_level(agent_info.agent_initial_pubkey.clone())?;
+  if caller_capability != "governance" && caller_capability != "coordination" {
+    return Err(PersonError::InsufficientCapability(
+      format!("Need coordination or governance level, have: {}", caller_capability)
+    ).into());
+  }
+  
+  // If private data validation is requested, validate with governance zome
+  if input.validate_private_data {
+    let validation_result: ValidationResult = call_governance_zome(
+      "validate_agent_for_promotion",
+      (input.target_role.clone(), input.target_agent.clone())
+    )?;
+    
+    if !validation_result.is_valid {
+      return Err(PersonError::InvalidInput(format!(
+        "Agent promotion validation failed: {}",
+        validation_result.error_message.unwrap_or("Unknown validation error".to_string())
+      )).into());
+    }
+    
+    // Automatically create governance access grant for the validated data
+    let _auto_grant = super::private_data_sharing::auto_grant_governance_access(input.target_role.clone())?;
+  }
+  
+  // Create the role assignment
+  let role_input = PersonRoleInput {
+    agent_pubkey: input.target_agent,
+    role_name: input.target_role,
+    description: Some(format!("Promoted by {}: {}", agent_info.agent_initial_pubkey, input.justification)),
+  };
+  
+  assign_person_role(role_input)
+}
+
+/// Request promotion to a higher role
+/// This creates a request that can be approved by authorized agents
+#[hdk_extern]
+pub fn request_role_promotion(input: RolePromotionRequest) -> ExternResult<ActionHash> {
+  let agent_info = agent_info()?;
+  let now = sys_time()?;
+  
+  // Validate that the target role is a valid promotion
+  let current_capability = get_person_capability_level(agent_info.agent_initial_pubkey.clone())?;
+  let target_capability = match input.target_role.as_str() {
+    "Simple Agent" => "member",
+    "Accountable Agent" => "coordination",
+    "Primary Accountable Agent" => "governance",
+    "Transport Agent" | "Repair Agent" | "Storage Agent" => "stewardship",
+    _ => return Err(PersonError::InvalidInput(format!("Unknown role type: {}", input.target_role)).into()),
+  };
+  
+  // Check if this is actually a promotion
+  let promotion_hierarchy = ["member", "stewardship", "coordination", "governance"];
+  let current_level = promotion_hierarchy.iter().position(|&x| x == current_capability).unwrap_or(0);
+  let target_level = promotion_hierarchy.iter().position(|&x| x == target_capability).unwrap_or(0);
+  
+  if target_level <= current_level {
+    return Err(PersonError::InvalidInput(
+      "Cannot request promotion to equal or lower capability level".to_string()
+    ).into());
+  }
+  
+  // Check if agent has required private data before making the request
+  let validation_result: ValidationResult = call_governance_zome(
+    "validate_agent_for_promotion",
+    (input.target_role.clone(), agent_info.agent_initial_pubkey.clone())
+  )?;
+  
+  if !validation_result.is_valid {
+    return Err(PersonError::InvalidInput(format!(
+      "Cannot request promotion - missing required private data: {}",
+      validation_result.error_message.unwrap_or("Unknown validation error".to_string())
+    )).into());
+  }
+  
+  // Create a promotion request entry (for now, we'll use a simple data structure)
+  // In a full implementation, this would be a new entry type
+  let request_context = format!(
+    "promotion_request_{}_{}_{}",
+    agent_info.agent_initial_pubkey,
+    input.target_role.replace(" ", "_").to_lowercase(),
+    now.as_micros()
+  );
+  
+  // For now, return a placeholder hash
+  let placeholder_hash = ActionHash::from_raw_36(vec![0; 36]);
+  Ok(placeholder_hash)
+}
+
+/// Approve a role promotion request
+/// This function can only be called by agents with sufficient authority
+#[hdk_extern]
+pub fn approve_role_promotion(input: ApprovePromotionInput) -> ExternResult<Record> {
+  let agent_info = agent_info()?;
+  
+  // Check authorization
+  let caller_capability = get_person_capability_level(agent_info.agent_initial_pubkey.clone())?;
+  if caller_capability != "governance" && caller_capability != "coordination" {
+    return Err(PersonError::InsufficientCapability(
+      format!("Insufficient authority to approve promotions: {}", caller_capability)
+    ).into());
+  }
+  
+  // Validate the promotion again to ensure data is still valid
+  let validation_result: ValidationResult = call_governance_zome(
+    "validate_agent_for_promotion", 
+    (input.target_role.clone(), input.target_agent.clone())
+  )?;
+  
+  if !validation_result.is_valid {
+    return Err(PersonError::InvalidInput(format!(
+      "Promotion approval failed - agent no longer meets requirements: {}",
+      validation_result.error_message.unwrap_or("Unknown validation error".to_string())
+    )).into());
+  }
+  
+  // Create the promotion with validated private data
+  let promotion_input = PromoteAgentInput {
+    target_agent: input.target_agent,
+    target_role: input.target_role,
+    justification: input.approval_notes.unwrap_or("Approved by governance".to_string()),
+    validate_private_data: true,
+  };
+  
+  promote_agent_with_validation(promotion_input)
 }

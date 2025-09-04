@@ -1,6 +1,8 @@
 use hdk::prelude::*;
 use serde::{Deserialize, Serialize};
 
+pub mod paths;
+
 #[derive(Debug, thiserror::Error)]
 pub enum CommonError {
   #[error("Serialization error: {0}")]
@@ -114,35 +116,6 @@ pub mod validation {
   }
 }
 
-/// Path generation helpers for consistent anchor patterns
-pub mod paths {
-  use hdk::prelude::*;
-
-  /// Generate a path for global discovery anchors
-  pub fn global_anchor(entity_type: &str) -> Path {
-    Path::from(format!("all_{entity_type}"))
-  }
-
-  /// Generate a path for agent-specific anchors
-  pub fn agent_anchor(agent_pub_key: &AgentPubKey, relation: &str) -> Path {
-    Path::from(format!("{relation}_{agent_pub_key}"))
-  }
-
-  /// Generate a path for category-based anchors
-  pub fn category_anchor(entity_type: &str, category: &str) -> Path {
-    Path::from(format!("{entity_type}_by_category_{category}"))
-  }
-
-  /// Generate a path for tag-based anchors
-  pub fn tag_anchor(entity_type: &str, tag: &str) -> Path {
-    Path::from(format!("{entity_type}_by_tag_{tag}"))
-  }
-
-  /// Generate a path for state-based anchors
-  pub fn state_anchor(entity_type: &str, state: &str) -> Path {
-    Path::from(format!("{entity_type}_by_state_{state}"))
-  }
-}
 
 /// Link creation helpers with consistent patterns
 /// Note: These functions are provided as helper patterns but may need
@@ -182,7 +155,7 @@ pub mod links {
     ScopedLinkType: TryFrom<L, Error = E>,
     WasmError: From<E>,
   {
-    let anchor_path = paths::agent_anchor(agent_pub_key, relation);
+    let anchor_path = paths::agent_anchor_by_relation(agent_pub_key, relation);
     let anchor_hash = anchor_path.path_entry_hash()?;
     create_link(anchor_hash, target_hash, link_type, LinkTag::new(tag))?;
     Ok(())

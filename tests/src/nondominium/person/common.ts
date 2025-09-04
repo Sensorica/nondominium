@@ -1,5 +1,10 @@
 import { CallableCell } from "@holochain/tryorama";
-import { ActionHash, Record as HolochainRecord, Link, AgentPubKey } from "@holochain/client";
+import {
+  ActionHash,
+  Record as HolochainRecord,
+  Link,
+  AgentPubKey,
+} from "@holochain/client";
 import {
   Person,
   PrivatePersonData,
@@ -18,7 +23,7 @@ import {
 
 // Sample data generators
 export function samplePerson(
-  partialPerson: Partial<MockPersonData> = {}
+  partialPerson: Partial<MockPersonData> = {},
 ): PersonInput {
   return {
     name: "John Doe",
@@ -29,7 +34,7 @@ export function samplePerson(
 }
 
 export function samplePrivateData(
-  partialData: Partial<MockPersonData> = {}
+  partialData: Partial<MockPersonData> = {},
 ): PrivatePersonDataInput {
   return {
     legal_name: "John Doe Smith",
@@ -45,11 +50,11 @@ export function samplePrivateData(
 
 export function sampleRole(
   partialRole: Partial<MockRoleData> = {},
-  agent_pub_key: AgentPubKey
+  agent_pub_key: AgentPubKey,
 ): PersonRoleInput {
   return {
     agent_pubkey: agent_pub_key,
-    role_name: "Simple Agent",
+    role_name: "SimpleAgent",
     description: "A basic community agent",
     ...partialRole,
   };
@@ -58,7 +63,7 @@ export function sampleRole(
 // Zome function wrappers for person management
 export async function createPerson(
   cell: CallableCell,
-  person: PersonInput
+  person: PersonInput,
 ): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -69,7 +74,7 @@ export async function createPerson(
 
 export async function storePrivateData(
   cell: CallableCell,
-  privateData: PrivatePersonDataInput
+  privateData: PrivatePersonDataInput,
 ): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -80,7 +85,7 @@ export async function storePrivateData(
 
 export async function getPersonProfile(
   cell: CallableCell,
-  agent_pub_key: AgentPubKey
+  agent_pub_key: AgentPubKey,
 ): Promise<PersonProfileOutput> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -90,7 +95,7 @@ export async function getPersonProfile(
 }
 
 export async function getMyProfile(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<PersonProfileOutput> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -100,7 +105,7 @@ export async function getMyProfile(
 }
 
 export async function getAllPersons(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<GetAllPersonsOutput> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -111,7 +116,7 @@ export async function getAllPersons(
 
 export async function assignRole(
   cell: CallableCell,
-  roleInput: PersonRoleInput
+  roleInput: PersonRoleInput,
 ): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -122,7 +127,7 @@ export async function assignRole(
 
 export async function getPersonRoles(
   cell: CallableCell,
-  agent_pub_key: AgentPubKey
+  agent_pub_key: AgentPubKey,
 ): Promise<GetPersonRolesOutput> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -134,7 +139,7 @@ export async function getPersonRoles(
 export async function hasRoleCapability(
   cell: CallableCell,
   agent_pub_key: AgentPubKey,
-  required_role: string
+  required_role: string,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -145,7 +150,7 @@ export async function hasRoleCapability(
 
 export async function getCapabilityLevel(
   cell: CallableCell,
-  agent_pub_key: AgentPubKey
+  agent_pub_key: AgentPubKey,
 ): Promise<string> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -155,7 +160,7 @@ export async function getCapabilityLevel(
 }
 
 export async function getMyPrivateData(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<PrivatePersonData | null> {
   return cell.callZome({
     zome_name: "zome_person",
@@ -167,7 +172,7 @@ export async function getMyPrivateData(
 // Test helper functions
 export function validatePersonData(
   expected: PersonInput,
-  actual: Person
+  actual: Person,
 ): boolean {
   return (
     expected.name === actual.name &&
@@ -178,7 +183,7 @@ export function validatePersonData(
 
 export function validatePrivateData(
   expected: PrivatePersonDataInput,
-  actual: PrivatePersonData
+  actual: PrivatePersonData,
 ): boolean {
   return (
     expected.legal_name === actual.legal_name &&
@@ -193,12 +198,12 @@ export function validatePrivateData(
 
 export function validateRoleData(
   expected: PersonRoleInput,
-  actual: PersonRole
+  actual: PersonRole,
 ): boolean {
   return (
     expected.role_name === actual.role_name &&
     expected.description === actual.description &&
-    expected.agent_pubkey.toString() === actual.assigned_to.toString()
+    expected.agent_pubkey.toString() === actual.assigned_to?.toString()
   );
 }
 
@@ -214,16 +219,16 @@ export interface PersonTestContext {
 
 export async function setupBasicPersons(
   alice: any,
-  bob: any
+  bob: any,
 ): Promise<PersonTestContext> {
   // Create persons for both agents
   const alicePerson = await createPerson(
     alice.cells[0],
-    samplePerson({ name: "Lynn" })
+    samplePerson({ name: "Lynn" }),
   );
   const bobPerson = await createPerson(
     bob.cells[0],
-    samplePerson({ name: "Bob" })
+    samplePerson({ name: "Bob" }),
   );
 
   return {
@@ -236,7 +241,7 @@ export async function setupBasicPersons(
 
 export async function setupPersonsWithPrivateData(
   alice: any,
-  bob: any
+  bob: any,
 ): Promise<PersonTestContext> {
   const context = await setupBasicPersons(alice, bob);
 
@@ -246,7 +251,7 @@ export async function setupPersonsWithPrivateData(
     samplePrivateData({
       legal_name: "Lynn Smith",
       email: "lynn@example.com",
-    })
+    }),
   );
 
   const bobPrivateData = await storePrivateData(
@@ -254,7 +259,7 @@ export async function setupPersonsWithPrivateData(
     samplePrivateData({
       legal_name: "Bob Johnson",
       email: "bob@example.com",
-    })
+    }),
   );
 
   return {
@@ -266,16 +271,16 @@ export async function setupPersonsWithPrivateData(
 
 // Role-related test helpers
 export const TEST_ROLES: Record<string, RoleType> = {
-  SIMPLE: "Simple Agent",
-  ACCOUNTABLE: "Accountable Agent",
-  PRIMARY_ACCOUNTABLE: "Primary Accountable Agent",
-  TRANSPORT: "Transport Agent",
-  REPAIR: "Repair Agent",
-  STORAGE: "Storage Agent",
+  SIMPLE: "SimpleAgent",
+  ACCOUNTABLE: "AccountableAgent",
+  PRIMARY_ACCOUNTABLE: "PrimaryAccountableAgent",
+  TRANSPORT: "Transport",
+  REPAIR: "Repair",
+  STORAGE: "Storage",
   // Legacy role names for backward compatibility - map to valid types
-  RESOURCE_STEWARD: "Accountable Agent",
-  RESOURCE_COORDINATOR: "Primary Accountable Agent",
-  FOUNDER: "Primary Accountable Agent", // Maps to highest level role
+  RESOURCE_STEWARD: "AccountableAgent",
+  RESOURCE_COORDINATOR: "PrimaryAccountableAgent",
+  FOUNDER: "PrimaryAccountableAgent", // Maps to highest level role
 };
 
 export const CAPABILITY_LEVELS: Record<string, CapabilityLevel> = {
@@ -287,15 +292,15 @@ export const CAPABILITY_LEVELS: Record<string, CapabilityLevel> = {
 
 export function getExpectedCapabilityLevel(roles: RoleType[]): CapabilityLevel {
   const hasGovernanceRole = roles.some((role) =>
-    ["Primary Accountable Agent"].includes(role)
+    ["PrimaryAccountableAgent"].includes(role),
   );
 
   const hasCoordinationRole = roles.some((role) =>
-    ["Accountable Agent"].includes(role)
+    ["AccountableAgent"].includes(role),
   );
 
   const hasStewardshipRole = roles.some((role) =>
-    ["Transport Agent", "Repair Agent", "Storage Agent"].includes(role)
+    ["Transport", "Repair", "Storage"].includes(role),
   );
 
   if (hasGovernanceRole) {
@@ -308,4 +313,3 @@ export function getExpectedCapabilityLevel(roles: RoleType[]): CapabilityLevel {
     return CAPABILITY_LEVELS.MEMBER;
   }
 }
-
