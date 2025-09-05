@@ -33,45 +33,26 @@ bun run package          # Create final .webhapp distribution
 
 ### Testing Commands
 
-```bash
-bun run test                 # All tests
-npm run test:foundation      # Basic zome connectivity tests
-npm run test:integration     # Multi-agent interaction tests
-npm run test:scenarios       # Complete workflow simulations
-npm run test:person          # Person management test suite
-npm run test:resource        # Resource management test suite
-npm run test:governance      # Governance test suite
-npm run test:debug           # Verbose test output with DEBUG=true
-npm run test:filter          # Run specific test file or pattern
-
-# PPR-Specific Tests
-npm run test:ppr             # All PPR system tests
-npm run test:ppr-foundation  # PPR foundation functionality
-npm run test:ppr-integration # PPR integration with economic events
-npm run test:ppr-scenarios   # Complete PPR workflow scenarios
-npm run test:ppr-performance # PPR performance and load tests
-
-# Role and Resource Tests
-npm run test:roles           # Role management test suite
-npm run test:resources-lifecycle # Resource lifecycle tests
-```
-
-**Running specific test files**: Use `npm run test:filter` followed by the test file path or pattern.
+**Running specific test files**: Use `bun run test` followed by the test file path or pattern.
 
 **Test Development Tips**:
 
 1. **Test Isolation**: Use `.only()` on `describe` or `it` blocks to run specific tests during development:
+
 ```typescript
 describe.only('specific test suite', () => { ... })  // Run only this suite
 it.only('specific test', async () => { ... })       // Run only this test
+test.only('specific test', async () => { ... })       // Run only this test
 ```
 
 2. **Rust Debugging**: Use the `warn!` macro in Rust zome functions to log debugging information that will appear in test output:
+
 ```rust
 warn!("Debug info: variable = {:?}", some_variable);
 warn!("Checkpoint reached in function_name");
 warn!("Processing entry: {}", entry_hash);
 ```
+
 The `warn!` macro output is visible in the test console, making it invaluable for debugging complex Holochain interactions and understanding execution flow during test development.
 
 ### Individual Workspace Commands
@@ -155,6 +136,7 @@ create_link(path.path_entry_hash()?, hash.clone(), LinkTypes::AnchorType, LinkTa
 ### Test File Organization
 
 Tests are organized by zome and functionality:
+
 - `tests/src/nondominium/person/`: Person zome tests
 - `tests/src/nondominium/resource/`: Resource zome tests
 - `tests/src/nondominium/governance/`: Governance zome tests

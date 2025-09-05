@@ -9,7 +9,7 @@
   "scripts": {
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) npm run network",
     "network": "hc sandbox clean && npm run build:happ && UI_PORT=$(get-port) concurrently \"npm run --filter ui start\" \"npm run launch:happ\" \"hc playground\"",
-    "test": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test",
+    "test": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- ",
     "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/nondominium.happ",
     "start:tauri": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) npm run network:tauri",
     "network:tauri": "hc sandbox clean && npm run build:happ && UI_PORT=$(get-port) concurrently \"npm run --filter ui start\" \"npm run launch:tauri\" \"hc playground\"",
@@ -18,20 +18,7 @@
     "build:happ": "npm run build:zomes && hc app pack workdir --recursive",
     "build:zomes": "cargo build --release --target wasm32-unknown-unknown",
     "check": "cd ui && npm run check",
-    "check:tests": "npm run --filter tests check",
-    "test:watch": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test:watch",
-    "tests:filter": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- ",
-    "tests:debug": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- debug",
-    "tests:person": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- person",
-    "tests:resource": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- resource",
-    "tests:governance": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- governance",
-    "tests:ppr": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test:ppr",
-    "tests:ppr-foundation": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test:ppr-foundation",
-    "tests:ppr-integration": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test:ppr-integration",
-    "tests:ppr-scenarios": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test:ppr-scenarios",
-    "tests:ppr-performance": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test:ppr-performance",
-    "tests:roles": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test:roles",
-    "tests:resources-lifecycle": "npm run build:zomes && hc app pack workdir --recursive && npm run --filter tests test:resources-lifecycle"
+    "check:tests": "npm run --filter tests check"
   },
   "devDependencies": {
     "@holochain/hc-spin": "^0.500.1",
