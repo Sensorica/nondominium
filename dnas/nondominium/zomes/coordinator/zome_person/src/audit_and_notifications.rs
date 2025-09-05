@@ -25,6 +25,11 @@ pub struct DataAccessAuditEntry {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct AgentAuditTrailInput {
+  pub agent_pubkey: AgentPubKey,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ExpirationNotification {
   pub grant_hash: ActionHash,
   pub granted_to: AgentPubKey,
@@ -137,8 +142,8 @@ pub fn send_expiration_notification(grant_hash: ActionHash) -> ExternResult<()> 
 
 /// Get comprehensive audit trail for an agent
 #[hdk_extern]
-pub fn get_agent_access_audit_trail(agent_pubkey: AgentPubKey) -> ExternResult<Vec<String>> {
-  let audit_path = nondominium_utils::paths::agent_anchor(&agent_pubkey, "access_log");
+pub fn get_agent_access_audit_trail(input: AgentAuditTrailInput) -> ExternResult<Vec<String>> {
+  let audit_path = nondominium_utils::paths::agent_anchor(&input.agent_pubkey, "access_log");
   let audit_hash = audit_path.path_entry_hash()?;
 
   let audit_links = get_links(

@@ -211,7 +211,7 @@ test("private data sharing workflow for custodianship transfer", async () => {
       });
       assert.ok(Array.isArray(aliceGrants));
       assert.equal(aliceGrants.length, 1);
-      assert.equal(aliceGrants[0].granted_to, bob.agentPubKey);
+      assert.deepEqual(aliceGrants[0].granted_to, bob.agentPubKey);
       assert.equal(aliceGrants[0].context, "custodian_transfer_simulation");
       console.log("Alice's active grants:", aliceGrants);
 
@@ -663,7 +663,7 @@ test("agent role promotion with private data validation", async () => {
       console.log("✅ Agent promotion workflow test completed successfully");
     },
   );
-}, 120000); // 2 minutes timeout for multi-agent DHT sync
+}, 240000); // 4 minutes timeout for multi-agent DHT sync
 
 test("enhanced audit trail and notifications", async () => {
   await runScenarioWithTwoAgents(
@@ -958,4 +958,4 @@ test("comprehensive private data validation edge cases", async () => {
       console.log("✅ Comprehensive edge cases test completed successfully");
     },
   );
-}, 120000); // 2 minutes timeout for multi-agent DHT sync
+}, 240000); // 4 minutes timeout for multi-agent DHT sync
