@@ -195,8 +195,8 @@ test("private data sharing workflow for custodianship transfer", async () => {
       assert.ok((sharedData as any).time_zone);
       assert.equal((sharedData as any).time_zone, "America/Los_Angeles");
 
-      // Verify sensitive fields are NOT accessible (should be undefined in returned data)
-      assert.ok(!(sharedData as any).legal_name);
+      // Verify sensitive fields are NOT accessible (should be empty string for non-granted fields)
+      assert.equal((sharedData as any).legal_name, "");
 
       console.log(
         "Bob successfully retrieved Alice's contact info:",
@@ -446,6 +446,10 @@ test("cross-zome governance integration for private data validation", async () =
 
       const governanceRequestHash = (governanceRequest as any).signed_action
         .hashed.hash;
+      
+      // Sync DHT after request creation so Alice can see it
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      
       const governanceGrant = await alice.cells[0].callZome({
         zome_name: "zome_person",
         fn_name: "respond_to_data_access_request",
@@ -659,7 +663,7 @@ test("agent role promotion with private data validation", async () => {
       console.log("✅ Agent promotion workflow test completed successfully");
     },
   );
-});
+}, 120000); // 2 minutes timeout for multi-agent DHT sync
 
 test("enhanced audit trail and notifications", async () => {
   await runScenarioWithTwoAgents(
@@ -697,6 +701,10 @@ test("enhanced audit trail and notifications", async () => {
       });
 
       const auditRequestHash = (auditRequest as any).signed_action.hashed.hash;
+      
+      // Sync DHT after request creation so Alice can see it
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      
       const grant = await alice.cells[0].callZome({
         zome_name: "zome_person",
         fn_name: "respond_to_data_access_request",
@@ -950,4 +958,4 @@ test("comprehensive private data validation edge cases", async () => {
       console.log("✅ Comprehensive edge cases test completed successfully");
     },
   );
-});
+}, 120000); // 2 minutes timeout for multi-agent DHT sync

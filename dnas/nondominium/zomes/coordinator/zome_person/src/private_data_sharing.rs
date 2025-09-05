@@ -256,8 +256,9 @@ pub fn get_granted_private_data(input: GetGrantedPrivateDataInput) -> ExternResu
               if let Some(shared_data_record) = get(shared_data_hash, GetOptions::default())? {
                 if let Ok(Some(shared_data)) = shared_data_record.entry().to_app_option::<SharedPrivateData>() {
                   // Convert SharedPrivateData to PrivatePersonData format for compatibility
+                  // legal_name is never shared for security reasons, so always empty
                   return Ok(PrivatePersonData {
-                    legal_name: format!("[Shared by {}]", grant.granted_by.to_string()),
+                    legal_name: String::new(), // Never share legal_name for privacy
                     email: shared_data.email.unwrap_or_default(),
                     phone: shared_data.phone,
                     address: shared_data.address,
