@@ -329,12 +329,9 @@ pub fn validate_specialized_role(
   // TODO: Phase 2 - Use proper validation item hash
   let receipt_input = CreateValidationReceiptInput {
     validated_item: input.validation_history.unwrap_or_else(|| {
-      // Create a dummy ActionHash for development - use 39 bytes for ActionHash
-      let mut dummy_bytes = [0u8; 39].to_vec();
-      dummy_bytes[0] = 0x84; // ActionHash prefix
-      dummy_bytes[1] = 0x20; // 32-byte hash length
-      dummy_bytes[2] = 0x24; // hash type
-      ActionHash::from_raw_39(dummy_bytes)
+      // Create a placeholder ActionHash for development using raw 36 bytes
+      // This avoids panics from incorrect 39-byte prefix formatting.
+      ActionHash::from_raw_36(vec![0; 36])
     }),
     validation_type: format!("role_{}", input.requested_role.to_lowercase()),
     approved: true,

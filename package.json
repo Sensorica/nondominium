@@ -9,7 +9,7 @@
   "scripts": {
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) npm run network",
     "network": "hc sandbox clean && npm run build:happ && UI_PORT=$(get-port) concurrently \"npm run --filter ui start\" \"npm run launch:happ\" \"hc playground\"",
-    "test": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- ",
+    "tests": "npm run build:zomes && hc app pack workdir --recursive && npm t -w tests -- ",
     "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/nondominium.happ",
     "start:tauri": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) npm run network:tauri",
     "network:tauri": "hc sandbox clean && npm run build:happ && UI_PORT=$(get-port) concurrently \"npm run --filter ui start\" \"npm run launch:tauri\" \"hc playground\"",

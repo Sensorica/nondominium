@@ -49,14 +49,14 @@ export function samplePrivateData(
 }
 
 export function sampleRole(
-  partialRole: Partial<MockRoleData> = {},
   agent_pub_key: AgentPubKey,
+  role_data: Partial<MockRoleData> = {},
 ): PersonRoleInput {
   return {
     agent_pubkey: agent_pub_key,
-    role_name: "SimpleAgent",
+    role_name: "Simple Agent",
     description: "A basic community agent",
-    ...partialRole,
+    ...role_data,
   };
 }
 
@@ -114,7 +114,7 @@ export async function getAllPersons(
   });
 }
 
-export async function assignRole(
+export async function assignPersonRole(
   cell: CallableCell,
   roleInput: PersonRoleInput,
 ): Promise<HolochainRecord> {
@@ -124,6 +124,9 @@ export async function assignRole(
     payload: roleInput,
   });
 }
+
+// Convenience alias to match other test files that import `assignRole`
+export const assignRole = assignPersonRole;
 
 export async function getPersonRoles(
   cell: CallableCell,
@@ -270,17 +273,26 @@ export async function setupPersonsWithPrivateData(
 }
 
 // Role-related test helpers
-export const TEST_ROLES: Record<string, RoleType> = {
-  SIMPLE: "SimpleAgent",
-  ACCOUNTABLE: "AccountableAgent",
-  PRIMARY_ACCOUNTABLE: "PrimaryAccountableAgent",
-  TRANSPORT: "Transport",
-  REPAIR: "Repair",
-  STORAGE: "Storage",
-  // Legacy role names for backward compatibility - map to valid types
-  RESOURCE_STEWARD: "AccountableAgent",
-  RESOURCE_COORDINATOR: "PrimaryAccountableAgent",
-  FOUNDER: "PrimaryAccountableAgent", // Maps to highest level role
+// Note: keep values as plain strings to avoid coupling to workspace build state
+// (dist of @nondominium/shared-types may momentarily diverge). Zome expects these
+// exact human-readable strings, and all consumers accept `string`.
+export const TEST_ROLES: Record<string, string> = {
+  // Friendly test keys mapped to zome-recognized role names
+  SIMPLE: "Simple Agent",
+
+  // Governance/coordination roles
+  FOUNDER: "Primary Accountable Agent",       // maps to governance level
+  RESOURCE_COORDINATOR: "Accountable Agent",  // maps to coordination level
+
+  // Stewardship roles (any of these map to stewardship level). We choose one canonical string.
+  RESOURCE_STEWARD: "Transport Agent",
+
+  // Keep original explicit role names for direct usage if needed
+  ACCOUNTABLE: "Accountable Agent",
+  PRIMARY_ACCOUNTABLE: "Primary Accountable Agent",
+  TRANSPORT: "Transport Agent",
+  REPAIR: "Repair Agent",
+  STORAGE: "Storage Agent",
 };
 
 export const CAPABILITY_LEVELS: Record<string, CapabilityLevel> = {
@@ -292,15 +304,15 @@ export const CAPABILITY_LEVELS: Record<string, CapabilityLevel> = {
 
 export function getExpectedCapabilityLevel(roles: RoleType[]): CapabilityLevel {
   const hasGovernanceRole = roles.some((role) =>
-    ["PrimaryAccountableAgent"].includes(role),
+    ["Primary Accountable Agent"].includes(role),
   );
 
   const hasCoordinationRole = roles.some((role) =>
-    ["AccountableAgent"].includes(role),
+    ["Accountable Agent"].includes(role),
   );
 
   const hasStewardshipRole = roles.some((role) =>
-    ["Transport", "Repair", "Storage"].includes(role),
+    ["Transport Agent", "Repair Agent", "Storage Agent"].includes(role),
   );
 
   if (hasGovernanceRole) {

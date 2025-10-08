@@ -1,6 +1,11 @@
 import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
-import holochainService from '../holochain.service.svelte.js';
+import holochainService from '../holochain.service.svelte';
 import type { Commitment, EconomicEvent } from '@nondominium/shared-types';
+
+// Helper function to properly type zome calls
+function callZome<T>(zomeName: string, fnName: string, payload: unknown): Promise<T> {
+  return holochainService.callZome(zomeName, fnName, payload) as Promise<T>;
+}
 
 /**
  * Governance zome service - clean architecture without Effect
@@ -12,7 +17,7 @@ class GovernanceService {
    */
   async createCommitment(commitment: Omit<Commitment, 'created_at'>): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'create_commitment', commitment);
+      return await callZome<ActionHash>('zome_gouvernance', 'create_commitment', commitment);
     } catch (error) {
       console.error('Failed to create commitment:', error);
       throw error;
@@ -24,7 +29,7 @@ class GovernanceService {
    */
   async getCommitment(hash: ActionHash): Promise<Commitment> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'get_commitment', hash);
+      return await callZome<Commitment>('zome_gouvernance', 'get_commitment', hash);
     } catch (error) {
       console.error('Failed to get commitment:', error);
       throw error;
@@ -36,7 +41,7 @@ class GovernanceService {
    */
   async fulfillCommitment(hash: ActionHash): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'fulfill_commitment', hash);
+      return await callZome<ActionHash>('zome_gouvernance', 'fulfill_commitment', hash);
     } catch (error) {
       console.error('Failed to fulfill commitment:', error);
       throw error;
@@ -48,7 +53,7 @@ class GovernanceService {
    */
   async createEconomicEvent(event: Omit<EconomicEvent, 'occurred_at'>): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'create_economic_event', event);
+      return await callZome<ActionHash>('zome_gouvernance', 'create_economic_event', event);
     } catch (error) {
       console.error('Failed to create economic event:', error);
       throw error;
@@ -60,7 +65,7 @@ class GovernanceService {
    */
   async getEconomicEvent(hash: ActionHash): Promise<EconomicEvent> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'get_economic_event', hash);
+      return await callZome<EconomicEvent>('zome_gouvernance', 'get_economic_event', hash);
     } catch (error) {
       console.error('Failed to get economic event:', error);
       throw error;
@@ -72,7 +77,7 @@ class GovernanceService {
    */
   async getEventsByAgent(agent: AgentPubKey): Promise<EconomicEvent[]> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'get_events_by_agent', agent);
+      return await callZome<EconomicEvent[]>('zome_gouvernance', 'get_events_by_agent', agent);
     } catch (error) {
       console.error('Failed to get events by agent:', error);
       throw error;
@@ -84,11 +89,7 @@ class GovernanceService {
    */
   async getCommitmentsByProvider(provider: AgentPubKey): Promise<Commitment[]> {
     try {
-      return await holochainService.callZome(
-        'zome_gouvernance',
-        'get_commitments_by_provider',
-        provider
-      );
+      return await callZome<Commitment[]>('zome_gouvernance', 'get_commitments_by_provider', provider);
     } catch (error) {
       console.error('Failed to get commitments by provider:', error);
       throw error;
@@ -100,11 +101,7 @@ class GovernanceService {
    */
   async getCommitmentsByReceiver(receiver: AgentPubKey): Promise<Commitment[]> {
     try {
-      return await holochainService.callZome(
-        'zome_gouvernance',
-        'get_commitments_by_receiver',
-        receiver
-      );
+      return await callZome<Commitment[]>('zome_gouvernance', 'get_commitments_by_receiver', receiver);
     } catch (error) {
       console.error('Failed to get commitments by receiver:', error);
       throw error;
@@ -116,7 +113,7 @@ class GovernanceService {
    */
   async getPendingCommitments(): Promise<Commitment[]> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'get_pending_commitments');
+      return await callZome<Commitment[]>('zome_gouvernance', 'get_pending_commitments', null);
     } catch (error) {
       console.error('Failed to get pending commitments:', error);
       throw error;
@@ -128,7 +125,7 @@ class GovernanceService {
    */
   async cancelCommitment(hash: ActionHash, reason?: string): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'cancel_commitment', {
+      return await callZome<ActionHash>('zome_gouvernance', 'cancel_commitment', {
         hash,
         reason
       });
@@ -146,7 +143,7 @@ class GovernanceService {
     updatedCommitment: Omit<Commitment, 'created_at'>
   ): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'update_commitment', {
+      return await callZome<ActionHash>('zome_gouvernance', 'update_commitment', {
         hash,
         commitment: updatedCommitment
       });
@@ -163,7 +160,7 @@ class GovernanceService {
     eventType: 'transfer' | 'produce' | 'consume' | 'use'
   ): Promise<EconomicEvent[]> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'get_events_by_type', eventType);
+      return await callZome<EconomicEvent[]>('zome_gouvernance', 'get_events_by_type', eventType);
     } catch (error) {
       console.error('Failed to get events by type:', error);
       throw error;
@@ -175,7 +172,7 @@ class GovernanceService {
    */
   async getEventsInTimeRange(startTime: Timestamp, endTime: Timestamp): Promise<EconomicEvent[]> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'get_events_in_time_range', {
+      return await callZome<EconomicEvent[]>('zome_gouvernance', 'get_events_in_time_range', {
         start_time: startTime,
         end_time: endTime
       });
@@ -192,7 +189,7 @@ class GovernanceService {
     resourceHash: ActionHash
   ): Promise<{ events: EconomicEvent[]; commitments: Commitment[] }> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'get_resource_flow', resourceHash);
+      return await callZome<{ events: EconomicEvent[]; commitments: Commitment[] }>('zome_gouvernance', 'get_resource_flow', resourceHash);
     } catch (error) {
       console.error('Failed to get resource flow:', error);
       throw error;
@@ -208,7 +205,7 @@ class GovernanceService {
     agent: AgentPubKey
   ): Promise<boolean> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'validate_governance_rules', {
+      return await callZome<boolean>('zome_gouvernance', 'validate_governance_rules', {
         resource_hash: resourceHash,
         operation,
         agent
@@ -228,7 +225,7 @@ class GovernanceService {
     description: string
   ): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'create_dispute', {
+      return await callZome<ActionHash>('zome_gouvernance', 'create_dispute', {
         commitment,
         complainant,
         description
@@ -248,7 +245,7 @@ class GovernanceService {
     agent: AgentPubKey
   ): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_gouvernance', 'vote_on_dispute', {
+      return await callZome<ActionHash>('zome_gouvernance', 'vote_on_dispute', {
         dispute_hash: disputeHash,
         vote,
         agent

@@ -24,7 +24,7 @@ export interface TestAgent {
 }
 
 // Mock data types for testing
-export interface MockPersonData {
+export interface PersonData {
   name: string;
   avatar_url?: string;
   bio?: string;
@@ -38,7 +38,7 @@ export interface MockPersonData {
   time_zone?: string;
 }
 
-export interface MockRoleData {
+export interface RoleData {
   role_name: string;
   description?: string;
 }

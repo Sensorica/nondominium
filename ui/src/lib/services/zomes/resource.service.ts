@@ -1,6 +1,11 @@
 import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
-import holochainService from '../holochain.service.svelte.js';
+import holochainService from '../holochain.service.svelte';
 import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
+
+// Helper function to properly type zome calls
+function callZome<T>(zomeName: string, fnName: string, payload: unknown): Promise<T> {
+  return holochainService.callZome(zomeName, fnName, payload) as Promise<T>;
+}
 
 /**
  * Resource zome service - clean architecture without Effect
@@ -14,11 +19,7 @@ class ResourceService {
     spec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
   ): Promise<ActionHash> {
     try {
-      return await holochainService.callZome(
-        'zome_resource',
-        'create_resource_specification',
-        spec
-      );
+      return await callZome<ActionHash>('zome_resource', 'create_resource_specification', spec);
     } catch (error) {
       console.error('Failed to create resource specification:', error);
       throw error;
@@ -30,7 +31,7 @@ class ResourceService {
    */
   async getResourceSpecification(hash: ActionHash): Promise<ResourceSpecification> {
     try {
-      return await holochainService.callZome('zome_resource', 'get_resource_specification', hash);
+      return await callZome<ResourceSpecification>('zome_resource', 'get_resource_specification', hash);
     } catch (error) {
       console.error('Failed to get resource specification:', error);
       throw error;
@@ -42,7 +43,7 @@ class ResourceService {
    */
   async getAllResourceSpecifications(): Promise<ResourceSpecification[]> {
     try {
-      return await holochainService.callZome('zome_resource', 'get_all_resource_specifications');
+      return await callZome<ResourceSpecification[]>('zome_resource', 'get_all_resource_specifications', null);
     } catch (error) {
       console.error('Failed to get all resource specifications:', error);
       throw error;
@@ -56,7 +57,7 @@ class ResourceService {
     resource: Omit<EconomicResource, 'created_at'>
   ): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_resource', 'create_economic_resource', resource);
+      return await callZome<ActionHash>('zome_resource', 'create_economic_resource', resource);
     } catch (error) {
       console.error('Failed to create economic resource:', error);
       throw error;
@@ -68,7 +69,7 @@ class ResourceService {
    */
   async getEconomicResource(hash: ActionHash): Promise<EconomicResource> {
     try {
-      return await holochainService.callZome('zome_resource', 'get_economic_resource', hash);
+      return await callZome<EconomicResource>('zome_resource', 'get_economic_resource', hash);
     } catch (error) {
       console.error('Failed to get economic resource:', error);
       throw error;

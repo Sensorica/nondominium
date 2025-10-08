@@ -274,12 +274,8 @@ pub fn promote_agent_to_accountable(input: PromoteAgentInput) -> ExternResult<St
     if let Some(person_hash) = person_link.target.clone().into_action_hash() {
       get_private_data_for_person(person_hash)?.map(|_| {
         // We found private data, but don't expose the actual hash for security
-        // Use a placeholder for now
-        let mut dummy_bytes = [0u8; 39].to_vec();
-        dummy_bytes[0] = 0x84; // ActionHash prefix
-        dummy_bytes[1] = 0x20; // 32-byte hash length  
-        dummy_bytes[2] = 0x24; // hash type
-        ActionHash::from_raw_39(dummy_bytes)
+        // Use a safe placeholder hash format to avoid runtime panics.
+        ActionHash::from_raw_36(vec![0; 36])
       })
     } else {
       None

@@ -10,7 +10,7 @@ import {
   getMyProfile,
   getPersonProfile,
   getAllPersons,
-  assignRole,
+  assignPersonRole,
   getPersonRoles,
   hasRoleCapability,
   getCapabilityLevel,
@@ -145,15 +145,12 @@ test("assign and retrieve agent roles", async () => {
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       // Lynn assigns a role to Bob
-      const roleInput = sampleRole(
-        {
-          role_name: TEST_ROLES.RESOURCE_STEWARD,
-          description: "Community steward role",
-        },
-        bob.agentPubKey,
-      );
+      const roleInput = sampleRole(bob.agentPubKey, {
+        role_name: TEST_ROLES.RESOURCE_STEWARD,
+        description: "Community steward role",
+      });
 
-      const result = await assignRole(alice.cells[0], roleInput);
+      const result = await assignPersonRole(alice.cells[0], roleInput);
 
       assert.ok(result);
       assert.ok(result.signed_action);
@@ -194,14 +191,11 @@ test("role capability checking", async () => {
       assert.isFalse(hasCapability);
 
       // Assign steward role to Bob
-      await assignRole(
+      await assignPersonRole(
         alice.cells[0],
-        sampleRole(
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-          },
-          bob.agentPubKey,
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+        }),
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
@@ -241,20 +235,17 @@ test("agent capability levels", async () => {
       );
       assert.equal(capabilityLevel, CAPABILITY_LEVELS.MEMBER);
 
-      // Assign stewardship role to Bob
-      await assignRole(
+      // Assign coordination role to Bob (Accountable Agent maps to coordination level)
+      await assignPersonRole(
         alice.cells[0],
-        sampleRole(
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-          },
-          bob.agentPubKey,
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_COORDINATOR,
+        }),
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-      // Now Bob has coordination capability level (Accountable Agent maps to coordination)
+      // Now Bob has coordination capability level
       capabilityLevel = await getCapabilityLevel(
         alice.cells[0],
         bob.agentPubKey,
@@ -262,14 +253,11 @@ test("agent capability levels", async () => {
       assert.equal(capabilityLevel, CAPABILITY_LEVELS.COORDINATION);
 
       // Assign founder role to Lynn
-      await assignRole(
+      await assignPersonRole(
         bob.cells[0],
-        sampleRole(
-          {
-            role_name: TEST_ROLES.FOUNDER,
-          },
-          alice.agentPubKey,
-        ),
+        sampleRole(alice.agentPubKey, {
+          role_name: TEST_ROLES.FOUNDER,
+        }),
       );
 
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
