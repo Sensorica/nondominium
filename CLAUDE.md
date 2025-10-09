@@ -20,7 +20,7 @@ bun install              # Install all dependencies
 ```bash
 bun run start            # Start 2-agent development network with UIs
 bun run network          # Custom agent network: AGENTS=3 bun run network
-bun run test             # Run full test suite (foundation, integration, scenarios)
+bun run tests             # Run full test suite (foundation, integration, scenarios)
 ```
 
 ### Build Pipeline
@@ -33,7 +33,7 @@ bun run package          # Create final .webhapp distribution
 
 ### Testing Commands
 
-**Running specific test files**: Use `bun run test` followed by the test file path or pattern.
+**Running specific test files**: Use `bun run tests` followed by the test file path or pattern.
 
 **Test Development Tips**:
 

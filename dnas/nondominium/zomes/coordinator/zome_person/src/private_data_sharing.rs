@@ -21,6 +21,12 @@ pub struct RespondToDataAccessInput {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct RespondToDataAccessOutput {
+  pub request_record: Record,
+  pub grant_hash: Option<ActionHash>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RequestPrivateDataAccessInput {
   pub requested_from: AgentPubKey,
   pub fields_requested: Vec<String>,
@@ -102,7 +108,7 @@ pub fn request_private_data_access(input: RequestPrivateDataAccessInput) -> Exte
 
 /// Grant or deny access to private data
 #[hdk_extern]
-pub fn respond_to_data_access_request(input: RespondToDataAccessInput) -> ExternResult<Record> {
+pub fn respond_to_data_access_request(input: RespondToDataAccessInput) -> ExternResult<RespondToDataAccessOutput> {
   let agent_info = agent_info()?;
   let now = sys_time()?;
 
@@ -218,14 +224,22 @@ pub fn respond_to_data_access_request(input: RespondToDataAccessInput) -> Extern
 
     // Create link from grant to shared data
     create_link(
-      grant_hash,
+      grant_hash.clone(),
       shared_data_hash,
       LinkTypes::GrantToSharedData,
       (),
     )?;
-  }
 
-  Ok(updated_record)
+    Ok(RespondToDataAccessOutput {
+      request_record: updated_record,
+      grant_hash: Some(grant_hash),
+    })
+  } else {
+    Ok(RespondToDataAccessOutput {
+      request_record: updated_record,
+      grant_hash: None,
+    })
+  }
 }
 
 /// Get private data from an agent (with access control) using shared data
@@ -278,38 +292,81 @@ pub fn get_granted_private_data(input: GetGrantedPrivateDataInput) -> ExternResu
   Err(PersonError::PrivateDataNotFound.into())
 }
 
-/// Helper function to get an agent's private data
+/// Helper function to get an agent's private data with enhanced DHT synchronization
 fn get_private_data_for_agent(agent_pubkey: AgentPubKey) -> ExternResult<PrivatePersonData> {
   warn!("🔍 get_private_data_for_agent called for agent: {:?}", agent_pubkey);
-  
+
+  // Method 1: Try direct link traversal (Agent -> Person -> PrivateData)
+  match try_get_private_data_via_links(&agent_pubkey) {
+    Ok(private_data) => {
+      warn!("✅ Successfully retrieved private data via link traversal");
+      return Ok(private_data);
+    },
+    Err(e) => {
+      warn!("⚠️ Link traversal failed: {:?}", e);
+    }
+  }
+
+  // Method 2: Try direct agent-based retrieval (if we're the owner)
+  if agent_pubkey == agent_info()?.agent_initial_pubkey {
+    warn!("🔄 Trying direct private data retrieval (owner access)");
+    match crate::private_data::get_my_private_person_data(()) {
+      Ok(Some(private_data)) => {
+        warn!("✅ Successfully retrieved own private data directly");
+        return Ok(private_data);
+      },
+      Ok(None) => warn!("❌ No private data found via direct retrieval"),
+      Err(e) => warn!("⚠️ Direct retrieval failed: {:?}", e),
+    }
+  }
+
+  // Method 3: Try alternative path via person entry hashes
+  match try_get_private_data_via_person_path(&agent_pubkey) {
+    Ok(private_data) => {
+      warn!("✅ Successfully retrieved private data via person path");
+      return Ok(private_data);
+    },
+    Err(e) => {
+      warn!("⚠️ Person path retrieval failed: {:?}", e);
+    }
+  }
+
+  warn!("💥 All retrieval methods failed, returning PrivateDataNotFound error");
+  Err(PersonError::PrivateDataNotFound.into())
+}
+
+/// Try to retrieve private data via Agent -> Person -> PrivateData link traversal
+fn try_get_private_data_via_links(agent_pubkey: &AgentPubKey) -> ExternResult<PrivatePersonData> {
+  warn!("🔗 Method 1: Trying link traversal for agent: {:?}", agent_pubkey);
+
   // Get the person entry first
   let person_links = get_links(
     GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
   )?;
-  
+
   warn!("🔗 Found {} AgentToPerson links for agent", person_links.len());
 
   if let Some(person_link) = person_links.first() {
     warn!("📍 Following person link to: {:?}", person_link.target);
-    
+
     // Get private data links from person
     let private_data_links = get_links(
       GetLinksInputBuilder::try_new(person_link.target.clone(), LinkTypes::PersonToPrivateData)?.build(),
     )?;
-    
+
     warn!("🔗 Found {} PersonToPrivateData links", private_data_links.len());
 
     if let Some(private_data_link) = private_data_links.first() {
       warn!("📍 Following private data link to: {:?}", private_data_link.target);
-      
+
       if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
         warn!("🎯 Getting record for action hash: {:?}", action_hash);
-        
+
         if let Some(record) = get(action_hash, GetOptions::default())? {
           warn!("📜 Record found, attempting to deserialize as PrivatePersonData");
-          
+
           if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
-            warn!("✅ Successfully retrieved private data");
+            warn!("✅ Successfully retrieved private data via link traversal");
             return Ok(private_data);
           } else {
             warn!("❌ Failed to deserialize record as PrivatePersonData");
@@ -327,7 +384,56 @@ fn get_private_data_for_agent(agent_pubkey: AgentPubKey) -> ExternResult<Private
     warn!("❌ No AgentToPerson links found for agent");
   }
 
-  warn!("💥 Returning PrivateDataNotFound error");
+  Err(PersonError::PrivateDataNotFound.into())
+}
+
+/// Try alternative retrieval via person discovery paths
+fn try_get_private_data_via_person_path(agent_pubkey: &AgentPubKey) -> ExternResult<PrivatePersonData> {
+  warn!("🔍 Method 3: Trying person path discovery for agent: {:?}", agent_pubkey);
+
+  // Try to find person via discovery paths (AllPersons anchor)
+  let path = Path::from("persons");
+  let all_person_links = get_links(
+    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllPersons)?.build(),
+  )?;
+
+  warn!("🔍 Found {} persons in discovery path", all_person_links.len());
+
+  for person_link in all_person_links {
+    if let Some(person_action_hash) = person_link.target.clone().into_action_hash() {
+      if let Some(person_record) = get(person_action_hash, GetOptions::default())? {
+        if let Ok(Some(person)) = person_record.entry().to_app_option::<Person>() {
+          // Check if this person belongs to our target agent
+          let agent_to_person_links = get_links(
+            GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
+          )?;
+
+          for agent_link in agent_to_person_links {
+            if agent_link.target == person_link.target {
+              warn!("✅ Found matching person entry for agent via discovery");
+
+              // Now get private data from this person
+              let private_data_links = get_links(
+                GetLinksInputBuilder::try_new(person_link.target.clone(), LinkTypes::PersonToPrivateData)?.build(),
+              )?;
+
+              if let Some(private_data_link) = private_data_links.first() {
+                if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
+                  if let Some(record) = get(action_hash, GetOptions::default())? {
+                    if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
+                      warn!("✅ Successfully retrieved private data via person discovery");
+                      return Ok(private_data);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   Err(PersonError::PrivateDataNotFound.into())
 }
 
@@ -370,6 +476,144 @@ pub fn validate_field_access(
 // ============================================================================
 // GOVERNANCE INTEGRATION FUNCTIONS
 // ============================================================================
+
+/// Validate agent private data using a specific grant hash (bypasses link discovery)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ValidationDataRequestWithGrant {
+  pub target_agent: AgentPubKey,
+  pub validation_context: String,
+  pub required_fields: Vec<String>,
+  pub governance_requester: AgentPubKey,
+  pub grant_hash: ActionHash,
+}
+
+#[hdk_extern]
+pub fn validate_agent_private_data_with_grant(input: ValidationDataRequestWithGrant) -> ExternResult<ValidationResult> {
+  let now = sys_time()?;
+  
+  // Get the grant directly by hash - no link traversal needed
+  let grant_record = get(input.grant_hash, GetOptions::default())?.ok_or(
+    PersonError::EntryOperationFailed("Grant not found".to_string()),
+  )?;
+  
+  let grant: DataAccessGrant = grant_record
+    .entry()
+    .to_app_option()
+    .map_err(|e| PersonError::SerializationError(format!("Failed to deserialize grant: {:?}", e)))?
+    .ok_or(PersonError::EntryOperationFailed("Invalid grant entry".to_string()))?;
+  
+  // Verify the grant is valid
+  if grant.granted_by != input.target_agent {
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: input.validation_context,
+      validated_at: now,
+      error_message: Some("Grant is not from the target agent".to_string()),
+    });
+  }
+  
+  if grant.granted_to != input.governance_requester {
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: input.validation_context,
+      validated_at: now,
+      error_message: Some("Grant is not to the governance requester".to_string()),
+    });
+  }
+  
+  if !grant.context.contains("governance") {
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: input.validation_context,
+      validated_at: now,
+      error_message: Some("Grant is not for governance purposes".to_string()),
+    });
+  }
+  
+  if grant.expires_at <= now {
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: input.validation_context,
+      validated_at: now,
+      error_message: Some("Grant has expired".to_string()),
+    });
+  }
+  
+  // Validate fields and retrieve data
+  let mut validated_data = HashMap::new();
+  let mut missing_fields = Vec::new();
+  
+  if let Ok(private_data) = get_private_data_for_agent(input.target_agent.clone()) {
+    for field in &input.required_fields {
+      if grant.fields_granted.contains(field) {
+        match field.as_str() {
+          "email" => { validated_data.insert("email".to_string(), private_data.email.clone()); }
+          "phone" => {
+            if let Some(phone) = &private_data.phone {
+              validated_data.insert("phone".to_string(), phone.clone());
+            } else {
+              missing_fields.push(field.clone());
+            }
+          }
+          "location" => {
+            if let Some(location) = &private_data.location {
+              validated_data.insert("location".to_string(), location.clone());
+            } else {
+              missing_fields.push(field.clone());
+            }
+          }
+          "time_zone" => {
+            if let Some(time_zone) = &private_data.time_zone {
+              validated_data.insert("time_zone".to_string(), time_zone.clone());
+            } else {
+              missing_fields.push(field.clone());
+            }
+          }
+          "emergency_contact" => {
+            if let Some(emergency_contact) = &private_data.emergency_contact {
+              validated_data.insert("emergency_contact".to_string(), emergency_contact.clone());
+            } else {
+              missing_fields.push(field.clone());
+            }
+          }
+          _ => missing_fields.push(field.clone()),
+        }
+      } else {
+        missing_fields.push(field.clone());
+      }
+    }
+    
+    if missing_fields.is_empty() {
+      return Ok(ValidationResult {
+        is_valid: true,
+        validated_data: Some(validated_data),
+        validation_context: input.validation_context,
+        validated_at: now,
+        error_message: None,
+      });
+    } else {
+      return Ok(ValidationResult {
+        is_valid: false,
+        validated_data: None,
+        validation_context: input.validation_context,
+        validated_at: now,
+        error_message: Some(format!("Missing required fields: {}", missing_fields.join(", "))),
+      });
+    }
+  }
+  
+  Ok(ValidationResult {
+    is_valid: false,
+    validated_data: None,
+    validation_context: input.validation_context,
+    validated_at: now,
+    error_message: Some("Could not retrieve private data".to_string()),
+  })
+}
 
 /// Validate agent private data for governance workflows
 /// This function is called by the governance zome to validate agent data
@@ -488,20 +732,45 @@ fn get_active_governance_grants(
   governance_requester: &AgentPubKey,
 ) -> ExternResult<Vec<DataAccessGrant>> {
   let now = sys_time()?;
-  let grant_links = get_links(
+  // Primary path: links from the target agent (granted_by) to their grants
+  let mut active_grants = Vec::new();
+  let by_links = get_links(
     GetLinksInputBuilder::try_new(granted_by.clone(), LinkTypes::AgentToDataGrants)?.build(),
   )?;
 
-  let mut active_grants = Vec::new();
-  for link in grant_links {
+  for link in by_links {
     if let Some(action_hash) = link.target.into_action_hash() {
-      if let Some(record) = get(action_hash, GetOptions::default())? {
+      if let Some(record) = get(action_hash.clone(), GetOptions::default())? {
         if let Ok(Some(grant)) = record.entry().to_app_option::<DataAccessGrant>() {
-          // Check if this grant is for governance and still valid
-          if grant.granted_to == *governance_requester 
+          if grant.granted_to == *governance_requester
             && grant.context.contains("governance")
-            && grant.expires_at > now {
+            && grant.expires_at > now
+          {
             active_grants.push(grant);
+          }
+        }
+      }
+    }
+  }
+
+  // Fallback path: links from the governance agent to received grants
+  // This helps in cases where retrieval via the grantor base hasn't propagated yet
+  let to_links = get_links(
+    GetLinksInputBuilder::try_new(governance_requester.clone(), LinkTypes::AgentToReceivedGrants)?.build(),
+  )?;
+
+  for link in to_links {
+    if let Some(action_hash) = link.target.into_action_hash() {
+      if let Some(record) = get(action_hash.clone(), GetOptions::default())? {
+        if let Ok(Some(grant)) = record.entry().to_app_option::<DataAccessGrant>() {
+          if grant.granted_by == *granted_by
+            && grant.context.contains("governance")
+            && grant.expires_at > now
+          {
+            // Avoid duplicates
+            if !active_grants.iter().any(|g| g.created_at == grant.created_at && g.granted_to == grant.granted_to) {
+              active_grants.push(grant);
+            }
           }
         }
       }
@@ -513,34 +782,45 @@ fn get_active_governance_grants(
 
 /// Auto-grant private data access for governance validation workflows
 /// This function creates automatic grants when agents are promoted or need validation
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AutoGrantGovernanceAccessInput {
+  pub target_role: String,
+  pub governance_agent: AgentPubKey,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AutoGrantGovernanceAccessOutput {
+  pub record: Record,
+  pub grant_hash: ActionHash,
+}
+
 #[hdk_extern]
-pub fn auto_grant_governance_access(target_role: String) -> ExternResult<Option<Record>> {
+pub fn auto_grant_governance_access(input: AutoGrantGovernanceAccessInput) -> ExternResult<AutoGrantGovernanceAccessOutput> {
   let agent_info = agent_info()?;
   let now = sys_time()?;
   
   // Define required fields based on target role
-  let required_fields = match target_role.as_str() {
+  let required_fields = match input.target_role.as_str() {
     "Simple Agent" => vec!["email".to_string()],
     "Accountable Agent" => vec!["email".to_string(), "phone".to_string()],
     "Primary Accountable Agent" => vec!["email".to_string(), "phone".to_string(), "location".to_string()],
     "Transport Agent" | "Repair Agent" | "Storage Agent" => {
       vec!["email".to_string(), "phone".to_string(), "location".to_string(), "time_zone".to_string()]
     }
-    _ => return Err(PersonError::InvalidInput(format!("Unknown role type: {}", target_role)).into()),
+    _ => return Err(PersonError::InvalidInput(format!("Unknown role type: {}", input.target_role)).into()),
   };
   
   // Create governance context for automatic grant
-  let context = format!("governance_auto_grant_role_{}", target_role.replace(" ", "_").to_lowercase());
-  let duration_days = 30; // Extended duration for governance processes
+  let context = format!("governance_auto_grant_role_{}", input.target_role.replace(" ", "_").to_lowercase());
+  let duration_days = 7; // Maximum allowed duration (7 days per validation rules)
   let duration_micros = (duration_days as i64) * 24 * 60 * 60 * 1_000_000;
   let expires_at = Timestamp::from_micros(now.as_micros() + duration_micros);
   
-  // For now, we'll create a grant to the governance system
-  // In a real implementation, this would be to a specific governance agent
-  let governance_pubkey = agent_info.agent_initial_pubkey.clone(); // TODO: Replace with actual governance agent
+  // Create a grant to the governance agent who will validate the promotion
+  let governance_pubkey = input.governance_agent;
   
   let grant = DataAccessGrant {
-    granted_to: governance_pubkey,
+    granted_to: governance_pubkey.clone(),
     granted_by: agent_info.agent_initial_pubkey.clone(),
     fields_granted: required_fields,
     context,
@@ -562,8 +842,19 @@ pub fn auto_grant_governance_access(target_role: String) -> ExternResult<Option<
     LinkTypes::AgentToDataGrants,
     (),
   )?;
+  
+  // Also create a link from the governance agent to track received grants
+  create_link(
+    governance_pubkey,
+    grant_hash.clone(),
+    LinkTypes::AgentToReceivedGrants,
+    (),
+  )?;
 
-  Ok(Some(record))
+  Ok(AutoGrantGovernanceAccessOutput {
+    record,
+    grant_hash,
+  })
 }
 
 /// Revoke a data access grant

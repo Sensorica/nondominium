@@ -37,6 +37,7 @@ pub struct AgentValidationInput {
 pub struct ValidateAgentForPromotionInput {
   pub target_role: String,
   pub target_agent: AgentPubKey,
+  pub grant_hash: Option<ActionHash>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,7 +66,7 @@ pub fn request_agent_validation_data(input: AgentValidationInput) -> ExternResul
   }
   
   // Create validation context
-  let validation_context = format!("governance_{}_{}", 
+  let validation_context = format!("governance_{}_{}",  
     input.validation_purpose, 
     agent_info.agent_initial_pubkey
   );
@@ -82,6 +83,55 @@ pub fn request_agent_validation_data(input: AgentValidationInput) -> ExternResul
   call_person_zome("validate_agent_private_data", validation_request)
     .map_err(|e| GovernanceError::EntryOperationFailed(
       format!("Failed to validate agent private data: {}", e)
+    ).into())
+}
+
+/// Request agent validation data with a specific grant hash
+/// This bypasses link-based discovery and directly validates using the provided grant
+fn request_agent_validation_data_with_grant(
+  input: AgentValidationInput,
+  grant_hash: ActionHash,
+) -> ExternResult<ValidationResult> {
+  let agent_info = agent_info()?;
+  
+  // Validate required fields are reasonable
+  let allowed_fields = ["email", "phone", "location", "time_zone", "emergency_contact"];
+  for field in &input.required_fields {
+    if !allowed_fields.contains(&field.as_str()) {
+      return Err(GovernanceError::InvalidInput(
+        format!("Field '{}' is not allowed for governance validation", field)
+      ).into());
+    }
+  }
+  
+  // Create validation context
+  let validation_context = format!("governance_{}_{}",  
+    input.validation_purpose, 
+    agent_info.agent_initial_pubkey
+  );
+  
+  // Prepare request with grant hash
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  struct ValidationDataRequestWithGrant {
+    target_agent: AgentPubKey,
+    validation_context: String,
+    required_fields: Vec<String>,
+    governance_requester: AgentPubKey,
+    grant_hash: ActionHash,
+  }
+  
+  let validation_request = ValidationDataRequestWithGrant {
+    target_agent: input.target_agent,
+    validation_context,
+    required_fields: input.required_fields,
+    governance_requester: agent_info.agent_initial_pubkey,
+    grant_hash,
+  };
+  
+  // Call the person zome with the grant hash
+  call_person_zome("validate_agent_private_data_with_grant", validation_request)
+    .map_err(|e| GovernanceError::EntryOperationFailed(
+      format!("Failed to validate agent private data with grant: {}", e)
     ).into())
 }
 
@@ -106,7 +156,12 @@ pub fn validate_agent_for_promotion(input: ValidateAgentForPromotionInput) -> Ex
     validation_purpose: format!("agent_promotion_{}", input.target_role.replace(" ", "_").to_lowercase()),
   };
   
-  request_agent_validation_data(validation_input)
+  // If grant_hash is provided, pass it to the validation
+  if let Some(grant_hash) = input.grant_hash {
+    request_agent_validation_data_with_grant(validation_input, grant_hash)
+  } else {
+    request_agent_validation_data(validation_input)
+  }
 }
 
 /// Validate agent for resource custodianship transfer

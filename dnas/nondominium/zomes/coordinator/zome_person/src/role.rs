@@ -27,14 +27,14 @@ pub struct ValidationResult {
   pub validated_at: Timestamp,
   pub error_message: Option<String>,
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PromoteAgentInput {
   pub target_agent: AgentPubKey,
   pub target_role: String,
   pub justification: String,
-  pub validate_private_data: bool, // Whether to validate private data requirements
-}
+  pub validate_private_data: bool,
+  pub grant_hash: Option<ActionHash>,
+} // Whether to validate private data requirements
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RolePromotionRequest {
@@ -291,9 +291,20 @@ pub fn promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<R
   
   // If private data validation is requested, validate with governance zome
   if input.validate_private_data {
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct ValidateInput {
+      target_role: String,
+      target_agent: AgentPubKey,
+      grant_hash: Option<ActionHash>,
+    }
+    
     let validation_result: ValidationResult = call_governance_zome(
       "validate_agent_for_promotion",
-      (input.target_role.clone(), input.target_agent.clone())
+      ValidateInput {
+        target_role: input.target_role.clone(),
+        target_agent: input.target_agent.clone(),
+        grant_hash: input.grant_hash,
+      }
     )?;
     
     if !validation_result.is_valid {
@@ -302,9 +313,6 @@ pub fn promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<R
         validation_result.error_message.unwrap_or("Unknown validation error".to_string())
       )).into());
     }
-    
-    // Automatically create governance access grant for the validated data
-    let _auto_grant = super::private_data_sharing::auto_grant_governance_access(input.target_role.clone())?;
   }
   
   // Create the role assignment
@@ -405,6 +413,7 @@ pub fn approve_role_promotion(input: ApprovePromotionInput) -> ExternResult<Reco
     target_role: input.target_role,
     justification: input.approval_notes.unwrap_or("Approved by governance".to_string()),
     validate_private_data: true,
+    grant_hash: None,
   };
   
   promote_agent_with_validation(promotion_input)
