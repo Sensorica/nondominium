@@ -55,11 +55,11 @@ test("Complete user onboarding workflow", async () => {
       await assignRole(
         alice.cells[0],
         sampleRole(
+          alice.agentPubKey,
           {
             role_name: TEST_ROLES.FOUNDER,
             description: "Community founder and initial administrator",
           },
-          alice.agentPubKey,
         ),
       );
 
@@ -119,12 +119,12 @@ test("Complete user onboarding workflow", async () => {
       await assignRole(
         alice.cells[0],
         sampleRole(
+          bob.agentPubKey,
           {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
             description:
               "Community steward responsible for member onboarding and support",
           },
-          bob.agentPubKey,
         ),
       );
 
@@ -198,12 +198,12 @@ test("Community governance workflow with role hierarchy", async () => {
       await assignRole(
         alice.cells[0],
         sampleRole(
+          alice.agentPubKey,
           {
             role_name: TEST_ROLES.FOUNDER,
             description:
               "Primary accountable agent responsible for community governance",
           },
-          alice.agentPubKey,
         ),
       );
 
@@ -214,22 +214,22 @@ test("Community governance workflow with role hierarchy", async () => {
       await assignRole(
         alice.cells[0],
         sampleRole(
+          bob.agentPubKey,
           {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
             description: "Community steward for member support",
           },
-          bob.agentPubKey,
         ),
       );
 
       await assignRole(
         alice.cells[0],
         sampleRole(
+          bob.agentPubKey,
           {
             role_name: TEST_ROLES.RESOURCE_COORDINATOR,
             description: "Resource coordinator for community assets",
           },
-          bob.agentPubKey,
         ),
       );
 
@@ -428,22 +428,22 @@ test("Privacy and access control workflow", async () => {
       await assignRole(
         alice.cells[0],
         sampleRole(
+          alice.agentPubKey,
           {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
             description: "Medical advisor for community health initiatives",
           },
-          alice.agentPubKey,
         ),
       );
 
       await assignRole(
         bob.cells[0],
         sampleRole(
+          bob.agentPubKey,
           {
             role_name: TEST_ROLES.RESOURCE_COORDINATOR,
             description: "Community resource coordination specialist",
           },
-          bob.agentPubKey,
         ),
       );
 
@@ -539,11 +539,11 @@ test("Community scaling and discovery workflow", async () => {
       await assignRole(
         alice.cells[0],
         sampleRole(
+          alice.agentPubKey,
           {
             role_name: TEST_ROLES.FOUNDER,
             description: "Community founder and primary governance lead",
           },
-          alice.agentPubKey,
         ),
       );
 
@@ -582,11 +582,11 @@ test("Community scaling and discovery workflow", async () => {
       await assignRole(
         alice.cells[0],
         sampleRole(
+          bob.agentPubKey,
           {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
             description: "Community steward for new member onboarding",
           },
-          bob.agentPubKey,
         ),
       );
 
@@ -594,11 +594,11 @@ test("Community scaling and discovery workflow", async () => {
       await assignRole(
         alice.cells[0],
         sampleRole(
+          bob.agentPubKey,
           {
             role_name: TEST_ROLES.RESOURCE_COORDINATOR,
             description: "Resource coordinator for community assets",
           },
-          bob.agentPubKey,
         ),
       );
 
