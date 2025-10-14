@@ -5,10 +5,12 @@ import {
   AgentPubKey,
 } from "@holochain/client";
 import {
-  LegacyParticipationClaimType as ParticipationClaimType,
-  LegacyPerformanceMetrics as PerformanceMetrics,
-  LegacyCryptographicSignature as CryptographicSignature,
-  LegacyReputationSummary as ReputationSummary,
+  ParticipationClaimType,
+  LegacyParticipationClaimType,
+  PerformanceMetrics,
+  CryptographicSignature,
+  ReputationSummary,
+  LegacyReputationSummary,
   ParticipationReceiptInput,
   ParticipationReceipt,
   SignParticipationClaimInput,
@@ -32,71 +34,63 @@ export interface PPRTestScenario {
 
 export const PPR_TEST_SCENARIOS: PPRTestScenario[] = [
   {
-    name: "Basic Resource Contribution",
-    description: "Simple resource contribution with standard metrics",
-    claimType: "ResourceContribution",
+    name: "Basic Resource Creation",
+    description: "Simple resource creation with standard metrics",
+    claimType: "ResourceCreation",
     expectedReceiptCount: 2,
     performanceMetrics: {
-      quality_score: 4.0,
-      timeliness_score: 4.0,
-      collaboration_score: 4.0,
-      innovation_score: 3.5,
-      reliability_score: 4.0,
-      additional_metrics: new Map(),
+      quality: 0.8,
+      timeliness: 0.8,
+      communication: 0.7,
+      overall_satisfaction: 0.7,
+      reliability: 0.8,
+      notes: "Basic resource creation metrics",
     },
     shouldRequireSignature: true,
   },
   {
-    name: "Service Exchange",
-    description: "Bilateral service exchange with performance tracking",
-    claimType: "ServiceProvision",
+    name: "Custody Transfer",
+    description:
+      "Resource custody transfer between agents with performance tracking",
+    claimType: "CustodyTransfer",
     expectedReceiptCount: 2,
     performanceMetrics: {
-      quality_score: 4.5,
-      timeliness_score: 4.2,
-      collaboration_score: 4.8,
-      innovation_score: 4.0,
-      reliability_score: 4.3,
-      additional_metrics: new Map([
-        ["customer_satisfaction", 4.6],
-        ["technical_proficiency", 4.4],
-      ]),
+      quality: 0.9,
+      timeliness: 0.84,
+      communication: 0.96,
+      overall_satisfaction: 0.8,
+      reliability: 0.86,
+      notes: "Custody transfer with high efficiency",
     },
     shouldRequireSignature: true,
   },
   {
-    name: "Knowledge Sharing Session",
-    description: "Community knowledge sharing with learning outcomes",
-    claimType: "KnowledgeSharing",
+    name: "Custody Acceptance",
+    description: "Community resource custody acceptance with learning outcomes",
+    claimType: "CustodyAcceptance",
     expectedReceiptCount: 2,
     performanceMetrics: {
-      quality_score: 4.7,
-      timeliness_score: 4.0,
-      collaboration_score: 4.9,
-      innovation_score: 4.2,
-      reliability_score: 4.1,
-      additional_metrics: new Map([
-        ["teaching_effectiveness", 4.8],
-        ["knowledge_clarity", 4.5],
-      ]),
+      quality: 0.94,
+      timeliness: 0.8,
+      communication: 0.98,
+      overall_satisfaction: 0.84,
+      reliability: 0.82,
+      notes: "Custody acceptance with excellent outcomes",
     },
     shouldRequireSignature: false,
   },
   {
-    name: "Governance Participation",
-    description: "Active participation in governance decisions",
-    claimType: "GovernanceParticipation",
+    name: "Maintenance Fulfillment",
+    description: "Active participation in maintenance fulfillment",
+    claimType: "MaintenanceFulfillmentCompleted",
     expectedReceiptCount: 2,
     performanceMetrics: {
-      quality_score: 4.3,
-      timeliness_score: 4.5,
-      collaboration_score: 4.6,
-      innovation_score: 3.8,
-      reliability_score: 4.4,
-      additional_metrics: new Map([
-        ["decision_quality", 4.2],
-        ["stakeholder_engagement", 4.7],
-      ]),
+      quality: 0.86,
+      timeliness: 0.9,
+      communication: 0.92,
+      overall_satisfaction: 0.76,
+      reliability: 0.88,
+      notes: "Maintenance fulfillment with good quality",
     },
     shouldRequireSignature: true,
   },
@@ -127,16 +121,18 @@ export function validateBiDirectionalReceipts(
   // Validate that receipts are complementary
   const claimTypes = receipts.map((r) => r.claim_type);
 
-  // Check for complementary pairs
+  // Check for complementary pairs (using legacy types for compatibility)
   const hasContributionReception =
-    claimTypes.includes("ResourceContribution") &&
-    claimTypes.includes("ResourceReception");
+    claimTypes.includes(
+      "ResourceContribution" as LegacyParticipationClaimType,
+    ) &&
+    claimTypes.includes("ResourceReception" as LegacyParticipationClaimType);
   const hasServiceProvisionReception =
-    claimTypes.includes("ServiceProvision") &&
-    claimTypes.includes("ServiceReception");
+    claimTypes.includes("ServiceProvision" as LegacyParticipationClaimType) &&
+    claimTypes.includes("ServiceReception" as LegacyParticipationClaimType);
   const hasKnowledgeExchange =
-    claimTypes.includes("KnowledgeSharing") &&
-    claimTypes.includes("KnowledgeAcquisition");
+    claimTypes.includes("KnowledgeSharing" as LegacyParticipationClaimType) &&
+    claimTypes.includes("KnowledgeAcquisition" as LegacyParticipationClaimType);
 
   return (
     hasContributionReception ||
@@ -163,7 +159,7 @@ export function validateSignatureChain(
 }
 
 export function validateReputationDerivation(
-  reputation: ReputationSummary,
+  reputation: LegacyReputationSummary,
   expectedMinimumClaims: number = 1,
 ): boolean {
   return (
@@ -178,7 +174,7 @@ export function validateReputationDerivation(
 // Advanced PPR test scenarios
 export interface MultiAgentPPRScenario {
   agentCount: number;
-  interactionMatrix: ParticipationClaimType[][];
+  interactionMatrix: LegacyParticipationClaimType[][];
   expectedTotalReceipts: number;
   scenario_description: string;
 }
@@ -187,9 +183,18 @@ export const MULTI_AGENT_SCENARIOS: MultiAgentPPRScenario[] = [
   {
     agentCount: 3,
     interactionMatrix: [
-      ["ResourceContribution", "ServiceProvision"],
-      ["ResourceReception", "KnowledgeSharing"],
-      ["ServiceReception", "KnowledgeAcquisition"],
+      [
+        "ResourceContribution" as LegacyParticipationClaimType,
+        "ServiceProvision" as LegacyParticipationClaimType,
+      ],
+      [
+        "ResourceReception" as LegacyParticipationClaimType,
+        "KnowledgeSharing" as LegacyParticipationClaimType,
+      ],
+      [
+        "ServiceReception" as LegacyParticipationClaimType,
+        "KnowledgeAcquisition" as LegacyParticipationClaimType,
+      ],
     ],
     expectedTotalReceipts: 6, // 3 agents × 2 interactions each
     scenario_description: "Triangle resource/service/knowledge exchange",
@@ -197,10 +202,26 @@ export const MULTI_AGENT_SCENARIOS: MultiAgentPPRScenario[] = [
   {
     agentCount: 4,
     interactionMatrix: [
-      ["ResourceContribution", "ServiceProvision", "GovernanceParticipation"],
-      ["ResourceReception", "KnowledgeSharing", "CommunitySupport"],
-      ["ServiceReception", "KnowledgeAcquisition", "ConflictResolution"],
-      ["QualityAssurance", "ProcessImprovement", "InnovationContribution"],
+      [
+        "ResourceContribution" as LegacyParticipationClaimType,
+        "ServiceProvision" as LegacyParticipationClaimType,
+        "GovernanceParticipation" as LegacyParticipationClaimType,
+      ],
+      [
+        "ResourceReception" as LegacyParticipationClaimType,
+        "KnowledgeSharing" as LegacyParticipationClaimType,
+        "CommunitySupport" as LegacyParticipationClaimType,
+      ],
+      [
+        "ServiceReception" as LegacyParticipationClaimType,
+        "KnowledgeAcquisition" as LegacyParticipationClaimType,
+        "ConflictResolution" as LegacyParticipationClaimType,
+      ],
+      [
+        "QualityAssurance" as LegacyParticipationClaimType,
+        "ProcessImprovement" as LegacyParticipationClaimType,
+        "InnovationContribution" as LegacyParticipationClaimType,
+      ],
     ],
     expectedTotalReceipts: 12, // 4 agents × 3 interactions each
     scenario_description: "Complex multi-domain community interaction",
@@ -227,9 +248,8 @@ export async function stressTesterPPRIssuance(
   for (let i = 0; i < receiptCount; i += concurrencyLevel) {
     const batchSize = Math.min(concurrencyLevel, receiptCount - i);
     const batch = Array.from({ length: batchSize }, (_, j) =>
-      sampleParticipationClaim("ResourceContribution", {
-        description: `Stress test receipt ${i + j + 1}`,
-        resource_specification: `stress-resource-${i + j + 1}`,
+      sampleParticipationClaim("ResourceCreation", {
+        notes: `Stress test receipt ${i + j + 1}`,
       }),
     );
     batches.push(batch);

@@ -1,9 +1,9 @@
 import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
-import holochainService from '../holochain.service.svelte';
+import holochainService, { type ZomeName } from '../holochain.service.svelte';
 import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
 
 // Helper function to properly type zome calls
-function callZome<T>(zomeName: string, fnName: string, payload: unknown): Promise<T> {
+function callZome<T>(zomeName: ZomeName, fnName: string, payload: unknown): Promise<T> {
   return holochainService.callZome(zomeName, fnName, payload) as Promise<T>;
 }
 
@@ -31,7 +31,11 @@ class ResourceService {
    */
   async getResourceSpecification(hash: ActionHash): Promise<ResourceSpecification> {
     try {
-      return await callZome<ResourceSpecification>('zome_resource', 'get_resource_specification', hash);
+      return await callZome<ResourceSpecification>(
+        'zome_resource',
+        'get_resource_specification',
+        hash
+      );
     } catch (error) {
       console.error('Failed to get resource specification:', error);
       throw error;
@@ -43,7 +47,11 @@ class ResourceService {
    */
   async getAllResourceSpecifications(): Promise<ResourceSpecification[]> {
     try {
-      return await callZome<ResourceSpecification[]>('zome_resource', 'get_all_resource_specifications', null);
+      return await callZome<ResourceSpecification[]>(
+        'zome_resource',
+        'get_all_resource_specifications',
+        null
+      );
     } catch (error) {
       console.error('Failed to get all resource specifications:', error);
       throw error;
@@ -81,7 +89,7 @@ class ResourceService {
    */
   async getResourcesByCustodian(custodian: AgentPubKey): Promise<EconomicResource[]> {
     try {
-      return await holochainService.callZome(
+      return await callZome<EconomicResource[]>(
         'zome_resource',
         'get_resources_by_custodian',
         custodian
@@ -100,7 +108,7 @@ class ResourceService {
     updatedSpec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
   ): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_resource', 'update_resource_specification', {
+      return await callZome<ActionHash>('zome_resource', 'update_resource_specification', {
         hash,
         specification: updatedSpec
       });

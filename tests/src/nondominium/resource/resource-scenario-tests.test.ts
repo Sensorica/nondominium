@@ -20,7 +20,7 @@ import {
   getAgentEconomicResources,
   validateResourceSpecificationData,
   validateEconomicResourceData,
-  validateGovernanceRuleData,  
+  validateGovernanceRuleData,
   RESOURCE_STATES,
   TEST_CATEGORIES,
   TEST_TAGS,
@@ -45,7 +45,9 @@ test(
         // Scenario: Complete resource lifecycle from specification to retirement
 
         // Step 1: Alice creates a resource specification with governance rules
-        console.log("Step 1: Alice creates resource specification with governance");
+        console.log(
+          "Step 1: Alice creates resource specification with governance",
+        );
         const toolSpec = await createResourceSpecification(
           alice.cells[0],
           sampleResourceSpecification({
@@ -57,36 +59,38 @@ test(
             governance_rules: [
               {
                 rule_type: "access_requirement",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   certification_required: true,
-                  min_training_hours: 10 
+                  min_training_hours: 10,
                 }),
                 enforced_by: "Equipment Steward",
               },
               {
                 rule_type: "usage_limit",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   max_hours_per_session: 4,
                   max_sessions_per_week: 3,
-                  booking_advance_days: 7 
+                  booking_advance_days: 7,
                 }),
                 enforced_by: "Resource Coordinator",
               },
               {
                 rule_type: "maintenance_schedule",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   cleaning_after_each_use: true,
                   professional_service_months: 6,
-                  calibration_weeks: 2 
+                  calibration_weeks: 2,
                 }),
                 enforced_by: "Technical Steward",
               },
             ],
-          })
+          }),
         );
 
         console.log(`✅ Created resource specification: ${toolSpec.spec_hash}`);
-        console.log(`✅ Created ${toolSpec.governance_rule_hashes.length} governance rules`);
+        console.log(
+          `✅ Created ${toolSpec.governance_rule_hashes.length} governance rules`,
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
@@ -94,19 +98,23 @@ test(
         console.log("Step 2: Bob discovers and reviews specification");
         const specWithRules = await getResourceSpecificationWithRules(
           bob.cells[0],
-          toolSpec.spec_hash
+          toolSpec.spec_hash,
         );
 
         assert.ok(specWithRules.specification);
         assert.equal(specWithRules.specification!.name, "Community 3D Printer");
         assert.equal(specWithRules.governance_rules.length, 3);
 
-        const ruleTypes = specWithRules.governance_rules.map(r => r.rule_type);
-        assert.includes(ruleTypes, "access_requirement");
-        assert.includes(ruleTypes, "usage_limit");
-        assert.includes(ruleTypes, "maintenance_schedule");
+        const ruleTypes = specWithRules.governance_rules.map(
+          (r) => r.rule_type,
+        );
+        assert.include(ruleTypes, "access_requirement");
+        assert.include(ruleTypes, "usage_limit");
+        assert.include(ruleTypes, "maintenance_schedule");
 
-        console.log(`✅ Bob can see specification with ${specWithRules.governance_rules.length} governance rules`);
+        console.log(
+          `✅ Bob can see specification with ${specWithRules.governance_rules.length} governance rules`,
+        );
 
         // Step 3: Alice creates the actual economic resource
         console.log("Step 3: Alice creates the physical resource");
@@ -116,26 +124,28 @@ test(
             quantity: 1.0,
             unit: "printer",
             current_location: "Community Workshop - Station 1",
-          })
+          }),
         );
 
-        console.log(`✅ Created economic resource: ${printerResource.resource_hash}`);
+        console.log(
+          `✅ Created economic resource: ${printerResource.resource_hash}`,
+        );
         assert.equal(printerResource.resource.state, RESOURCE_STATES.PENDING);
-        assert.equal(printerResource.resource.custodian.toString(), alice.agentPubKey.toString());
+        assert.equal(
+          printerResource.resource.custodian.toString(),
+          alice.agentPubKey.toString(),
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Step 4: Resource activation and state management
         console.log("Step 4: Resource validation and activation");
-        
+
         // Alice validates and activates the resource
-        const activationResult = await updateResourceState(
-          alice.cells[0],
-          {
-            resource_hash: printerResource.resource_hash,
-            new_state: RESOURCE_STATES.ACTIVE,
-          }
-        );
+        const activationResult = await updateResourceState(alice.cells[0], {
+          resource_hash: printerResource.resource_hash,
+          new_state: RESOURCE_STATES.ACTIVE,
+        });
 
         assert.ok(activationResult);
 
@@ -144,60 +154,70 @@ test(
         // Verify resource is active and visible to both agents
         const allResources = await getAllEconomicResources(bob.cells[0]);
         const activePrinter = allResources.resources.find(
-          r => r.created_by.toString() === alice.agentPubKey.toString()
+          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
         );
 
         assert.ok(activePrinter);
         assert.equal(activePrinter!.state, RESOURCE_STATES.ACTIVE);
-        assert.equal(activePrinter!.current_location, "Community Workshop - Station 1");
+        assert.equal(
+          activePrinter!.current_location,
+          "Community Workshop - Station 1",
+        );
 
-        console.log(`✅ Resource activated and visible to all community members`);
+        console.log(
+          `✅ Resource activated and visible to all community members`,
+        );
 
         // Step 5: Custody transfer to dedicated resource steward
         console.log("Step 5: Custody transfer to resource steward");
-        
-        const custodyTransfer = await transferCustody(
-          alice.cells[0],
-          {
-            resource_hash: printerResource.resource_hash,
-            new_custodian: bob.agentPubKey,
-          }
-        );
+
+        const custodyTransfer = await transferCustody(alice.cells[0], {
+          resource_hash: printerResource.resource_hash,
+          new_custodian: bob.agentPubKey,
+        });
 
         assert.ok(custodyTransfer.updated_resource_hash);
-        assert.equal(custodyTransfer.updated_resource.custodian.toString(), bob.agentPubKey.toString());
+        assert.equal(
+          custodyTransfer.updated_resource.custodian.toString(),
+          bob.agentPubKey.toString(),
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify custody links are updated
-        const aliceResourcesAfterTransfer = await getMyEconomicResources(alice.cells[0]);
-        const bobResourcesAfterTransfer = await getMyEconomicResources(bob.cells[0]);
+        const aliceResourcesAfterTransfer = await getMyEconomicResources(
+          alice.cells[0],
+        );
+        const bobResourcesAfterTransfer = await getMyEconomicResources(
+          bob.cells[0],
+        );
 
         assert.equal(aliceResourcesAfterTransfer.length, 0);
         assert.equal(bobResourcesAfterTransfer.length, 1);
 
-        console.log(`✅ Custody successfully transferred to resource steward (Bob)`);
+        console.log(
+          `✅ Custody successfully transferred to resource steward (Bob)`,
+        );
 
         // Step 6: Resource maintenance cycle
         console.log("Step 6: Resource maintenance cycle");
-        
+
         // Bob performs maintenance
-        const maintenanceResult = await updateResourceState(
-          bob.cells[0],
-          {
-            resource_hash: custodyTransfer.updated_resource_hash,
-            new_state: RESOURCE_STATES.MAINTENANCE,
-          }
-        );
+        const maintenanceResult = await updateResourceState(bob.cells[0], {
+          resource_hash: custodyTransfer.updated_resource_hash,
+          new_state: RESOURCE_STATES.MAINTENANCE,
+        });
 
         assert.ok(maintenanceResult);
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify resource is in maintenance state
-        const resourcesInMaintenance = await getAllEconomicResources(alice.cells[0]);
+        const resourcesInMaintenance = await getAllEconomicResources(
+          alice.cells[0],
+        );
         const maintenancePrinter = resourcesInMaintenance.resources.find(
-          r => r.created_by.toString() === alice.agentPubKey.toString()
+          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
         );
 
         assert.ok(maintenancePrinter);
@@ -206,13 +226,10 @@ test(
         console.log(`✅ Resource in maintenance state - not available for use`);
 
         // Return to active state after maintenance
-        await updateResourceState(
-          bob.cells[0],
-          {
-            resource_hash: custodyTransfer.updated_resource_hash,
-            new_state: RESOURCE_STATES.ACTIVE,
-          }
-        );
+        await updateResourceState(bob.cells[0], {
+          resource_hash: custodyTransfer.updated_resource_hash,
+          new_state: RESOURCE_STATES.ACTIVE,
+        });
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
@@ -220,14 +237,14 @@ test(
 
         // Step 7: First resource requirement validation
         console.log("Step 7: Community resource contribution validation");
-        
+
         const aliceHasContributed = await checkFirstResourceRequirement(
           bob.cells[0],
-          alice.agentPubKey
+          alice.agentPubKey,
         );
         const bobHasContributed = await checkFirstResourceRequirement(
           alice.cells[0],
-          bob.agentPubKey
+          bob.agentPubKey,
         );
 
         assert.isTrue(aliceHasContributed); // Alice created the resource
@@ -241,14 +258,14 @@ test(
         // Verify specification and resource relationship
         const resourcesBySpec = await getResourcesBySpecification(
           alice.cells[0],
-          toolSpec.spec_hash
+          toolSpec.spec_hash,
         );
         assert.equal(resourcesBySpec.length, 1);
 
         // Verify governance rules are still linked
         const finalSpecWithRules = await getResourceSpecificationWithRules(
           alice.cells[0],
-          toolSpec.spec_hash
+          toolSpec.spec_hash,
         );
         assert.equal(finalSpecWithRules.governance_rules.length, 3);
 
@@ -260,15 +277,17 @@ test(
         assert.equal(finalAllResources.resources.length, 1);
 
         console.log("✅ Complete resource lifecycle workflow successful");
-        console.log(`   - Resource specification created with 3 governance rules`);
+        console.log(
+          `   - Resource specification created with 3 governance rules`,
+        );
         console.log(`   - Economic resource created and activated`);
         console.log(`   - Custody transferred to dedicated steward`);
         console.log(`   - Maintenance cycle completed`);
         console.log(`   - Community visibility and governance maintained`);
-      }
+      },
     );
   },
-  { timeout: 300000 } // 5 minutes for complex scenario
+  { timeout: 300000 }, // 5 minutes for complex scenario
 );
 
 test(
@@ -282,7 +301,7 @@ test(
 
         // Phase 1: Alice establishes community workshop resources
         console.log("Phase 1: Alice establishes workshop infrastructure");
-        
+
         // Create workshop specifications sequentially to avoid source chain conflicts
         const spaceSpec = await createResourceSpecification(
           alice.cells[0],
@@ -294,18 +313,18 @@ test(
             governance_rules: [
               {
                 rule_type: "access_hours",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   open_hours: "9AM-9PM",
-                  max_session_hours: 8 
+                  max_session_hours: 8,
                 }),
                 enforced_by: "Space Coordinator",
               },
             ],
-          })
+          }),
         );
 
         // Small delay to ensure source chain ordering
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const toolsSpec = await createResourceSpecification(
           alice.cells[0],
@@ -317,35 +336,37 @@ test(
             governance_rules: [
               {
                 rule_type: "safety_certification",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   certification_required: true,
-                  safety_training_hours: 4 
+                  safety_training_hours: 4,
                 }),
                 enforced_by: "Safety Officer",
               },
               {
                 rule_type: "maintenance_protocol",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   clean_after_use: true,
                   report_issues: true,
-                  monthly_inspection: true 
+                  monthly_inspection: true,
                 }),
                 enforced_by: "Tool Steward",
               },
             ],
-          })
+          }),
         );
 
         const workshopSpecs = [spaceSpec, toolsSpec];
 
-        console.log(`✅ Created workshop space specification: ${spaceSpec.spec_hash}`);
+        console.log(
+          `✅ Created workshop space specification: ${spaceSpec.spec_hash}`,
+        );
         console.log(`✅ Created tools specification: ${toolsSpec.spec_hash}`);
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Phase 2: Bob contributes complementary resources
         console.log("Phase 2: Bob contributes complementary resources");
-        
+
         // Create Bob's specifications sequentially too
         const printingSpec = await createResourceSpecification(
           bob.cells[0],
@@ -357,19 +378,19 @@ test(
             governance_rules: [
               {
                 rule_type: "material_usage",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   material_fee_per_gram: 0.05,
                   max_print_time_hours: 12,
-                  advance_booking_required: true 
+                  advance_booking_required: true,
                 }),
                 enforced_by: "3D Print Coordinator",
               },
             ],
-          })
+          }),
         );
 
         // Small delay to ensure source chain ordering
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const electronicsSpec = await createResourceSpecification(
           bob.cells[0],
@@ -381,26 +402,30 @@ test(
             governance_rules: [
               {
                 rule_type: "skill_requirement",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   electronics_experience: "intermediate",
-                  soldering_certification: true 
+                  soldering_certification: true,
                 }),
                 enforced_by: "Electronics Mentor",
               },
             ],
-          })
+          }),
         );
 
         const bobSpecs = [printingSpec, electronicsSpec];
 
-        console.log(`✅ Bob created 3D printing specification: ${printingSpec.spec_hash}`);
-        console.log(`✅ Bob created electronics lab specification: ${electronicsSpec.spec_hash}`);
+        console.log(
+          `✅ Bob created 3D printing specification: ${printingSpec.spec_hash}`,
+        );
+        console.log(
+          `✅ Bob created electronics lab specification: ${electronicsSpec.spec_hash}`,
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Phase 3: Create economic resources for all specifications
         console.log("Phase 3: Creating physical resources");
-        
+
         // Create resources sequentially to avoid source chain conflicts
         const spaceResource = await createEconomicResource(
           alice.cells[0],
@@ -408,10 +433,10 @@ test(
             quantity: 1.0,
             unit: "space",
             current_location: "Building A - Floor 2",
-          })
+          }),
         );
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const toolsResource = await createEconomicResource(
           alice.cells[0],
@@ -419,10 +444,10 @@ test(
             quantity: 1.0,
             unit: "set",
             current_location: "Workshop - Tool Cabinet",
-          })  
+          }),
         );
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const printingResource = await createEconomicResource(
           bob.cells[0],
@@ -430,10 +455,10 @@ test(
             quantity: 3.0,
             unit: "printers",
             current_location: "Workshop - 3D Print Corner",
-          })
+          }),
         );
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const electronicsResource = await createEconomicResource(
           bob.cells[0],
@@ -441,39 +466,46 @@ test(
             quantity: 1.0,
             unit: "lab",
             current_location: "Building A - Floor 1 - Room 105",
-          })
+          }),
         );
 
-        const workshopResources = [spaceResource, toolsResource, printingResource, electronicsResource];
+        const workshopResources = [
+          spaceResource,
+          toolsResource,
+          printingResource,
+          electronicsResource,
+        ];
 
-        console.log(`✅ Created ${workshopResources.length} physical resources`);
+        console.log(
+          `✅ Created ${workshopResources.length} physical resources`,
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Phase 4: Activate all resources
         console.log("Phase 4: Resource activation and availability");
-        
+
         // Activate resources sequentially to avoid source chain conflicts
         await updateResourceState(alice.cells[0], {
           resource_hash: spaceResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(alice.cells[0], {
           resource_hash: toolsResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(bob.cells[0], {
           resource_hash: printingResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(bob.cells[0], {
           resource_hash: electronicsResource.resource_hash,
@@ -486,10 +518,16 @@ test(
 
         // Phase 5: Cross-agent resource discovery and validation
         console.log("Phase 5: Community resource discovery");
-        
-        const allSpecsFromAlice = await getAllResourceSpecifications(alice.cells[0]);
-        const allSpecsFromBob = await getAllResourceSpecifications(bob.cells[0]);
-        const allResourcesFromAlice = await getAllEconomicResources(alice.cells[0]);
+
+        const allSpecsFromAlice = await getAllResourceSpecifications(
+          alice.cells[0],
+        );
+        const allSpecsFromBob = await getAllResourceSpecifications(
+          bob.cells[0],
+        );
+        const allResourcesFromAlice = await getAllEconomicResources(
+          alice.cells[0],
+        );
         const allResourcesFromBob = await getAllEconomicResources(bob.cells[0]);
 
         // Both agents should see all 4 specifications and 4 resources
@@ -499,40 +537,46 @@ test(
         assert.equal(allResourcesFromBob.resources.length, 4);
 
         // Verify resource categories are discoverable
-        const categories = allSpecsFromAlice.specifications.map(s => s.category);
+        const categories = allSpecsFromAlice.specifications.map(
+          (s) => s.category,
+        );
         assert.include(categories, TEST_CATEGORIES.SPACE);
         assert.include(categories, TEST_CATEGORIES.TOOLS);
         assert.include(categories, TEST_CATEGORIES.EQUIPMENT);
 
-        console.log(`✅ Community resource discovery working - ${allSpecsFromAlice.specifications.length} specs, ${allResourcesFromAlice.resources.length} resources`);
+        console.log(
+          `✅ Community resource discovery working - ${allSpecsFromAlice.specifications.length} specs, ${allResourcesFromAlice.resources.length} resources`,
+        );
 
         // Phase 6: Governance rule aggregation
         console.log("Phase 6: Governance rule ecosystem validation");
-        
+
         const allRules = await getAllGovernanceRules(alice.cells[0]);
-        const ruleTypes = allRules.rules.map(r => r.rule_type);
-        
+        const ruleTypes = allRules.rules.map((r) => r.rule_type);
+
         // Should have governance rules from all specifications plus embedded ones
         assert.isAtLeast(allRules.rules.length, 5); // At least 5 rules from specifications (1+2+1+1=5)
-        
+
         assert.include(ruleTypes, "access_hours");
         assert.include(ruleTypes, "safety_certification");
         assert.include(ruleTypes, "maintenance_protocol");
         assert.include(ruleTypes, "material_usage");
         assert.include(ruleTypes, "skill_requirement");
 
-        console.log(`✅ Governance ecosystem established - ${allRules.rules.length} total rules`);
+        console.log(
+          `✅ Governance ecosystem established - ${allRules.rules.length} total rules`,
+        );
 
         // Phase 7: Resource contribution tracking
         console.log("Phase 7: Community contribution validation");
-        
+
         const aliceContributions = await checkFirstResourceRequirement(
           bob.cells[0],
-          alice.agentPubKey
+          alice.agentPubKey,
         );
         const bobContributions = await checkFirstResourceRequirement(
           alice.cells[0],
-          bob.agentPubKey
+          bob.agentPubKey,
         );
 
         assert.isTrue(aliceContributions); // Alice created workshop resources
@@ -544,34 +588,44 @@ test(
         assert.equal(aliceResourceCount.length, 2); // Space and tools
         assert.equal(bobResourceCount.length, 2); // 3D printing and electronics
 
-        console.log(`✅ Both members have contributed resources to the community`);
+        console.log(
+          `✅ Both members have contributed resources to the community`,
+        );
 
         // Final verification: Complete ecosystem state
         console.log("Final verification: Community resource ecosystem");
 
         // Verify specification-resource relationships
-        const spaceResources = await getResourcesBySpecification(alice.cells[0], spaceSpec.spec_hash);
-        const printingResources = await getResourcesBySpecification(bob.cells[0], printingSpec.spec_hash);
+        const spaceResources = await getResourcesBySpecification(
+          alice.cells[0],
+          spaceSpec.spec_hash,
+        );
+        const printingResources = await getResourcesBySpecification(
+          bob.cells[0],
+          printingSpec.spec_hash,
+        );
 
         assert.equal(spaceResources.length, 1);
         assert.equal(printingResources.length, 1);
 
         // Verify all resources are active
         const activeResources = allResourcesFromAlice.resources.filter(
-          r => r.state === RESOURCE_STATES.ACTIVE
+          (r) => r.state === RESOURCE_STATES.ACTIVE,
         );
         assert.equal(activeResources.length, 4);
 
         console.log("✅ Community resource sharing workflow successful");
         console.log(`   - 4 resource specifications created by both members`);
         console.log(`   - 4 physical resources activated and available`);
-        console.log(`   - ${allRules.rules.length} governance rules established`);
+        console.log(
+          `   - ${allRules.rules.length} governance rules established`,
+        );
         console.log(`   - Cross-agent discovery and access working`);
         console.log(`   - Community contribution tracking functional`);
-      }
+      },
     );
   },
-  { timeout: 300000 }
+  { timeout: 300000 },
 );
 
 test(
@@ -585,44 +639,45 @@ test(
 
         // Phase 1: Alice creates high-value community resource
         console.log("Phase 1: Creating high-value community asset");
-        
+
         const expensiveResourceSpec = await createResourceSpecification(
           alice.cells[0],
           sampleResourceSpecification({
             name: "Industrial CNC Machine",
-            description: "High-precision CNC machine for advanced manufacturing",
+            description:
+              "High-precision CNC machine for advanced manufacturing",
             category: TEST_CATEGORIES.EQUIPMENT,
             tags: [TEST_TAGS.SHARED, TEST_TAGS.VERIFIED],
             governance_rules: [
               {
                 rule_type: "operator_certification",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   certification_level: "advanced",
                   training_hours: 40,
-                  supervision_required: true 
+                  supervision_required: true,
                 }),
                 enforced_by: "Manufacturing Steward",
               },
               {
                 rule_type: "usage_tracking",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   log_all_usage: true,
                   project_approval_required: true,
-                  material_costs_tracked: true 
+                  material_costs_tracked: true,
                 }),
                 enforced_by: "Resource Coordinator",
               },
               {
                 rule_type: "maintenance_intensive",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   daily_inspection: true,
                   professional_service_monthly: true,
-                  downtime_scheduling: true 
+                  downtime_scheduling: true,
                 }),
                 enforced_by: "Technical Steward",
               },
             ],
-          })
+          }),
         );
 
         const cncResource = await createEconomicResource(
@@ -631,32 +686,38 @@ test(
             quantity: 1.0,
             unit: "machine",
             current_location: "Manufacturing Floor - Bay 3",
-          })
+          }),
         );
 
-        console.log(`✅ Created high-value resource: ${expensiveResourceSpec.spec.name}`);
+        console.log(
+          `✅ Created high-value resource: ${expensiveResourceSpec.spec.name}`,
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Phase 2: Specialized stewardship assignment
         console.log("Phase 2: Specialized stewardship assignment");
-        
-        // Alice transfers custody to Bob (specialized operator)
-        const initialTransfer = await transferCustody(
-          alice.cells[0],
-          {
-            resource_hash: cncResource.resource_hash,
-            new_custodian: bob.agentPubKey,
-          }
-        );
 
-        assert.equal(initialTransfer.updated_resource.custodian.toString(), bob.agentPubKey.toString());
+        // Alice transfers custody to Bob (specialized operator)
+        const initialTransfer = await transferCustody(alice.cells[0], {
+          resource_hash: cncResource.resource_hash,
+          new_custodian: bob.agentPubKey,
+        });
+
+        assert.equal(
+          initialTransfer.updated_resource.custodian.toString(),
+          bob.agentPubKey.toString(),
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify custody change
-        const aliceResourcesAfterTransfer = await getMyEconomicResources(alice.cells[0]);
-        const bobResourcesAfterTransfer = await getMyEconomicResources(bob.cells[0]);
+        const aliceResourcesAfterTransfer = await getMyEconomicResources(
+          alice.cells[0],
+        );
+        const bobResourcesAfterTransfer = await getMyEconomicResources(
+          bob.cells[0],
+        );
 
         assert.equal(aliceResourcesAfterTransfer.length, 0);
         assert.equal(bobResourcesAfterTransfer.length, 1);
@@ -665,14 +726,11 @@ test(
 
         // Phase 3: Resource activation under stewardship
         console.log("Phase 3: Resource activation under stewardship");
-        
-        const activationResult = await updateResourceState(
-          bob.cells[0],
-          {
-            resource_hash: initialTransfer.updated_resource_hash,
-            new_state: RESOURCE_STATES.ACTIVE,
-          }
-        );
+
+        const activationResult = await updateResourceState(bob.cells[0], {
+          resource_hash: initialTransfer.updated_resource_hash,
+          new_state: RESOURCE_STATES.ACTIVE,
+        });
 
         assert.ok(activationResult);
 
@@ -681,26 +739,28 @@ test(
         // Verify resource is active and visible to community
         const communityView = await getAllEconomicResources(alice.cells[0]);
         const activeCNC = communityView.resources.find(
-          r => r.created_by.toString() === alice.agentPubKey.toString()
+          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
         );
 
         assert.ok(activeCNC);
         assert.equal(activeCNC!.state, RESOURCE_STATES.ACTIVE);
-        assert.equal(activeCNC!.custodian.toString(), bob.agentPubKey.toString());
+        assert.equal(
+          activeCNC!.custodian.toString(),
+          bob.agentPubKey.toString(),
+        );
 
-        console.log(`✅ Resource active under stewardship - visible to community`);
+        console.log(
+          `✅ Resource active under stewardship - visible to community`,
+        );
 
         // Phase 4: Maintenance cycle management
         console.log("Phase 4: Steward-managed maintenance cycle");
-        
+
         // Bob performs scheduled maintenance
-        const maintenanceStart = await updateResourceState(
-          bob.cells[0],
-          {
-            resource_hash: activationResult.signed_action.hashed.hash,
-            new_state: RESOURCE_STATES.MAINTENANCE,
-          }
-        );
+        const maintenanceStart = await updateResourceState(bob.cells[0], {
+          resource_hash: activationResult.signed_action.hashed.hash,
+          new_state: RESOURCE_STATES.MAINTENANCE,
+        });
 
         assert.ok(maintenanceStart);
 
@@ -709,7 +769,7 @@ test(
         // Verify maintenance state is communicated
         const maintenanceView = await getAllEconomicResources(alice.cells[0]);
         const maintenanceCNC = maintenanceView.resources.find(
-          r => r.created_by.toString() === alice.agentPubKey.toString()
+          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
         );
 
         assert.ok(maintenanceCNC);
@@ -718,13 +778,10 @@ test(
         console.log(`✅ Resource in maintenance - community informed`);
 
         // Complete maintenance and return to active
-        const maintenanceComplete = await updateResourceState(
-          bob.cells[0],
-          {
-            resource_hash: maintenanceStart.signed_action.hashed.hash,
-            new_state: RESOURCE_STATES.ACTIVE,
-          }
-        );
+        const maintenanceComplete = await updateResourceState(bob.cells[0], {
+          resource_hash: maintenanceStart.signed_action.hashed.hash,
+          new_state: RESOURCE_STATES.ACTIVE,
+        });
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
@@ -732,23 +789,27 @@ test(
 
         // Phase 5: Temporary custody for specific project
         console.log("Phase 5: Temporary custody transfer for project");
-        
-        // Bob transfers back to Alice for a specific project
-        const projectTransfer = await transferCustody(
-          bob.cells[0],
-          {
-            resource_hash: maintenanceComplete.signed_action.hashed.hash,
-            new_custodian: alice.agentPubKey,
-          }
-        );
 
-        assert.equal(projectTransfer.updated_resource.custodian.toString(), alice.agentPubKey.toString());
+        // Bob transfers back to Alice for a specific project
+        const projectTransfer = await transferCustody(bob.cells[0], {
+          resource_hash: maintenanceComplete.signed_action.hashed.hash,
+          new_custodian: alice.agentPubKey,
+        });
+
+        assert.equal(
+          projectTransfer.updated_resource.custodian.toString(),
+          alice.agentPubKey.toString(),
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify temporary custody transfer
-        const aliceResourcesForProject = await getMyEconomicResources(alice.cells[0]);
-        const bobResourcesAfterProject = await getMyEconomicResources(bob.cells[0]);
+        const aliceResourcesForProject = await getMyEconomicResources(
+          alice.cells[0],
+        );
+        const bobResourcesAfterProject = await getMyEconomicResources(
+          bob.cells[0],
+        );
 
         assert.equal(aliceResourcesForProject.length, 1);
         assert.equal(bobResourcesAfterProject.length, 0);
@@ -757,22 +818,24 @@ test(
 
         // Phase 6: Return to permanent steward
         console.log("Phase 6: Return to permanent steward");
-        
-        // Alice returns custody to Bob after project completion
-        const returnTransfer = await transferCustody(
-          alice.cells[0],
-          {
-            resource_hash: projectTransfer.updated_resource_hash,
-            new_custodian: bob.agentPubKey,
-          }
-        );
 
-        assert.equal(returnTransfer.updated_resource.custodian.toString(), bob.agentPubKey.toString());
+        // Alice returns custody to Bob after project completion
+        const returnTransfer = await transferCustody(alice.cells[0], {
+          resource_hash: projectTransfer.updated_resource_hash,
+          new_custodian: bob.agentPubKey,
+        });
+
+        assert.equal(
+          returnTransfer.updated_resource.custodian.toString(),
+          bob.agentPubKey.toString(),
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify return to permanent steward
-        const finalAliceResources = await getMyEconomicResources(alice.cells[0]);
+        const finalAliceResources = await getMyEconomicResources(
+          alice.cells[0],
+        );
         const finalBobResources = await getMyEconomicResources(bob.cells[0]);
 
         assert.equal(finalAliceResources.length, 0);
@@ -784,41 +847,49 @@ test(
         console.log("Final verification: Stewardship continuity");
 
         // Verify resource history and current state
-        const finalCommunityView = await getAllEconomicResources(alice.cells[0]);
+        const finalCommunityView = await getAllEconomicResources(
+          alice.cells[0],
+        );
         const finalCNC = finalCommunityView.resources.find(
-          r => r.created_by.toString() === alice.agentPubKey.toString()
+          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
         );
 
         assert.ok(finalCNC);
         assert.equal(finalCNC!.state, RESOURCE_STATES.ACTIVE);
-        assert.equal(finalCNC!.custodian.toString(), bob.agentPubKey.toString());
-        assert.equal(finalCNC!.created_by.toString(), alice.agentPubKey.toString());
+        assert.equal(
+          finalCNC!.custodian.toString(),
+          bob.agentPubKey.toString(),
+        );
+        assert.equal(
+          finalCNC!.created_by?.toString(),
+          alice.agentPubKey.toString(),
+        );
 
         // Verify governance rules are still effective
         const finalSpecWithRules = await getResourceSpecificationWithRules(
           alice.cells[0],
-          expensiveResourceSpec.spec_hash
+          expensiveResourceSpec.spec_hash,
         );
         assert.equal(finalSpecWithRules.governance_rules.length, 3);
 
         // Verify contribution tracking
         const aliceStillContributor = await checkFirstResourceRequirement(
           bob.cells[0],
-          alice.agentPubKey
+          alice.agentPubKey,
         );
         assert.isTrue(aliceStillContributor); // Alice remains the contributor
 
-        console.log("✅ Resource custody and stewardship workflow successful"); 
+        console.log("✅ Resource custody and stewardship workflow successful");
         console.log(`   - High-value resource created by contributor`);
         console.log(`   - Specialized steward assigned and functional`);
         console.log(`   - Maintenance cycles managed by steward`);
         console.log(`   - Temporary custody transfers working`);
         console.log(`   - Stewardship continuity maintained`);
         console.log(`   - Community visibility and governance preserved`);
-      }
+      },
     );
   },
-  { timeout: 300000 }
+  { timeout: 300000 },
 );
 
 test(
@@ -832,7 +903,7 @@ test(
 
         // Phase 1: Diverse resource creation by both agents
         console.log("Phase 1: Creating diverse resource ecosystem");
-        
+
         // Create resource specifications sequentially to avoid source chain conflicts
         const courseSpec = await createResourceSpecification(
           alice.cells[0],
@@ -844,17 +915,17 @@ test(
             governance_rules: [
               {
                 rule_type: "participation_requirement",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   commitment_hours: 72,
-                  field_work_required: true 
+                  field_work_required: true,
                 }),
                 enforced_by: "Course Coordinator",
               },
             ],
-          })
+          }),
         );
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const kitchenSpec = await createResourceSpecification(
           alice.cells[0],
@@ -866,17 +937,17 @@ test(
             governance_rules: [
               {
                 rule_type: "food_safety",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   certification_required: true,
-                  cleaning_protocols: "strict" 
+                  cleaning_protocols: "strict",
                 }),
                 enforced_by: "Food Safety Coordinator",
               },
             ],
-          })
+          }),
         );
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Bob creates service and equipment resources
         const webDevSpec = await createResourceSpecification(
@@ -889,17 +960,17 @@ test(
             governance_rules: [
               {
                 rule_type: "project_scope",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   community_projects_priority: true,
-                  max_project_duration_months: 6 
+                  max_project_duration_months: 6,
                 }),
                 enforced_by: "Tech Coordinator",
               },
             ],
-          })
+          }),
         );
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const vanFleetSpec = await createResourceSpecification(
           bob.cells[0],
@@ -911,25 +982,32 @@ test(
             governance_rules: [
               {
                 rule_type: "driver_requirements",
-                rule_data: JSON.stringify({ 
+                rule_data: JSON.stringify({
                   commercial_license: true,
-                  eco_driving_training: true 
+                  eco_driving_training: true,
                 }),
                 enforced_by: "Fleet Manager",
               },
             ],
-          })
+          }),
         );
 
-        const resourceCreations = [courseSpec, kitchenSpec, webDevSpec, vanFleetSpec];
+        const resourceCreations = [
+          courseSpec,
+          kitchenSpec,
+          webDevSpec,
+          vanFleetSpec,
+        ];
 
-        console.log(`✅ Created diverse resource specifications across categories`);
+        console.log(
+          `✅ Created diverse resource specifications across categories`,
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Phase 2: Create economic resources with varied quantities and states
         console.log("Phase 2: Creating varied economic resources");
-        
+
         // Create economic resources sequentially to avoid source chain conflicts
         const courseResource = await createEconomicResource(
           alice.cells[0],
@@ -937,73 +1015,80 @@ test(
             quantity: 4.0,
             unit: "sessions",
             current_location: "Community Center - Room 201",
-          })
+          }),
         );
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         const kitchenResource = await createEconomicResource(
           alice.cells[0],
           sampleEconomicResource(kitchenSpec.spec_hash, {
             quantity: 1.0,
             unit: "kitchen",
             current_location: "Building B - Ground Floor",
-          })
+          }),
         );
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         const webDevResource = await createEconomicResource(
           bob.cells[0],
           sampleEconomicResource(webDevSpec.spec_hash, {
             quantity: 100.0,
             unit: "hours",
             current_location: "Remote/Distributed",
-          })
+          }),
         );
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         const vanResource = await createEconomicResource(
           bob.cells[0],
           sampleEconomicResource(vanFleetSpec.spec_hash, {
             quantity: 3.0,
             unit: "vehicles",
             current_location: "Community Garage - Bays 1-3",
-          })
+          }),
         );
-        
-        const economicResources = [courseResource, kitchenResource, webDevResource, vanResource];
 
-        console.log(`✅ Created ${economicResources.length} economic resources with varied quantities`);
+        const economicResources = [
+          courseResource,
+          kitchenResource,
+          webDevResource,
+          vanResource,
+        ];
+
+        console.log(
+          `✅ Created ${economicResources.length} economic resources with varied quantities`,
+        );
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Phase 3: Mixed resource state management
         console.log("Phase 3: Mixed resource state management");
-        
+
         // Update resource states sequentially to avoid source chain conflicts
         await updateResourceState(alice.cells[0], {
           resource_hash: courseResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         await updateResourceState(alice.cells[0], {
           resource_hash: kitchenResource.resource_hash,
           new_state: RESOURCE_STATES.MAINTENANCE, // Kitchen under renovation
         });
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         await updateResourceState(bob.cells[0], {
           resource_hash: webDevResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         await updateResourceState(bob.cells[0], {
           resource_hash: vanResource.resource_hash,
           new_state: RESOURCE_STATES.RESERVED, // Vans reserved for special project
@@ -1011,14 +1096,22 @@ test(
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
-        console.log(`✅ Resources in varied states - some active, some in maintenance/reserved`);
+        console.log(
+          `✅ Resources in varied states - some active, some in maintenance/reserved`,
+        );
 
         // Phase 4: Comprehensive discovery testing
         console.log("Phase 4: Comprehensive resource discovery");
-        
-        const allSpecsFromAlice = await getAllResourceSpecifications(alice.cells[0]);
-        const allSpecsFromBob = await getAllResourceSpecifications(bob.cells[0]);
-        const allResourcesFromAlice = await getAllEconomicResources(alice.cells[0]);
+
+        const allSpecsFromAlice = await getAllResourceSpecifications(
+          alice.cells[0],
+        );
+        const allSpecsFromBob = await getAllResourceSpecifications(
+          bob.cells[0],
+        );
+        const allResourcesFromAlice = await getAllEconomicResources(
+          alice.cells[0],
+        );
         const allResourcesFromBob = await getAllEconomicResources(bob.cells[0]);
 
         // Both agents should see all resources
@@ -1028,7 +1121,9 @@ test(
         assert.equal(allResourcesFromBob.resources.length, 4);
 
         // Verify category diversity
-        const categories = [...new Set(allSpecsFromAlice.specifications.map(s => s.category))];
+        const categories = [
+          ...new Set(allSpecsFromAlice.specifications.map((s) => s.category)),
+        ];
         assert.equal(categories.length, 4); // All different categories
 
         assert.include(categories, TEST_CATEGORIES.KNOWLEDGE);
@@ -1037,37 +1132,39 @@ test(
         assert.include(categories, TEST_CATEGORIES.EQUIPMENT);
 
         // Verify state diversity
-        const states = [...new Set(allResourcesFromAlice.resources.map(r => r.state))];
+        const states = [
+          ...new Set(allResourcesFromAlice.resources.map((r) => r.state)),
+        ];
         assert.isAtLeast(states.length, 3); // At least 3 different states
 
-        console.log(`✅ Discovery working - ${categories.length} categories, ${states.length} states`);
+        console.log(
+          `✅ Discovery working - ${categories.length} categories, ${states.length} states`,
+        );
 
         // Phase 5: Cross-agent custody patterns
         console.log("Phase 5: Cross-agent custody and collaboration");
-        
+
         // Alice transfers course resource to Bob for technical platform management
-        const courseTransfer = await transferCustody(
-          alice.cells[0],
-          {
-            resource_hash: courseResource.resource_hash,
-            new_custodian: bob.agentPubKey,
-          }
-        );
+        const courseTransfer = await transferCustody(alice.cells[0], {
+          resource_hash: courseResource.resource_hash,
+          new_custodian: bob.agentPubKey,
+        });
 
         // Bob transfers web dev services to Alice for community project coordination
-        const webDevTransfer = await transferCustody(
-          bob.cells[0],
-          {
-            resource_hash: webDevResource.resource_hash,
-            new_custodian: alice.agentPubKey,
-          }
-        );
+        const webDevTransfer = await transferCustody(bob.cells[0], {
+          resource_hash: webDevResource.resource_hash,
+          new_custodian: alice.agentPubKey,
+        });
 
         await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
         // Verify cross-custody
-        const aliceResourcesAfterSwap = await getMyEconomicResources(alice.cells[0]);
-        const bobResourcesAfterSwap = await getMyEconomicResources(bob.cells[0]);
+        const aliceResourcesAfterSwap = await getMyEconomicResources(
+          alice.cells[0],
+        );
+        const bobResourcesAfterSwap = await getMyEconomicResources(
+          bob.cells[0],
+        );
 
         // Each should still have 2 resources, but different ones
         assert.equal(aliceResourcesAfterSwap.length, 2);
@@ -1077,15 +1174,15 @@ test(
 
         // Phase 6: Specification-resource relationship validation
         console.log("Phase 6: Specification-resource relationship validation");
-        
+
         // Test resource queries by specification
         const courseResources = await getResourcesBySpecification(
           bob.cells[0], // Bob querying
-          courseSpec.spec_hash
+          courseSpec.spec_hash,
         );
         const webDevResources = await getResourcesBySpecification(
           alice.cells[0], // Alice querying
-          webDevSpec.spec_hash
+          webDevSpec.spec_hash,
         );
 
         assert.equal(courseResources.length, 1);
@@ -1094,36 +1191,42 @@ test(
         // Test specification governance rule access
         const courseSpecWithRules = await getResourceSpecificationWithRules(
           bob.cells[0],
-          courseSpec.spec_hash
+          courseSpec.spec_hash,
         );
         const webDevSpecWithRules = await getResourceSpecificationWithRules(
           alice.cells[0],
-          webDevSpec.spec_hash
+          webDevSpec.spec_hash,
         );
 
         assert.equal(courseSpecWithRules.governance_rules.length, 1);
         assert.equal(webDevSpecWithRules.governance_rules.length, 1);
 
-        console.log(`✅ Specification-resource relationships intact across agents`);
+        console.log(
+          `✅ Specification-resource relationships intact across agents`,
+        );
 
         // Phase 7: Community contribution validation
         console.log("Phase 7: Community contribution and impact assessment");
-        
+
         const aliceContribution = await checkFirstResourceRequirement(
           bob.cells[0],
-          alice.agentPubKey
+          alice.agentPubKey,
         );
         const bobContribution = await checkFirstResourceRequirement(
           alice.cells[0],
-          bob.agentPubKey
+          bob.agentPubKey,
         );
 
         assert.isTrue(aliceContribution);
         assert.isTrue(bobContribution);
 
         // Verify total community resource count
-        const totalCommunitySpecs = await getAllResourceSpecifications(alice.cells[0]);
-        const totalCommunityResources = await getAllEconomicResources(alice.cells[0]);
+        const totalCommunitySpecs = await getAllResourceSpecifications(
+          alice.cells[0],
+        );
+        const totalCommunityResources = await getAllEconomicResources(
+          alice.cells[0],
+        );
 
         assert.equal(totalCommunitySpecs.specifications.length, 4);
         // TODO: Fix duplicate AllEconomicResources links created by transfer_custody and update_resource_state
@@ -1134,17 +1237,19 @@ test(
         const allGovernanceRules = await getAllGovernanceRules(alice.cells[0]);
         assert.isAtLeast(allGovernanceRules.rules.length, 4); // At least one per spec
 
-        console.log(`✅ Community contribution tracking and impact assessment complete`);
+        console.log(
+          `✅ Community contribution tracking and impact assessment complete`,
+        );
 
         // Final verification: Complete ecosystem health
         console.log("Final verification: Multi-agent ecosystem health");
 
         // Verify resource state distribution
         const activeResources = totalCommunityResources.resources.filter(
-          r => r.state === RESOURCE_STATES.ACTIVE
+          (r) => r.state === RESOURCE_STATES.ACTIVE,
         ).length;
         const nonActiveResources = totalCommunityResources.resources.filter(
-          r => r.state !== RESOURCE_STATES.ACTIVE
+          (r) => r.state !== RESOURCE_STATES.ACTIVE,
         ).length;
 
         assert.isAtLeast(activeResources, 2);
@@ -1154,14 +1259,17 @@ test(
         const aliceFinalView = await getAllEconomicResources(alice.cells[0]);
         const bobFinalView = await getAllEconomicResources(bob.cells[0]);
 
-        assert.equal(aliceFinalView.resources.length, bobFinalView.resources.length);
+        assert.equal(
+          aliceFinalView.resources.length,
+          bobFinalView.resources.length,
+        );
 
         // Verify custodianship distribution
         const aliceCustody = aliceFinalView.resources.filter(
-          r => r.custodian.toString() === alice.agentPubKey.toString()
+          (r) => r.custodian.toString() === alice.agentPubKey.toString(),
         ).length;
         const bobCustody = aliceFinalView.resources.filter(
-          r => r.custodian.toString() === bob.agentPubKey.toString()
+          (r) => r.custodian.toString() === bob.agentPubKey.toString(),
         ).length;
 
         // TODO: Fix custody counts - should be 2 each when duplicates are resolved
@@ -1171,14 +1279,20 @@ test(
 
         console.log("✅ Multi-agent resource ecosystem workflow successful");
         console.log(`   - 4 diverse resource specifications created`);
-        console.log(`   - ${categories.length} different resource categories represented`);
-        console.log(`   - ${activeResources} active resources, ${nonActiveResources} in other states`);
+        console.log(
+          `   - ${categories.length} different resource categories represented`,
+        );
+        console.log(
+          `   - ${activeResources} active resources, ${nonActiveResources} in other states`,
+        );
         console.log(`   - Cross-agent custody transfers functional`);
         console.log(`   - Resource discovery and relationship queries working`);
-        console.log(`   - ${allGovernanceRules.rules.length} total governance rules in ecosystem`);
+        console.log(
+          `   - ${allGovernanceRules.rules.length} total governance rules in ecosystem`,
+        );
         console.log(`   - Community contribution tracking accurate`);
-      }
+      },
     );
   },
-  { timeout: 300000 }
+  { timeout: 300000 },
 );

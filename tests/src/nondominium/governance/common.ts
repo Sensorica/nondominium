@@ -1,57 +1,72 @@
 import { CallableCell } from "@holochain/tryorama";
-import { ActionHash, Record as HolochainRecord, AgentPubKey } from "@holochain/client";
 import {
-  LegacyParticipationClaimType as ParticipationClaimType,
-  LegacyPerformanceMetrics as PerformanceMetrics,
-  LegacyCryptographicSignature as CryptographicSignature,
-  LegacyReputationSummary as ReputationSummary,
+  ActionHash,
+  Record as HolochainRecord,
+  AgentPubKey,
+  Timestamp,
+} from "@holochain/client";
+import {
+  ParticipationClaimType,
+  PerformanceMetrics,
+  CryptographicSignature,
+  ReputationSummary,
   ParticipationReceiptInput,
-  SignParticipationClaimInput,
-  ValidateSignatureInput,
-  GetParticipationClaimsInput,
-  MockParticipationData,
-  MockPerformanceData,
 } from "@nondominium/shared-types";
+
+// Modern PPR input interfaces
+export interface PrivateParticipationClaimInput {
+  fulfills: ActionHash;
+  fulfilled_by: ActionHash;
+  claim_type: ParticipationClaimType;
+  performance_metrics: PerformanceMetrics;
+  counterparty: AgentPubKey;
+  resource_hash?: ActionHash;
+  notes?: string;
+}
 
 // Sample data generators for governance testing
 export function sampleParticipationClaim(
-  claim_type: ParticipationClaimType = "ResourceContribution",
-  partial: Partial<MockParticipationData> = {}
-): ParticipationReceiptInput {
+  claim_type: ParticipationClaimType = "ResourceCreation",
+  partial: Partial<PrivateParticipationClaimInput> = {},
+): PrivateParticipationClaimInput {
   return {
-    counterparty_agent: partial.counterparty_agent || null,
+    fulfills: partial.fulfills || (new Uint8Array(32) as ActionHash),
+    fulfilled_by: partial.fulfilled_by || (new Uint8Array(32) as ActionHash),
     claim_type,
-    resource_specification: partial.resource_specification || "sample-resource-spec",
-    description: partial.description || "Sample participation claim",
-    evidence_links: partial.evidence_links || [],
-    performance_metrics: partial.performance_metrics || samplePerformanceMetrics(),
+    performance_metrics:
+      partial.performance_metrics || samplePerformanceMetrics(),
+    counterparty: partial.counterparty || (new Uint8Array(32) as AgentPubKey),
+    resource_hash: partial.resource_hash,
+    notes: partial.notes || "Sample participation claim",
     ...partial,
   };
 }
 
 export function samplePerformanceMetrics(
-  partial: Partial<MockPerformanceData> = {}
+  partial: Partial<PerformanceMetrics> = {},
 ): PerformanceMetrics {
   return {
-    quality_score: partial.quality_score || 4.5,
-    timeliness_score: partial.timeliness_score || 4.0,
-    collaboration_score: partial.collaboration_score || 4.2,
-    innovation_score: partial.innovation_score || 3.8,
-    reliability_score: partial.reliability_score || 4.3,
-    additional_metrics: partial.additional_metrics || new Map(),
+    timeliness: partial.timeliness || 0.8,
+    quality: partial.quality || 0.9,
+    reliability: partial.reliability || 0.85,
+    communication: partial.communication || 0.8,
+    overall_satisfaction: partial.overall_satisfaction || 0.85,
+    notes: partial.notes || "Sample performance metrics",
     ...partial,
   };
 }
 
 export function sampleCryptographicSignature(
-  partial: Partial<CryptographicSignature> = {}
+  partial: Partial<CryptographicSignature> = {},
 ): CryptographicSignature {
   return {
-    signature_data: partial.signature_data || new Uint8Array([1, 2, 3, 4, 5]),
-    signing_agent: partial.signing_agent || null,
-    timestamp: partial.timestamp || Date.now() * 1000, // microseconds
-    signature_method: partial.signature_method || "Ed25519",
-    additional_context: partial.additional_context || new Map(),
+    recipient_signature:
+      partial.recipient_signature || (new Uint8Array([1, 2, 3, 4, 5]) as any), // Signature type
+    counterparty_signature:
+      partial.counterparty_signature ||
+      (new Uint8Array([6, 7, 8, 9, 10]) as any), // Signature type
+    signed_data_hash: partial.signed_data_hash || new Uint8Array(32),
+    signed_at: partial.signed_at || Date.now() * 1000, // microseconds to match Timestamp
     ...partial,
   };
 }
@@ -59,7 +74,7 @@ export function sampleCryptographicSignature(
 // Zome function wrappers for governance operations
 export async function issueParticipationReceipts(
   cell: CallableCell,
-  receiptInput: ParticipationReceiptInput
+  receiptInput: PrivateParticipationClaimInput,
 ): Promise<HolochainRecord[]> {
   return cell.callZome({
     zome_name: "zome_gouvernance",
@@ -68,9 +83,26 @@ export async function issueParticipationReceipts(
   });
 }
 
+// Modern input interfaces for other PPR functions
+export interface SignParticipationClaimInput {
+  claim_hash: ActionHash;
+  signature: CryptographicSignature;
+}
+
+export interface ValidateSignatureInput {
+  claim_hash: ActionHash;
+  signature: CryptographicSignature;
+}
+
+export interface GetParticipationClaimsInput {
+  claim_type_filter?: ParticipationClaimType;
+  date_range_start?: Timestamp;
+  date_range_end?: Timestamp;
+}
+
 export async function signParticipationClaim(
   cell: CallableCell,
-  signInput: SignParticipationClaimInput
+  signInput: SignParticipationClaimInput,
 ): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_gouvernance",
@@ -81,7 +113,7 @@ export async function signParticipationClaim(
 
 export async function validateParticipationClaimSignature(
   cell: CallableCell,
-  validateInput: ValidateSignatureInput
+  validateInput: ValidateSignatureInput,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "zome_gouvernance",
@@ -92,7 +124,7 @@ export async function validateParticipationClaimSignature(
 
 export async function getMyParticipationClaims(
   cell: CallableCell,
-  filterInput?: GetParticipationClaimsInput
+  filterInput?: GetParticipationClaimsInput,
 ): Promise<HolochainRecord[]> {
   return cell.callZome({
     zome_name: "zome_gouvernance",
@@ -103,7 +135,7 @@ export async function getMyParticipationClaims(
 
 export async function deriveReputationSummary(
   cell: CallableCell,
-  agent_pub_key: AgentPubKey
+  agent_pub_key: AgentPubKey,
 ): Promise<ReputationSummary> {
   return cell.callZome({
     zome_name: "zome_gouvernance",
@@ -115,7 +147,7 @@ export async function deriveReputationSummary(
 // Test validation helpers
 export function validateParticipationReceipt(
   expected: ParticipationReceiptInput,
-  actual: any
+  actual: any,
 ): boolean {
   return (
     expected.claim_type === actual.claim_type &&
@@ -126,24 +158,26 @@ export function validateParticipationReceipt(
 
 export function validatePerformanceMetrics(
   expected: PerformanceMetrics,
-  actual: PerformanceMetrics
+  actual: PerformanceMetrics,
 ): boolean {
   return (
-    Math.abs(expected.quality_score - actual.quality_score) < 0.01 &&
-    Math.abs(expected.timeliness_score - actual.timeliness_score) < 0.01 &&
-    Math.abs(expected.collaboration_score - actual.collaboration_score) < 0.01 &&
-    Math.abs(expected.innovation_score - actual.innovation_score) < 0.01 &&
-    Math.abs(expected.reliability_score - actual.reliability_score) < 0.01
+    Math.abs(expected.quality - actual.quality) < 0.01 &&
+    Math.abs(expected.timeliness - actual.timeliness) < 0.01 &&
+    Math.abs(expected.communication - actual.communication) < 0.01 &&
+    Math.abs(expected.overall_satisfaction - actual.overall_satisfaction) <
+      0.01 &&
+    Math.abs(expected.reliability - actual.reliability) < 0.01
   );
 }
 
 export function validateCryptographicSignature(
-  signature: CryptographicSignature
+  signature: CryptographicSignature,
 ): boolean {
   return (
-    signature.signature_data.length > 0 &&
-    signature.timestamp > 0 &&
-    signature.signature_method.length > 0
+    signature.recipient_signature.length > 0 &&
+    signature.counterparty_signature.length > 0 &&
+    signature.signed_data_hash.length > 0 &&
+    signature.signed_at > 0
   );
 }
 
@@ -161,7 +195,7 @@ export interface GovernanceTestContext {
 export async function setupBasicGovernanceTest(
   alice: any,
   bob: any,
-  lynn?: any
+  lynn?: any,
 ): Promise<GovernanceTestContext> {
   return {
     alice,
@@ -172,25 +206,25 @@ export async function setupBasicGovernanceTest(
 
 export async function setupPPRTestScenario(
   alice: any,
-  bob: any
+  bob: any,
 ): Promise<GovernanceTestContext> {
   const context = await setupBasicGovernanceTest(alice, bob);
-  
+
   // Issue initial participation receipts
   const aliceReceipts = await issueParticipationReceipts(
     alice.cells[0],
-    sampleParticipationClaim("ResourceContribution", {
-      counterparty_agent: bob.agentPubKey,
-      description: "Lynn provided web development services",
-    })
+    sampleParticipationClaim("ResourceCreation", {
+      counterparty: bob.agentPubKey,
+      notes: "Lynn created web development resource",
+    }),
   );
 
   const bobReceipts = await issueParticipationReceipts(
     bob.cells[0],
-    sampleParticipationClaim("ResourceReception", {
-      counterparty_agent: alice.agentPubKey,
-      description: "Bob received web development services",
-    })
+    sampleParticipationClaim("ResourceCreation", {
+      counterparty: alice.agentPubKey,
+      notes: "Bob created web development resource",
+    }),
   );
 
   return {
@@ -209,7 +243,7 @@ export const PERFORMANCE_BENCHMARKS = {
 };
 
 export async function measureOperationTime<T>(
-  operation: () => Promise<T>
+  operation: () => Promise<T>,
 ): Promise<{ result: T; duration: number }> {
   const startTime = performance.now();
   const result = await operation();
@@ -220,37 +254,18 @@ export async function measureOperationTime<T>(
 // Bulk test data generators
 export function generateBulkParticipationClaims(
   count: number,
-  baseType: ParticipationClaimType = "ResourceContribution"
-): ParticipationReceiptInput[] {
+  baseType: ParticipationClaimType = "ResourceCreation",
+): PrivateParticipationClaimInput[] {
   return Array.from({ length: count }, (_, i) =>
     sampleParticipationClaim(baseType, {
-      description: `Bulk participation claim ${i + 1}`,
-      resource_specification: `resource-spec-${i + 1}`,
-    })
+      notes: `Bulk participation claim ${i + 1}`,
+    }),
   );
 }
 
-export const CLAIM_TYPES: ParticipationClaimType[] = [
-  "ResourceContribution",
-  "ResourceReception", 
-  "ServiceProvision",
-  "ServiceReception",
-  "KnowledgeSharing",
-  "KnowledgeAcquisition",
-  "CommunitySupport",
-  "GovernanceParticipation",
-  "ConflictResolution",
-  "QualityAssurance",
-  "ResourceStewardship",
-  "CustodyAcceptance",
-  "ComplianceValidation",
-  "ProcessImprovement",
-  "InnovationContribution",
-];
-
 export const TEST_RESOURCES = {
   WEB_DEVELOPMENT: "web-development-service",
-  DESIGN_CONSULTATION: "design-consultation-service", 
+  DESIGN_CONSULTATION: "design-consultation-service",
   PROJECT_MANAGEMENT: "project-management-service",
   COMMUNITY_FACILITATION: "community-facilitation-service",
   TECHNICAL_WRITING: "technical-writing-service",

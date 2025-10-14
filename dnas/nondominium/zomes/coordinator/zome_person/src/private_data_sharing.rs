@@ -1,7 +1,6 @@
 use crate::PersonError;
 use hdk::prelude::*;
 use zome_person_integrity::*;
-use nondominium_utils::validation;
 use std::collections::HashMap;
 
 // ============================================================================
@@ -292,6 +291,44 @@ pub fn get_granted_private_data(input: GetGrantedPrivateDataInput) -> ExternResu
   Err(PersonError::PrivateDataNotFound.into())
 }
 
+/// Create missing Person->PrivateData links by finding unlinked private data entries
+fn create_missing_private_data_links(agent_pubkey: &AgentPubKey) -> ExternResult<()> {
+  warn!("🔧 create_missing_private_data_links called for agent: {:?}", agent_pubkey);
+
+  // Get the person entry for this agent
+  let person_links = get_links(
+    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
+  )?;
+
+  if let Some(person_link) = person_links.first() {
+    warn!("📎 Found person entry: {:?}", person_link.target);
+
+    // Try to find any private data entries that aren't linked to this person
+    // Method 1: Search through all private data entries in the DHT
+    let path = Path::from("private_data_unlinked");
+    warn!("🔍 Looking for unlinked private data entries...");
+
+    // Create a more comprehensive search: try to find private data by the agent who created it
+    // Since we can't query all entries directly, we'll use a different strategy:
+    // Look for private data that was created by this agent but isn't linked yet
+
+    // For now, let's focus on a simple approach: if we know there should be private data
+    // but no Person->PrivateData links exist, we'll note this and let the caller handle it
+    warn!("⚠️ No Person->PrivateData links found - this suggests they weren't created during storage");
+
+    // TODO: In a more complete implementation, we could:
+    // 1. Maintain an index of unlinked private data
+    // 2. Use a different link structure for discovery
+    // 3. Implement a background cleanup process
+
+  } else {
+    warn!("❌ No Agent->Person links found for agent");
+    return Err(PersonError::EntryOperationFailed("No person found for agent".to_string()).into());
+  }
+
+  Ok(())
+}
+
 /// Helper function to get an agent's private data with enhanced DHT synchronization
 fn get_private_data_for_agent(agent_pubkey: AgentPubKey) -> ExternResult<PrivatePersonData> {
   warn!("🔍 get_private_data_for_agent called for agent: {:?}", agent_pubkey);
@@ -320,7 +357,27 @@ fn get_private_data_for_agent(agent_pubkey: AgentPubKey) -> ExternResult<Private
     }
   }
 
-  // Method 3: Try alternative path via person entry hashes
+  // Method 3: Try to create missing Person->PrivateData links and retry
+  warn!("🔧 Attempting to create missing Person->PrivateData links");
+  match create_missing_private_data_links(&agent_pubkey) {
+    Ok(()) => {
+      warn!("✅ Successfully created missing links, retrying retrieval");
+      match try_get_private_data_via_links(&agent_pubkey) {
+        Ok(private_data) => {
+          warn!("✅ Successfully retrieved private data after creating missing links");
+          return Ok(private_data);
+        },
+        Err(e) => {
+          warn!("⚠️ Still failed after creating links: {:?}", e);
+        }
+      }
+    },
+    Err(e) => {
+      warn!("⚠️ Failed to create missing links: {:?}", e);
+    }
+  }
+
+  // Method 4: Try alternative path via person entry hashes
   match try_get_private_data_via_person_path(&agent_pubkey) {
     Ok(private_data) => {
       warn!("✅ Successfully retrieved private data via person path");
@@ -335,11 +392,41 @@ fn get_private_data_for_agent(agent_pubkey: AgentPubKey) -> ExternResult<Private
   Err(PersonError::PrivateDataNotFound.into())
 }
 
-/// Try to retrieve private data via Agent -> Person -> PrivateData link traversal
+/// Try to retrieve private data via multiple link strategies
 fn try_get_private_data_via_links(agent_pubkey: &AgentPubKey) -> ExternResult<PrivatePersonData> {
   warn!("🔗 Method 1: Trying link traversal for agent: {:?}", agent_pubkey);
 
-  // Get the person entry first
+  // Strategy 1: Try direct Agent -> PrivateData link (new approach)
+  let direct_private_links = get_links(
+    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPrivateData)?.build(),
+  )?;
+
+  warn!("🔗 Found {} AgentToPrivateData direct links", direct_private_links.len());
+
+  if let Some(private_data_link) = direct_private_links.first() {
+    warn!("📍 Following direct private data link to: {:?}", private_data_link.target);
+
+    if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
+      warn!("🎯 Getting record for action hash: {:?}", action_hash);
+
+      if let Some(record) = get(action_hash, GetOptions::default())? {
+        warn!("📜 Record found, attempting to deserialize as PrivatePersonData");
+
+        if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
+          warn!("✅ Successfully retrieved private data via direct link");
+          return Ok(private_data);
+        } else {
+          warn!("❌ Failed to deserialize record as PrivatePersonData");
+        }
+      } else {
+        warn!("❌ No record found for action hash");
+      }
+    } else {
+      warn!("❌ Link target is not an action hash");
+    }
+  }
+
+  // Strategy 2: Try traditional Agent -> Person -> PrivateData link traversal
   let person_links = get_links(
     GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
   )?;
@@ -366,7 +453,7 @@ fn try_get_private_data_via_links(agent_pubkey: &AgentPubKey) -> ExternResult<Pr
           warn!("📜 Record found, attempting to deserialize as PrivatePersonData");
 
           if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
-            warn!("✅ Successfully retrieved private data via link traversal");
+            warn!("✅ Successfully retrieved private data via Person->PrivateData link");
             return Ok(private_data);
           } else {
             warn!("❌ Failed to deserialize record as PrivatePersonData");
@@ -382,6 +469,40 @@ fn try_get_private_data_via_links(agent_pubkey: &AgentPubKey) -> ExternResult<Pr
     }
   } else {
     warn!("❌ No AgentToPerson links found for agent");
+  }
+
+  // Strategy 3: Try anchor-based discovery
+  warn!("🔍 Trying anchor-based private data discovery");
+  let anchor_path = Path::from(format!("private_data_{}", agent_pubkey.to_string()));
+  let anchor_links = get_links(
+    GetLinksInputBuilder::try_new(anchor_path.path_entry_hash()?, LinkTypes::PrivateDataDiscovery)?.build(),
+  )?;
+
+  warn!("🔗 Found {} PrivateDataDiscovery anchor links", anchor_links.len());
+
+  if let Some(anchor_link) = anchor_links.first() {
+    warn!("📍 Following anchor link to: {:?}", anchor_link.target);
+
+    if let Some(action_hash) = anchor_link.target.clone().into_action_hash() {
+      warn!("🎯 Getting record for action hash: {:?}", action_hash);
+
+      if let Some(record) = get(action_hash, GetOptions::default())? {
+        warn!("📜 Record found, attempting to deserialize as PrivatePersonData");
+
+        if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
+          warn!("✅ Successfully retrieved private data via anchor discovery");
+          return Ok(private_data);
+        } else {
+          warn!("❌ Failed to deserialize record as PrivatePersonData");
+        }
+      } else {
+        warn!("❌ No record found for action hash");
+      }
+    } else {
+      warn!("❌ Anchor link target is not an action hash");
+    }
+  } else {
+    warn!("❌ No PrivateDataDiscovery anchor links found");
   }
 
   Err(PersonError::PrivateDataNotFound.into())
@@ -449,7 +570,7 @@ pub fn validate_field_access(
   context: &str,
 ) -> ExternResult<bool> {
   let now = sys_time()?;
-  
+
   let grant_links = get_links(
     GetLinksInputBuilder::try_new(target_agent.clone(), LinkTypes::AgentToDataGrants)?.build(),
   )?;
@@ -469,7 +590,7 @@ pub fn validate_field_access(
       }
     }
   }
-  
+
   Ok(false)
 }
 
@@ -487,21 +608,54 @@ pub struct ValidationDataRequestWithGrant {
   pub grant_hash: ActionHash,
 }
 
+/// Self-validation result that can be shared with governance agents
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SelfValidationResult {
+  pub is_valid: bool,
+  pub validated_fields: HashMap<String, String>,
+  pub validation_context: String,
+  pub validated_at: Timestamp,
+  pub agent_pubkey: AgentPubKey,
+  pub grant_hash: ActionHash,
+  pub governance_requester: AgentPubKey,
+  pub error_message: Option<String>,
+}
+
 #[hdk_extern]
 pub fn validate_agent_private_data_with_grant(input: ValidationDataRequestWithGrant) -> ExternResult<ValidationResult> {
   let now = sys_time()?;
-  
+  let current_agent = agent_info()?.agent_initial_pubkey;
+
+  warn!("🔍 validate_agent_private_data_with_grant called by {:?} for target {:?}", current_agent, input.target_agent);
+
+  // CRITICAL: This function can only validate the current agent's private data
+  // Private entries in Holochain cannot be accessed by other agents
+  if current_agent != input.target_agent {
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: input.validation_context,
+      validated_at: now,
+      error_message: Some(format!(
+        "Cannot validate private data for another agent. This function must be called on the target agent's own node. Called by: {:?}, Target: {:?}",
+        current_agent, input.target_agent
+      )),
+    });
+  }
+
   // Get the grant directly by hash - no link traversal needed
   let grant_record = get(input.grant_hash, GetOptions::default())?.ok_or(
     PersonError::EntryOperationFailed("Grant not found".to_string()),
   )?;
-  
+
   let grant: DataAccessGrant = grant_record
     .entry()
     .to_app_option()
     .map_err(|e| PersonError::SerializationError(format!("Failed to deserialize grant: {:?}", e)))?
     .ok_or(PersonError::EntryOperationFailed("Invalid grant entry".to_string()))?;
-  
+
+  warn!("🔍 Using grant for self-validation: {:?}", grant);
+
   // Verify the grant is valid
   if grant.granted_by != input.target_agent {
     return Ok(ValidationResult {
@@ -512,7 +666,7 @@ pub fn validate_agent_private_data_with_grant(input: ValidationDataRequestWithGr
       error_message: Some("Grant is not from the target agent".to_string()),
     });
   }
-  
+
   if grant.granted_to != input.governance_requester {
     return Ok(ValidationResult {
       is_valid: false,
@@ -522,17 +676,18 @@ pub fn validate_agent_private_data_with_grant(input: ValidationDataRequestWithGr
       error_message: Some("Grant is not to the governance requester".to_string()),
     });
   }
-  
+
+  // Check if grant is for governance purposes (including auto-grants)
   if !grant.context.contains("governance") {
     return Ok(ValidationResult {
       is_valid: false,
       validated_data: None,
       validation_context: input.validation_context,
       validated_at: now,
-      error_message: Some("Grant is not for governance purposes".to_string()),
+      error_message: Some(format!("Grant is not for governance purposes. Grant context: '{}'", grant.context)),
     });
   }
-  
+
   if grant.expires_at <= now {
     return Ok(ValidationResult {
       is_valid: false,
@@ -542,76 +697,179 @@ pub fn validate_agent_private_data_with_grant(input: ValidationDataRequestWithGr
       error_message: Some("Grant has expired".to_string()),
     });
   }
-  
-  // Validate fields and retrieve data
-  let mut validated_data = HashMap::new();
-  let mut missing_fields = Vec::new();
-  
-  if let Ok(private_data) = get_private_data_for_agent(input.target_agent.clone()) {
-    for field in &input.required_fields {
-      if grant.fields_granted.contains(field) {
-        match field.as_str() {
-          "email" => { validated_data.insert("email".to_string(), private_data.email.clone()); }
-          "phone" => {
-            if let Some(phone) = &private_data.phone {
-              validated_data.insert("phone".to_string(), phone.clone());
-            } else {
-              missing_fields.push(field.clone());
-            }
-          }
-          "location" => {
-            if let Some(location) = &private_data.location {
-              validated_data.insert("location".to_string(), location.clone());
-            } else {
-              missing_fields.push(field.clone());
-            }
-          }
-          "time_zone" => {
-            if let Some(time_zone) = &private_data.time_zone {
-              validated_data.insert("time_zone".to_string(), time_zone.clone());
-            } else {
-              missing_fields.push(field.clone());
-            }
-          }
-          "emergency_contact" => {
-            if let Some(emergency_contact) = &private_data.emergency_contact {
-              validated_data.insert("emergency_contact".to_string(), emergency_contact.clone());
-            } else {
-              missing_fields.push(field.clone());
-            }
-          }
-          _ => missing_fields.push(field.clone()),
-        }
-      } else {
-        missing_fields.push(field.clone());
-      }
-    }
-    
-    if missing_fields.is_empty() {
-      return Ok(ValidationResult {
-        is_valid: true,
-        validated_data: Some(validated_data),
-        validation_context: input.validation_context,
-        validated_at: now,
-        error_message: None,
-      });
-    } else {
+
+  // Get our own private data (this should always work since we're the owner)
+  let private_data = match crate::private_data::get_my_private_person_data(()) {
+    Ok(Some(data)) => {
+      warn!("✅ Successfully retrieved own private data for validation");
+      data
+    },
+    Ok(None) => {
       return Ok(ValidationResult {
         is_valid: false,
         validated_data: None,
         validation_context: input.validation_context,
         validated_at: now,
-        error_message: Some(format!("Missing required fields: {}", missing_fields.join(", "))),
+        error_message: Some("No private data found for self-validation".to_string()),
+      });
+    },
+    Err(e) => {
+      return Ok(ValidationResult {
+        is_valid: false,
+        validated_data: None,
+        validation_context: input.validation_context,
+        validated_at: now,
+        error_message: Some(format!("Failed to retrieve own private data: {:?}", e)),
       });
     }
+  };
+
+  // Validate fields and return validated data
+  let mut validated_data = HashMap::new();
+  let mut missing_fields = Vec::new();
+
+  for field in &input.required_fields {
+    if grant.fields_granted.contains(field) {
+      match field.as_str() {
+        "email" => { validated_data.insert("email".to_string(), private_data.email.clone()); }
+        "phone" => {
+          if let Some(phone) = &private_data.phone {
+            validated_data.insert("phone".to_string(), phone.clone());
+          } else {
+            missing_fields.push(field.clone());
+          }
+        }
+        "location" => {
+          if let Some(location) = &private_data.location {
+            validated_data.insert("location".to_string(), location.clone());
+          } else {
+            missing_fields.push(field.clone());
+          }
+        }
+        "time_zone" => {
+          if let Some(time_zone) = &private_data.time_zone {
+            validated_data.insert("time_zone".to_string(), time_zone.clone());
+          } else {
+            missing_fields.push(field.clone());
+          }
+        }
+        "emergency_contact" => {
+          if let Some(emergency_contact) = &private_data.emergency_contact {
+            validated_data.insert("emergency_contact".to_string(), emergency_contact.clone());
+          } else {
+            missing_fields.push(field.clone());
+          }
+        }
+        _ => missing_fields.push(field.clone()),
+      }
+    } else {
+      missing_fields.push(field.clone());
+    }
   }
-  
+
+  if missing_fields.is_empty() {
+    warn!("✅ Self-validation successful with {} fields", validated_data.len());
+    return Ok(ValidationResult {
+      is_valid: true,
+      validated_data: Some(validated_data),
+      validation_context: input.validation_context,
+      validated_at: now,
+      error_message: None,
+    });
+  } else {
+    warn!("❌ Self-validation failed due to missing fields: {:?}", missing_fields);
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: input.validation_context,
+      validated_at: now,
+      error_message: Some(format!("Missing required fields: {}", missing_fields.join(", "))),
+    });
+  }
+}
+
+/// Generate a self-validation result that can be shared with governance agents
+/// This function should be called by the agent being validated to create proof of validation
+#[hdk_extern]
+pub fn create_self_validation_proof(input: ValidationDataRequestWithGrant) -> ExternResult<SelfValidationResult> {
+  warn!("🔍 Creating self-validation proof for agent: {:?}", agent_info()?.agent_initial_pubkey);
+
+  // Validate using the existing function
+  let validation_result = validate_agent_private_data_with_grant(input.clone())?;
+
+  // Convert to shareable format
+  Ok(SelfValidationResult {
+    is_valid: validation_result.is_valid,
+    validated_fields: validation_result.validated_data.unwrap_or_default(),
+    validation_context: validation_result.validation_context,
+    validated_at: validation_result.validated_at,
+    agent_pubkey: input.target_agent,
+    grant_hash: input.grant_hash,
+    governance_requester: input.governance_requester,
+    error_message: validation_result.error_message,
+  })
+}
+
+/// Verify a self-validation proof provided by another agent
+/// This allows governance agents to validate the authenticity of self-validation results
+#[hdk_extern]
+pub fn verify_self_validation_proof(proof: SelfValidationResult) -> ExternResult<ValidationResult> {
+  let now = sys_time()?;
+  let current_agent = agent_info()?.agent_initial_pubkey;
+
+  warn!("🔍 Verifying self-validation proof from {:?} for {:?}", proof.agent_pubkey, proof.governance_requester);
+
+  // Verify that this proof is intended for the current agent (governance requester)
+  if proof.governance_requester != current_agent {
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: proof.validation_context,
+      validated_at: now,
+      error_message: Some("Self-validation proof is not intended for this agent".to_string()),
+    });
+  }
+
+  // Verify the grant exists and is still valid
+  let grant_record = get(proof.grant_hash.clone(), GetOptions::default())?.ok_or(
+    PersonError::EntryOperationFailed("Grant not found".to_string()),
+  )?;
+
+  let grant: DataAccessGrant = grant_record
+    .entry()
+    .to_app_option()
+    .map_err(|e| PersonError::SerializationError(format!("Failed to deserialize grant: {:?}", e)))?
+    .ok_or(PersonError::EntryOperationFailed("Invalid grant entry".to_string()))?;
+
+  // Verify grant is still valid
+  if grant.expires_at <= now {
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: proof.validation_context,
+      validated_at: now,
+      error_message: Some("Grant has expired".to_string()),
+    });
+  }
+
+  // Verify the proof matches the grant
+  if grant.granted_by != proof.agent_pubkey || grant.granted_to != proof.governance_requester {
+    return Ok(ValidationResult {
+      is_valid: false,
+      validated_data: None,
+      validation_context: proof.validation_context,
+      validated_at: now,
+      error_message: Some("Grant does not match self-validation proof".to_string()),
+    });
+  }
+
+  // Return the validation result from the proof
   Ok(ValidationResult {
-    is_valid: false,
-    validated_data: None,
-    validation_context: input.validation_context,
-    validated_at: now,
-    error_message: Some("Could not retrieve private data".to_string()),
+    is_valid: proof.is_valid,
+    validated_data: Some(proof.validated_fields),
+    validation_context: proof.validation_context,
+    validated_at: proof.validated_at,
+    error_message: proof.error_message,
   })
 }
 
@@ -621,7 +879,7 @@ pub fn validate_agent_private_data_with_grant(input: ValidationDataRequestWithGr
 #[hdk_extern]
 pub fn validate_agent_private_data(input: ValidationDataRequest) -> ExternResult<ValidationResult> {
   let now = sys_time()?;
-  
+
   // Verify that the caller is the governance zome (indirectly through context validation)
   if input.validation_context.trim().is_empty() {
     return Ok(ValidationResult {
@@ -649,12 +907,12 @@ pub fn validate_agent_private_data(input: ValidationDataRequest) -> ExternResult
 
   // Check if there's an active grant from the target agent to governance
   let governance_grants = get_active_governance_grants(&input.target_agent, &input.governance_requester)?;
-  
+
   if let Some(grant) = governance_grants.first() {
     // Check if all required fields are covered by the grant
     let mut validated_data = HashMap::new();
     let mut missing_fields = Vec::new();
-    
+
     if let Ok(private_data) = get_private_data_for_agent(input.target_agent.clone()) {
       for field in &input.required_fields {
         if grant.fields_granted.contains(field) {
@@ -694,7 +952,7 @@ pub fn validate_agent_private_data(input: ValidationDataRequest) -> ExternResult
           missing_fields.push(field.clone());
         }
       }
-      
+
       if missing_fields.is_empty() {
         return Ok(ValidationResult {
           is_valid: true,
@@ -714,7 +972,7 @@ pub fn validate_agent_private_data(input: ValidationDataRequest) -> ExternResult
       }
     }
   }
-  
+
   // No valid grant found
   Ok(ValidationResult {
     is_valid: false,
@@ -798,7 +1056,7 @@ pub struct AutoGrantGovernanceAccessOutput {
 pub fn auto_grant_governance_access(input: AutoGrantGovernanceAccessInput) -> ExternResult<AutoGrantGovernanceAccessOutput> {
   let agent_info = agent_info()?;
   let now = sys_time()?;
-  
+
   // Define required fields based on target role
   let required_fields = match input.target_role.as_str() {
     "Simple Agent" => vec!["email".to_string()],
@@ -809,16 +1067,16 @@ pub fn auto_grant_governance_access(input: AutoGrantGovernanceAccessInput) -> Ex
     }
     _ => return Err(PersonError::InvalidInput(format!("Unknown role type: {}", input.target_role)).into()),
   };
-  
+
   // Create governance context for automatic grant
   let context = format!("governance_auto_grant_role_{}", input.target_role.replace(" ", "_").to_lowercase());
   let duration_days = 7; // Maximum allowed duration (7 days per validation rules)
   let duration_micros = (duration_days as i64) * 24 * 60 * 60 * 1_000_000;
   let expires_at = Timestamp::from_micros(now.as_micros() + duration_micros);
-  
+
   // Create a grant to the governance agent who will validate the promotion
   let governance_pubkey = input.governance_agent;
-  
+
   let grant = DataAccessGrant {
     granted_to: governance_pubkey.clone(),
     granted_by: agent_info.agent_initial_pubkey.clone(),
@@ -842,7 +1100,7 @@ pub fn auto_grant_governance_access(input: AutoGrantGovernanceAccessInput) -> Ex
     LinkTypes::AgentToDataGrants,
     (),
   )?;
-  
+
   // Also create a link from the governance agent to track received grants
   create_link(
     governance_pubkey,

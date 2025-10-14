@@ -1,9 +1,9 @@
 import type { ActionHash, AgentPubKey } from '@holochain/client';
-import holochainService from '../holochain.service.svelte';
+import holochainService, { type ZomeName } from '../holochain.service.svelte';
 import type { Person, EncryptedProfile, PersonRole } from '@nondominium/shared-types';
 
 // Helper function to properly type zome calls
-function callZome<T>(zomeName: string, fnName: string, payload: unknown): Promise<T> {
+function callZome<T>(zomeName: ZomeName, fnName: string, payload: unknown): Promise<T> {
   return holochainService.callZome(zomeName, fnName, payload) as Promise<T>;
 }
 
@@ -103,7 +103,11 @@ class PersonService {
    */
   async getMyProfile(): Promise<{ person: Person | null; private_data: EncryptedProfile | null }> {
     try {
-      return await callZome<{ person: Person | null; private_data: EncryptedProfile | null }>('zome_person', 'get_my_profile', null);
+      return await callZome<{ person: Person | null; private_data: EncryptedProfile | null }>(
+        'zome_person',
+        'get_my_profile',
+        null
+      );
     } catch (error) {
       console.error('Failed to get my profile:', error);
       throw error;

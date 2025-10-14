@@ -207,6 +207,10 @@ pub enum LinkTypes {
   PersonUpdates,
   // Person to their private data
   PersonToPrivateData,
+  // Agent to their private data (direct link for reliability)
+  AgentToPrivateData,
+  // Private data discovery via anchor paths
+  PrivateDataDiscovery,
   // Person to their roles
   PersonToRoles,
   // Role updates (for versioning)

@@ -1,9 +1,9 @@
 import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
-import holochainService from '../holochain.service.svelte';
+import holochainService, { type ZomeName } from '../holochain.service.svelte';
 import type { Commitment, EconomicEvent } from '@nondominium/shared-types';
 
 // Helper function to properly type zome calls
-function callZome<T>(zomeName: string, fnName: string, payload: unknown): Promise<T> {
+function callZome<T>(zomeName: ZomeName, fnName: string, payload: unknown): Promise<T> {
   return holochainService.callZome(zomeName, fnName, payload) as Promise<T>;
 }
 
@@ -89,7 +89,11 @@ class GovernanceService {
    */
   async getCommitmentsByProvider(provider: AgentPubKey): Promise<Commitment[]> {
     try {
-      return await callZome<Commitment[]>('zome_gouvernance', 'get_commitments_by_provider', provider);
+      return await callZome<Commitment[]>(
+        'zome_gouvernance',
+        'get_commitments_by_provider',
+        provider
+      );
     } catch (error) {
       console.error('Failed to get commitments by provider:', error);
       throw error;
@@ -101,7 +105,11 @@ class GovernanceService {
    */
   async getCommitmentsByReceiver(receiver: AgentPubKey): Promise<Commitment[]> {
     try {
-      return await callZome<Commitment[]>('zome_gouvernance', 'get_commitments_by_receiver', receiver);
+      return await callZome<Commitment[]>(
+        'zome_gouvernance',
+        'get_commitments_by_receiver',
+        receiver
+      );
     } catch (error) {
       console.error('Failed to get commitments by receiver:', error);
       throw error;
@@ -189,7 +197,11 @@ class GovernanceService {
     resourceHash: ActionHash
   ): Promise<{ events: EconomicEvent[]; commitments: Commitment[] }> {
     try {
-      return await callZome<{ events: EconomicEvent[]; commitments: Commitment[] }>('zome_gouvernance', 'get_resource_flow', resourceHash);
+      return await callZome<{ events: EconomicEvent[]; commitments: Commitment[] }>(
+        'zome_gouvernance',
+        'get_resource_flow',
+        resourceHash
+      );
     } catch (error) {
       console.error('Failed to get resource flow:', error);
       throw error;

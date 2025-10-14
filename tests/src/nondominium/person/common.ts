@@ -400,6 +400,63 @@ export async function cleanupExpiredGrants(
   });
 }
 
+// ============================================================================
+// SELF-VALIDATION FUNCTIONS (NEW ARCHITECTURE)
+// ============================================================================
+
+export interface CreateSelfValidationProofInput {
+  target_agent: AgentPubKey;
+  validation_context: string;
+  required_fields: string[];
+  governance_requester: AgentPubKey;
+  grant_hash: ActionHash;
+}
+
+export interface SelfValidationResult {
+  is_valid: boolean;
+  validated_fields: Record<string, string>;
+  validation_context: string;
+  validated_at: number;
+  agent_pubkey: AgentPubKey;
+  grant_hash: ActionHash;
+  governance_requester: AgentPubKey;
+  error_message: string | null;
+}
+
+export interface VerifySelfValidationProofInput {
+  selfValidationResult: SelfValidationResult;
+}
+
+export interface ValidationResult {
+  is_valid: boolean;
+  validated_data: Record<string, string> | null;
+  validation_context: string;
+  validated_at: number;
+  error_message: string | null;
+}
+
+export async function createSelfValidationProof(
+  cell: CallableCell,
+  input: CreateSelfValidationProofInput,
+): Promise<SelfValidationResult> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "create_self_validation_proof",
+    payload: input,
+  });
+}
+
+export async function verifySelfValidationProof(
+  cell: CallableCell,
+  proof: SelfValidationResult,
+): Promise<ValidationResult> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "verify_self_validation_proof",
+    payload: proof,
+  });
+}
+
 // Test helper functions
 export function validatePersonData(
   expected: PersonInput,

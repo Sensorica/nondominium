@@ -30,19 +30,46 @@ pub fn store_private_person_data(input: PrivatePersonDataInput) -> ExternResult<
     PersonError::EntryOperationFailed("Failed to retrieve created private data".to_string()),
   )?;
 
-  // Link from person to private data if person exists
+  // Create multiple link strategies to ensure private data can be found
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
-  let person_links =
-    get_links(GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build())?;
+
+  // Strategy 1: Direct Agent -> PrivateData link (new approach)
+  warn!("🔗 Creating AgentToPrivateData link");
+  create_link(
+    agent_pubkey.clone(),
+    private_data_hash.clone(),
+    LinkTypes::AgentToPrivateData,
+    (),
+  )?;
+
+  // Strategy 2: Try to create Person -> PrivateData link if person exists
+  let mut person_link_created = false;
+  let person_links = get_links(
+    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
+  )?;
 
   if let Some(person_link) = person_links.first() {
+    warn!("🔗 Creating PersonToPrivateData link");
     create_link(
       person_link.target.clone(),
-      private_data_hash,
+      private_data_hash.clone(),
       LinkTypes::PersonToPrivateData,
       (),
     )?;
+    person_link_created = true;
+  } else {
+    warn!("⚠️ No AgentToPerson links found, skipping PersonToPrivateData link");
   }
+
+  // Strategy 3: Create an anchor-based link for discovery
+  warn!("🔗 Creating private data discovery anchor link");
+  let anchor_path = Path::from(format!("private_data_{}", agent_pubkey.to_string()));
+  create_link(
+    anchor_path.path_entry_hash()?,
+    private_data_hash.clone(),
+    LinkTypes::PrivateDataDiscovery,
+    (),
+  )?;
 
   Ok(record)
 }
