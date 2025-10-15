@@ -1,6 +1,9 @@
 # editors
 /.idea
 /.vscode
+/.zed
+/.cursor
+/.claude
 
 # system files
 .DS_Store

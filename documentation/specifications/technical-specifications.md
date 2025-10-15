@@ -4,7 +4,7 @@
 ## 1. Introduction
 
 ### 1.1 Purpose
-This document provides the detailed technical specifications for the nondominium Holochain application (hApp). It is based on the requirements outlined in `requirements.md` and the architecture described in the nondominium project document. It is intended for Holochain developers.
+This document provides the detailed technical specifications for the nondominium Holochain application (hApp). It is based on the requirements outlined in [`../requirements/product-requirements.md`](../requirements/product-requirements.md) and the architecture described in the nondominium project document. It is intended for Holochain developers.
 
 ### 1.2 Guiding Principles
 -   **Valueflows Compliance**: Data structures will adhere to the Valueflows standard.
