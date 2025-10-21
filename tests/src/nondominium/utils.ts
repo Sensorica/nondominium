@@ -30,12 +30,12 @@ export type DnaProperties = {
 export async function runScenarioWithTwoAgents(
   callback: (
     scenario: Scenario,
-    alice: PlayerApp,
+    lynn: PlayerApp,
     bob: PlayerApp,
   ) => Promise<void>,
 ): Promise<void> {
   await runScenario(async (scenario) => {
-    const [alice, bob] = await scenario.addPlayersWithApps([
+    const [lynn, bob] = await scenario.addPlayersWithApps([
       appSource,
       appSource,
     ]);
@@ -44,7 +44,7 @@ export async function runScenarioWithTwoAgents(
 
     console.log("Running scenario with Lynn and Bob");
 
-    await callback(scenario, alice, bob);
+    await callback(scenario, lynn, bob);
 
     scenario.cleanUp();
   });

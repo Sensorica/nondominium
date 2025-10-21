@@ -183,36 +183,33 @@ export function validateCryptographicSignature(
 
 // Common test patterns for governance
 export interface GovernanceTestContext {
-  alice: any;
-  bob: any;
   lynn: any;
-  aliceReceipts?: HolochainRecord[];
+  bob: any;
+  lynnReceipts?: HolochainRecord[];
   bobReceipts?: HolochainRecord[];
   signedClaims?: HolochainRecord[];
   reputationData?: ReputationSummary[];
 }
 
 export async function setupBasicGovernanceTest(
-  alice: any,
+  lynn: any,
   bob: any,
-  lynn?: any,
 ): Promise<GovernanceTestContext> {
   return {
-    alice,
+    lynn,
     bob,
-    lynn: lynn || null,
   };
 }
 
 export async function setupPPRTestScenario(
-  alice: any,
+  lynn: any,
   bob: any,
 ): Promise<GovernanceTestContext> {
-  const context = await setupBasicGovernanceTest(alice, bob);
+  const context = await setupBasicGovernanceTest(lynn, bob);
 
   // Issue initial participation receipts
-  const aliceReceipts = await issueParticipationReceipts(
-    alice.cells[0],
+  const lynnReceipts = await issueParticipationReceipts(
+    lynn.cells[0],
     sampleParticipationClaim("ResourceCreation", {
       counterparty: bob.agentPubKey,
       notes: "Lynn created web development resource",
@@ -222,14 +219,14 @@ export async function setupPPRTestScenario(
   const bobReceipts = await issueParticipationReceipts(
     bob.cells[0],
     sampleParticipationClaim("ResourceCreation", {
-      counterparty: alice.agentPubKey,
+      counterparty: lynn.agentPubKey,
       notes: "Bob created web development resource",
     }),
   );
 
   return {
     ...context,
-    aliceReceipts,
+    lynnReceipts,
     bobReceipts,
   };
 }

@@ -21,20 +21,20 @@ import {
 
 test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
-      // Step 1: Alice provides web development service to Bob via commitment/event
-      const commitment = await proposeCommitment(alice.cells[0], {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
+      // Step 1: Lynn provides web development service to Bob via commitment/event
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Work",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
         note: "Web development service commitment",
       });
 
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Work",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -44,10 +44,10 @@ test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
       });
 
       // Step 2: Issue PPRs for the service exchange
-      const webDevPPRs = await issueNewPPRs(alice.cells[0], {
+      const webDevPPRs = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["MaintenanceFulfillmentCompleted", "GoodFaithTransfer"],
         provider_metrics: {
@@ -71,7 +71,7 @@ test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
       });
 
       // Wait for DHT sync before proceeding
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       expect(webDevPPRs).toHaveProperty("provider_claim");
       expect(webDevPPRs).toHaveProperty("receiver_claim");
@@ -84,33 +84,33 @@ test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
       );
       const bobSignature = await signNewParticipationClaim(bob.cells[0], {
         data_to_sign: Array.from(test_signature_data),
-        counterparty: alice.agentPubKey,
+        counterparty: lynn.agentPubKey,
       });
 
       expect(bobSignature).toHaveProperty("signature");
       expect(bobSignature).toHaveProperty("signed_data_hash");
 
       // Step 4: Verify reputation building
-      const aliceReputation = await deriveNewReputationSummary(alice.cells[0], {
+      const lynnReputation = await deriveNewReputationSummary(lynn.cells[0], {
         period_start: Date.now() * 1000 - 60 * 60 * 1000000, // 1 hour ago
         period_end: Date.now() * 1000 + 60 * 60 * 1000000, // 1 hour from now
         claim_type_filter: null,
       });
 
-      expect(aliceReputation.summary.total_claims).toBeGreaterThan(0);
-      expect(aliceReputation.summary.agent).toEqual(alice.agentPubKey);
-      expect(aliceReputation.claims_included).toBeGreaterThan(0);
+      expect(lynnReputation.summary.total_claims).toBeGreaterThan(0);
+      expect(lynnReputation.summary.agent).toEqual(lynn.agentPubKey);
+      expect(lynnReputation.claims_included).toBeGreaterThan(0);
 
       // Step 5: Verify participation history retrieval
-      const aliceClaims = await getMyNewParticipationClaims(alice.cells[0], {
+      const lynnClaims = await getMyNewParticipationClaims(lynn.cells[0], {
         claim_type_filter: "MaintenanceFulfillmentCompleted",
         from_time: null,
         to_time: null,
         limit: null,
       });
 
-      expect(aliceClaims.claims.length).toBeGreaterThan(0);
-      const provisionClaim = aliceClaims.claims.find(
+      expect(lynnClaims.claims.length).toBeGreaterThan(0);
+      const provisionClaim = lynnClaims.claims.find(
         ([_hash, claim]) => claim.claim_type === "MaintenanceFulfillmentCompleted",
       );
       expect(provisionClaim).toBeDefined();
@@ -123,20 +123,20 @@ test("PPR Scenario: Complete Resource Exchange Workflow", async () => {
 
 test("PPR Scenario: Knowledge Sharing and Community Impact", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
-      // Alice facilitates a knowledge sharing workshop for Bob
-      const commitment = await proposeCommitment(alice.cells[0], {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
+      // Lynn facilitates a knowledge sharing workshop for Bob
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Work",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
         note: "Governance workshop facilitation",
       });
 
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Work",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -146,10 +146,10 @@ test("PPR Scenario: Knowledge Sharing and Community Impact", async () => {
       });
 
       // Issue PPRs for knowledge sharing
-      const workshopPPRs = await issueNewPPRs(alice.cells[0], {
+      const workshopPPRs = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["ValidationActivity", "RuleCompliance"],
         provider_metrics: {
@@ -173,7 +173,7 @@ test("PPR Scenario: Knowledge Sharing and Community Impact", async () => {
       });
 
       // Wait for DHT sync before proceeding
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       expect(workshopPPRs.provider_claim.claim_type).toBe("ValidationActivity");
       expect(workshopPPRs.receiver_claim.claim_type).toBe(
@@ -181,14 +181,14 @@ test("PPR Scenario: Knowledge Sharing and Community Impact", async () => {
       );
 
       // Verify knowledge sharing impact on reputation
-      const aliceReputation = await deriveNewReputationSummary(alice.cells[0], {
+      const lynnReputation = await deriveNewReputationSummary(lynn.cells[0], {
         period_start: Date.now() * 1000 - 60 * 60 * 1000000,
         period_end: Date.now() * 1000 + 60 * 60 * 1000000,
         claim_type_filter: null,
       });
 
-      expect(aliceReputation.summary.total_claims).toBeGreaterThan(0);
-      expect(aliceReputation.summary.average_performance).toBeGreaterThan(0.9);
+      expect(lynnReputation.summary.total_claims).toBeGreaterThan(0);
+      expect(lynnReputation.summary.average_performance).toBeGreaterThan(0.9);
 
       console.log("✅ Successfully completed knowledge sharing scenario");
     },
@@ -197,20 +197,20 @@ test("PPR Scenario: Knowledge Sharing and Community Impact", async () => {
 
 test("PPR Scenario: Governance Participation and Decision Making", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
-      // Alice participates in community governance decision with Bob
-      const commitment = await proposeCommitment(alice.cells[0], {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
+      // Lynn participates in community governance decision with Bob
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Work",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
         note: "Community governance facilitation",
       });
 
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Work",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -220,10 +220,10 @@ test("PPR Scenario: Governance Participation and Decision Making", async () => {
       });
 
       // Issue governance participation PPRs
-      const governancePPRs = await issueNewPPRs(alice.cells[0], {
+      const governancePPRs = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["DisputeResolutionParticipation", "ValidationActivity"],
         provider_metrics: {
@@ -247,7 +247,7 @@ test("PPR Scenario: Governance Participation and Decision Making", async () => {
       });
 
       // Wait for DHT sync before proceeding
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       expect(governancePPRs.provider_claim.claim_type).toBe(
         "DisputeResolutionParticipation",
@@ -264,21 +264,21 @@ test("PPR Scenario: Governance Participation and Decision Making", async () => {
         bob.cells[0],
         {
           data_to_sign: Array.from(governance_signature_data),
-          counterparty: alice.agentPubKey,
+          counterparty: lynn.agentPubKey,
         },
       );
 
       expect(governanceSignature).toHaveProperty("signature");
 
       // Verify governance participation impact on reputation
-      const aliceReputation = await deriveNewReputationSummary(alice.cells[0], {
+      const lynnReputation = await deriveNewReputationSummary(lynn.cells[0], {
         period_start: Date.now() * 1000 - 60 * 60 * 1000000,
         period_end: Date.now() * 1000 + 60 * 60 * 1000000,
         claim_type_filter: null,
       });
 
-      expect(aliceReputation.summary.total_claims).toBeGreaterThan(0);
-      expect(aliceReputation.summary.governance_claims).toBeGreaterThan(0);
+      expect(lynnReputation.summary.total_claims).toBeGreaterThan(0);
+      expect(lynnReputation.summary.governance_claims).toBeGreaterThan(0);
 
       console.log(
         "✅ Successfully completed governance participation scenario",
@@ -289,20 +289,20 @@ test("PPR Scenario: Governance Participation and Decision Making", async () => {
 
 test("PPR Scenario: Quality Service Exchange with Validation", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // High-quality service provision with detailed validation
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Work",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
         note: "Premium development service commitment",
       });
 
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Work",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -312,10 +312,10 @@ test("PPR Scenario: Quality Service Exchange with Validation", async () => {
       });
 
       // Issue high-quality service PPRs
-      const servicePPRs = await issueNewPPRs(alice.cells[0], {
+      const servicePPRs = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["MaintenanceFulfillmentCompleted", "GoodFaithTransfer"],
         provider_metrics: {
@@ -339,7 +339,7 @@ test("PPR Scenario: Quality Service Exchange with Validation", async () => {
       });
 
       // Wait for DHT sync before proceeding
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       expect(servicePPRs.provider_claim.claim_type).toBe("MaintenanceFulfillmentCompleted");
       expect(servicePPRs.receiver_claim.claim_type).toBe("GoodFaithTransfer");
@@ -350,31 +350,31 @@ test("PPR Scenario: Quality Service Exchange with Validation", async () => {
       );
       const qualitySignature = await signNewParticipationClaim(bob.cells[0], {
         data_to_sign: Array.from(quality_validation_data),
-        counterparty: alice.agentPubKey,
+        counterparty: lynn.agentPubKey,
       });
 
       expect(qualitySignature).toHaveProperty("signature");
 
       // Verify high-quality service impact on reputation
-      const aliceReputation = await deriveNewReputationSummary(alice.cells[0], {
+      const lynnReputation = await deriveNewReputationSummary(lynn.cells[0], {
         period_start: Date.now() * 1000 - 60 * 60 * 1000000,
         period_end: Date.now() * 1000 + 60 * 60 * 1000000,
         claim_type_filter: null,
       });
 
-      expect(aliceReputation.summary.total_claims).toBeGreaterThan(0);
-      expect(aliceReputation.summary.average_performance).toBeGreaterThan(0.95);
+      expect(lynnReputation.summary.total_claims).toBeGreaterThan(0);
+      expect(lynnReputation.summary.average_performance).toBeGreaterThan(0.95);
 
       // Verify service provision claims
-      const aliceClaims = await getMyNewParticipationClaims(alice.cells[0], {
+      const lynnClaims = await getMyNewParticipationClaims(lynn.cells[0], {
         claim_type_filter: "MaintenanceFulfillmentCompleted",
         from_time: null,
         to_time: null,
         limit: null,
       });
 
-      expect(aliceClaims.claims.length).toBeGreaterThan(0);
-      const serviceClaim = aliceClaims.claims.find(
+      expect(lynnClaims.claims.length).toBeGreaterThan(0);
+      const serviceClaim = lynnClaims.claims.find(
         ([_hash, claim]) => claim.claim_type === "MaintenanceFulfillmentCompleted",
       );
       expect(serviceClaim).toBeDefined();

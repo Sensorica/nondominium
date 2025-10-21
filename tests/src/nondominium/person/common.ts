@@ -497,21 +497,21 @@ export function validateRoleData(
 
 // Common test patterns
 export interface PersonTestContext {
-  alice: any;
+  lynn: any;
   bob: any;
-  alicePerson?: HolochainRecord;
+  lynnPerson?: HolochainRecord;
   bobPerson?: HolochainRecord;
-  alicePrivateData?: HolochainRecord;
+  lynnPrivateData?: HolochainRecord;
   bobPrivateData?: HolochainRecord;
 }
 
 export async function setupBasicPersons(
-  alice: any,
+  lynn: any,
   bob: any,
 ): Promise<PersonTestContext> {
   // Create persons for both agents
-  const alicePerson = await createPerson(
-    alice.cells[0],
+  const lynnPerson = await createPerson(
+    lynn.cells[0],
     samplePerson({ name: "Lynn" }),
   );
   const bobPerson = await createPerson(
@@ -520,22 +520,22 @@ export async function setupBasicPersons(
   );
 
   return {
-    alice,
+    lynn,
     bob,
-    alicePerson,
+    lynnPerson,
     bobPerson,
   };
 }
 
 export async function setupPersonsWithPrivateData(
-  alice: any,
+  lynn: any,
   bob: any,
 ): Promise<PersonTestContext> {
-  const context = await setupBasicPersons(alice, bob);
+  const context = await setupBasicPersons(lynn, bob);
 
   // Add private data for both agents
-  const alicePrivateData = await storePrivateData(
-    alice.cells[0],
+  const lynnPrivateData = await storePrivateData(
+    lynn.cells[0],
     samplePrivateData({
       legal_name: "Lynn Smith",
       email: "lynn@example.com",
@@ -552,7 +552,7 @@ export async function setupPersonsWithPrivateData(
 
   return {
     ...context,
-    alicePrivateData,
+    lynnPrivateData,
     bobPrivateData,
   };
 }

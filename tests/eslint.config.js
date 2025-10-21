@@ -83,7 +83,7 @@ export default [
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern:
-            "^(scenario|alice|bob|lynn|charlie|context|decode|pause|CallableCell|Record|ActionHash|AgentPubKey|HolochainRecord|Link|dhtSync|profiler|ppr_result)",
+            "^(scenario|lynn|bob|charlie|context|decode|pause|CallableCell|Record|ActionHash|AgentPubKey|HolochainRecord|Link|dhtSync|profiler|ppr_result)",
           caughtErrorsIgnorePattern: "^_",
         },
       ],

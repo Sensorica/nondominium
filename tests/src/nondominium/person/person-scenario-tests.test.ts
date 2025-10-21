@@ -24,21 +24,21 @@ import { runScenarioWithTwoAgents } from "../utils";
 
 test("Complete user onboarding workflow", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Scenario: New community member joins and gets onboarded
 
       // Step 1: Lynn (existing member) creates her profile
       console.log("Step 1: Lynn creates her profile");
-      const alicePersonResult = await createPerson(
-        alice.cells[0],
+      const lynnPersonResult = await createPerson(
+        lynn.cells[0],
         samplePerson({
           name: "Lynn Cooper",
-          avatar_url: "https://example.com/alice-avatar.png",
+          avatar_url: "https://example.com/lynn-avatar.png",
         }),
       );
 
       await storePrivateData(
-        alice.cells[0],
+        lynn.cells[0],
         samplePrivateData({
           legal_name: "Lynn Elizabeth Cooper",
           email: "lynn.foster@example.com",
@@ -48,14 +48,14 @@ test("Complete user onboarding workflow", async () => {
         }),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Step 2: Lynn gets founder role (self-assigned or system-assigned)
       console.log("Step 2: Lynn becomes community founder");
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
-          alice.agentPubKey,
+          lynn.agentPubKey,
           {
             role_name: TEST_ROLES.FOUNDER,
             description: "Community founder and initial administrator",
@@ -63,14 +63,14 @@ test("Complete user onboarding workflow", async () => {
         ),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Verify Lynn's founder status
-      const aliceCapability = await getCapabilityLevel(
-        alice.cells[0],
-        alice.agentPubKey,
+      const lynnCapability = await getCapabilityLevel(
+        lynn.cells[0],
+        lynn.agentPubKey,
       );
-      assert.equal(aliceCapability, CAPABILITY_LEVELS.GOVERNANCE);
+      assert.equal(lynnCapability, CAPABILITY_LEVELS.GOVERNANCE);
 
       // Step 3: Bob joins as a new member
       console.log("Step 3: Bob joins as new member");
@@ -93,11 +93,11 @@ test("Complete user onboarding workflow", async () => {
         }),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Step 4: Community discovery - members can see each other
       console.log("Step 4: Community discovery");
-      const allMembers = await getAllPersons(alice.cells[0]);
+      const allMembers = await getAllPersons(lynn.cells[0]);
       assert.equal(allMembers.persons.length, 2);
 
       const memberNames = allMembers.persons
@@ -107,7 +107,7 @@ test("Complete user onboarding workflow", async () => {
 
       // Lynn can see Bob's public profile
       const bobPublicProfile = await getPersonProfile(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
       assert.ok(bobPublicProfile.person);
@@ -117,7 +117,7 @@ test("Complete user onboarding workflow", async () => {
       // Step 5: Lynn assigns steward role to Bob
       console.log("Step 5: Role assignment and capability delegation");
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
           bob.agentPubKey,
           {
@@ -128,19 +128,19 @@ test("Complete user onboarding workflow", async () => {
         ),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Step 6: Verify role-based capabilities
       console.log("Step 6: Capability verification");
       const bobHasStewardRole = await hasRoleCapability(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
         TEST_ROLES.RESOURCE_STEWARD,
       );
       assert.isTrue(bobHasStewardRole);
 
       const bobCapabilityLevel = await getCapabilityLevel(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
       assert.equal(bobCapabilityLevel, CAPABILITY_LEVELS.STEWARDSHIP);
@@ -152,19 +152,19 @@ test("Complete user onboarding workflow", async () => {
       assert.equal(bobRoles.roles[0].role_name, TEST_ROLES.RESOURCE_STEWARD);
       assert.equal(
         bobRoles.roles[0].assigned_by.toString(),
-        alice.agentPubKey.toString(),
+        lynn.agentPubKey.toString(),
       );
 
       // Final verification: Complete community state
       console.log("Final verification: Complete community state");
 
       // Lynn's complete profile
-      const aliceCompleteProfile = await getMyProfile(alice.cells[0]);
-      assert.ok(aliceCompleteProfile.person);
-      assert.ok(aliceCompleteProfile.private_data);
-      assert.equal(aliceCompleteProfile.person!.name, "Lynn Cooper");
+      const lynnCompleteProfile = await getMyProfile(lynn.cells[0]);
+      assert.ok(lynnCompleteProfile.person);
+      assert.ok(lynnCompleteProfile.private_data);
+      assert.equal(lynnCompleteProfile.person!.name, "Lynn Cooper");
       assert.equal(
-        aliceCompleteProfile.private_data!.legal_name,
+        lynnCompleteProfile.private_data!.legal_name,
         "Lynn Elizabeth Cooper",
       );
 
@@ -185,20 +185,20 @@ test("Complete user onboarding workflow", async () => {
 
 test("Community governance workflow with role hierarchy", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Scenario: Establishing governance hierarchy and role-based access
 
       // Setup: Both members join community
       console.log("Setup: Community member setup");
-      const context = await setupPersonsWithPrivateData(alice, bob);
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      const context = await setupPersonsWithPrivateData(lynn, bob);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Phase 1: Establish primary leadership
       console.log("Phase 1: Establish primary leadership");
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
-          alice.agentPubKey,
+          lynn.agentPubKey,
           {
             role_name: TEST_ROLES.FOUNDER,
             description:
@@ -207,12 +207,12 @@ test("Community governance workflow with role hierarchy", async () => {
         ),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Phase 2: Delegate accountable roles
       console.log("Phase 2: Delegate accountable roles");
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
           bob.agentPubKey,
           {
@@ -223,7 +223,7 @@ test("Community governance workflow with role hierarchy", async () => {
       );
 
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
           bob.agentPubKey,
           {
@@ -233,21 +233,21 @@ test("Community governance workflow with role hierarchy", async () => {
         ),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Phase 3: Verify governance hierarchy
       console.log("Phase 3: Verify governance hierarchy");
 
       // Lynn has governance capability
-      const aliceCapability = await getCapabilityLevel(
-        alice.cells[0],
-        alice.agentPubKey,
+      const lynnCapability = await getCapabilityLevel(
+        lynn.cells[0],
+        lynn.agentPubKey,
       );
-      assert.equal(aliceCapability, CAPABILITY_LEVELS.GOVERNANCE);
+      assert.equal(lynnCapability, CAPABILITY_LEVELS.GOVERNANCE);
 
       // Bob has coordination capability (multiple coordination roles)
       const bobCapability = await getCapabilityLevel(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
       assert.equal(bobCapability, CAPABILITY_LEVELS.COORDINATION);
@@ -257,17 +257,17 @@ test("Community governance workflow with role hierarchy", async () => {
 
       // Bob has specific role capabilities
       const bobHasSteward = await hasRoleCapability(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
         TEST_ROLES.RESOURCE_STEWARD,
       );
       const bobHasCoordinator = await hasRoleCapability(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
         TEST_ROLES.RESOURCE_COORDINATOR,
       );
       const bobHasFounder = await hasRoleCapability(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
         TEST_ROLES.FOUNDER,
       );
@@ -277,35 +277,35 @@ test("Community governance workflow with role hierarchy", async () => {
       assert.isFalse(bobHasFounder);
 
       // Lynn has founder capability
-      const aliceHasFounder = await hasRoleCapability(
-        alice.cells[0],
-        alice.agentPubKey,
+      const lynnHasFounder = await hasRoleCapability(
+        lynn.cells[0],
+        lynn.agentPubKey,
         TEST_ROLES.FOUNDER,
       );
-      const aliceHasSteward = await hasRoleCapability(
-        alice.cells[0],
-        alice.agentPubKey,
+      const lynnHasSteward = await hasRoleCapability(
+        lynn.cells[0],
+        lynn.agentPubKey,
         TEST_ROLES.RESOURCE_STEWARD,
       );
 
-      assert.isTrue(aliceHasFounder);
-      assert.isFalse(aliceHasSteward);
+      assert.isTrue(lynnHasFounder);
+      assert.isFalse(lynnHasSteward);
 
       // Phase 5: Cross-agent validation of governance
       console.log("Phase 5: Cross-agent validation");
 
       // Both agents see consistent governance structure
-      const aliceRolesFromBob = await getPersonRoles(
+      const lynnRolesFromBob = await getPersonRoles(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
       );
       const bobRolesFromLynn = await getPersonRoles(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
 
-      assert.equal(aliceRolesFromBob.roles.length, 1);
-      assert.equal(aliceRolesFromBob.roles[0].role_name, TEST_ROLES.FOUNDER);
+      assert.equal(lynnRolesFromBob.roles.length, 1);
+      assert.equal(lynnRolesFromBob.roles[0].role_name, TEST_ROLES.FOUNDER);
 
       assert.equal(bobRolesFromLynn.roles.length, 2);
       const bobRoleNames = bobRolesFromLynn.roles
@@ -323,25 +323,25 @@ test("Community governance workflow with role hierarchy", async () => {
 
 test("Privacy and access control workflow", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Scenario: Comprehensive privacy boundary testing
 
       console.log("Setup: Creating community members with sensitive data");
 
       // Lynn joins with comprehensive profile
       await createPerson(
-        alice.cells[0],
+        lynn.cells[0],
         samplePerson({
           name: "Dr. Lynn Smith",
-          avatar_url: "https://medical-directory.com/dr-alice.jpg",
+          avatar_url: "https://medical-directory.com/dr-lynn.jpg",
         }),
       );
 
       await storePrivateData(
-        alice.cells[0],
+        lynn.cells[0],
         samplePrivateData({
           legal_name: "Dr. Lynn Marie Smith, MD",
-          email: "alice.smith@hospital.com",
+          email: "lynn.smith@hospital.com",
           address: "789 Medical Plaza, Suite 201, Health City, HC 54321",
           phone: "+1-555-DOCTOR-1",
           emergency_contact:
@@ -369,50 +369,50 @@ test("Privacy and access control workflow", async () => {
         }),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Test 1: Public profile visibility
       console.log("Test 1: Public profile visibility");
 
-      const alicePublicFromBob = await getPersonProfile(
+      const lynnPublicFromBob = await getPersonProfile(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
       );
       const bobPublicFromLynn = await getPersonProfile(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
 
       // Public data is visible
-      assert.ok(alicePublicFromBob.person);
-      assert.equal(alicePublicFromBob.person!.name, "Dr. Lynn Smith");
+      assert.ok(lynnPublicFromBob.person);
+      assert.equal(lynnPublicFromBob.person!.name, "Dr. Lynn Smith");
       assert.equal(
-        alicePublicFromBob.person!.avatar_url,
-        "https://medical-directory.com/dr-alice.jpg",
+        lynnPublicFromBob.person!.avatar_url,
+        "https://medical-directory.com/dr-lynn.jpg",
       );
 
       assert.ok(bobPublicFromLynn.person);
       assert.equal(bobPublicFromLynn.person!.name, "Bob Community");
 
       // Private data is not visible cross-agent
-      assert.isNull(alicePublicFromBob.private_data);
+      assert.isNull(lynnPublicFromBob.private_data);
       assert.isNull(bobPublicFromLynn.private_data);
 
       // Test 2: Self-access to private data
       console.log("Test 2: Self-access to private data");
 
-      const alicePrivateProfile = await getMyProfile(alice.cells[0]);
+      const lynnPrivateProfile = await getMyProfile(lynn.cells[0]);
       const bobPrivateProfile = await getMyProfile(bob.cells[0]);
 
       // Own private data is accessible
-      assert.ok(alicePrivateProfile.private_data);
+      assert.ok(lynnPrivateProfile.private_data);
       assert.equal(
-        alicePrivateProfile.private_data!.legal_name,
+        lynnPrivateProfile.private_data!.legal_name,
         "Dr. Lynn Marie Smith, MD",
       );
       assert.equal(
-        alicePrivateProfile.private_data!.email,
-        "alice.smith@hospital.com",
+        lynnPrivateProfile.private_data!.email,
+        "lynn.smith@hospital.com",
       );
 
       assert.ok(bobPrivateProfile.private_data);
@@ -426,9 +426,9 @@ test("Privacy and access control workflow", async () => {
       console.log("Test 3: Role assignments with privacy maintained");
 
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
-          alice.agentPubKey,
+          lynn.agentPubKey,
           {
             role_name: TEST_ROLES.RESOURCE_STEWARD,
             description: "Medical advisor for community health initiatives",
@@ -447,21 +447,21 @@ test("Privacy and access control workflow", async () => {
         ),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Roles are visible, private data still protected
-      const aliceRolesFromBob = await getPersonRoles(
+      const lynnRolesFromBob = await getPersonRoles(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
       );
       const bobRolesFromLynn = await getPersonRoles(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
 
-      assert.equal(aliceRolesFromBob.roles.length, 1);
+      assert.equal(lynnRolesFromBob.roles.length, 1);
       assert.equal(
-        aliceRolesFromBob.roles[0].role_name,
+        lynnRolesFromBob.roles[0].role_name,
         TEST_ROLES.RESOURCE_STEWARD,
       );
 
@@ -472,45 +472,45 @@ test("Privacy and access control workflow", async () => {
       );
 
       // But cross-agent private data access still denied
-      const alicePublicAfterRole = await getPersonProfile(
+      const lynnPublicAfterRole = await getPersonProfile(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
       );
       const bobPublicAfterRole = await getPersonProfile(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
 
-      assert.isNull(alicePublicAfterRole.private_data);
+      assert.isNull(lynnPublicAfterRole.private_data);
       assert.isNull(bobPublicAfterRole.private_data);
 
       // Test 4: Capability checking works without private data exposure
       console.log("Test 4: Capability checking with privacy intact");
 
-      const aliceHasSteward = await hasRoleCapability(
+      const lynnHasSteward = await hasRoleCapability(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
         TEST_ROLES.RESOURCE_STEWARD,
       );
       const bobHasCoordinator = await hasRoleCapability(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
         TEST_ROLES.RESOURCE_COORDINATOR,
       );
 
-      assert.isTrue(aliceHasSteward);
+      assert.isTrue(lynnHasSteward);
       assert.isTrue(bobHasCoordinator);
 
-      const aliceCapLevel = await getCapabilityLevel(
+      const lynnCapLevel = await getCapabilityLevel(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
       );
       const bobCapLevel = await getCapabilityLevel(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
 
-      assert.equal(aliceCapLevel, CAPABILITY_LEVELS.STEWARDSHIP);
+      assert.equal(lynnCapLevel, CAPABILITY_LEVELS.STEWARDSHIP);
       assert.equal(bobCapLevel, CAPABILITY_LEVELS.COORDINATION);
 
       console.log(
@@ -522,14 +522,14 @@ test("Privacy and access control workflow", async () => {
 
 test("Community scaling and discovery workflow", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Scenario: Community growth, member discovery, and organizational patterns
 
       console.log("Phase 1: Initial community establishment");
 
       // Founder establishes community
       await createPerson(
-        alice.cells[0],
+        lynn.cells[0],
         samplePerson({
           name: "Lynn Founder",
           avatar_url: "https://community.org/founder.png",
@@ -537,9 +537,9 @@ test("Community scaling and discovery workflow", async () => {
       );
 
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
-          alice.agentPubKey,
+          lynn.agentPubKey,
           {
             role_name: TEST_ROLES.FOUNDER,
             description: "Community founder and primary governance lead",
@@ -547,10 +547,10 @@ test("Community scaling and discovery workflow", async () => {
         ),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Verify initial state
-      let allMembers = await getAllPersons(alice.cells[0]);
+      let allMembers = await getAllPersons(lynn.cells[0]);
       assert.equal(allMembers.persons.length, 1);
       assert.equal(allMembers.persons[0].name, "Lynn Founder");
 
@@ -565,10 +565,10 @@ test("Community scaling and discovery workflow", async () => {
         }),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Community grows
-      allMembers = await getAllPersons(alice.cells[0]);
+      allMembers = await getAllPersons(lynn.cells[0]);
       assert.equal(allMembers.persons.length, 2);
 
       const memberNames = allMembers.persons
@@ -580,7 +580,7 @@ test("Community scaling and discovery workflow", async () => {
 
       // Founder delegates steward role to first member
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
           bob.agentPubKey,
           {
@@ -592,7 +592,7 @@ test("Community scaling and discovery workflow", async () => {
 
       // Founder also assigns coordinator role
       await assignRole(
-        alice.cells[0],
+        lynn.cells[0],
         sampleRole(
           bob.agentPubKey,
           {
@@ -602,29 +602,29 @@ test("Community scaling and discovery workflow", async () => {
         ),
       );
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       console.log("Phase 4: Verify distributed governance structure");
 
       // Check capability distribution
-      const aliceCapability = await getCapabilityLevel(
+      const lynnCapability = await getCapabilityLevel(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
       );
       const bobCapability = await getCapabilityLevel(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
 
-      assert.equal(aliceCapability, CAPABILITY_LEVELS.GOVERNANCE);
+      assert.equal(lynnCapability, CAPABILITY_LEVELS.GOVERNANCE);
       assert.equal(bobCapability, CAPABILITY_LEVELS.COORDINATION);
 
       // Verify role distribution
-      const aliceRoles = await getPersonRoles(bob.cells[0], alice.agentPubKey);
-      const bobRoles = await getPersonRoles(alice.cells[0], bob.agentPubKey);
+      const lynnRoles = await getPersonRoles(bob.cells[0], lynn.agentPubKey);
+      const bobRoles = await getPersonRoles(lynn.cells[0], bob.agentPubKey);
 
-      assert.equal(aliceRoles.roles.length, 1);
-      assert.equal(aliceRoles.roles[0].role_name, TEST_ROLES.FOUNDER);
+      assert.equal(lynnRoles.roles.length, 1);
+      assert.equal(lynnRoles.roles[0].role_name, TEST_ROLES.FOUNDER);
 
       assert.equal(bobRoles.roles.length, 2);
       const bobRoleNames = bobRoles.roles.map((role) => role.role_name).sort();
@@ -636,24 +636,24 @@ test("Community scaling and discovery workflow", async () => {
       console.log("Phase 5: Discovery and interaction patterns");
 
       // Both agents can discover full community
-      const aliceViewOfCommunity = await getAllPersons(alice.cells[0]);
+      const lynnViewOfCommunity = await getAllPersons(lynn.cells[0]);
       const bobViewOfCommunity = await getAllPersons(bob.cells[0]);
 
-      assert.equal(aliceViewOfCommunity.persons.length, 2);
+      assert.equal(lynnViewOfCommunity.persons.length, 2);
       assert.equal(bobViewOfCommunity.persons.length, 2);
 
       // Cross-agent profile access works
-      const aliceProfileFromBob = await getPersonProfile(
+      const lynnProfileFromBob = await getPersonProfile(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
       );
       const bobProfileFromLynn = await getPersonProfile(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
 
-      assert.ok(aliceProfileFromBob.person);
-      assert.equal(aliceProfileFromBob.person!.name, "Lynn Founder");
+      assert.ok(lynnProfileFromBob.person);
+      assert.equal(lynnProfileFromBob.person!.name, "Lynn Founder");
 
       assert.ok(bobProfileFromLynn.person);
       assert.equal(bobProfileFromLynn.person!.name, "Bob FirstMember");
@@ -665,19 +665,19 @@ test("Community scaling and discovery workflow", async () => {
       // Primary accountability established
       const hasFounder = await hasRoleCapability(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
         TEST_ROLES.FOUNDER,
       );
       assert.isTrue(hasFounder);
 
       // Distributed coordination roles
       const hasSteward = await hasRoleCapability(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
         TEST_ROLES.RESOURCE_STEWARD,
       );
       const hasCoordinator = await hasRoleCapability(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
         TEST_ROLES.RESOURCE_COORDINATOR,
       );

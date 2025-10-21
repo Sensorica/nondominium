@@ -41,15 +41,15 @@ test(
   "Complete resource lifecycle workflow",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
         // Scenario: Complete resource lifecycle from specification to retirement
 
-        // Step 1: Alice creates a resource specification with governance rules
+        // Step 1: Lynn creates a resource specification with governance rules
         console.log(
-          "Step 1: Alice creates resource specification with governance",
+          "Step 1: Lynn creates resource specification with governance",
         );
         const toolSpec = await createResourceSpecification(
-          alice.cells[0],
+          lynn.cells[0],
           sampleResourceSpecification({
             name: "Community 3D Printer",
             description: "High-precision 3D printer for community projects",
@@ -92,7 +92,7 @@ test(
           `✅ Created ${toolSpec.governance_rule_hashes.length} governance rules`,
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Step 2: Bob can discover and review the specification
         console.log("Step 2: Bob discovers and reviews specification");
@@ -116,10 +116,10 @@ test(
           `✅ Bob can see specification with ${specWithRules.governance_rules.length} governance rules`,
         );
 
-        // Step 3: Alice creates the actual economic resource
-        console.log("Step 3: Alice creates the physical resource");
+        // Step 3: Lynn creates the actual economic resource
+        console.log("Step 3: Lynn creates the physical resource");
         const printerResource = await createEconomicResource(
-          alice.cells[0],
+          lynn.cells[0],
           sampleEconomicResource(toolSpec.spec_hash, {
             quantity: 1.0,
             unit: "printer",
@@ -133,28 +133,28 @@ test(
         assert.equal(printerResource.resource.state, RESOURCE_STATES.PENDING);
         assert.equal(
           printerResource.resource.custodian.toString(),
-          alice.agentPubKey.toString(),
+          lynn.agentPubKey.toString(),
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Step 4: Resource activation and state management
         console.log("Step 4: Resource validation and activation");
 
-        // Alice validates and activates the resource
-        const activationResult = await updateResourceState(alice.cells[0], {
+        // Lynn validates and activates the resource
+        const activationResult = await updateResourceState(lynn.cells[0], {
           resource_hash: printerResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
         assert.ok(activationResult);
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify resource is active and visible to both agents
         const allResources = await getAllEconomicResources(bob.cells[0]);
         const activePrinter = allResources.resources.find(
-          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
+          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(activePrinter);
@@ -171,7 +171,7 @@ test(
         // Step 5: Custody transfer to dedicated resource steward
         console.log("Step 5: Custody transfer to resource steward");
 
-        const custodyTransfer = await transferCustody(alice.cells[0], {
+        const custodyTransfer = await transferCustody(lynn.cells[0], {
           resource_hash: printerResource.resource_hash,
           new_custodian: bob.agentPubKey,
         });
@@ -182,17 +182,17 @@ test(
           bob.agentPubKey.toString(),
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify custody links are updated
-        const aliceResourcesAfterTransfer = await getMyEconomicResources(
-          alice.cells[0],
+        const lynnResourcesAfterTransfer = await getMyEconomicResources(
+          lynn.cells[0],
         );
         const bobResourcesAfterTransfer = await getMyEconomicResources(
           bob.cells[0],
         );
 
-        assert.equal(aliceResourcesAfterTransfer.length, 0);
+        assert.equal(lynnResourcesAfterTransfer.length, 0);
         assert.equal(bobResourcesAfterTransfer.length, 1);
 
         console.log(
@@ -210,14 +210,14 @@ test(
 
         assert.ok(maintenanceResult);
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify resource is in maintenance state
         const resourcesInMaintenance = await getAllEconomicResources(
-          alice.cells[0],
+          lynn.cells[0],
         );
         const maintenancePrinter = resourcesInMaintenance.resources.find(
-          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
+          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(maintenancePrinter);
@@ -231,23 +231,23 @@ test(
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         console.log(`✅ Resource maintenance completed - back to active state`);
 
         // Step 7: First resource requirement validation
         console.log("Step 7: Community resource contribution validation");
 
-        const aliceHasContributed = await checkFirstResourceRequirement(
+        const lynnHasContributed = await checkFirstResourceRequirement(
           bob.cells[0],
-          alice.agentPubKey,
+          lynn.agentPubKey,
         );
         const bobHasContributed = await checkFirstResourceRequirement(
-          alice.cells[0],
+          lynn.cells[0],
           bob.agentPubKey,
         );
 
-        assert.isTrue(aliceHasContributed); // Alice created the resource
+        assert.isTrue(lynnHasContributed); // Lynn created the resource
         assert.isFalse(bobHasContributed); // Bob only manages it
 
         console.log(`✅ Resource contribution tracking working correctly`);
@@ -257,21 +257,21 @@ test(
 
         // Verify specification and resource relationship
         const resourcesBySpec = await getResourcesBySpecification(
-          alice.cells[0],
+          lynn.cells[0],
           toolSpec.spec_hash,
         );
         assert.equal(resourcesBySpec.length, 1);
 
         // Verify governance rules are still linked
         const finalSpecWithRules = await getResourceSpecificationWithRules(
-          alice.cells[0],
+          lynn.cells[0],
           toolSpec.spec_hash,
         );
         assert.equal(finalSpecWithRules.governance_rules.length, 3);
 
         // Verify community visibility
         const finalAllSpecs = await getAllResourceSpecifications(bob.cells[0]);
-        const finalAllResources = await getAllEconomicResources(alice.cells[0]);
+        const finalAllResources = await getAllEconomicResources(lynn.cells[0]);
 
         assert.equal(finalAllSpecs.specifications.length, 1);
         assert.equal(finalAllResources.resources.length, 1);
@@ -294,17 +294,17 @@ test(
   "Community resource sharing and governance workflow",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
         // Scenario: Multiple agents contributing and managing shared resources
 
         console.log("Setup: Community resource sharing ecosystem");
 
-        // Phase 1: Alice establishes community workshop resources
-        console.log("Phase 1: Alice establishes workshop infrastructure");
+        // Phase 1: Lynn establishes community workshop resources
+        console.log("Phase 1: Lynn establishes workshop infrastructure");
 
         // Create workshop specifications sequentially to avoid source chain conflicts
         const spaceSpec = await createResourceSpecification(
-          alice.cells[0],
+          lynn.cells[0],
           sampleResourceSpecification({
             name: "Workshop Space",
             description: "Shared workspace for community projects",
@@ -327,7 +327,7 @@ test(
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const toolsSpec = await createResourceSpecification(
-          alice.cells[0],
+          lynn.cells[0],
           sampleResourceSpecification({
             name: "Power Tools Set",
             description: "Professional grade power tools for woodworking",
@@ -362,7 +362,7 @@ test(
         );
         console.log(`✅ Created tools specification: ${toolsSpec.spec_hash}`);
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Phase 2: Bob contributes complementary resources
         console.log("Phase 2: Bob contributes complementary resources");
@@ -421,14 +421,14 @@ test(
           `✅ Bob created electronics lab specification: ${electronicsSpec.spec_hash}`,
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Phase 3: Create economic resources for all specifications
         console.log("Phase 3: Creating physical resources");
 
         // Create resources sequentially to avoid source chain conflicts
         const spaceResource = await createEconomicResource(
-          alice.cells[0],
+          lynn.cells[0],
           sampleEconomicResource(spaceSpec.spec_hash, {
             quantity: 1.0,
             unit: "space",
@@ -439,7 +439,7 @@ test(
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const toolsResource = await createEconomicResource(
-          alice.cells[0],
+          lynn.cells[0],
           sampleEconomicResource(toolsSpec.spec_hash, {
             quantity: 1.0,
             unit: "set",
@@ -480,20 +480,20 @@ test(
           `✅ Created ${workshopResources.length} physical resources`,
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Phase 4: Activate all resources
         console.log("Phase 4: Resource activation and availability");
 
         // Activate resources sequentially to avoid source chain conflicts
-        await updateResourceState(alice.cells[0], {
+        await updateResourceState(lynn.cells[0], {
           resource_hash: spaceResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        await updateResourceState(alice.cells[0], {
+        await updateResourceState(lynn.cells[0], {
           resource_hash: toolsResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
@@ -512,32 +512,32 @@ test(
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         console.log(`✅ All resources activated and available`);
 
         // Phase 5: Cross-agent resource discovery and validation
         console.log("Phase 5: Community resource discovery");
 
-        const allSpecsFromAlice = await getAllResourceSpecifications(
-          alice.cells[0],
+        const allSpecsFromLynn = await getAllResourceSpecifications(
+          lynn.cells[0],
         );
         const allSpecsFromBob = await getAllResourceSpecifications(
           bob.cells[0],
         );
-        const allResourcesFromAlice = await getAllEconomicResources(
-          alice.cells[0],
+        const allResourcesFromLynn = await getAllEconomicResources(
+          lynn.cells[0],
         );
         const allResourcesFromBob = await getAllEconomicResources(bob.cells[0]);
 
         // Both agents should see all 4 specifications and 4 resources
-        assert.equal(allSpecsFromAlice.specifications.length, 4);
+        assert.equal(allSpecsFromLynn.specifications.length, 4);
         assert.equal(allSpecsFromBob.specifications.length, 4);
-        assert.equal(allResourcesFromAlice.resources.length, 4);
+        assert.equal(allResourcesFromLynn.resources.length, 4);
         assert.equal(allResourcesFromBob.resources.length, 4);
 
         // Verify resource categories are discoverable
-        const categories = allSpecsFromAlice.specifications.map(
+        const categories = allSpecsFromLynn.specifications.map(
           (s) => s.category,
         );
         assert.include(categories, TEST_CATEGORIES.SPACE);
@@ -545,13 +545,13 @@ test(
         assert.include(categories, TEST_CATEGORIES.EQUIPMENT);
 
         console.log(
-          `✅ Community resource discovery working - ${allSpecsFromAlice.specifications.length} specs, ${allResourcesFromAlice.resources.length} resources`,
+          `✅ Community resource discovery working - ${allSpecsFromLynn.specifications.length} specs, ${allResourcesFromLynn.resources.length} resources`,
         );
 
         // Phase 6: Governance rule aggregation
         console.log("Phase 6: Governance rule ecosystem validation");
 
-        const allRules = await getAllGovernanceRules(alice.cells[0]);
+        const allRules = await getAllGovernanceRules(lynn.cells[0]);
         const ruleTypes = allRules.rules.map((r) => r.rule_type);
 
         // Should have governance rules from all specifications plus embedded ones
@@ -570,22 +570,22 @@ test(
         // Phase 7: Resource contribution tracking
         console.log("Phase 7: Community contribution validation");
 
-        const aliceContributions = await checkFirstResourceRequirement(
+        const lynnContributions = await checkFirstResourceRequirement(
           bob.cells[0],
-          alice.agentPubKey,
+          lynn.agentPubKey,
         );
         const bobContributions = await checkFirstResourceRequirement(
-          alice.cells[0],
+          lynn.cells[0],
           bob.agentPubKey,
         );
 
-        assert.isTrue(aliceContributions); // Alice created workshop resources
+        assert.isTrue(lynnContributions); // Lynn created workshop resources
         assert.isTrue(bobContributions); // Bob created tech resources
 
-        const aliceResourceCount = await getMyEconomicResources(alice.cells[0]);
+        const lynnResourceCount = await getMyEconomicResources(lynn.cells[0]);
         const bobResourceCount = await getMyEconomicResources(bob.cells[0]);
 
-        assert.equal(aliceResourceCount.length, 2); // Space and tools
+        assert.equal(lynnResourceCount.length, 2); // Space and tools
         assert.equal(bobResourceCount.length, 2); // 3D printing and electronics
 
         console.log(
@@ -597,7 +597,7 @@ test(
 
         // Verify specification-resource relationships
         const spaceResources = await getResourcesBySpecification(
-          alice.cells[0],
+          lynn.cells[0],
           spaceSpec.spec_hash,
         );
         const printingResources = await getResourcesBySpecification(
@@ -609,7 +609,7 @@ test(
         assert.equal(printingResources.length, 1);
 
         // Verify all resources are active
-        const activeResources = allResourcesFromAlice.resources.filter(
+        const activeResources = allResourcesFromLynn.resources.filter(
           (r) => r.state === RESOURCE_STATES.ACTIVE,
         );
         assert.equal(activeResources.length, 4);
@@ -632,16 +632,16 @@ test(
   "Resource custody and stewardship workflow",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
         // Scenario: Complex custody transfers and stewardship patterns
 
         console.log("Setup: Resource stewardship ecosystem");
 
-        // Phase 1: Alice creates high-value community resource
+        // Phase 1: Lynn creates high-value community resource
         console.log("Phase 1: Creating high-value community asset");
 
         const expensiveResourceSpec = await createResourceSpecification(
-          alice.cells[0],
+          lynn.cells[0],
           sampleResourceSpecification({
             name: "Industrial CNC Machine",
             description:
@@ -681,7 +681,7 @@ test(
         );
 
         const cncResource = await createEconomicResource(
-          alice.cells[0],
+          lynn.cells[0],
           sampleEconomicResource(expensiveResourceSpec.spec_hash, {
             quantity: 1.0,
             unit: "machine",
@@ -693,13 +693,13 @@ test(
           `✅ Created high-value resource: ${expensiveResourceSpec.spec.name}`,
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Phase 2: Specialized stewardship assignment
         console.log("Phase 2: Specialized stewardship assignment");
 
-        // Alice transfers custody to Bob (specialized operator)
-        const initialTransfer = await transferCustody(alice.cells[0], {
+        // Lynn transfers custody to Bob (specialized operator)
+        const initialTransfer = await transferCustody(lynn.cells[0], {
           resource_hash: cncResource.resource_hash,
           new_custodian: bob.agentPubKey,
         });
@@ -709,17 +709,17 @@ test(
           bob.agentPubKey.toString(),
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify custody change
-        const aliceResourcesAfterTransfer = await getMyEconomicResources(
-          alice.cells[0],
+        const lynnResourcesAfterTransfer = await getMyEconomicResources(
+          lynn.cells[0],
         );
         const bobResourcesAfterTransfer = await getMyEconomicResources(
           bob.cells[0],
         );
 
-        assert.equal(aliceResourcesAfterTransfer.length, 0);
+        assert.equal(lynnResourcesAfterTransfer.length, 0);
         assert.equal(bobResourcesAfterTransfer.length, 1);
 
         console.log(`✅ Specialized steward (Bob) now has custody`);
@@ -734,12 +734,12 @@ test(
 
         assert.ok(activationResult);
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify resource is active and visible to community
-        const communityView = await getAllEconomicResources(alice.cells[0]);
+        const communityView = await getAllEconomicResources(lynn.cells[0]);
         const activeCNC = communityView.resources.find(
-          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
+          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(activeCNC);
@@ -764,12 +764,12 @@ test(
 
         assert.ok(maintenanceStart);
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify maintenance state is communicated
-        const maintenanceView = await getAllEconomicResources(alice.cells[0]);
+        const maintenanceView = await getAllEconomicResources(lynn.cells[0]);
         const maintenanceCNC = maintenanceView.resources.find(
-          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
+          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(maintenanceCNC);
@@ -783,35 +783,35 @@ test(
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         console.log(`✅ Maintenance completed - resource available again`);
 
         // Phase 5: Temporary custody for specific project
         console.log("Phase 5: Temporary custody transfer for project");
 
-        // Bob transfers back to Alice for a specific project
+        // Bob transfers back to Lynn for a specific project
         const projectTransfer = await transferCustody(bob.cells[0], {
           resource_hash: maintenanceComplete.signed_action.hashed.hash,
-          new_custodian: alice.agentPubKey,
+          new_custodian: lynn.agentPubKey,
         });
 
         assert.equal(
           projectTransfer.updated_resource.custodian.toString(),
-          alice.agentPubKey.toString(),
+          lynn.agentPubKey.toString(),
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify temporary custody transfer
-        const aliceResourcesForProject = await getMyEconomicResources(
-          alice.cells[0],
+        const lynnResourcesForProject = await getMyEconomicResources(
+          lynn.cells[0],
         );
         const bobResourcesAfterProject = await getMyEconomicResources(
           bob.cells[0],
         );
 
-        assert.equal(aliceResourcesForProject.length, 1);
+        assert.equal(lynnResourcesForProject.length, 1);
         assert.equal(bobResourcesAfterProject.length, 0);
 
         console.log(`✅ Temporary project custody established`);
@@ -819,8 +819,8 @@ test(
         // Phase 6: Return to permanent steward
         console.log("Phase 6: Return to permanent steward");
 
-        // Alice returns custody to Bob after project completion
-        const returnTransfer = await transferCustody(alice.cells[0], {
+        // Lynn returns custody to Bob after project completion
+        const returnTransfer = await transferCustody(lynn.cells[0], {
           resource_hash: projectTransfer.updated_resource_hash,
           new_custodian: bob.agentPubKey,
         });
@@ -830,15 +830,15 @@ test(
           bob.agentPubKey.toString(),
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify return to permanent steward
-        const finalAliceResources = await getMyEconomicResources(
-          alice.cells[0],
+        const finalLynnResources = await getMyEconomicResources(
+          lynn.cells[0],
         );
         const finalBobResources = await getMyEconomicResources(bob.cells[0]);
 
-        assert.equal(finalAliceResources.length, 0);
+        assert.equal(finalLynnResources.length, 0);
         assert.equal(finalBobResources.length, 1);
 
         console.log(`✅ Custody returned to permanent steward`);
@@ -848,10 +848,10 @@ test(
 
         // Verify resource history and current state
         const finalCommunityView = await getAllEconomicResources(
-          alice.cells[0],
+          lynn.cells[0],
         );
         const finalCNC = finalCommunityView.resources.find(
-          (r) => r.created_by?.toString() === alice.agentPubKey.toString(),
+          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(finalCNC);
@@ -862,22 +862,22 @@ test(
         );
         assert.equal(
           finalCNC!.created_by?.toString(),
-          alice.agentPubKey.toString(),
+          lynn.agentPubKey.toString(),
         );
 
         // Verify governance rules are still effective
         const finalSpecWithRules = await getResourceSpecificationWithRules(
-          alice.cells[0],
+          lynn.cells[0],
           expensiveResourceSpec.spec_hash,
         );
         assert.equal(finalSpecWithRules.governance_rules.length, 3);
 
         // Verify contribution tracking
-        const aliceStillContributor = await checkFirstResourceRequirement(
+        const lynnStillContributor = await checkFirstResourceRequirement(
           bob.cells[0],
-          alice.agentPubKey,
+          lynn.agentPubKey,
         );
-        assert.isTrue(aliceStillContributor); // Alice remains the contributor
+        assert.isTrue(lynnStillContributor); // Lynn remains the contributor
 
         console.log("✅ Resource custody and stewardship workflow successful");
         console.log(`   - High-value resource created by contributor`);
@@ -896,7 +896,7 @@ test(
   "Multi-agent resource ecosystem and discovery workflow",
   async () => {
     await runScenarioWithTwoAgents(
-      async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+      async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
         // Scenario: Complex multi-agent resource ecosystem with discovery patterns
 
         console.log("Setup: Multi-agent resource ecosystem");
@@ -906,7 +906,7 @@ test(
 
         // Create resource specifications sequentially to avoid source chain conflicts
         const courseSpec = await createResourceSpecification(
-          alice.cells[0],
+          lynn.cells[0],
           sampleResourceSpecification({
             name: "Permaculture Design Course",
             description: "Comprehensive permaculture design training program",
@@ -928,7 +928,7 @@ test(
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const kitchenSpec = await createResourceSpecification(
-          alice.cells[0],
+          lynn.cells[0],
           sampleResourceSpecification({
             name: "Community Kitchen",
             description: "Shared commercial kitchen for food processing",
@@ -1003,14 +1003,14 @@ test(
           `✅ Created diverse resource specifications across categories`,
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Phase 2: Create economic resources with varied quantities and states
         console.log("Phase 2: Creating varied economic resources");
 
         // Create economic resources sequentially to avoid source chain conflicts
         const courseResource = await createEconomicResource(
-          alice.cells[0],
+          lynn.cells[0],
           sampleEconomicResource(courseSpec.spec_hash, {
             quantity: 4.0,
             unit: "sessions",
@@ -1021,7 +1021,7 @@ test(
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const kitchenResource = await createEconomicResource(
-          alice.cells[0],
+          lynn.cells[0],
           sampleEconomicResource(kitchenSpec.spec_hash, {
             quantity: 1.0,
             unit: "kitchen",
@@ -1062,20 +1062,20 @@ test(
           `✅ Created ${economicResources.length} economic resources with varied quantities`,
         );
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Phase 3: Mixed resource state management
         console.log("Phase 3: Mixed resource state management");
 
         // Update resource states sequentially to avoid source chain conflicts
-        await updateResourceState(alice.cells[0], {
+        await updateResourceState(lynn.cells[0], {
           resource_hash: courseResource.resource_hash,
           new_state: RESOURCE_STATES.ACTIVE,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        await updateResourceState(alice.cells[0], {
+        await updateResourceState(lynn.cells[0], {
           resource_hash: kitchenResource.resource_hash,
           new_state: RESOURCE_STATES.MAINTENANCE, // Kitchen under renovation
         });
@@ -1094,7 +1094,7 @@ test(
           new_state: RESOURCE_STATES.RESERVED, // Vans reserved for special project
         });
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         console.log(
           `✅ Resources in varied states - some active, some in maintenance/reserved`,
@@ -1103,26 +1103,26 @@ test(
         // Phase 4: Comprehensive discovery testing
         console.log("Phase 4: Comprehensive resource discovery");
 
-        const allSpecsFromAlice = await getAllResourceSpecifications(
-          alice.cells[0],
+        const allSpecsFromLynn = await getAllResourceSpecifications(
+          lynn.cells[0],
         );
         const allSpecsFromBob = await getAllResourceSpecifications(
           bob.cells[0],
         );
-        const allResourcesFromAlice = await getAllEconomicResources(
-          alice.cells[0],
+        const allResourcesFromLynn = await getAllEconomicResources(
+          lynn.cells[0],
         );
         const allResourcesFromBob = await getAllEconomicResources(bob.cells[0]);
 
         // Both agents should see all resources
-        assert.equal(allSpecsFromAlice.specifications.length, 4);
+        assert.equal(allSpecsFromLynn.specifications.length, 4);
         assert.equal(allSpecsFromBob.specifications.length, 4);
-        assert.equal(allResourcesFromAlice.resources.length, 4);
+        assert.equal(allResourcesFromLynn.resources.length, 4);
         assert.equal(allResourcesFromBob.resources.length, 4);
 
         // Verify category diversity
         const categories = [
-          ...new Set(allSpecsFromAlice.specifications.map((s) => s.category)),
+          ...new Set(allSpecsFromLynn.specifications.map((s) => s.category)),
         ];
         assert.equal(categories.length, 4); // All different categories
 
@@ -1133,7 +1133,7 @@ test(
 
         // Verify state diversity
         const states = [
-          ...new Set(allResourcesFromAlice.resources.map((r) => r.state)),
+          ...new Set(allResourcesFromLynn.resources.map((r) => r.state)),
         ];
         assert.isAtLeast(states.length, 3); // At least 3 different states
 
@@ -1144,30 +1144,30 @@ test(
         // Phase 5: Cross-agent custody patterns
         console.log("Phase 5: Cross-agent custody and collaboration");
 
-        // Alice transfers course resource to Bob for technical platform management
-        const courseTransfer = await transferCustody(alice.cells[0], {
+        // Lynn transfers course resource to Bob for technical platform management
+        const courseTransfer = await transferCustody(lynn.cells[0], {
           resource_hash: courseResource.resource_hash,
           new_custodian: bob.agentPubKey,
         });
 
-        // Bob transfers web dev services to Alice for community project coordination
+        // Bob transfers web dev services to Lynn for community project coordination
         const webDevTransfer = await transferCustody(bob.cells[0], {
           resource_hash: webDevResource.resource_hash,
-          new_custodian: alice.agentPubKey,
+          new_custodian: lynn.agentPubKey,
         });
 
-        await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+        await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
         // Verify cross-custody
-        const aliceResourcesAfterSwap = await getMyEconomicResources(
-          alice.cells[0],
+        const lynnResourcesAfterSwap = await getMyEconomicResources(
+          lynn.cells[0],
         );
         const bobResourcesAfterSwap = await getMyEconomicResources(
           bob.cells[0],
         );
 
         // Each should still have 2 resources, but different ones
-        assert.equal(aliceResourcesAfterSwap.length, 2);
+        assert.equal(lynnResourcesAfterSwap.length, 2);
         assert.equal(bobResourcesAfterSwap.length, 2);
 
         console.log(`✅ Cross-agent custody transfers successful`);
@@ -1181,7 +1181,7 @@ test(
           courseSpec.spec_hash,
         );
         const webDevResources = await getResourcesBySpecification(
-          alice.cells[0], // Alice querying
+          lynn.cells[0], // Lynn querying
           webDevSpec.spec_hash,
         );
 
@@ -1194,7 +1194,7 @@ test(
           courseSpec.spec_hash,
         );
         const webDevSpecWithRules = await getResourceSpecificationWithRules(
-          alice.cells[0],
+          lynn.cells[0],
           webDevSpec.spec_hash,
         );
 
@@ -1208,24 +1208,24 @@ test(
         // Phase 7: Community contribution validation
         console.log("Phase 7: Community contribution and impact assessment");
 
-        const aliceContribution = await checkFirstResourceRequirement(
+        const lynnContribution = await checkFirstResourceRequirement(
           bob.cells[0],
-          alice.agentPubKey,
+          lynn.agentPubKey,
         );
         const bobContribution = await checkFirstResourceRequirement(
-          alice.cells[0],
+          lynn.cells[0],
           bob.agentPubKey,
         );
 
-        assert.isTrue(aliceContribution);
+        assert.isTrue(lynnContribution);
         assert.isTrue(bobContribution);
 
         // Verify total community resource count
         const totalCommunitySpecs = await getAllResourceSpecifications(
-          alice.cells[0],
+          lynn.cells[0],
         );
         const totalCommunityResources = await getAllEconomicResources(
-          alice.cells[0],
+          lynn.cells[0],
         );
 
         assert.equal(totalCommunitySpecs.specifications.length, 4);
@@ -1234,7 +1234,7 @@ test(
         assert.equal(totalCommunityResources.resources.length, 6);
 
         // Verify governance rule ecosystem
-        const allGovernanceRules = await getAllGovernanceRules(alice.cells[0]);
+        const allGovernanceRules = await getAllGovernanceRules(lynn.cells[0]);
         assert.isAtLeast(allGovernanceRules.rules.length, 4); // At least one per spec
 
         console.log(
@@ -1256,25 +1256,25 @@ test(
         assert.isAtLeast(nonActiveResources, 2);
 
         // Verify cross-agent visibility consistency
-        const aliceFinalView = await getAllEconomicResources(alice.cells[0]);
+        const lynnFinalView = await getAllEconomicResources(lynn.cells[0]);
         const bobFinalView = await getAllEconomicResources(bob.cells[0]);
 
         assert.equal(
-          aliceFinalView.resources.length,
+          lynnFinalView.resources.length,
           bobFinalView.resources.length,
         );
 
         // Verify custodianship distribution
-        const aliceCustody = aliceFinalView.resources.filter(
-          (r) => r.custodian.toString() === alice.agentPubKey.toString(),
+        const lynnCustody = lynnFinalView.resources.filter(
+          (r) => r.custodian.toString() === lynn.agentPubKey.toString(),
         ).length;
-        const bobCustody = aliceFinalView.resources.filter(
+        const bobCustody = lynnFinalView.resources.filter(
           (r) => r.custodian.toString() === bob.agentPubKey.toString(),
         ).length;
 
         // TODO: Fix custody counts - should be 2 each when duplicates are resolved
         // Currently expecting 3,3 due to duplicate resources from update operations
-        assert.equal(aliceCustody, 3);
+        assert.equal(lynnCustody, 3);
         assert.equal(bobCustody, 3);
 
         console.log("✅ Multi-agent resource ecosystem workflow successful");

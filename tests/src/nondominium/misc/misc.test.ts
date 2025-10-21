@@ -22,12 +22,12 @@ const appSource = {
 
 test("ping", async () => {
   await runScenario(async (scenario: Scenario) => {
-    const [alice] = await scenario.addPlayersWithApps([appSource]);
+    const [lynn] = await scenario.addPlayersWithApps([appSource]);
 
     // Access the requests_and_offers DNA cell by role name
-    const aliceRequestsAndOffers = alice.namedCells.get("requests_and_offers")!;
+    const lynnRequestsAndOffers = lynn.namedCells.get("requests_and_offers")!;
 
-    const record: string = await aliceRequestsAndOffers.callZome({
+    const record: string = await lynnRequestsAndOffers.callZome({
       zome_name: "misc",
       fn_name: "ping",
     });

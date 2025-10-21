@@ -142,7 +142,7 @@ Each domain includes a `common.ts` file with:
 
 ### **Multi-Agent Test Scenarios**
 Following the established pattern from requests-and-offers:
-- **Lynn (Alice)** - Primary test agent, usually the provider/initiator
+- **Lynn (Lynn)** - Primary test agent, usually the provider/initiator
 - **Bob** - Secondary test agent, usually the receiver/participant  
 - **Charlie** - Tertiary test agent for complex multi-party scenarios
 

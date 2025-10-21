@@ -15,7 +15,7 @@ import {
 
 test("PPR Debug: Minimal scenario setup", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, _alice: PlayerApp, _bob: PlayerApp) => {
+    async (_scenario: Scenario, _lynn: PlayerApp, _bob: PlayerApp) => {
       console.log("🔧 Setting up scenario...");
 
       console.log("✅ Players added");
@@ -27,15 +27,15 @@ test("PPR Debug: Minimal scenario setup", async () => {
 
 test("PPR Debug: Simple zome call test", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, _bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, _bob: PlayerApp) => {
       console.log("🔧 Testing simple zome call...");
 
       console.log("🔧 Trying simple commitment creation...");
 
       // Test just the commitment creation (should be quick)
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
@@ -50,13 +50,13 @@ test("PPR Debug: Simple zome call test", async () => {
 
 test("PPR Debug: Economic event creation test", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("🔧 Testing economic event creation...");
 
       // First create commitment
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
@@ -66,9 +66,9 @@ test("PPR Debug: Economic event creation test", async () => {
       console.log("✅ Commitment created, now testing economic event...");
 
       // Test economic event creation (this might be where it hangs)
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -85,22 +85,22 @@ test("PPR Debug: Economic event creation test", async () => {
 
 test("PPR Debug: PPR creation test (potential hang point)", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("🔧 Testing PPR creation (potential hang point)...");
 
       // Create prerequisite data
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
         note: "Debug test commitment",
       });
 
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -112,10 +112,10 @@ test("PPR Debug: PPR creation test (potential hang point)", async () => {
       console.log("✅ Prerequisites created, now testing PPR creation...");
 
       // This is likely where the hang occurs due to cryptographic operations
-      const ppr_result = await issueNewPPRs(alice.cells[0], {
+      const ppr_result = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["CustodyTransfer", "CustodyAcceptance"],
         provider_metrics: {
@@ -143,10 +143,10 @@ test("PPR Debug: PPR creation test (potential hang point)", async () => {
       expect(ppr_result).toHaveProperty("receiver_claim");
       
       // Wait for DHT sync before retrieving claims
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
       
       // Test claim retrieval like in integration test
-      const alice_claims = await getMyNewParticipationClaims(alice.cells[0], {
+      const lynn_claims = await getMyNewParticipationClaims(lynn.cells[0], {
         claim_type_filter: null,
         from_time: null,
         to_time: null,
@@ -160,11 +160,11 @@ test("PPR Debug: PPR creation test (potential hang point)", async () => {
         limit: null,
       });
 
-      console.log("🔍 Debug - Alice claims:", alice_claims.claims.length);
+      console.log("🔍 Debug - Lynn claims:", lynn_claims.claims.length);
       console.log("🔍 Debug - Bob claims:", bob_claims.claims.length);
       
       // Check that claims are properly linked
-      expect(alice_claims.claims.length + bob_claims.claims.length).toBeGreaterThan(0);
+      expect(lynn_claims.claims.length + bob_claims.claims.length).toBeGreaterThan(0);
     },
   );
 });

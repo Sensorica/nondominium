@@ -30,35 +30,35 @@ import {
 
 test("debug - basic person creation and retrieval", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("🐛 DEBUG: Testing basic person creation");
 
       // Create Lynn's person
       console.log("Creating Lynn's person...");
-      const alicePersonInput = samplePerson({ name: "Lynn Debug" });
-      console.log("Lynn input:", alicePersonInput);
+      const lynnPersonInput = samplePerson({ name: "Lynn Debug" });
+      console.log("Lynn input:", lynnPersonInput);
 
-      const aliceResult = await createPerson(alice.cells[0], alicePersonInput);
-      console.log("Lynn person result:", aliceResult);
+      const lynnResult = await createPerson(lynn.cells[0], lynnPersonInput);
+      console.log("Lynn person result:", lynnResult);
 
-      assert.ok(aliceResult);
-      assert.ok(aliceResult.signed_action);
+      assert.ok(lynnResult);
+      assert.ok(lynnResult.signed_action);
 
       // Extract person data from the record
-      const personData = aliceResult.entry.Present
-        ? aliceResult.entry.Present.entry
-        : aliceResult.entry;
+      const personData = lynnResult.entry.Present
+        ? lynnResult.entry.Present.entry
+        : lynnResult.entry;
       console.log("Person data extracted:", personData);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Test profile retrieval
       console.log("Testing profile retrieval...");
-      const aliceProfile = await getMyProfile(alice.cells[0]);
-      console.log("Lynn profile:", aliceProfile);
+      const lynnProfile = await getMyProfile(lynn.cells[0]);
+      console.log("Lynn profile:", lynnProfile);
 
-      assert.ok(aliceProfile.person);
-      assert.equal(aliceProfile.person!.name, "Lynn Debug");
+      assert.ok(lynnProfile.person);
+      assert.equal(lynnProfile.person!.name, "Lynn Debug");
 
       console.log("✅ DEBUG: Basic person creation working");
     },
@@ -67,44 +67,44 @@ test("debug - basic person creation and retrieval", async () => {
 
 test("debug - private data storage and privacy", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("🐛 DEBUG: Testing private data storage");
 
       // Setup persons
-      await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
+      await createPerson(lynn.cells[0], samplePerson({ name: "Lynn" }));
       await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Lynn stores private data
       console.log("Storing Lynn's private data...");
       const privateDataInput = samplePrivateData({
         legal_name: "Lynn Test User",
-        email: "alice.debug@test.com",
+        email: "lynn.debug@test.com",
       });
       console.log("Private data input:", privateDataInput);
 
       const privateResult = await storePrivateData(
-        alice.cells[0],
+        lynn.cells[0],
         privateDataInput,
       );
       console.log("Private data result:", privateResult);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Test self-access
       console.log("Testing self-access to private data...");
-      const aliceProfile = await getMyProfile(alice.cells[0]);
-      console.log("Lynn profile with private data:", aliceProfile);
+      const lynnProfile = await getMyProfile(lynn.cells[0]);
+      console.log("Lynn profile with private data:", lynnProfile);
 
-      assert.ok(aliceProfile.private_data);
-      assert.equal(aliceProfile.private_data!.legal_name, "Lynn Test User");
+      assert.ok(lynnProfile.private_data);
+      assert.equal(lynnProfile.private_data!.legal_name, "Lynn Test User");
 
       // Test privacy - Bob cannot see Lynn's private data
       console.log("Testing privacy boundaries...");
       const bobViewOfLynn = await getPersonProfile(
         bob.cells[0],
-        alice.agentPubKey,
+        lynn.agentPubKey,
       );
       console.log("Bob's view of Lynn:", bobViewOfLynn);
 
@@ -118,14 +118,14 @@ test("debug - private data storage and privacy", async () => {
 
 test("debug - role assignment and capabilities", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("🐛 DEBUG: Testing role assignment");
 
       // Setup persons
-      await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
+      await createPerson(lynn.cells[0], samplePerson({ name: "Lynn" }));
       await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Lynn assigns steward role to Bob
       console.log("Assigning steward role to Bob...");
@@ -135,14 +135,14 @@ test("debug - role assignment and capabilities", async () => {
       });
       console.log("Role input:", roleInput);
 
-      const roleResult = await assignRole(alice.cells[0], roleInput);
+      const roleResult = await assignRole(lynn.cells[0], roleInput);
       console.log("Role assignment result:", roleResult);
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Check Bob's roles
       console.log("Checking Bob's roles...");
-      const bobRoles = await getPersonRoles(alice.cells[0], bob.agentPubKey);
+      const bobRoles = await getPersonRoles(lynn.cells[0], bob.agentPubKey);
       console.log("Bob's roles:", bobRoles);
 
       assert.equal(bobRoles.roles.length, 1);
@@ -151,7 +151,7 @@ test("debug - role assignment and capabilities", async () => {
       // Check capability
       console.log("Checking role capability...");
       const hasCapability = await hasRoleCapability(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
         TEST_ROLES.RESOURCE_STEWARD,
       );
@@ -162,7 +162,7 @@ test("debug - role assignment and capabilities", async () => {
       // Check capability level
       console.log("Checking capability level...");
       const capabilityLevel = await getCapabilityLevel(
-        alice.cells[0],
+        lynn.cells[0],
         bob.agentPubKey,
       );
       console.log("Bob's capability level:", capabilityLevel);
@@ -176,20 +176,20 @@ test("debug - role assignment and capabilities", async () => {
 
 test("debug - agent discovery", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("🐛 DEBUG: Testing agent discovery");
 
       // Initially no agents
       console.log("Checking initial state...");
-      let allAgents = await getAllPersons(alice.cells[0]);
+      let allAgents = await getAllPersons(lynn.cells[0]);
       console.log("Initial agents:", allAgents);
       assert.equal(allAgents.persons.length, 0);
 
       // Lynn creates person
       console.log("Lynn creates person...");
-      await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
+      await createPerson(lynn.cells[0], samplePerson({ name: "Lynn" }));
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Check discovery
       console.log("Checking after Lynn joins...");
@@ -201,11 +201,11 @@ test("debug - agent discovery", async () => {
       console.log("Bob creates person...");
       await createPerson(bob.cells[0], samplePerson({ name: "Bob" }));
 
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Check full discovery
       console.log("Checking after both join...");
-      allAgents = await getAllPersons(alice.cells[0]);
+      allAgents = await getAllPersons(lynn.cells[0]);
       console.log("Final agents:", allAgents);
       assert.equal(allAgents.persons.length, 2);
 
@@ -220,12 +220,12 @@ test("debug - agent discovery", async () => {
 
 test("debug - DHT synchronization timing", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("🐛 DEBUG: Testing DHT synchronization timing");
 
       // Test without DHT sync first
       console.log("Creating Lynn's person without DHT sync...");
-      await createPerson(alice.cells[0], samplePerson({ name: "Lynn" }));
+      await createPerson(lynn.cells[0], samplePerson({ name: "Lynn" }));
 
       // Check immediate visibility
       console.log("Checking immediate visibility from Bob...");
@@ -242,7 +242,7 @@ test("debug - DHT synchronization timing", async () => {
 
       // Now do DHT sync
       console.log("Performing DHT sync...");
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Check after sync
       allAgentsFromBob = await getAllPersons(bob.cells[0]);
@@ -259,7 +259,7 @@ test("debug - DHT synchronization timing", async () => {
 // Utility test for experimenting with specific scenarios
 test("debug - sandbox for experimentation", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("🐛 DEBUG: Sandbox test - add experimental code here");
 
       // This test is for experimenting with specific scenarios
@@ -268,7 +268,7 @@ test("debug - sandbox for experimentation", async () => {
       // Example: Test avatar URL handling
       console.log("Testing avatar URL...");
       const personWithAvatar = await createPerson(
-        alice.cells[0],
+        lynn.cells[0],
         samplePerson({
           name: "Avatar Test",
           avatar_url: "https://example.com/test-avatar.png",
@@ -285,14 +285,14 @@ test("debug - sandbox for experimentation", async () => {
       // Example: Test role metadata
       console.log("Testing role metadata...");
       await assignRole(
-        alice.cells[0],
-        sampleRole(alice.agentPubKey, {
+        lynn.cells[0],
+        sampleRole(lynn.agentPubKey, {
           role_name: TEST_ROLES.RESOURCE_STEWARD,
           description: "Test role with metadata",
         }),
       );
 
-      const roles = await getPersonRoles(alice.cells[0], alice.agentPubKey);
+      const roles = await getPersonRoles(lynn.cells[0], lynn.agentPubKey);
       console.log("Role with metadata:", roles.roles[0]);
 
       assert.ok(roles.roles[0].validation_metadata);

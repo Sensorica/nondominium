@@ -43,7 +43,7 @@ const appSource = {
 
 test("Resource Specification Foundation: Create and retrieve basic resource specifications", async () => {
   await runScenario(async (scenario) => {
-    const [alice, bob] = await scenario.addPlayersWithApps([
+    const [lynn, bob] = await scenario.addPlayersWithApps([
       appSource,
       appSource,
     ]);
@@ -59,7 +59,7 @@ test("Resource Specification Foundation: Create and retrieve basic resource spec
     });
 
     const createResult: CreateResourceSpecificationOutput = await createResourceSpecification(
-      alice.cells[0],
+      lynn.cells[0],
       sampleSpec
     );
     
@@ -81,8 +81,8 @@ test("Resource Specification Foundation: Create and retrieve basic resource spec
     console.log(`✅ Resource specification created successfully with ${createResult.governance_rule_hashes.length} governance rules`);
 
     // Test retrieval of all specifications
-    await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
-    const allSpecs = await getAllResourceSpecifications(alice.cells[0]);
+    await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
+    const allSpecs = await getAllResourceSpecifications(lynn.cells[0]);
     
     if (allSpecs.specifications.length !== 1) {
       throw new Error(`Expected 1 specification, got ${allSpecs.specifications.length}`);
@@ -97,7 +97,7 @@ test("Resource Specification Foundation: Create and retrieve basic resource spec
 
     // Test specification with rules retrieval
     const specWithRules = await getResourceSpecificationWithRules(
-      alice.cells[0],
+      lynn.cells[0],
       createResult.spec_hash
     );
 
@@ -111,7 +111,7 @@ test("Resource Specification Foundation: Create and retrieve basic resource spec
 
 test("Economic Resource Foundation: Create and manage economic resources", async () => {
   await runScenario(async (scenario) => {
-    const [alice, bob] = await scenario.addPlayersWithApps([
+    const [lynn, bob] = await scenario.addPlayersWithApps([
       appSource,
       appSource,
     ]);
@@ -120,7 +120,7 @@ test("Economic Resource Foundation: Create and manage economic resources", async
 
     // First create a resource specification
     const specResult = await createResourceSpecification(
-      alice.cells[0],
+      lynn.cells[0],
       sampleResourceSpecification({
         name: "Workshop Tool",
         category: TEST_CATEGORIES.TOOLS,
@@ -137,7 +137,7 @@ test("Economic Resource Foundation: Create and manage economic resources", async
     });
 
     const resourceResult: CreateEconomicResourceOutput = await createEconomicResource(
-      alice.cells[0],
+      lynn.cells[0],
       resourceParams
     );
 
@@ -157,16 +157,16 @@ test("Economic Resource Foundation: Create and manage economic resources", async
     }
 
     // Verify custodian is set correctly
-    const aliceAgentKey = alice.agentPubKey;
-    if (resource.custodian.toString() !== aliceAgentKey.toString()) {
+    const lynnAgentKey = lynn.agentPubKey;
+    if (resource.custodian.toString() !== lynnAgentKey.toString()) {
       throw new Error("Custodian not set correctly");
     }
 
     console.log(`✅ Economic resource created successfully in state: ${resource.state}`);
 
     // Test retrieval of all resources
-    await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
-    const allResources = await getAllEconomicResources(alice.cells[0]);
+    await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
+    const allResources = await getAllEconomicResources(lynn.cells[0]);
     
     if (allResources.resources.length !== 1) {
       throw new Error(`Expected 1 resource, got ${allResources.resources.length}`);
@@ -181,8 +181,8 @@ test("Economic Resource Foundation: Create and manage economic resources", async
 
     // Test first resource requirement check
     const hasFirstResource = await checkFirstResourceRequirement(
-      alice.cells[0],
-      aliceAgentKey
+      lynn.cells[0],
+      lynnAgentKey
     );
 
     if (!hasFirstResource) {
@@ -195,7 +195,7 @@ test("Economic Resource Foundation: Create and manage economic resources", async
 
 test("Governance Rule Foundation: Create and manage governance rules", async () => {
   await runScenario(async (scenario) => {
-    const [alice, bob] = await scenario.addPlayersWithApps([
+    const [lynn, bob] = await scenario.addPlayersWithApps([
       appSource,
       appSource,
     ]);
@@ -210,7 +210,7 @@ test("Governance Rule Foundation: Create and manage governance rules", async () 
     });
 
     const ruleRecord: HolochainRecord = await createGovernanceRule(
-      alice.cells[0],
+      lynn.cells[0],
       ruleParams
     );
 
@@ -227,8 +227,8 @@ test("Governance Rule Foundation: Create and manage governance rules", async () 
     console.log(`✅ Governance rule created successfully: ${ruleEntry.rule_type}`);
 
     // Test retrieval of all rules
-    await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
-    const allRules = await getAllGovernanceRules(alice.cells[0]);
+    await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
+    const allRules = await getAllGovernanceRules(lynn.cells[0]);
     
     if (allRules.rules.length !== 1) {
       throw new Error(`Expected 1 rule, got ${allRules.rules.length}`);
@@ -245,18 +245,18 @@ test("Governance Rule Foundation: Create and manage governance rules", async () 
 
 test("Cross-Agent Visibility: Resources created by one agent are visible to others", async () => {
   await runScenario(async (scenario) => {
-    const [alice, bob] = await scenario.addPlayersWithApps([
+    const [lynn, bob] = await scenario.addPlayersWithApps([
       appSource,
       appSource,
     ]);
 
     await pause(1200);
 
-    // Alice creates a resource specification
-    const aliceSpec = await createResourceSpecification(
-      alice.cells[0],
+    // Lynn creates a resource specification
+    const lynnSpec = await createResourceSpecification(
+      lynn.cells[0],
       sampleResourceSpecification({
-        name: "Alice's Shared Tool",
+        name: "Lynn's Shared Tool",
         category: TEST_CATEGORIES.TOOLS,
         tags: [TEST_TAGS.SHARED, TEST_TAGS.COMMUNITY],
       })
@@ -272,16 +272,16 @@ test("Cross-Agent Visibility: Resources created by one agent are visible to othe
       })
     );
 
-    console.log(`🔧 Alice created: ${aliceSpec.spec_hash}`);
+    console.log(`🔧 Lynn created: ${lynnSpec.spec_hash}`);
     console.log(`🔧 Bob created: ${bobSpec.spec_hash}`);
 
     // Wait for DHT propagation
-    await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+    await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
-    // Alice should see both specifications
-    const aliceView = await getAllResourceSpecifications(alice.cells[0]);
-    if (aliceView.specifications.length !== 2) {
-      throw new Error(`Alice should see 2 specifications, saw ${aliceView.specifications.length}`);
+    // Lynn should see both specifications
+    const lynnView = await getAllResourceSpecifications(lynn.cells[0]);
+    if (lynnView.specifications.length !== 2) {
+      throw new Error(`Lynn should see 2 specifications, saw ${lynnView.specifications.length}`);
     }
 
     // Bob should also see both specifications
@@ -293,17 +293,17 @@ test("Cross-Agent Visibility: Resources created by one agent are visible to othe
     console.log(`✅ Cross-agent visibility test passed`);
 
     // Verify specific specifications are found
-    const aliceSpecNames = aliceView.specifications.map(s => s.name);
+    const lynnSpecNames = lynnView.specifications.map(s => s.name);
     const bobSpecNames = bobView.specifications.map(s => s.name);
 
-    if (!aliceSpecNames.includes("Alice's Shared Tool") || !aliceSpecNames.includes("Bob's Equipment")) {
-      throw new Error("Alice cannot see all expected specifications");
+    if (!lynnSpecNames.includes("Lynn's Shared Tool") || !lynnSpecNames.includes("Bob's Equipment")) {
+      throw new Error("Lynn cannot see all expected specifications");
     }
 
-    if (!bobSpecNames.includes("Alice's Shared Tool") || !bobSpecNames.includes("Bob's Equipment")) {
+    if (!bobSpecNames.includes("Lynn's Shared Tool") || !bobSpecNames.includes("Bob's Equipment")) {
       throw new Error("Bob cannot see all expected specifications");
     }
 
-    console.log(`✅ Both agents can see all specifications: ${aliceSpecNames.join(", ")}`);
+    console.log(`✅ Both agents can see all specifications: ${lynnSpecNames.join(", ")}`);
   });
 });

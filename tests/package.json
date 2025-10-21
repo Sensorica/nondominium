@@ -4,23 +4,6 @@
   "private": true,
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest --watch",
-    "test:foundation": "vitest run foundation-tests.test.ts",
-    "test:integration": "vitest run integration-tests.test.ts",
-    "test:scenarios": "vitest run scenario-tests.test.ts",
-    "test:debug": "DEBUG=true vitest run --reporter=verbose",
-    "test:filter": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:person": "vitest run person/",
-    "test:resource": "vitest run resource/",
-    "test:governance": "vitest run governance/",
-    "test:ppr": "vitest run governance/ppr-system/",
-    "test:ppr-foundation": "vitest run governance/ppr-system/ppr-foundation.test.ts",
-    "test:ppr-integration": "vitest run governance/ppr-system/ppr-integration.test.ts",
-    "test:ppr-scenarios": "vitest run governance/ppr-system/ppr-scenarios.test.ts",
-    "test:ppr-performance": "vitest run governance/ppr-system/performance/",
-    "test:roles": "vitest run person/role-management/",
-    "test:resources-lifecycle": "vitest run resource/lifecycle/",
     "check": "tsc --noEmit"
   },
   "dependencies": {

@@ -254,33 +254,33 @@ export function validateGovernanceRuleData(
 
 // Common test patterns
 export interface ResourceTestContext {
-  alice: any;
+  lynn: any;
   bob: any;
-  aliceSpec?: CreateResourceSpecificationOutput;
+  lynnSpec?: CreateResourceSpecificationOutput;
   bobSpec?: CreateResourceSpecificationOutput;
-  aliceResource?: CreateEconomicResourceOutput;
+  lynnResource?: CreateEconomicResourceOutput;
   bobResource?: CreateEconomicResourceOutput;
-  aliceRule?: HolochainRecord;
+  lynnRule?: HolochainRecord;
   bobRule?: HolochainRecord;
-  aliceSpecHash?: ActionHash;
+  lynnSpecHash?: ActionHash;
   bobSpecHash?: ActionHash;
-  aliceResourceHash?: ActionHash;
+  lynnResourceHash?: ActionHash;
   bobResourceHash?: ActionHash;
 }
 
 export async function setupBasicResourceSpecifications(
-  alice: any,
+  lynn: any,
   bob: any
 ): Promise<ResourceTestContext> {
   // Create resource specifications for both agents
-  const aliceSpec = await createResourceSpecification(
-    alice.cells[0],
+  const lynnSpec = await createResourceSpecification(
+    lynn.cells[0],
     sampleResourceSpecification({
-      name: "Alice's Tool",
+      name: "Lynn's Tool",
       category: "personal_tools",
     })
   );
-  
+
   const bobSpec = await createResourceSpecification(
     bob.cells[0],
     sampleResourceSpecification({
@@ -290,28 +290,28 @@ export async function setupBasicResourceSpecifications(
   );
 
   return {
-    alice,
+    lynn,
     bob,
-    aliceSpec,
+    lynnSpec,
     bobSpec,
-    aliceSpecHash: aliceSpec.spec_hash,
+    lynnSpecHash: lynnSpec.spec_hash,
     bobSpecHash: bobSpec.spec_hash,
   };
 }
 
 export async function setupBasicResources(
-  alice: any,
+  lynn: any,
   bob: any
 ): Promise<ResourceTestContext> {
-  const context = await setupBasicResourceSpecifications(alice, bob);
+  const context = await setupBasicResourceSpecifications(lynn, bob);
 
   // Create economic resources based on the specifications
-  const aliceResource = await createEconomicResource(
-    alice.cells[0],
-    sampleEconomicResource(context.aliceSpec!.spec_hash, {
+  const lynnResource = await createEconomicResource(
+    lynn.cells[0],
+    sampleEconomicResource(context.lynnSpec!.spec_hash, {
       quantity: 2.0,
       unit: "pieces",
-      current_location: "Alice's Workspace",
+      current_location: "Lynn's Workspace",
     })
   );
 
@@ -326,22 +326,22 @@ export async function setupBasicResources(
 
   return {
     ...context,
-    aliceResource,
+    lynnResource,
     bobResource,
-    aliceResourceHash: aliceResource.resource_hash,
+    lynnResourceHash: lynnResource.resource_hash,
     bobResourceHash: bobResource.resource_hash,
   };
 }
 
 export async function setupResourcesWithGovernance(
-  alice: any,
+  lynn: any,
   bob: any
 ): Promise<ResourceTestContext> {
   // Create resource specifications with more governance rules
-  const aliceSpec = await createResourceSpecification(
-    alice.cells[0],
+  const lynnSpec = await createResourceSpecification(
+    lynn.cells[0],
     sampleResourceSpecification({
-      name: "Alice's Tool",
+      name: "Lynn's Tool",
       category: "tools",
       governance_rules: [
         {
@@ -375,7 +375,7 @@ export async function setupResourcesWithGovernance(
 
   // Create additional standalone governance rule
   const additionalRule = await createGovernanceRule(
-    alice.cells[0],
+    lynn.cells[0],
     sampleGovernanceRule({
       rule_type: "safety_protocol",
       rule_data: JSON.stringify({ certification_required: true }),
@@ -384,26 +384,26 @@ export async function setupResourcesWithGovernance(
   );
 
   return {
-    alice,
+    lynn,
     bob,
-    aliceSpec,
+    lynnSpec,
     bobSpec,
-    aliceSpecHash: aliceSpec.spec_hash,
+    lynnSpecHash: lynnSpec.spec_hash,
     bobSpecHash: bobSpec.spec_hash,
-    aliceRule: additionalRule,
+    lynnRule: additionalRule,
   };
 }
 
 export async function setupResourcesWithSpecifications(
-  alice: any,
+  lynn: any,
   bob: any
 ): Promise<ResourceTestContext> {
-  const context = await setupBasicResourceSpecifications(alice, bob);
+  const context = await setupBasicResourceSpecifications(lynn, bob);
 
   // Create economic resources based on the specifications
-  const aliceResource = await createEconomicResource(
-    alice.cells[0],
-    sampleEconomicResource(context.aliceSpec!.spec_hash, {
+  const lynnResource = await createEconomicResource(
+    lynn.cells[0],
+    sampleEconomicResource(context.lynnSpec!.spec_hash, {
       quantity: 2.0,
       unit: "pieces",
       current_location: "Lynn's Workspace",
@@ -421,18 +421,18 @@ export async function setupResourcesWithSpecifications(
 
   return {
     ...context,
-    aliceResource,
+    lynnResource,
     bobResource,
   };
 }
 
 export async function setupGovernanceRules(
-  alice: any,
+  lynn: any,
   bob: any
 ): Promise<ResourceTestContext> {
   // Create governance rules for both agents
-  const aliceRule = await createGovernanceRule(
-    alice.cells[0],
+  const lynnRule = await createGovernanceRule(
+    lynn.cells[0],
     sampleGovernanceRule({
       rule_type: "access_requirement",
       rule_data: JSON.stringify({ member_level: "verified" }),
@@ -450,9 +450,9 @@ export async function setupGovernanceRules(
   );
 
   return {
-    alice,
+    lynn,
     bob,
-    aliceRule,
+    lynnRule,
     bobRule,
   };
 }

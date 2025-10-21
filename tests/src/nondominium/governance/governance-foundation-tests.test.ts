@@ -4,11 +4,11 @@ import { runScenarioWithTwoAgents } from "../utils.js";
 
 test("Governance Foundation: Zome is accessible and functional", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, _bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, _bob: PlayerApp) => {
       console.log("Testing governance zome basic functionality");
       
       // Test that the governance zome is accessible by calling get_all_commitments
-      const result = await alice.cells[0].callZome({
+      const result = await lynn.cells[0].callZome({
         zome_name: "zome_gouvernance",
         fn_name: "get_all_commitments",
         payload: null,

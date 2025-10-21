@@ -21,11 +21,11 @@ import {
 
 test("PPR Integration: Manual PPR generation after economic events", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Create a commitment using the current function
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
@@ -33,9 +33,9 @@ test("PPR Integration: Manual PPR generation after economic events", async () =>
       });
 
       // Create an economic event using the current function
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -48,10 +48,10 @@ test("PPR Integration: Manual PPR generation after economic events", async () =>
       expect(event).toHaveProperty("event_hash");
 
       // Now manually issue PPRs following the working pattern
-      const ppr_result = await issueNewPPRs(alice.cells[0], {
+      const ppr_result = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["CustodyTransfer", "CustodyAcceptance"],
         provider_metrics: {
@@ -101,9 +101,9 @@ test("PPR Integration: Manual PPR generation after economic events", async () =>
 
 test("PPR Integration: Retrieve claims and calculate reputation", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Create commitment and event
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Work",
         provider: bob.agentPubKey,
         resource_hash: null,
@@ -112,10 +112,10 @@ test("PPR Integration: Retrieve claims and calculate reputation", async () => {
         note: "Work commitment for reputation test",
       });
 
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Work",
         provider: bob.agentPubKey,
-        receiver: alice.agentPubKey,
+        receiver: lynn.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
         note: "Work completed",
@@ -128,7 +128,7 @@ test("PPR Integration: Retrieve claims and calculate reputation", async () => {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
         provider: bob.agentPubKey,
-        receiver: alice.agentPubKey,
+        receiver: lynn.agentPubKey,
         claim_types: ["CustodyTransfer", "CustodyAcceptance"],
         provider_metrics: {
           timeliness: 0.95,
@@ -154,10 +154,10 @@ test("PPR Integration: Retrieve claims and calculate reputation", async () => {
       expect(ppr_result.receiver_claim.claim_type).toBe("CustodyAcceptance");
 
       // Wait for DHT sync before querying claims
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
-      // Test retrieval of participation claims for both alice (receiver) and bob (provider)
-      const alice_claims = await getMyNewParticipationClaims(alice.cells[0], {
+      // Test retrieval of participation claims for both lynn (receiver) and bob (provider)
+      const lynn_claims = await getMyNewParticipationClaims(lynn.cells[0], {
         claim_type_filter: null,
         from_time: null,
         to_time: null,
@@ -171,20 +171,20 @@ test("PPR Integration: Retrieve claims and calculate reputation", async () => {
         limit: null,
       });
 
-      console.log("Alice claims:", alice_claims.claims.length);
+      console.log("Lynn claims:", lynn_claims.claims.length);
       console.log("Bob claims:", bob_claims.claims.length);
 
-      // Either Alice or Bob should have claims
-      const total_claims = alice_claims.claims.length + bob_claims.claims.length;
+      // Either Lynn or Bob should have claims
+      const total_claims = lynn_claims.claims.length + bob_claims.claims.length;
       expect(total_claims).toBeGreaterThan(0);
 
-      // If Alice has claims, check for receiver claim
-      if (alice_claims.claims.length > 0) {
-        const alice_claim = alice_claims.claims.find(
+      // If Lynn has claims, check for receiver claim
+      if (lynn_claims.claims.length > 0) {
+        const lynn_claim = lynn_claims.claims.find(
           ([_hash, claim]) => claim.claim_type === "CustodyAcceptance",
         );
-        expect(alice_claim).toBeDefined();
-        expect(alice_claim![1].counterparty).toEqual(bob.agentPubKey);
+        expect(lynn_claim).toBeDefined();
+        expect(lynn_claim![1].counterparty).toEqual(bob.agentPubKey);
       }
 
       // If Bob has claims, check for provider claim
@@ -193,18 +193,18 @@ test("PPR Integration: Retrieve claims and calculate reputation", async () => {
           ([_hash, claim]) => claim.claim_type === "CustodyTransfer",
         );
         expect(bob_claim).toBeDefined();
-        expect(bob_claim![1].counterparty).toEqual(alice.agentPubKey);
+        expect(bob_claim![1].counterparty).toEqual(lynn.agentPubKey);
       }
 
       // Test reputation summary
-      const reputation = await deriveNewReputationSummary(alice.cells[0], {
+      const reputation = await deriveNewReputationSummary(lynn.cells[0], {
         period_start: Date.now() * 1000 - 24 * 60 * 60 * 1000000, // 24 hours ago
         period_end: Date.now() * 1000 + 24 * 60 * 60 * 1000000, // 24 hours from now
         claim_type_filter: null,
       });
 
       expect(reputation.summary.total_claims).toBeGreaterThan(0);
-      expect(reputation.summary.agent).toEqual(alice.agentPubKey);
+      expect(reputation.summary.agent).toEqual(lynn.agentPubKey);
       expect(reputation.claims_included).toBeGreaterThan(0);
 
       console.log("✅ Successfully retrieved claims and calculated reputation");
@@ -214,20 +214,20 @@ test("PPR Integration: Retrieve claims and calculate reputation", async () => {
 
 test("PPR Integration: Sign participation claims", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Create basic PPR setup
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
         note: "Test commitment for signing",
       });
 
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -236,10 +236,10 @@ test("PPR Integration: Sign participation claims", async () => {
         generate_pprs: false,
       });
 
-      const ppr_result = await issueNewPPRs(alice.cells[0], {
+      const ppr_result = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["CustodyTransfer", "CustodyAcceptance"],
         provider_metrics: {
@@ -263,7 +263,7 @@ test("PPR Integration: Sign participation claims", async () => {
       });
 
       // Wait for DHT sync before proceeding
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Test signing a claim - Bob signs to verify receipt
       const test_data = new TextEncoder().encode(
@@ -271,7 +271,7 @@ test("PPR Integration: Sign participation claims", async () => {
       );
       const signature_result = await signNewParticipationClaim(bob.cells[0], {
         data_to_sign: Array.from(test_data),
-        counterparty: alice.agentPubKey,
+        counterparty: lynn.agentPubKey,
       });
 
       expect(signature_result).toHaveProperty("signature");
@@ -285,20 +285,20 @@ test("PPR Integration: Sign participation claims", async () => {
 
 test("PPR Integration: Complete workflow with multiple interactions", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // First interaction: Resource contribution
-      const commitment1 = await proposeCommitment(alice.cells[0], {
+      const commitment1 = await proposeCommitment(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
         note: "First resource contribution",
       });
 
-      const event1 = await logEconomicEvent(alice.cells[0], {
+      const event1 = await logEconomicEvent(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment1.commitment_hash,
         resource_quantity: 1.0,
@@ -307,10 +307,10 @@ test("PPR Integration: Complete workflow with multiple interactions", async () =
         generate_pprs: false,
       });
 
-      await issueNewPPRs(alice.cells[0], {
+      await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment1.commitment_hash,
         fulfilled_by: event1.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["ResourceCreation", "ResourceValidation"],
         provider_metrics: {
@@ -334,7 +334,7 @@ test("PPR Integration: Complete workflow with multiple interactions", async () =
       });
 
       // Wait for DHT sync before next interaction
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Second interaction: Service exchange
       const commitment2 = await proposeCommitment(bob.cells[0], {
@@ -349,7 +349,7 @@ test("PPR Integration: Complete workflow with multiple interactions", async () =
       const event2 = await logEconomicEvent(bob.cells[0], {
         action: "Work",
         provider: bob.agentPubKey,
-        receiver: alice.agentPubKey,
+        receiver: lynn.agentPubKey,
         resource_inventoried_as: commitment2.commitment_hash,
         resource_quantity: 1.0,
         note: "Service completed",
@@ -361,7 +361,7 @@ test("PPR Integration: Complete workflow with multiple interactions", async () =
         fulfills: commitment2.commitment_hash,
         fulfilled_by: event2.event_hash,
         provider: bob.agentPubKey,
-        receiver: alice.agentPubKey,
+        receiver: lynn.agentPubKey,
         claim_types: ["MaintenanceFulfillmentCompleted", "GoodFaithTransfer"],
         provider_metrics: {
           timeliness: 0.95,
@@ -384,11 +384,11 @@ test("PPR Integration: Complete workflow with multiple interactions", async () =
       });
 
       // Wait for DHT sync before verifying claims
-      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+      await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
 
       // Verify both agents have accumulated claims from multiple interactions
-      const alice_final_claims = await getMyNewParticipationClaims(
-        alice.cells[0],
+      const lynn_final_claims = await getMyNewParticipationClaims(
+        lynn.cells[0],
         {
           claim_type_filter: null,
           from_time: null,
@@ -405,12 +405,12 @@ test("PPR Integration: Complete workflow with multiple interactions", async () =
       });
 
       // Each agent should have 2 claims (one from each interaction)
-      expect(alice_final_claims.claims.length).toBe(2);
+      expect(lynn_final_claims.claims.length).toBe(2);
       expect(bob_final_claims.claims.length).toBe(2);
 
       // Verify final reputation for both agents
-      const alice_reputation = await deriveNewReputationSummary(
-        alice.cells[0],
+      const lynn_reputation = await deriveNewReputationSummary(
+        lynn.cells[0],
         {
           period_start: Date.now() * 1000 - 24 * 60 * 60 * 1000000,
           period_end: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
@@ -424,7 +424,7 @@ test("PPR Integration: Complete workflow with multiple interactions", async () =
         claim_type_filter: null,
       });
 
-      expect(alice_reputation.summary.total_claims).toBe(2);
+      expect(lynn_reputation.summary.total_claims).toBe(2);
       expect(bob_reputation.summary.total_claims).toBe(2);
 
       console.log("✅ Successfully completed full PPR integration workflow");

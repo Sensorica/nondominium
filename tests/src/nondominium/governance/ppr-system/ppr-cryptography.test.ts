@@ -17,7 +17,7 @@ import {
 
 test("PPR Cryptography: Enhanced signature validation with full context", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("Testing enhanced signature validation with full context");
 
       // Create test data for signing
@@ -26,8 +26,8 @@ test("PPR Cryptography: Enhanced signature validation with full context", async 
       );
 
       // Test individual signature creation
-      const alice_signature_result = await signNewParticipationClaim(
-        alice.cells[0],
+      const lynn_signature_result = await signNewParticipationClaim(
+        lynn.cells[0],
         {
           data_to_sign: Array.from(test_data),
           counterparty: bob.agentPubKey,
@@ -35,13 +35,13 @@ test("PPR Cryptography: Enhanced signature validation with full context", async 
       );
 
       // Verify signature structure
-      expect(alice_signature_result).toHaveProperty("signature");
-      expect(alice_signature_result).toHaveProperty("signed_data_hash");
-      expect(alice_signature_result.signed_data_hash).toHaveLength(32);
+      expect(lynn_signature_result).toHaveProperty("signature");
+      expect(lynn_signature_result).toHaveProperty("signed_data_hash");
+      expect(lynn_signature_result.signed_data_hash).toHaveLength(32);
 
       // Test that signatures are unique and cryptographically secure
-      const alice_signature_result2 = await signNewParticipationClaim(
-        alice.cells[0],
+      const lynn_signature_result2 = await signNewParticipationClaim(
+        lynn.cells[0],
         {
           data_to_sign: Array.from(test_data),
           counterparty: bob.agentPubKey,
@@ -50,8 +50,8 @@ test("PPR Cryptography: Enhanced signature validation with full context", async 
 
       // Note: With current single-agent implementation, signatures might be identical
       // This is expected behavior until bilateral signing is fully implemented
-      console.log("First signature:", alice_signature_result.signature);
-      console.log("Second signature:", alice_signature_result2.signature);
+      console.log("First signature:", lynn_signature_result.signature);
+      console.log("Second signature:", lynn_signature_result2.signature);
 
       console.log("✅ Individual signature creation validated");
     },
@@ -60,13 +60,13 @@ test("PPR Cryptography: Enhanced signature validation with full context", async 
 
 test("PPR Cryptography: Bi-directional signature validation", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("Testing bi-directional signature validation");
 
       // Create a commitment for testing
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
@@ -74,9 +74,9 @@ test("PPR Cryptography: Bi-directional signature validation", async () => {
       });
 
       // Create an economic event
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -86,10 +86,10 @@ test("PPR Cryptography: Bi-directional signature validation", async () => {
       });
 
       // Issue PPRs with proper cryptographic signatures
-      const ppr_result = await issueNewPPRs(alice.cells[0], {
+      const ppr_result = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["CustodyTransfer", "CustodyAcceptance"],
         provider_metrics: {
@@ -130,7 +130,7 @@ test("PPR Cryptography: Bi-directional signature validation", async () => {
 
 test("PPR Cryptography: BLAKE2b secure hashing validation", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, _bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, _bob: PlayerApp) => {
       console.log("Testing BLAKE2b secure hashing validation");
 
       // Test that same input produces same hash (deterministic)
@@ -138,19 +138,19 @@ test("PPR Cryptography: BLAKE2b secure hashing validation", async () => {
       const test_data2 = new TextEncoder().encode("consistent test data");
       const test_data3 = new TextEncoder().encode("different test data");
 
-      const signature1 = await signNewParticipationClaim(alice.cells[0], {
+      const signature1 = await signNewParticipationClaim(lynn.cells[0], {
         data_to_sign: Array.from(test_data1),
-        counterparty: alice.agentPubKey, // Self as counterparty for test
+        counterparty: lynn.agentPubKey, // Self as counterparty for test
       });
 
-      const signature2 = await signNewParticipationClaim(alice.cells[0], {
+      const signature2 = await signNewParticipationClaim(lynn.cells[0], {
         data_to_sign: Array.from(test_data2),
-        counterparty: alice.agentPubKey,
+        counterparty: lynn.agentPubKey,
       });
 
-      const signature3 = await signNewParticipationClaim(alice.cells[0], {
+      const signature3 = await signNewParticipationClaim(lynn.cells[0], {
         data_to_sign: Array.from(test_data3),
-        counterparty: alice.agentPubKey,
+        counterparty: lynn.agentPubKey,
       });
 
       // Note: With current implementation, hash behavior depends on timestamp inclusion
@@ -171,23 +171,23 @@ test("PPR Cryptography: BLAKE2b secure hashing validation", async () => {
 
 test("PPR Cryptography: Signature tampering detection", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("Testing signature tampering detection");
       // Note: Using only two agents for this test since charlie isn't essential
 
       // Create valid PPR
-      const commitment = await proposeCommitment(alice.cells[0], {
+      const commitment = await proposeCommitment(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         resource_hash: null,
         resource_spec_hash: null,
         due_date: Date.now() * 1000 + 24 * 60 * 60 * 1000000,
         note: "Test commitment for tampering detection",
       });
 
-      const event = await logEconomicEvent(alice.cells[0], {
+      const event = await logEconomicEvent(lynn.cells[0], {
         action: "Transfer",
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         resource_inventoried_as: commitment.commitment_hash,
         resource_quantity: 1.0,
@@ -196,10 +196,10 @@ test("PPR Cryptography: Signature tampering detection", async () => {
         generate_pprs: false,
       });
 
-      const valid_ppr = await issueNewPPRs(alice.cells[0], {
+      const valid_ppr = await issueNewPPRs(lynn.cells[0], {
         fulfills: commitment.commitment_hash,
         fulfilled_by: event.event_hash,
-        provider: alice.agentPubKey,
+        provider: lynn.agentPubKey,
         receiver: bob.agentPubKey,
         claim_types: ["CustodyTransfer", "CustodyAcceptance"],
         provider_metrics: {
@@ -234,27 +234,27 @@ test("PPR Cryptography: Signature tampering detection", async () => {
 
 test("PPR Cryptography: Bilateral context separation", async () => {
   await runScenarioWithTwoAgents(
-    async (_scenario: Scenario, alice: PlayerApp, bob: PlayerApp) => {
+    async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       console.log("Testing bilateral context separation");
 
       // Create signatures with different contexts to ensure separation
       const test_data = new TextEncoder().encode("context separation test");
 
-      // Alice signing with Bob as counterparty
-      const alice_to_bob = await signNewParticipationClaim(alice.cells[0], {
+      // Lynn signing with Bob as counterparty
+      const lynn_to_bob = await signNewParticipationClaim(lynn.cells[0], {
         data_to_sign: Array.from(test_data),
         counterparty: bob.agentPubKey,
       });
 
-      // Alice signing with herself as counterparty (different context)
-      const alice_to_alice = await signNewParticipationClaim(alice.cells[0], {
+      // Lynn signing with herself as counterparty (different context)
+      const lynn_to_lynn = await signNewParticipationClaim(lynn.cells[0], {
         data_to_sign: Array.from(test_data),
-        counterparty: alice.agentPubKey,
+        counterparty: lynn.agentPubKey,
       });
 
       // Note: With current single-agent implementation, context separation behavior may differ
-      console.log("Alice->Bob signature:", alice_to_bob.signature);
-      console.log("Alice->Alice signature:", alice_to_alice.signature);
+      console.log("Lynn->Bob signature:", lynn_to_bob.signature);
+      console.log("Lynn->Lynn signature:", lynn_to_lynn.signature);
       console.log(
         "✅ Context separation test executed (behavior may vary with current implementation)",
       );
