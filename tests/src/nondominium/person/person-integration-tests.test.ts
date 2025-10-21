@@ -3,10 +3,8 @@ import { Scenario, PlayerApp, dhtSync } from "@holochain/tryorama";
 
 import {
   samplePerson,
-  samplePrivateData,
   sampleRole,
   createPerson,
-  storePrivateData,
   getMyProfile,
   getPersonProfile,
   getAllPersons,
@@ -18,7 +16,6 @@ import {
   setupPersonsWithPrivateData,
   TEST_ROLES,
   CAPABILITY_LEVELS,
-  PersonTestContext,
 } from "./common";
 import { runScenarioWithTwoAgents } from "../utils";
 
@@ -107,25 +104,19 @@ test("cross-agent role assignment and validation", async () => {
       // Lynn assigns steward role to Bob
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-            description: "Community steward assigned by Lynn",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+          description: "Community steward assigned by Lynn",
+        }),
       );
 
       // Bob assigns coordinator role to Lynn
       await assignRole(
         bob.cells[0],
-        sampleRole(
-          lynn.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_COORDINATOR,
-            description: "Resource coordinator assigned by Bob",
-          },
-        ),
+        sampleRole(lynn.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_COORDINATOR,
+          description: "Resource coordinator assigned by Bob",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -236,23 +227,17 @@ test("capability level consistency across agents", async () => {
       // Lynn assigns coordination role to Bob
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_COORDINATOR,
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_COORDINATOR,
+        }),
       );
 
       // Bob assigns governance role to Lynn
       await assignRole(
         bob.cells[0],
-        sampleRole(
-          lynn.agentPubKey,
-          {
-            role_name: TEST_ROLES.FOUNDER,
-          },
-        ),
+        sampleRole(lynn.agentPubKey, {
+          role_name: TEST_ROLES.FOUNDER,
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -262,14 +247,8 @@ test("capability level consistency across agents", async () => {
         lynn.cells[0],
         lynn.agentPubKey,
       );
-      lynnCapFromBob = await getCapabilityLevel(
-        bob.cells[0],
-        lynn.agentPubKey,
-      );
-      bobCapFromLynn = await getCapabilityLevel(
-        lynn.cells[0],
-        bob.agentPubKey,
-      );
+      lynnCapFromBob = await getCapabilityLevel(bob.cells[0], lynn.agentPubKey);
+      bobCapFromLynn = await getCapabilityLevel(lynn.cells[0], bob.agentPubKey);
       bobCapFromBob = await getCapabilityLevel(bob.cells[0], bob.agentPubKey);
 
       assert.equal(lynnCapFromLynn, CAPABILITY_LEVELS.GOVERNANCE);
@@ -290,46 +269,34 @@ test("multiple role assignments and capability aggregation", async () => {
       // Lynn assigns multiple roles to Bob
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-            description: "Community steward role",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+          description: "Community steward role",
+        }),
       );
 
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_COORDINATOR,
-            description: "Resource coordinator role",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_COORDINATOR,
+          description: "Resource coordinator role",
+        }),
       );
 
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.FOUNDER,
-            description: "Founder role",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.FOUNDER,
+          description: "Founder role",
+        }),
       );
 
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.SIMPLE,
-            description: "Simple agent role",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.SIMPLE,
+          description: "Simple agent role",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -339,12 +306,15 @@ test("multiple role assignments and capability aggregation", async () => {
       assert.equal(bobRoles.roles.length, 4);
 
       const roleNames = bobRoles.roles.map((role) => role.role_name).sort();
-      assert.deepEqual(roleNames, [
-        TEST_ROLES.RESOURCE_COORDINATOR, // "Accountable Agent"
-        TEST_ROLES.FOUNDER,              // "Primary Accountable Agent"
-        TEST_ROLES.SIMPLE,               // "Simple Agent"
-        TEST_ROLES.RESOURCE_STEWARD,     // "Transport Agent"
-      ].sort());
+      assert.deepEqual(
+        roleNames,
+        [
+          TEST_ROLES.RESOURCE_COORDINATOR, // "Accountable Agent"
+          TEST_ROLES.FOUNDER, // "Primary Accountable Agent"
+          TEST_ROLES.SIMPLE, // "Simple Agent"
+          TEST_ROLES.RESOURCE_STEWARD, // "Transport Agent"
+        ].sort(),
+      );
 
       // Verify Bob has all capabilities
       const hasSteward = await hasRoleCapability(
@@ -409,12 +379,9 @@ test("DHT synchronization and eventual consistency", async () => {
       // Lynn assigns role to Bob
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -456,7 +423,10 @@ test("agent interaction without prior person creation", async () => {
       assert.isUndefined(bobProfileFromLynn.private_data);
 
       // Verify that roles cannot be retrieved without person record
-      const bobRolesBeforeCreation = await getPersonRoles(lynn.cells[0], bob.agentPubKey);
+      const bobRolesBeforeCreation = await getPersonRoles(
+        lynn.cells[0],
+        bob.agentPubKey,
+      );
       assert.equal(bobRolesBeforeCreation.roles.length, 0);
 
       // Now Bob creates person record
@@ -475,12 +445,9 @@ test("agent interaction without prior person creation", async () => {
       // Now Lynn can assign a role to Bob
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -491,7 +458,10 @@ test("agent interaction without prior person creation", async () => {
         bob.agentPubKey,
       );
       assert.equal(bobRolesAfterAssignment.roles.length, 1);
-      assert.equal(bobRolesAfterAssignment.roles[0].role_name, TEST_ROLES.RESOURCE_STEWARD);
+      assert.equal(
+        bobRolesAfterAssignment.roles[0].role_name,
+        TEST_ROLES.RESOURCE_STEWARD,
+      );
     },
   );
 }, 240000);

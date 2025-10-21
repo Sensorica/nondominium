@@ -1,5 +1,7 @@
 # Test Commands Reference for nondominium Project
 
+**IMPORTANT**: All test commands should use test file names (not full paths). The test runner automatically locates files by name pattern.
+
 ## Complete Test Suite
 
 ```bash
@@ -16,49 +18,49 @@ bun run tests --reporter=verbose
 
 ```bash
 # Foundation tests (basic person functions)
-bun run tests person-foundation
+bun run tests person-foundation-tests.test.ts
 
 # Integration tests (cross-zome person interactions)
-bun run tests person-integration
+bun run tests person-integration-tests.test.ts
 
 # Scenario tests (complete person workflows)
-bun run tests person-scenario
+bun run tests person-scenario-tests.test.ts
 
 # Private data sharing tests
-bun run tests person-private-data
+bun run tests person-private-data-sharing.test.ts
 ```
 
 ### Resource Zome Tests
 
 ```bash
 # Foundation tests (basic resource functions)
-bun run tests resource-foundation
+bun run tests resource-foundation-tests.test.ts
 
 # Integration tests (cross-zome resource interactions)
-bun run tests resource-integration
+bun run tests resource-integration-tests.test.ts
 
 # Scenario tests (complete resource workflows)
-bun run tests resource-scenario
+bun run tests resource-scenario-tests.test.ts
 
 # Update tests (resource modification and governance)
-bun run tests resource-update
+bun run tests resource-update-tests.test.ts
 ```
 
 ### Governance Zome Tests
 
 ```bash
 # Foundation tests (basic governance functions)
-bun run tests governance-foundation
+bun run tests governance-foundation-tests.test.ts
 
 # PPR System Tests (all PPR-related functionality)
-bun run tests ppr-foundation
-bun run tests ppr-integration
-bun run tests ppr-scenarios
-bun run tests ppr-debug
-bun run tests ppr-cryptography
+bun run tests ppr-foundation.test.ts
+bun run tests ppr-integration.test.ts
+bun run tests ppr-scenarios.test.ts
+bun run tests ppr-debug.test.ts
+bun run tests ppr-cryptography.test.ts
 
 # All PPR system tests (wildcard pattern)
-bun run tests ppr
+bun run tests ppr-*.test.ts
 ```
 
 ## Testing by Category
@@ -67,35 +69,35 @@ bun run tests ppr
 
 ```bash
 # Run all foundation tests across all zomes
-bun run tests foundation
+bun run tests *-foundation-tests.test.ts
 
 # Individual zome foundation tests
-bun run tests person-foundation
-bun run tests resource-foundation
-bun run tests governance-foundation
+bun run tests person-foundation-tests.test.ts
+bun run tests resource-foundation-tests.test.ts
+bun run tests governance-foundation-tests.test.ts
 ```
 
 ### Integration Tests (Cross-Zome)
 
 ```bash
 # Run all integration tests
-bun run tests integration
+bun run tests *-integration-tests.test.ts
 
 # Individual integration tests
-bun run tests person-integration
-bun run tests resource-integration
+bun run tests person-integration-tests.test.ts
+bun run tests resource-integration-tests.test.ts
 ```
 
 ### Scenario Tests (End-to-End)
 
 ```bash
 # Run all scenario tests
-bun run tests scenario
+bun run tests *-scenario-tests.test.ts
 
 # Individual scenario tests
-bun run tests person-scenario
-bun run tests resource-scenario
-bun run tests ppr-system/ppr-scenarios
+bun run tests person-scenario-tests.test.ts
+bun run tests resource-scenario-tests.test.ts
+bun run tests ppr-scenarios.test.ts
 ```
 
 ## Debug and Development Testing
@@ -104,7 +106,7 @@ bun run tests ppr-system/ppr-scenarios
 
 ```bash
 # Run a single test file
-bun run tests person-foundation
+bun run tests person-foundation-tests.test.ts
 
 # Run tests with specific pattern
 bun run tests -- --grep "createPerson"
@@ -120,12 +122,12 @@ bun run tests --watch
 
 ```bash
 # Run debug tests (helpful for development)
-bun run tests tests/src/nondominium/debug-test
-bun run tests tests/src/nondominium/debug-update-test
-bun run tests tests/src/nondominium/debug-links-test
+bun run tests debug-test.test.ts
+bun run tests debug-update-test.test.ts
+bun run tests debug-links-test.test.ts
 
 # Run PPR debug tests
-bun run tests ppr-system/ppr-debug
+bun run tests ppr-debug.test.ts
 ```
 
 ### Test Configuration
@@ -238,7 +240,7 @@ cargo check
 bun run tests --timeout=600000  # 10 minutes
 
 # Run specific test with increased timeout
-bun run tests ppr-scenarios --timeout=600000
+bun run tests ppr-scenarios.test.ts --timeout=600000
 ```
 
 ## Test File Organization

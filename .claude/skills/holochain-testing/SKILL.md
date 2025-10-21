@@ -76,12 +76,14 @@ This skill provides comprehensive interactive guidance for testing Holochain app
 ```
 🤔 "Which tests to run?"
 ├── All tests → `bun run tests` (builds zomes + runs all)
-├── Person foundation → `bun run tests tests/src/nondominium/person/person-foundation-tests.test.ts`
-├── Resource integration → `bun run tests tests/src/nondominium/resource/resource-integration-tests.test.ts`
-├── Governance scenarios → `bun run tests tests/src/nondominium/governance/ppr-system/ppr-scenarios.test.ts`
-├── PPR system only → `bun run tests tests/src/nondominium/governance/ppr-system/ppr-*.test.ts`
+├── Person foundation → `bun run tests person-foundation-tests.test.ts`
+├── Resource integration → `bun run tests resource-integration-tests.test.ts`
+├── Governance scenarios → `bun run tests ppr-scenarios.test.ts`
+├── PPR system only → `bun run tests ppr-*.test.ts`
 └── Single test → `bun run tests -- filename.test.ts --reporter=verbose`
 ```
+
+**IMPORTANT**: Use test file names (not full paths) when running specific tests with `bun run tests`. The test runner will find the files by name.
 
 ### 🎯 Test Generation Patterns
 
@@ -115,7 +117,7 @@ User: "I want to run just the foundation tests for the person zome"
 Skill: Here's the exact command:
 
 ```bash
-bun run tests tests/src/nondominium/person/person-foundation-tests.test.ts
+bun run tests person-foundation-tests.test.ts
 ```
 
 This will:
@@ -284,14 +286,16 @@ User: "What command runs just the person foundation tests?"
 
 Skill: For person foundation tests, use:
 ```bash
-bun run tests tests/src/nondominium/person/person-foundation-tests.test.ts
+bun run tests person-foundation-tests.test.ts
 ```
 
 For specific foundation tests:
-- Person: `bun run tests tests/src/nondominium/person/person-foundation-tests.test.ts`
-- Resource: `bun run tests tests/src/nondominium/resource/resource-foundation-tests.test.ts`
-- Governance: `bun run tests tests/src/nondominium/governance/governance-foundation-tests.test.ts`
+- Person: `bun run tests person-foundation-tests.test.ts`
+- Resource: `bun run tests resource-foundation-tests.test.ts`
+- Governance: `bun run tests governance-foundation-tests.test.ts`
 ```
+
+**IMPORTANT**: Always use test file names (not full paths) with `bun run tests`. The test runner automatically locates the files.
 
 ### PPR System Testing
 ```
@@ -300,15 +304,17 @@ User: "Which test should I run for PPR system validation?"
 Skill: For comprehensive PPR testing:
 ```bash
 # All PPR system tests
-bun run tests tests/src/nondominium/governance/ppr-system/ppr-*.test.ts
+bun run tests ppr-*.test.ts
 
 # Specific PPR tests
-bun run tests tests/src/nondominium/governance/ppr-system/ppr-foundation.test.ts      # Basic PPR functions
-bun run tests tests/src/nondominium/governance/ppr-system/ppr-integration.test.ts     # Cross-zome PPR tests
-bun run tests tests/src/nondominium/governance/ppr-system/ppr-scenarios.test.ts       # Complete PPR workflows
+bun run tests ppr-foundation.test.ts      # Basic PPR functions
+bun run tests ppr-integration.test.ts     # Cross-zome PPR tests
+bun run tests ppr-scenarios.test.ts       # Complete PPR workflows
 ```
 
 The PPR tests cover private data access requests, capability grants, and permission validation.
+
+**IMPORTANT**: Use test file names (not full paths) with `bun run tests`. The test runner finds files by name pattern.
 ```
 
 ### Integration Test Debugging

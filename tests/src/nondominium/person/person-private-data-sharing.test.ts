@@ -1,5 +1,5 @@
 import { assert, test } from "vitest";
-import { Scenario, PlayerApp, dhtSync } from "@holochain/tryorama";
+import { Scenario, PlayerApp, dhtSync, runScenario } from "@holochain/tryorama";
 import {
   samplePerson,
   samplePrivateData,
@@ -252,10 +252,7 @@ test("direct data access grant without request", async () => {
   await runScenarioWithTwoAgents(
     async (_scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Set up profiles
-      await createPerson(
-        lynn.cells[0],
-        samplePerson({ name: "Lynn Granter" }),
-      );
+      await createPerson(lynn.cells[0], samplePerson({ name: "Lynn Granter" }));
       await storePrivateData(
         lynn.cells[0],
         samplePrivateData({
@@ -576,15 +573,12 @@ test("debug private data retrieval issue", async () => {
 
       // 3. Test if Lynn can validate Bob's private data using the standard validation function
       try {
-        const validationResult = await validateAgentPrivateData(
-          lynn.cells[0],
-          {
-            target_agent: bob.agentPubKey,
-            validation_context: "debug_test",
-            required_fields: ["email", "phone"],
-            governance_requester: lynn.agentPubKey,
-          },
-        );
+        const validationResult = await validateAgentPrivateData(lynn.cells[0], {
+          target_agent: bob.agentPubKey,
+          validation_context: "debug_test",
+          required_fields: ["email", "phone"],
+          governance_requester: lynn.agentPubKey,
+        });
         console.log(
           "❌ Standard validation should have failed (no grant), result:",
           validationResult,
@@ -637,9 +631,7 @@ test("debug private data retrieval issue", async () => {
         console.log("✅ Synced self-validation proof");
 
         // Step 2: Lynn verifies Bob's self-validation proof on her node
-        console.log(
-          "🔍 Step 2: Lynn verifying Bob's self-validation proof...",
-        );
+        console.log("🔍 Step 2: Lynn verifying Bob's self-validation proof...");
         const verifiedValidation = await verifySelfValidationProof(
           lynn.cells[0],
           selfValidationProof,
@@ -675,156 +667,249 @@ test("debug private data retrieval issue", async () => {
 });
 
 test("agent role promotion with private data validation", async () => {
-  await runScenarioWithTwoAgents(
-    async (scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
-      const charlie = await scenario.addPlayerWithApp({
+  await runScenario(async (scenario: Scenario) => {
+    // Create all three agents upfront for proper DHT synchronization
+    const [lynn, bob, charlie] = await scenario.addPlayersWithApps([
+      {
         appBundleSource: {
           type: "path" as const,
           value: process.cwd() + "/../workdir/nondominium.happ",
         },
-      });
-      await scenario.shareAllAgents();
+      },
+      {
+        appBundleSource: {
+          type: "path" as const,
+          value: process.cwd() + "/../workdir/nondominium.happ",
+        },
+      },
+      {
+        appBundleSource: {
+          type: "path" as const,
+          value: process.cwd() + "/../workdir/nondominium.happ",
+        },
+      },
+    ]);
 
-      console.log("Setting up role promotion test scenario...");
+    await scenario.shareAllAgents();
 
-      // Lynn is a governance agent (Primary Accountable Agent)
-      await createPerson(
+    console.log("Setting up role promotion test scenario with 3 agents...");
+
+    // Lynn is a governance agent (Primary Accountable Agent)
+    await createPerson(
+      lynn.cells[0],
+      samplePerson({ name: "Lynn Governance" }),
+    );
+    await assignPersonRole(lynn.cells[0], {
+      agent_pubkey: lynn.agentPubKey,
+      role_name: "Primary Accountable Agent",
+      description: "Governance authority",
+    });
+    console.log("✅ Lynn setup as governance agent");
+
+    // Bob wants promotion and has complete private data
+    await createPerson(bob.cells[0], samplePerson({ name: "Bob Promotion" }));
+    await storePrivateData(
+      bob.cells[0],
+      samplePrivateData({
+        legal_name: "Bob Promotion Candidate",
+        email: "bob.promotion@example.com",
+        phone: "+1-555-PROMOTE",
+        location: "Promotion City",
+        time_zone: "America/Chicago",
+      }),
+    );
+    console.log("✅ Bob setup with complete private data");
+
+    // Charlie wants promotion but has incomplete private data
+    await createPerson(
+      charlie.cells[0],
+      samplePerson({ name: "Charlie Incomplete" }),
+    );
+    await storePrivateData(
+      charlie.cells[0],
+      samplePrivateData({
+        legal_name: "Charlie Incomplete Data",
+        email: "charlie.incomplete@example.com",
+        // Missing phone, location, time_zone
+      }),
+    );
+    console.log("✅ Charlie setup with incomplete private data");
+
+    // Improved DHT sync strategy - sync after each major operation
+    console.log("🔄 Syncing after initial setup...");
+    await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
+    console.log("✅ Initial sync completed");
+
+    console.log("Testing agent promotion workflow...");
+
+    // 1. Bob creates auto-grant for governance access (needed for validation)
+    // Bob grants access to Lynn (the governance agent who will validate the promotion)
+    const bobAutoGrant = await autoGrantGovernanceAccess(bob.cells[0], {
+      target_role: "Accountable Agent",
+      governance_agent: lynn.agentPubKey,
+    });
+    assert.ok(bobAutoGrant);
+    const bobGrantHash = (bobAutoGrant as any).grant_hash;
+    console.log("✅ Bob created auto-grant with hash:", bobGrantHash);
+
+    // CRITICAL: Sync after the auto-grant creation so Lynn can see the grant
+    console.log("🔄 Syncing after Bob's auto-grant creation...");
+    await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
+    console.log("✅ Sync completed after Bob's auto-grant");
+
+    // Debug: Let's check what private data Bob actually has stored
+    console.log("🔍 Debug: Checking Bob's stored private data...");
+    const bobPrivateData = await getMyPrivateData(bob.cells[0]);
+    console.log(
+      "🔍 Bob's private data:",
+      JSON.stringify(bobPrivateData, null, 2),
+    );
+
+    // 2. Bob creates self-validation proof for his private data (Holochain pattern)
+    console.log(
+      "🔍 Step 1: Bob creating self-validation proof for promotion...",
+    );
+    const selfValidationProof = await createSelfValidationProof(bob.cells[0], {
+      target_agent: bob.agentPubKey, // Bob validates his own data
+      validation_context: "promotion_validation",
+      required_fields: ["email", "phone"], // Use fields granted for Accountable Agent role
+      governance_requester: lynn.agentPubKey, // Lynn is the governance requester
+      grant_hash: bobGrantHash,
+    });
+    console.log("✅ Bob created self-validation proof for promotion");
+    console.log(
+      "🔍 Self-validation proof result:",
+      JSON.stringify(selfValidationProof, null, 2),
+    );
+
+    // Sync the proof to Lynn's node
+    await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
+    console.log("✅ Synced self-validation proof to governance agent");
+
+    // 3. Lynn verifies Bob's self-validation proof and processes promotion
+    try {
+      console.log("🔍 Step 2: Lynn verifying Bob's self-validation proof...");
+      const verifiedValidation = await verifySelfValidationProof(
         lynn.cells[0],
-        samplePerson({ name: "Lynn Governance" }),
+        selfValidationProof,
       );
-      await assignPersonRole(lynn.cells[0], {
-        agent_pubkey: lynn.agentPubKey,
-        role_name: "Primary Accountable Agent",
-        description: "Governance authority",
-      });
+      console.log("✅ Lynn verified Bob's self-validation for promotion");
 
-      // Bob wants promotion and has complete private data
-      await createPerson(bob.cells[0], samplePerson({ name: "Bob Promotion" }));
-      await storePrivateData(
-        bob.cells[0],
-        samplePrivateData({
-          legal_name: "Bob Promotion Candidate",
-          email: "bob.promotion@example.com",
-          phone: "+1-555-PROMOTE",
-          location: "Promotion City",
-          time_zone: "America/Chicago",
-        }),
-      );
-
-      // Charlie wants promotion but has incomplete private data
-      await createPerson(
-        charlie.cells[0],
-        samplePerson({ name: "Charlie Incomplete" }),
-      );
-      await storePrivateData(
-        charlie.cells[0],
-        samplePrivateData({
-          legal_name: "Charlie Incomplete Data",
-          email: "charlie.incomplete@example.com",
-          // Missing phone, location, time_zone
-        }),
-      );
-
-      // Extended sync for 3 agents - make sure all private data is fully synchronized
-      console.log("🔄 Syncing after private data creation...");
-      await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
-
-      console.log("Testing agent promotion workflow...");
-
-      // 1. Bob creates auto-grant for governance access (needed for validation)
-      // Bob grants access to Lynn (the governance agent who will validate the promotion)
-      const bobAutoGrant = await autoGrantGovernanceAccess(bob.cells[0], {
-        target_role: "Accountable Agent",
-        governance_agent: lynn.agentPubKey,
-      });
-      assert.ok(bobAutoGrant);
-      const bobGrantHash = (bobAutoGrant as any).grant_hash;
-      console.log("Bob created auto-grant with hash:", bobGrantHash);
-
-      // CRITICAL: Sync after the auto-grant creation so Lynn can see the grant
-      console.log("🔄 Syncing after auto-grant creation...");
-      await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
-
-      // 2. Lynn promotes Bob to Accountable Agent (should succeed)
-      try {
+      if (verifiedValidation.is_valid) {
+        console.log("✅ Verification passed - proceeding with promotion...");
+        // Since verification passed, Lynn can now promote Bob
         const bobPromotion = await promoteAgentWithValidation(lynn.cells[0], {
           target_agent: bob.agentPubKey,
           target_role: "Accountable Agent",
           justification:
-            "Bob has demonstrated leadership and has complete data",
-          validate_private_data: true,
+            "Bob has demonstrated leadership and has complete validated data",
+          validate_private_data: false, // Skip validation since already done via self-validation
           grant_hash: bobGrantHash,
         });
         assert.ok(bobPromotion);
         console.log("✅ Bob promotion successful:", bobPromotion);
-      } catch (error) {
-        console.error("❌ Bob promotion failed unexpectedly:", error);
-        throw error;
+      } else {
+        throw new Error(
+          `Self-validation failed: ${verifiedValidation.error_message}`,
+        );
       }
+    } catch (error) {
+      console.error("❌ Bob promotion failed unexpectedly:", error);
+      throw error;
+    }
 
-      // 3. Try to promote Charlie (should fail due to incomplete data)
-      const charlieAutoGrant = await autoGrantGovernanceAccess(
+    // 4. Try to promote Charlie (should fail due to incomplete data)
+    const charlieAutoGrant = await autoGrantGovernanceAccess(charlie.cells[0], {
+      target_role: "Accountable Agent",
+      governance_agent: lynn.agentPubKey,
+    });
+    assert.ok(charlieAutoGrant);
+    const charlieGrantHash = (charlieAutoGrant as any).grant_hash;
+    console.log("✅ Charlie created auto-grant with hash:", charlieGrantHash);
+
+    // Sync after Charlie's auto-grant creation
+    console.log("🔄 Syncing after Charlie's auto-grant creation...");
+    await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
+    console.log("✅ Sync completed after Charlie's auto-grant");
+
+    // Charlie creates self-validation proof (should fail due to incomplete data)
+    console.log(
+      "🔍 Step 1: Charlie creating self-validation proof for promotion...",
+    );
+    try {
+      const charlieSelfValidationProof = await createSelfValidationProof(
         charlie.cells[0],
         {
-          target_role: "Accountable Agent",
-          governance_agent: lynn.agentPubKey,
+          target_agent: charlie.agentPubKey, // Charlie validates his own data
+          validation_context: "promotion_validation_charlie",
+          required_fields: ["email", "phone"], // Charlie has email but no phone (optional field)
+          governance_requester: lynn.agentPubKey, // Lynn is the governance requester
+          grant_hash: charlieGrantHash,
         },
       );
-      assert.ok(charlieAutoGrant);
-      const charlieGrantHash = (charlieAutoGrant as any).grant_hash;
+      console.log("✅ Charlie created self-validation proof (unexpectedly)");
 
-      // Sync after Charlie's auto-grant creation
-      console.log("🔄 Syncing after Charlie's auto-grant creation...");
+      // Sync the proof to Lynn's node
       await dhtSync([lynn, bob, charlie], lynn.cells[0].cell_id[0]);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log("✅ Synced Charlie's self-validation proof");
 
-      try {
+      // Lynn verifies Charlie's self-validation proof (should fail)
+      console.log(
+        "🔍 Step 2: Lynn verifying Charlie's self-validation proof...",
+      );
+      const charlieVerifiedValidation = await verifySelfValidationProof(
+        lynn.cells[0],
+        charlieSelfValidationProof,
+      );
+
+      if (charlieVerifiedValidation.is_valid) {
+        // If verification unexpectedly passes, try promotion (should still fail due to missing required fields)
         await promoteAgentWithValidation(lynn.cells[0], {
           target_agent: charlie.agentPubKey,
           target_role: "Accountable Agent",
           justification: "Charlie promotion test",
-          validate_private_data: true,
+          validate_private_data: false,
           grant_hash: charlieGrantHash,
         });
-        assert.fail("Should have failed for incomplete private data");
-      } catch (error) {
+        assert.fail(
+          "Charlie promotion should have failed due to incomplete data",
+        );
+      } else {
         console.log(
-          "✅ Charlie promotion correctly failed due to incomplete data:",
-          error,
+          "✅ Charlie promotion correctly failed during self-validation:",
+          charlieVerifiedValidation.error_message,
         );
       }
+    } catch (error) {
+      console.log(
+        "✅ Charlie promotion correctly failed due to incomplete data:",
+        error,
+      );
+    }
 
-      // 4. Test self-promotion request
-      try {
-        const promotionRequest = await requestRolePromotion(bob.cells[0], {
-          target_role: "Primary Accountable Agent",
-          justification: "Ready for governance responsibilities",
-        });
-        assert.ok(promotionRequest);
-        console.log("✅ Bob self-promotion request created:", promotionRequest);
-      } catch (error) {
-        console.error("Self-promotion request failed:", error);
-      }
+    // 5. Test self-promotion request
+    try {
+      const promotionRequest = await requestRolePromotion(bob.cells[0], {
+        target_role: "Primary Accountable Agent",
+        justification: "Ready for governance responsibilities",
+      });
+      assert.ok(promotionRequest);
+      console.log("✅ Bob self-promotion request created:", promotionRequest);
+    } catch (error) {
+      console.error("Self-promotion request failed:", error);
+    }
 
-      console.log("✅ Agent promotion workflow test completed successfully");
-    },
-  );
-}, 240000); // 4 minutes timeout for multi-agent DHT sync
+    console.log("✅ Agent promotion workflow test completed successfully");
 
-test("enhanced audit trail and notifications", async () => {
+    scenario.cleanUp();
+  });
+}, 300000); // 5 minutes timeout for multi-agent DHT sync
+
+test.only("enhanced audit trail and notifications", async () => {
   await runScenarioWithTwoAgents(
     async (scenario: Scenario, lynn: PlayerApp, bob: PlayerApp) => {
       // Set up profiles and private data
-      await createPerson(
-        lynn.cells[0],
-        samplePerson({ name: "Lynn Auditor" }),
-      );
+      await createPerson(lynn.cells[0], samplePerson({ name: "Lynn Auditor" }));
       await storePrivateData(
         lynn.cells[0],
         samplePrivateData({

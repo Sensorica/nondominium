@@ -731,6 +731,7 @@ pub fn validate_agent_private_data_with_grant(input: ValidationDataRequestWithGr
   for field in &input.required_fields {
     if grant.fields_granted.contains(field) {
       match field.as_str() {
+        "legal_name" => { validated_data.insert("legal_name".to_string(), private_data.legal_name.clone()); }
         "email" => { validated_data.insert("email".to_string(), private_data.email.clone()); }
         "phone" => {
           if let Some(phone) = &private_data.phone {
@@ -917,6 +918,7 @@ pub fn validate_agent_private_data(input: ValidationDataRequest) -> ExternResult
       for field in &input.required_fields {
         if grant.fields_granted.contains(field) {
           match field.as_str() {
+            "legal_name" => { validated_data.insert("legal_name".to_string(), private_data.legal_name.clone()); }
             "email" => { validated_data.insert("email".to_string(), private_data.email.clone()); }
             "phone" => {
               if let Some(phone) = &private_data.phone {
