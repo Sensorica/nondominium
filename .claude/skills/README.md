@@ -7,11 +7,13 @@ This directory contains two specialized Claude Skills designed to accelerate and
 ## Available Skills
 
 ### 1. Holochain Development Skill 🛠️
+
 **Purpose**: Interactive guidance for Holochain hApp development with integrity-first architecture
 **Location**: `./holochain-dev/`
 **Best For**: Architecture planning, zome development, pattern implementation, debugging
 
 ### 2. Holochain Testing Skill 🧪
+
 **Purpose**: Interactive guidance for testing with exact command selection and 4-layer testing strategy
 **Location**: `./holochain-testing/`
 **Best For**: Test command precision, multi-agent scenarios, PPR system testing, coverage analysis
@@ -43,6 +45,7 @@ Claude automatically loads skills based on your requests:
 ## Skill Contents
 
 ### Holochain Development Skill
+
 ```
 holochain-dev/
 ├── SKILL.md                       # Interactive development guidance
@@ -55,6 +58,7 @@ holochain-dev/
 ```
 
 ### Holochain Testing Skill
+
 ```
 holochain-testing/
 ├── SKILL.md                       # Interactive testing guidance
@@ -69,36 +73,44 @@ holochain-testing/
 ## Usage Examples
 
 ### Example 1: Developing a New Zome
+
 **User Request**: "I want to add a ResourceProposal zome for our valueflows system"
 
 **Claude's Response** (using Holochain Development Skill):
+
 1. **Integrity-First Planning**: Designs entry types and validation rules
 2. **Architecture Guidance**: Explains integrity → coordinator relationship
 3. **Code Generation**: Provides templates for both zomes
 4. **Cross-Zome Integration**: Shows how to connect with existing person/resource zomes
 
 ### Example 2: Testing Complex Scenarios
+
 **User Request**: "What test command should I run for PPR system testing?"
 
 **Claude's Response** (using Holochain Testing Skill):
+
 1. **Command Selection**: Provides exact `bun run tests` commands
 2. **Test Coverage**: Explains which test files cover PPR functionality
 3. **Multi-Agent Setup**: Shows how to design 3-agent test scenarios
 4. **Debug Support**: Helps analyze test failures and suggest solutions
 
 ### Example 3: Architecture Validation
+
 **User Request**: "Help me debug this cross-zome communication issue"
 
 **Claude's Response** (using Holochain Development Skill):
+
 1. **Pattern Analysis**: Reviews cross-zome communication patterns
 2. **Error Diagnosis**: Identifies common issues in coordinator-to-coordinator calls
 3. **Solution Templates**: Provides working code examples
 4. **Testing Guidance**: Suggests specific tests to validate fixes
 
 ### Example 4: Test Strategy Planning
+
 **User Request**: "I need comprehensive tests for our governance zome"
 
 **Claude's Response** (using Holochain Testing Skill):
+
 1. **4-Layer Strategy**: Plans foundation → integration → scenario → performance tests
 2. **Test Generation**: Creates test templates for each layer
 3. **Command Precision**: Provides exact commands for each test type
@@ -111,21 +123,25 @@ holochain-testing/
 These skills are specifically tailored for your project:
 
 **ValueFlows Compliance**:
+
 - EconomicResource, EconomicEvent, Commitment patterns
 - Resource lifecycle management
 - Economic event tracking and validation
 
 **PPR System (Private data, Purpose, Rights)**:
+
 - Private data sharing workflows
 - Capability-based access control
 - Cryptographic validation patterns
 
 **3-Zome Architecture**:
+
 - Person zome: Identity, roles, private data
 - Resource zome: Resource lifecycle, governance rules
 - Governance zome: Commitments, claims, economic events
 
 **Development Environment**:
+
 - Nix shell requirements
 - Bun package manager integration
 - Tryorama testing framework
@@ -180,16 +196,16 @@ bun run tests tests/src/nondominium/person/person-foundation-tests.test.ts
 
 ### When to Use Which Skill
 
-| Situation | Primary Skill | Secondary Skill |
-|-----------|---------------|-----------------|
-| New zome development | Holochain Development | Holochain Testing |
-| Architecture planning | Holochain Development | - |
-| Test command selection | Holochain Testing | Holochain Development |
-| Debugging zome issues | Holochain Development | Holochain Testing |
-| Cross-zome integration | Holochain Development | Holochain Testing |
-| Multi-agent scenarios | Holochain Testing | Holochain Development |
-| PPR system development | Both | Both |
-| ValueFlows integration | Holochain Development | Holochain Testing |
+| Situation              | Primary Skill         | Secondary Skill       |
+| ---------------------- | --------------------- | --------------------- |
+| New zome development   | Holochain Development | Holochain Testing     |
+| Architecture planning  | Holochain Development | -                     |
+| Test command selection | Holochain Testing     | Holochain Development |
+| Debugging zome issues  | Holochain Development | Holochain Testing     |
+| Cross-zome integration | Holochain Development | Holochain Testing     |
+| Multi-agent scenarios  | Holochain Testing     | Holochain Development |
+| PPR system development | Both                  | Both                  |
+| ValueFlows integration | Holochain Development | Holochain Testing     |
 
 ## Customization for Your Project
 
@@ -263,6 +279,7 @@ This ensures fast response times while providing comprehensive guidance when nee
 ### Community Contribution
 
 Feel free to:
+
 - Share your custom templates and patterns
 - Suggest improvements to existing skills
 - Add examples from your own development

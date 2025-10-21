@@ -7,24 +7,28 @@ This skill provides interactive guidance for Holochain testing with exact comman
 ## Key Features
 
 ### 🧪 4-Layer Testing Strategy
+
 - **Foundation Tests**: Basic zome function calls and connectivity validation
 - **Integration Tests**: Cross-zome interactions and multi-agent scenarios
 - **Scenario Tests**: Complete user journeys and end-to-end workflows
 - **Performance Tests**: Load testing and PPR system optimization
 
 ### 🎯 Exact Command Selection
+
 - **Test Command Precision**: Choose the right command for specific testing needs
 - **File-Specific Testing**: Run individual test files or test patterns
 - **Multi-Agent Configuration**: Configure custom agent setups for testing
 - **Environment Mode Testing**: Development vs test vs production mode testing
 
 ### 📊 Project-Specific Testing
+
 - **Person Zome Testing**: Identity, roles, private data, capability validation
 - **Resource Zome Testing**: EconomicResource lifecycle, governance rules, transfers
 - **Governance Zome Testing**: Commitments, claims, economic events, PPR validation
 - **ValueFlows Testing**: Economic event testing and resource tracking validation
 
 ### 🔍 Testing Guidance & Quality
+
 - **Test Coverage Analysis**: Ensure comprehensive test coverage across all zomes
 - **Multi-Agent Test Design**: Proper agent setup with roles and permissions
 - **Test Data Generation**: Realistic test data for ValueFlows scenarios
@@ -45,6 +49,7 @@ Ask Claude questions like:
 ### Interactive Testing Guidance
 
 **Foundation Testing**:
+
 ```
 User: "I need to test a new function in the person zome"
 
@@ -59,6 +64,7 @@ Would you like me to generate the complete test file?
 ```
 
 **Integration Testing**:
+
 ```
 User: "I want to test person-resource cross-zome interaction"
 
@@ -73,6 +79,7 @@ Should I generate the complete integration test?
 ```
 
 **Scenario Testing**:
+
 ```
 User: "Create test for complete resource sharing workflow with PPR"
 
@@ -89,6 +96,7 @@ This will be a complete multi-agent scenario test. Ready to proceed?
 ## Test Commands Reference
 
 ### Complete Test Suite
+
 ```bash
 # Run all tests (builds zomes + runs all test files)
 bun run tests
@@ -100,6 +108,7 @@ bun run tests --reporter=verbose
 ### Individual Zome Testing
 
 #### Person Zome Tests
+
 ```bash
 # Foundation tests
 bun run tests tests/src/nondominium/person/person-foundation-tests.test.ts
@@ -115,6 +124,7 @@ bun run tests tests/src/nondominium/person/person-private-data-sharing.test.ts
 ```
 
 #### Resource Zome Tests
+
 ```bash
 # Foundation tests
 bun run tests tests/src/nondominium/resource/resource-foundation-tests.test.ts
@@ -130,6 +140,7 @@ bun run tests tests/src/nondominium/resource/resource-update-test.test.ts
 ```
 
 #### Governance Zome Tests
+
 ```bash
 # Foundation tests
 bun run tests tests/src/nondominium/governance/governance-foundation-tests.test.ts
@@ -184,7 +195,7 @@ test("create and retrieve Person", async () => {
       const profile = await getMyProfile(agent1);
       assert.ok(profile);
       // ... more test logic
-    }
+    },
   );
 });
 ```
@@ -196,12 +207,14 @@ test("create and retrieve Person", async () => {
 **Purpose**: Test individual zome functions in isolation
 
 **What to Test**:
+
 - Basic CRUD operations (create, get, update, delete)
 - Data validation and error handling
 - Input validation and edge cases
 - Agent permissions and capabilities
 
 **Example Test Pattern**:
+
 ```typescript
 test("create_person with valid data", async () => {
   // Test successful person creation
@@ -221,12 +234,14 @@ test("get_my_profile returns correct data", async () => {
 **Purpose**: Test cross-zome interactions and data flow
 
 **What to Test**:
+
 - Cross-zome communication (person ↔ resource ↔ governance)
 - Data consistency across zomes
 - Permission validation across zomes
 - Error propagation between zomes
 
 **Example Test Pattern**:
+
 ```typescript
 test("person creates resource with governance", async () => {
   // Step 1: Person creates resource with embedded governance
@@ -240,12 +255,14 @@ test("person creates resource with governance", async () => {
 **Purpose**: Test complete user journeys and workflows
 
 **What to Test**:
+
 - End-to-end user workflows
 - Multi-agent collaboration scenarios
 - Complex business processes
 - Real-world usage patterns
 
 **Example Test Pattern**:
+
 ```typescript
 test("complete PPR workflow", async () => {
   // Setup: Create owner, admin, requester agents
@@ -262,20 +279,27 @@ test("complete PPR workflow", async () => {
 ### Agent Configuration
 
 **2-Agent Scenarios**:
+
 ```typescript
 await runScenarioWithTwoAgents(
   async (scenario: Scenario, agent1: PlayerApp, agent2: PlayerApp) => {
     // Basic two-agent interaction testing
-  }
+  },
 );
 ```
 
 **3-Agent Scenarios**:
+
 ```typescript
 await runScenarioWithThreeAgents(
-  async (scenario: Scenario, owner: PlayerApp, admin: PlayerApp, requester: PlayerApp) => {
+  async (
+    scenario: Scenario,
+    owner: PlayerApp,
+    admin: PlayerApp,
+    requester: PlayerApp,
+  ) => {
     // Complex three-agent workflow testing
-  }
+  },
 );
 ```
 
@@ -323,6 +347,7 @@ bun run tests tests/src/nondominium/governance/ppr-system/ppr-debug.test.ts     
 ### Common Test Failures
 
 **1. Agent Setup Issues**:
+
 ```bash
 # Symptom: Tests fail with "Agent not found" or similar
 # Solution: Ensure proper agent initialization and DHT sync
@@ -330,6 +355,7 @@ await dhtSync([agent1, agent2]);
 ```
 
 **2. Cross-Zome Communication Issues**:
+
 ```bash
 # Symptom: Integration tests fail with network errors
 # Solution: Verify zome names and function signatures
@@ -337,6 +363,7 @@ await dhtSync([agent1, agent2]);
 ```
 
 **3. Test Timeout Issues**:
+
 ```bash
 # Symptom: Tests timeout after 4 minutes
 # Solution: Increase timeout for complex scenarios
@@ -344,6 +371,7 @@ bun run tests tests/src/nondominium/governance/ppr-system/ppr-scenarios.test.ts 
 ```
 
 **4. Build Issues**:
+
 ```bash
 # Symptom: Tests fail to compile zomes
 # Solution: Clean build and ensure Nix environment
@@ -414,6 +442,7 @@ Ask Claude for coverage analysis:
 This skill works seamlessly with the Holochain Development Skill:
 
 **Development → Testing Workflow**:
+
 1. **Architecture Planning** (Holochain Development Skill)
 2. **Implementation** (Holochain Development Skill)
 3. **Test Generation** (Holochain Testing Skill)
@@ -421,6 +450,7 @@ This skill works seamlessly with the Holochain Development Skill:
 5. **Debug Support** (Both skills)
 
 Example:
+
 ```
 User: "Implement ResourceProposal functionality with comprehensive tests"
 
@@ -458,6 +488,7 @@ bun run build:zomes
 ### Test Configuration
 
 The skill provides guidance for:
+
 - **Environment Setup**: Ensure proper Nix and toolchain configuration
 - **Build Requirements**: Automatic zome compilation before testing
 - **Agent Configuration**: Custom agent setups for different scenarios

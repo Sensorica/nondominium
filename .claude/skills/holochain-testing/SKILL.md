@@ -12,30 +12,35 @@ This skill provides comprehensive interactive guidance for testing Holochain app
 ## Capabilities
 
 ### 🧪 4-Layer Testing Strategy
+
 - **Foundation Tests**: Basic zome function calls and connectivity validation
 - **Integration Tests**: Cross-zome interactions and multi-agent scenarios
 - **Scenario Tests**: Complete user journeys and end-to-end workflows
 - **Performance Tests**: Load testing and PPR system optimization
 
 ### 🎯 Exact Command Selection
+
 - **Test Command Precision**: Choose the right command for specific testing needs
 - **File-Specific Testing**: Run individual test files or test patterns
 - **Multi-Agent Configuration**: Configure custom agent setups for testing
 - **Environment Mode Testing**: Development vs test vs production mode testing
 
 ### 🏗️ Test Generation & Templates
+
 - **Foundation Test Generation**: Create tests for new zome functions automatically
 - **Integration Test Templates**: Cross-zome interaction patterns (person ↔ resource ↔ governance)
 - **Multi-Agent Scenarios**: Tryorama test scaffolding for complex workflows
 - **PPR System Testing**: Private data sharing test patterns specific to your project
 
 ### 📊 Project-Specific Testing Patterns
+
 - **Person Zome Testing**: Identity, roles, private data, capability validation
 - **Resource Zome Testing**: EconomicResource lifecycle, governance rules, transfers
 - **Governance Zome Testing**: Commitments, claims, economic events, PPR validation
 - **ValueFlows Compliance**: Economic event testing and resource tracking validation
 
 ### 🔍 Testing Guidance & Quality
+
 - **Test Coverage Analysis**: Ensure comprehensive test coverage across all zomes
 - **Multi-Agent Test Design**: Proper agent setup with roles and permissions
 - **Test Data Generation**: Realistic test data for ValueFlows scenarios
@@ -63,6 +68,7 @@ This skill provides comprehensive interactive guidance for testing Holochain app
 ### 🎯 Command Selection Interactive Mode
 
 **Test Level Selection**:
+
 ```
 🤔 "What do you want to test?"
 ├── Foundation tests → "Which zome?" → person/resource/governance
@@ -73,6 +79,7 @@ This skill provides comprehensive interactive guidance for testing Holochain app
 ```
 
 **Specific Command Generation**:
+
 ```
 🤔 "Which tests to run?"
 ├── All tests → `bun run tests` (builds zomes + runs all)
@@ -111,26 +118,30 @@ This skill provides comprehensive interactive guidance for testing Holochain app
 ## Examples
 
 ### Command Selection
-```
+
+````
 User: "I want to run just the foundation tests for the person zome"
 
 Skill: Here's the exact command:
 
 ```bash
 bun run tests person-foundation-tests.test.ts
-```
+````
 
 This will:
+
 - Build all zomes to WASM
 - Run only the person foundation tests
 - Use the 4-minute timeout for complex scenarios
 - Output detailed test results
 
 Would you also like to run the person integration tests?
+
 ```
 
 ### Test Generation
 ```
+
 User: "Generate a foundation test for the create_person function"
 
 Skill: I'll create a complete foundation test following nondominium patterns:
@@ -138,10 +149,12 @@ Skill: I'll create a complete foundation test following nondominium patterns:
 [Generates complete TypeScript test file with proper tryorama setup, agent configuration, and validation]
 
 Should I also generate the corresponding integration test that tests person creation with role assignment?
+
 ```
 
 ### Multi-Agent Scenario Design
 ```
+
 User: "I need a test for resource approval with 3 agents"
 
 Skill: I'll help you design a 3-agent test scenario:
@@ -158,10 +171,12 @@ Skill: I'll help you design a 3-agent test scenario:
    - Validate PPR system works correctly
 
 Would you like me to generate the complete test file with this scenario?
+
 ```
 
 ### Test Debugging
 ```
+
 User: "My integration test is failing with 'Agent not found' error"
 
 Skill: Let me help debug this:
@@ -172,7 +187,8 @@ Skill: Let me help debug this:
 4. **Validate DHT Sync**: Ensure agents have time to sync
 
 Can you show me the exact error message and the test code?
-```
+
+````
 
 ## Templates
 
@@ -204,9 +220,10 @@ test.only("create_person with valid data", async () => {
 describe.only("Person CRUD operations", () => {
   // Focus on this specific test group
 });
-```
+````
 
 **Why Atomic Testing Matters**:
+
 - **Isolation**: Debug one test without interference from others
 - **Speed**: Skip other tests during development (saves significant time)
 - **Focus**: Concentrate on specific functionality being developed
@@ -214,13 +231,15 @@ describe.only("Person CRUD operations", () => {
 - **Iteration**: Fast feedback loops during development
 
 **Atomic Development Workflow**:
+
 1. **Add `.only()` to the test you're developing**
 2. **Run the test file** - only the marked test will execute
-3. **Iterate quickly** until the test passes**
+3. **Iterate quickly** until the test passes\*\*
 4. **Remove `.only()`** before committing
 5. **Repeat for each test**
 
 **Example**:
+
 ```typescript
 // During development - focus on single test
 test.only("create person with role assignment", async () => {
@@ -240,6 +259,7 @@ test("create person with role assignment", async () => {
 ```
 
 ### Integration Testing
+
 1. **Test cross-zome communication patterns**
 2. **Validate data flow between zomes**
 3. **Test capability-based access control**
@@ -247,6 +267,7 @@ test("create person with role assignment", async () => {
 5. **Test error propagation across zome boundaries**
 
 ### Scenario Testing
+
 1. **Design realistic user workflows**
 2. **Test complete end-to-end processes**
 3. **Include proper agent role assignments**
@@ -254,6 +275,7 @@ test("create person with role assignment", async () => {
 5. **Test both success and failure scenarios**
 
 ### Multi-Agent Testing
+
 1. **Properly initialize all agents**
 2. **Allow time for DHT synchronization**
 3. **Test agent-specific capabilities and permissions**
@@ -263,6 +285,7 @@ test("create person with role assignment", async () => {
 ## Project Integration
 
 This skill is specifically tailored for the nondominium project:
+
 - Uses your existing test file structure and naming conventions
 - Follows your 4-layer testing strategy exactly
 - Incorporates your PPR (Private data, Purpose, Rights) system testing
@@ -272,6 +295,7 @@ This skill is specifically tailored for the nondominium project:
 ## Test Execution Environment
 
 The skill provides guidance for:
+
 - **Nix Environment**: Ensure tests run in proper Nix shell
 - **Build Requirements**: Automatic zome compilation before testing
 - **Agent Configuration**: Custom agent setups for different scenarios
@@ -281,27 +305,32 @@ The skill provides guidance for:
 ## Examples
 
 ### Foundation Test Selection
-```
+
+````
 User: "What command runs just the person foundation tests?"
 
 Skill: For person foundation tests, use:
 ```bash
 bun run tests person-foundation-tests.test.ts
-```
+````
 
 For specific foundation tests:
+
 - Person: `bun run tests person-foundation-tests.test.ts`
 - Resource: `bun run tests resource-foundation-tests.test.ts`
 - Governance: `bun run tests governance-foundation-tests.test.ts`
+
 ```
 
 **IMPORTANT**: Always use test file names (not full paths) with `bun run tests`. The test runner automatically locates the files.
 
 ### PPR System Testing
 ```
+
 User: "Which test should I run for PPR system validation?"
 
 Skill: For comprehensive PPR testing:
+
 ```bash
 # All PPR system tests
 bun run tests ppr-*.test.ts
@@ -315,20 +344,24 @@ bun run tests ppr-scenarios.test.ts       # Complete PPR workflows
 The PPR tests cover private data access requests, capability grants, and permission validation.
 
 **IMPORTANT**: Use test file names (not full paths) with `bun run tests`. The test runner finds files by name pattern.
+
 ```
 
 ### Integration Test Debugging
 ```
+
 User: "My integration test is failing with 'Network error', can you help debug?"
 
 Skill: Common integration test issues and solutions:
 
 1. **Agent Setup Issues**: Ensure proper agent initialization
+
    ```bash
    # Check: await dhtSync([agent1, agent2]);
    ```
 
 2. **Cross-Zome Communication**: Verify zome names and function signatures
+
    ```bash
    # Check both zomes are in the same DNA
    ```
@@ -339,15 +372,18 @@ Skill: Common integration test issues and solutions:
    ```
 
 Can you share the specific error message and test code?
+
 ```
 
 ### Test Generation
 ```
+
 User: "Generate a test for create_person function"
 
 Skill: I'll create a comprehensive foundation test for create_person:
 
 [Generates complete test file with proper patterns, including:
+
 - Success scenario with valid data
 - Error scenarios with invalid data
 - Agent permission validation
@@ -357,6 +393,7 @@ Skill: I'll create a comprehensive foundation test for create_person:
 The test follows your project's patterns and includes comprehensive edge case coverage.
 
 **IMPORTANT**: During development, add `.only()` to focus on individual tests:
+
 ```typescript
 test.only("create_person function", async () => {
   // Develop this test in isolation
@@ -364,15 +401,18 @@ test.only("create_person function", async () => {
 ```
 
 Remove `.only()` before committing to run all tests together.
+
 ```
 
 ### Atomic Test Development
 ```
+
 User: "I'm developing a new test and it's taking forever to run all tests each time"
 
 Skill: Use atomic test development with `.only()`:
 
 **During Development**:
+
 ```typescript
 // Add .only() to focus on single test
 test.only("my new test", async () => {
@@ -381,18 +421,21 @@ test.only("my new test", async () => {
 ```
 
 **Benefits**:
+
 - **Speed**: Skip all other tests (saves minutes per iteration)
 - **Focus**: Concentrate on one piece of functionality
 - **Debugging**: Isolate issues quickly
 - **Iteration**: Fast feedback loops
 
 **Workflow**:
+
 1. Add `.only()` to test you're developing
 2. Run test file - only marked test executes
 3. Iterate quickly until passing
 4. Remove `.only()` before commit
 
 This is essential for productive Holochain test development!
+
 ```
 
 ## Limitations
@@ -402,3 +445,4 @@ This is essential for productive Holochain test development!
 - Requires proper Nix development environment
 - Focused on coordinator and integrity zome testing
 - Assumes basic TypeScript and testing knowledge
+```

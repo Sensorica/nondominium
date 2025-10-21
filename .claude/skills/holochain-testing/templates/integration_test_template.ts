@@ -63,14 +63,17 @@ test("person creates resource with embedded governance", async () => {
       const resource = await getResource(agent1, resourceHash);
       assert.ok(resource);
       assert.equal(resource.name, resourceInput.name);
-      assert.deepEqual(resource.governance_rules, resourceInput.governance_rules);
+      assert.deepEqual(
+        resource.governance_rules,
+        resourceInput.governance_rules,
+      );
 
       // Step 4: Agent 2 should not see private governance details
       const resourceForAgent2 = await getResource(agent2, resourceHash);
       assert.ok(resourceForAgent2);
       assert.equal(resourceForAgent2.name, resource.name);
       // Note: Governance rules should be private or limited based on capabilities
-    }
+    },
   );
 });
 
@@ -112,7 +115,7 @@ test("role-based resource access control", async () => {
       const userResource = await getResource(agent2, resourceHash);
       // Depending on implementation, this might return limited data or throw an error
       // assert.ok(userResource); // or assert.fail("User should not access restricted resource");
-    }
+    },
   );
 });
 
@@ -121,7 +124,10 @@ test("PPR system integration across zomes", async () => {
     async (_scenario: Scenario, agent1: PlayerApp, agent2: PlayerApp) => {
       // Setup: Create resource owner and requester
       await createPerson(agent1, { name: "Resource Owner", avatar_url: "" });
-      await createPerson(agent2, { name: "Resource Requester", avatar_url: "" });
+      await createPerson(agent2, {
+        name: "Resource Requester",
+        avatar_url: "",
+      });
 
       await assignPersonRole(agent1, agent1.agentPubKey, "admin");
       await assignPersonRole(agent1, agent2.agentPubKey, "user");
@@ -168,7 +174,7 @@ test("PPR system integration across zomes", async () => {
       // Step 4: Verify the commitment and PPR system integration
       // This would involve checking that the commitment properly records the PPR
       // and that the requester now has appropriate access
-    }
+    },
   );
 });
 
@@ -206,7 +212,10 @@ test("cross-zome communication error handling", async () => {
         // assert.fail("Should have thrown error for insufficient permissions");
       } catch (error) {
         // This error handling depends on your permission system implementation
-        assert.ok(error.message.includes("permission") || error.message.includes("role"));
+        assert.ok(
+          error.message.includes("permission") ||
+            error.message.includes("role"),
+        );
       }
 
       // Test 3: Creating commitment for non-existent resource
@@ -221,9 +230,12 @@ test("cross-zome communication error handling", async () => {
         });
         assert.fail("Should have thrown error for non-existent resource");
       } catch (error) {
-        assert.ok(error.message.includes("not found") || error.message.includes("invalid"));
+        assert.ok(
+          error.message.includes("not found") ||
+            error.message.includes("invalid"),
+        );
       }
-    }
+    },
   );
 });
 
@@ -285,6 +297,6 @@ test("multi-agent DHT synchronization", async () => {
 
       // Verify synchronization (exact implementation depends on your get_all_persons)
       // assert.equal(allPersons1.length, allPersons2.length);
-    }
+    },
   );
 });

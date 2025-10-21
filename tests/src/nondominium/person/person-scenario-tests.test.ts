@@ -14,11 +14,9 @@ import {
   getPersonRoles,
   hasRoleCapability,
   getCapabilityLevel,
-  setupBasicPersons,
   setupPersonsWithPrivateData,
   TEST_ROLES,
   CAPABILITY_LEVELS,
-  PersonTestContext,
 } from "./common";
 import { runScenarioWithTwoAgents } from "../utils";
 
@@ -54,13 +52,10 @@ test("Complete user onboarding workflow", async () => {
       console.log("Step 2: Lynn becomes community founder");
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          lynn.agentPubKey,
-          {
-            role_name: TEST_ROLES.FOUNDER,
-            description: "Community founder and initial administrator",
-          },
-        ),
+        sampleRole(lynn.agentPubKey, {
+          role_name: TEST_ROLES.FOUNDER,
+          description: "Community founder and initial administrator",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -112,20 +107,17 @@ test("Complete user onboarding workflow", async () => {
       );
       assert.ok(bobPublicProfile.person);
       assert.equal(bobPublicProfile.person!.name, "Bob Williams");
-      assert.isNull(bobPublicProfile.private_data); // Privacy maintained
+      assert.isUndefined(bobPublicProfile.private_data); // Privacy maintained
 
       // Step 5: Lynn assigns steward role to Bob
       console.log("Step 5: Role assignment and capability delegation");
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-            description:
-              "Community steward responsible for member onboarding and support",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+          description:
+            "Community steward responsible for member onboarding and support",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -197,14 +189,11 @@ test("Community governance workflow with role hierarchy", async () => {
       console.log("Phase 1: Establish primary leadership");
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          lynn.agentPubKey,
-          {
-            role_name: TEST_ROLES.FOUNDER,
-            description:
-              "Primary accountable agent responsible for community governance",
-          },
-        ),
+        sampleRole(lynn.agentPubKey, {
+          role_name: TEST_ROLES.FOUNDER,
+          description:
+            "Primary accountable agent responsible for community governance",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -213,24 +202,18 @@ test("Community governance workflow with role hierarchy", async () => {
       console.log("Phase 2: Delegate accountable roles");
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-            description: "Community steward for member support",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+          description: "Community steward for member support",
+        }),
       );
 
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_COORDINATOR,
-            description: "Resource coordinator for community assets",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_COORDINATOR,
+          description: "Resource coordinator for community assets",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -395,8 +378,8 @@ test("Privacy and access control workflow", async () => {
       assert.equal(bobPublicFromLynn.person!.name, "Bob Community");
 
       // Private data is not visible cross-agent
-      assert.isNull(lynnPublicFromBob.private_data);
-      assert.isNull(bobPublicFromLynn.private_data);
+      assert.isUndefined(lynnPublicFromBob.private_data);
+      assert.isUndefined(bobPublicFromLynn.private_data);
 
       // Test 2: Self-access to private data
       console.log("Test 2: Self-access to private data");
@@ -427,24 +410,18 @@ test("Privacy and access control workflow", async () => {
 
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          lynn.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-            description: "Medical advisor for community health initiatives",
-          },
-        ),
+        sampleRole(lynn.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+          description: "Medical advisor for community health initiatives",
+        }),
       );
 
       await assignRole(
         bob.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_COORDINATOR,
-            description: "Community resource coordination specialist",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_COORDINATOR,
+          description: "Community resource coordination specialist",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -481,8 +458,8 @@ test("Privacy and access control workflow", async () => {
         bob.agentPubKey,
       );
 
-      assert.isNull(lynnPublicAfterRole.private_data);
-      assert.isNull(bobPublicAfterRole.private_data);
+      assert.isUndefined(lynnPublicAfterRole.private_data);
+      assert.isUndefined(bobPublicAfterRole.private_data);
 
       // Test 4: Capability checking works without private data exposure
       console.log("Test 4: Capability checking with privacy intact");
@@ -538,13 +515,10 @@ test("Community scaling and discovery workflow", async () => {
 
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          lynn.agentPubKey,
-          {
-            role_name: TEST_ROLES.FOUNDER,
-            description: "Community founder and primary governance lead",
-          },
-        ),
+        sampleRole(lynn.agentPubKey, {
+          role_name: TEST_ROLES.FOUNDER,
+          description: "Community founder and primary governance lead",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -581,25 +555,19 @@ test("Community scaling and discovery workflow", async () => {
       // Founder delegates steward role to first member
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_STEWARD,
-            description: "Community steward for new member onboarding",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_STEWARD,
+          description: "Community steward for new member onboarding",
+        }),
       );
 
       // Founder also assigns coordinator role
       await assignRole(
         lynn.cells[0],
-        sampleRole(
-          bob.agentPubKey,
-          {
-            role_name: TEST_ROLES.RESOURCE_COORDINATOR,
-            description: "Resource coordinator for community assets",
-          },
-        ),
+        sampleRole(bob.agentPubKey, {
+          role_name: TEST_ROLES.RESOURCE_COORDINATOR,
+          description: "Resource coordinator for community assets",
+        }),
       );
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);

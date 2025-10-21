@@ -35,7 +35,12 @@ import { runScenarioWithThreeAgents } from "../utils";
 
 test("complete resource sharing workflow with PPR", async () => {
   await runScenarioWithThreeAgents(
-    async (_scenario: Scenario, owner: PlayerApp, admin: PlayerApp, requester: PlayerApp) => {
+    async (
+      _scenario: Scenario,
+      owner: PlayerApp,
+      admin: PlayerApp,
+      requester: PlayerApp,
+    ) => {
       // === SETUP PHASE ===
 
       // Step 1: Create persons with appropriate roles
@@ -43,7 +48,10 @@ test("complete resource sharing workflow with PPR", async () => {
 
       await createPerson(owner, { name: "Resource Owner", avatar_url: "" });
       await createPerson(admin, { name: "System Admin", avatar_url: "" });
-      await createPerson(requester, { name: "Resource Requester", avatar_url: "" });
+      await createPerson(requester, {
+        name: "Resource Requester",
+        avatar_url: "",
+      });
 
       await assignPersonRole(owner, owner.agentPubKey, "admin");
       await assignPersonRole(admin, admin.agentPubKey, "admin");
@@ -53,7 +61,10 @@ test("complete resource sharing workflow with PPR", async () => {
 
       // Verify roles are assigned correctly
       const ownerRoles = await getPersonRoles(owner, owner.agentPubKey);
-      const requesterRoles = await getPersonRoles(requester, requester.agentPubKey);
+      const requesterRoles = await getPersonRoles(
+        requester,
+        requester.agentPubKey,
+      );
 
       assert.ok(ownerRoles.includes("admin"));
       assert.ok(requesterRoles.includes("user"));
@@ -65,7 +76,8 @@ test("complete resource sharing workflow with PPR", async () => {
 
       const resourceInput = {
         name: "Collaborative Project Document",
-        description: "A comprehensive project document requiring controlled access",
+        description:
+          "A comprehensive project document requiring controlled access",
         classification: "document",
         governance_rules: {
           can_transfer: true,
@@ -98,7 +110,8 @@ test("complete resource sharing workflow with PPR", async () => {
         purpose: "Need to review and contribute to the project documentation",
         requested_capabilities: ["read", "comment", "suggest_edits"],
         expiration_hours: 48,
-        justification: "Part of the core project team working on this documentation",
+        justification:
+          "Part of the core project team working on this documentation",
       };
 
       // Validate PPR request
@@ -155,7 +168,7 @@ test("complete resource sharing workflow with PPR", async () => {
         resource_hash: resourceHash,
         grantee_pub_key: requester.agentPubKey,
         capabilities: pprRequest.requested_capabilities,
-        expires_at: Date.now() + (pprRequest.expiration_hours * 60 * 60 * 1000),
+        expires_at: Date.now() + pprRequest.expiration_hours * 60 * 60 * 1000,
         purpose: pprRequest.purpose,
         conditions: {
           must_log_access: true,
@@ -183,7 +196,7 @@ test("complete resource sharing workflow with PPR", async () => {
       const requesterCapabilities = await hasRoleCapability(
         requester,
         requester.agentPubKey,
-        "resource_access"
+        "resource_access",
       );
       assert.ok(requesterCapabilities);
 
@@ -244,22 +257,34 @@ test("complete resource sharing workflow with PPR", async () => {
       assert.ok(finalCommitments.length >= 3); // Should have at least 3 commitments
 
       console.log("🎉 Complete PPR workflow test passed successfully!");
-    }
+    },
   );
 });
 
 test("multi-agent resource approval scenario", async () => {
   await runScenarioWithThreeAgents(
-    async (_scenario: Scenario, creator: PlayerApp, approver: PlayerApp, user: PlayerApp) => {
+    async (
+      _scenario: Scenario,
+      creator: PlayerApp,
+      approver: PlayerApp,
+      user: PlayerApp,
+    ) => {
       // === SETUP ===
       console.log("🚀 Setting up multi-agent approval scenario...");
 
       await createPerson(creator, { name: "Content Creator", avatar_url: "" });
-      await createPerson(approver, { name: "Content Approver", avatar_url: "" });
+      await createPerson(approver, {
+        name: "Content Approver",
+        avatar_url: "",
+      });
       await createPerson(user, { name: "End User", avatar_url: "" });
 
       await assignPersonRole(creator, creator.agentPubKey, "content_creator");
-      await assignPersonRole(approver, approver.agentPubKey, "content_approver");
+      await assignPersonRole(
+        approver,
+        approver.agentPubKey,
+        "content_approver",
+      );
       await assignPersonRole(creator, user.agentPubKey, "end_user");
 
       await dhtSync([creator, approver, user]);
@@ -300,7 +325,8 @@ test("multi-agent resource approval scenario", async () => {
         agent_pub_key: approver.agentPubKey,
         terms: JSON.stringify({
           review_status: "approved",
-          review_comments: "Content meets quality standards and is ready for publication",
+          review_comments:
+            "Content meets quality standards and is ready for publication",
           reviewed_at: Date.now(),
           reviewer: approver.agentPubKey,
         }),
@@ -351,20 +377,28 @@ test("multi-agent resource approval scenario", async () => {
       assert.equal(publishedContent.governance_rules.is_published, true);
 
       console.log("✅ Multi-agent approval scenario completed successfully!");
-    }
+    },
   );
 });
 
 test("resource lifecycle management scenario", async () => {
   await runScenarioWithThreeAgents(
-    async (_scenario: Scenario, owner: PlayerApp, manager: PlayerApp, consumer: PlayerApp) => {
+    async (
+      _scenario: Scenario,
+      owner: PlayerApp,
+      manager: PlayerApp,
+      consumer: PlayerApp,
+    ) => {
       // === RESOURCE LIFECYCLE: CREATE → MANAGE → CONSUME → ARCHIVE ===
       console.log("🔄 Starting resource lifecycle scenario...");
 
       // Setup participants
       await createPerson(owner, { name: "Resource Owner", avatar_url: "" });
       await createPerson(manager, { name: "Resource Manager", avatar_url: "" });
-      await createPerson(consumer, { name: "Resource Consumer", avatar_url: "" });
+      await createPerson(consumer, {
+        name: "Resource Consumer",
+        avatar_url: "",
+      });
 
       await assignPersonRole(owner, owner.agentPubKey, "resource_owner");
       await assignPersonRole(manager, manager.agentPubKey, "resource_manager");
@@ -382,7 +416,11 @@ test("resource lifecycle management scenario", async () => {
         governance_rules: {
           can_transfer: true,
           requires_approval: false,
-          allowed_roles: ["resource_owner", "resource_manager", "resource_consumer"],
+          allowed_roles: [
+            "resource_owner",
+            "resource_manager",
+            "resource_consumer",
+          ],
           lifecycle_stage: "active",
           version: "1.0.0",
           max_downloads: 100,
@@ -487,6 +525,6 @@ test("resource lifecycle management scenario", async () => {
       assert.ok(finalResource);
 
       console.log("🎉 Resource lifecycle scenario completed successfully!");
-    }
+    },
   );
 });

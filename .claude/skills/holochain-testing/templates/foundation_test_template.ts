@@ -38,7 +38,7 @@ test("create and retrieve Person", async () => {
       const agent2Profile = await getMyProfile(agent2);
       assert.ok(agent2Profile);
       assert.notEqual(agent2Profile.name, personInput.name);
-    }
+    },
   );
 });
 
@@ -51,7 +51,10 @@ test("validate person data", async () => {
         avatar_url: "https://example.com/avatar2.jpg",
       };
 
-      const validationResult = await validatePersonData(agent1, validPersonData);
+      const validationResult = await validatePersonData(
+        agent1,
+        validPersonData,
+      );
       assert.ok(validationResult);
 
       // Test invalid person data (empty name)
@@ -79,7 +82,7 @@ test("validate person data", async () => {
       } catch (error) {
         assert.ok(error.message.includes("Invalid avatar URL"));
       }
-    }
+    },
   );
 });
 
@@ -111,13 +114,13 @@ test("get all persons (public data only)", async () => {
       assert.equal(allPersons2.length, 2);
 
       // Verify public data is visible
-      const alice1 = allPersons1.find(p => p.name === "Alice");
-      const alice2 = allPersons2.find(p => p.name === "Alice");
+      const alice1 = allPersons1.find((p) => p.name === "Alice");
+      const alice2 = allPersons2.find((p) => p.name === "Alice");
       assert.ok(alice1);
       assert.ok(alice2);
       assert.equal(alice1.name, alice2.name);
       assert.equal(alice1.avatar_url, alice2.avatar_url);
-    }
+    },
   );
 });
 
@@ -146,7 +149,7 @@ test("error handling for invalid operations", async () => {
       } catch (error) {
         assert.ok(error.message.includes("Person not found"));
       }
-    }
+    },
   );
 });
 
@@ -163,7 +166,7 @@ test("person data persistence", async () => {
       assert.ok(personHash);
 
       // Wait a moment to ensure persistence
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Retrieve person multiple times to ensure consistency
       const profile1 = await getMyProfile(agent1);
@@ -179,6 +182,6 @@ test("person data persistence", async () => {
       assert.equal(profile2.name, profile3.name);
       assert.equal(profile1.avatar_url, profile2.avatar_url);
       assert.equal(profile2.avatar_url, profile3.avatar_url);
-    }
+    },
   );
 });

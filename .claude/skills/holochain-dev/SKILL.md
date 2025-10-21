@@ -12,6 +12,7 @@ This skill provides comprehensive interactive guidance for Holochain development
 ## Capabilities
 
 ### 🏗️ Architecture & Design Guidance
+
 - **Integrity-First Development**: Proper workflow (Integrity zome → Coordinator zome)
 - **Zome Separation Strategy**: How to split functionality across zomes
 - **Data Modeling**: Entry types, link types, and validation design
@@ -19,6 +20,7 @@ This skill provides comprehensive interactive guidance for Holochain development
 - **ValueFlows Integration**: EconomicResource, EconomicEvent, and Commitment patterns
 
 ### 📐 Integrity Zome Development
+
 - **Entry Type Definition**: Struct design with proper validation
 - **Link Type Design**: Relationship modeling and validation rules
 - **Validation Functions**: validate_entry, validate_link, validate_open_chain
@@ -26,13 +28,15 @@ This skill provides comprehensive interactive guidance for Holochain development
 - **Business Invariants**: Rules that must always hold true
 
 ### 🎯 Coordinator Zome Development
-- **CRUD Operations**: create_*, get_*, update_*, delete_* functions
+
+- **CRUD Operations**: create*\*, get*_, update\__, delete\_\* functions
 - **Business Logic**: Complex workflows and orchestration
 - **Query Functions**: Data retrieval and filtering patterns
 - **Agent Operations**: Agent-specific functionality and permissions
 - **Cross-Zome Calls**: Inter-zome communication patterns
 
 ### 🔧 Project-Specific Patterns (nondominium)
+
 - **Person Management**: Agent identity, roles, private data sharing (PPR)
 - **Resource Lifecycle**: EconomicResource with embedded governance rules
 - **Governance Workflows**: Commitments, claims, economic events
@@ -40,6 +44,7 @@ This skill provides comprehensive interactive guidance for Holochain development
 - **ValueFlows Compliance**: Economic event tracking and resource management
 
 ### 📚 Holochain Best Practices
+
 - **Integrity-First Architecture**: Why validation belongs in integrity zomes
 - **Error Handling**: Proper error patterns and recovery strategies
 - **Performance Optimization**: Efficient DHT operations and validation
@@ -91,6 +96,7 @@ This skill provides comprehensive interactive guidance for Holochain development
 ## Examples
 
 ### Architecture Planning
+
 ```
 User: "I want to add a bidding system for resources"
 
@@ -110,6 +116,7 @@ Would you like me to generate the complete integrity entry type first?
 ```
 
 ### Code Generation
+
 ```
 User: "Generate a ResourceRequest integrity entry type"
 
@@ -121,6 +128,7 @@ Should I also generate the corresponding coordinator CRUD functions?
 ```
 
 ### Debugging Help
+
 ```
 User: "My cross-zome call from resource to person zome is failing"
 
@@ -151,6 +159,7 @@ Can you show me the exact error message and the code you're using?
 ## Best Practices
 
 ### Integrity Zome Guidelines
+
 1. **All validation logic lives in integrity zomes**
 2. **Never put business logic in validation functions**
 3. **Keep validation functions pure and deterministic**
@@ -158,6 +167,7 @@ Can you show me the exact error message and the code you're using?
 5. **Use proper error types and error handling**
 
 ### Coordinator Zome Guidelines
+
 1. **All business logic lives in coordinator zomes**
 2. **Never bypass integrity validation**
 3. **Handle all user interactions and permissions**
@@ -165,6 +175,7 @@ Can you show me the exact error message and the code you're using?
 5. **Orchestrate complex workflows using integrity-validated data**
 
 ### Cross-Zome Communication
+
 1. **Coordinator zomes call other coordinator zomes**
 2. **Never call integrity zomes externally**
 3. **Handle cross-zome errors gracefully**
@@ -174,6 +185,7 @@ Can you show me the exact error message and the code you're using?
 ## Project Integration
 
 This skill is specifically tailored for the nondominium project:
+
 - Uses your existing zome structure (person, resource, governance)
 - Follows your ValueFlows implementation patterns
 - Incorporates your PPR (Private data, Purpose, Rights) system
@@ -183,6 +195,7 @@ This skill is specifically tailored for the nondominium project:
 ## Examples
 
 ### Creating a New Zome Entry Type
+
 ```
 User: "I want to add ResourceProposal functionality to the governance zome"
 
@@ -202,6 +215,7 @@ Would you like me to generate the complete integrity entry type first?
 ```
 
 ### Cross-Zome Communication
+
 ```
 User: "Show me how to call person zome from resource zome"
 
@@ -216,6 +230,7 @@ Key points:
 ```
 
 ### Debugging Validation Issues
+
 ```
 User: "My integrity zome validation is failing"
 

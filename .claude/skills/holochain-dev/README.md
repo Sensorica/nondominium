@@ -7,18 +7,21 @@ This skill provides interactive guidance for Holochain development with integrit
 ## Key Features
 
 ### 🏗️ Integrity-First Architecture
+
 - **Proper Zome Development**: Integrity zome → Coordinator zome workflow
 - **Data Modeling**: Entry types, link types, and validation design
 - **Validation Patterns**: Comprehensive validation function templates
 - **Cross-Zome Communication**: Coordinator-to-coordinator interaction patterns
 
 ### 🎯 Project-Specific Patterns
+
 - **Person Zome**: Agent identity, roles, private data, PPR system
 - **Resource Zome**: EconomicResource lifecycle, governance rules, transfers
 - **Governance Zome**: Commitments, claims, economic events, PPR validation
 - **ValueFlows Compliance**: Economic event tracking and resource management
 
 ### 📚 Interactive Development Guidance
+
 - **Architecture Planning**: Step-by-step zome design decisions
 - **Code Generation**: Template-based code creation
 - **Pattern Library**: Reusable patterns for common operations
@@ -39,6 +42,7 @@ Ask Claude questions like:
 ### Code Generation Examples
 
 **Integrity Entry Type**:
+
 ```
 User: "Create integrity entry for ResourceProposal with validation"
 
@@ -48,6 +52,7 @@ Skill: I'll generate a complete integrity entry type following nondominium patte
 ```
 
 **Coordinator Functions**:
+
 ```
 User: "Generate CRUD functions for ResourceProposal coordinator zome"
 
@@ -57,6 +62,7 @@ Skill: I'll create the business logic functions using integrity validation:
 ```
 
 **Cross-Zome Communication**:
+
 ```
 User: "Show me how to call person zome from resource zome"
 
@@ -91,6 +97,7 @@ pub fn validate_positive_number(value: f64, field_name: &str) -> Result<(), Stri
 ## Development Workflow
 
 ### Step 1: Architecture Planning
+
 ```
 User: "I want to add ResourceProposal functionality"
 
@@ -110,6 +117,7 @@ Would you like me to generate the complete integrity entry type first?
 ```
 
 ### Step 2: Implementation
+
 ```
 User: "Yes, generate the integrity entry type"
 
@@ -121,6 +129,7 @@ Should I also generate the corresponding coordinator CRUD functions?
 ```
 
 ### Step 3: Testing Integration
+
 ```
 User: "How should I test this new functionality?"
 
@@ -159,6 +168,7 @@ Would you like me to use the Holochain Testing Skill to generate appropriate tes
 ## Common Patterns
 
 ### Entry Creation Pattern
+
 ```rust
 // Standard entry creation in coordinator zomes
 pub fn create_entry_type(input: CreateEntryTypeInput) -> ExternResult<ActionHash> {
@@ -183,6 +193,7 @@ pub fn create_entry_type(input: CreateEntryTypeInput) -> ExternResult<ActionHash
 ```
 
 ### Validation Pattern
+
 ```rust
 // Standard validation in integrity zomes
 pub fn validate_entry_type(entry: EntryType) -> Result<(), String> {
@@ -199,6 +210,7 @@ pub fn validate_entry_type(entry: EntryType) -> Result<(), String> {
 ```
 
 ### Cross-Zome Call Pattern
+
 ```rust
 // Standard cross-zome communication
 pub fn call_person_zome(agent_pub_key: AgentPubKey) -> ExternResult<Option<Value>> {
@@ -262,6 +274,7 @@ This skill works seamlessly with the Holochain Testing Skill:
 3. **Debug Phase**: Use both skills for comprehensive troubleshooting
 
 Example workflow:
+
 ```
 User: "Create ResourceProposal functionality with tests"
 
