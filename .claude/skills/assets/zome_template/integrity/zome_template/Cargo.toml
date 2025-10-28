@@ -1,0 +1,18 @@
+[package]
+name = "zome_template_integrity"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "zome_template_integrity"
+crate-type = ["cdylib"]
+
+[dependencies]
+hdi = { workspace = true }
+hdk = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = []
+mock = ["hdk/mock"]

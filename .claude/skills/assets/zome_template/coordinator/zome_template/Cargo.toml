@@ -1,0 +1,21 @@
+[package]
+name = "zome_template"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "zome_template"
+crate-type = ["cdylib"]
+
+[dependencies]
+hdk = { workspace = true }
+hdi = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[zome_traits]
+hdk_integrity = "zome_template_integrity"
+
+[features]
+default = []
+mock = ["hdk/mock"]
