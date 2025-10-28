@@ -15,15 +15,15 @@ import {
   PersonProfileOutput,
   GetAllPersonsOutput,
   GetPersonRolesOutput,
-  MockPersonData,
-  MockRoleData,
+  PersonData,
+  RoleData,
   RoleType,
   CapabilityLevel,
 } from "@nondominium/shared-types";
 
 // Sample data generators
 export function samplePerson(
-  partialPerson: Partial<MockPersonData> = {},
+  partialPerson: Partial<PersonData> = {},
 ): PersonInput {
   return {
     name: "John Doe",
@@ -34,7 +34,7 @@ export function samplePerson(
 }
 
 export function samplePrivateData(
-  partialData: Partial<MockPersonData> = {},
+  partialData: Partial<PersonData> = {},
 ): PrivatePersonDataInput {
   return {
     legal_name: "John Doe Smith",
@@ -50,7 +50,7 @@ export function samplePrivateData(
 
 export function sampleRole(
   agent_pub_key: AgentPubKey,
-  role_data: Partial<MockRoleData> = {},
+  role_data: Partial<RoleData> = {},
 ): PersonRoleInput {
   return {
     agent_pubkey: agent_pub_key,
@@ -168,234 +168,6 @@ export async function getMyPrivateData(
   return cell.callZome({
     zome_name: "zome_person",
     fn_name: "get_my_private_person_data",
-    payload: null,
-  });
-}
-
-// ============================================================================
-// PRIVATE DATA SHARING FUNCTIONS
-// ============================================================================
-
-export interface RequestPrivateDataAccessInput {
-  requested_from: AgentPubKey;
-  fields_requested: string[];
-  context: string;
-  resource_hash: ActionHash | null;
-  justification: string;
-}
-
-export interface RespondToDataAccessInput {
-  request_hash: ActionHash;
-  response: {
-    granted: boolean;
-    expires_at: number | null;
-  };
-}
-
-export interface RespondToDataAccessOutput {
-  request_record: HolochainRecord;
-  grant_hash: ActionHash | null;
-}
-
-export interface GetGrantedPrivateDataInput {
-  target_agent: AgentPubKey;
-  requested_fields: string[];
-  context: string;
-}
-
-export async function requestPrivateDataAccess(
-  cell: CallableCell,
-  input: RequestPrivateDataAccessInput,
-): Promise<HolochainRecord> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "request_private_data_access",
-    payload: input,
-  });
-}
-
-export async function respondToDataAccessRequest(
-  cell: CallableCell,
-  input: RespondToDataAccessInput,
-): Promise<RespondToDataAccessOutput> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "respond_to_data_access_request",
-    payload: input,
-  });
-}
-
-export async function getGrantedPrivateData(
-  cell: CallableCell,
-  input: GetGrantedPrivateDataInput,
-): Promise<PrivatePersonData> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "get_granted_private_data",
-    payload: input,
-  });
-}
-
-export async function revokeDataAccessGrant(
-  cell: CallableCell,
-  grantHash: ActionHash,
-): Promise<void> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "revoke_data_access_grant",
-    payload: grantHash,
-  });
-}
-
-export async function getPendingDataRequests(
-  cell: CallableCell,
-): Promise<any[]> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "get_pending_data_requests",
-    payload: null,
-  });
-}
-
-export async function getMyDataGrants(
-  cell: CallableCell,
-): Promise<any[]> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "get_my_data_grants",
-    payload: null,
-  });
-}
-
-export async function validateAgentPrivateData(
-  cell: CallableCell,
-  input: {
-    target_agent: AgentPubKey;
-    validation_context: string;
-    required_fields: string[];
-    governance_requester: AgentPubKey;
-  },
-): Promise<any> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "validate_agent_private_data",
-    payload: input,
-  });
-}
-
-export async function autoGrantGovernanceAccess(
-  cell: CallableCell,
-  input: {
-    target_role: string;
-    governance_agent: AgentPubKey;
-  },
-): Promise<any> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "auto_grant_governance_access",
-    payload: input,
-  });
-}
-
-export async function promoteAgentWithValidation(
-  cell: CallableCell,
-  input: {
-    target_agent: AgentPubKey;
-    target_role: string;
-    justification: string;
-    validate_private_data: boolean;
-    grant_hash?: ActionHash;
-  },
-): Promise<any> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "promote_agent_with_validation",
-    payload: input,
-  });
-}
-
-export async function requestRolePromotion(
-  cell: CallableCell,
-  input: {
-    target_role: string;
-    justification: string;
-  },
-): Promise<any> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "request_role_promotion",
-    payload: input,
-  });
-}
-
-export async function getAgentAccessAuditTrail(
-  cell: CallableCell,
-  agentPubkey: AgentPubKey,
-): Promise<any[]> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "get_agent_access_audit_trail",
-    payload: { agent_pubkey: agentPubkey },
-  });
-}
-
-export async function getExpiringGrants(
-  cell: CallableCell,
-  daysAhead: number,
-): Promise<any[]> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "get_expiring_grants",
-    payload: daysAhead,
-  });
-}
-
-export async function requestGrantRenewal(
-  cell: CallableCell,
-  input: {
-    grant_hash: ActionHash;
-    additional_days: number;
-    renewal_justification: string;
-  },
-): Promise<any> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "request_grant_renewal",
-    payload: input,
-  });
-}
-
-export async function getPrivateDataSharingStats(
-  cell: CallableCell,
-): Promise<any> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "get_private_data_sharing_stats",
-    payload: null,
-  });
-}
-
-export async function executeBulkGrantOperation(
-  cell: CallableCell,
-  input: {
-    operation_type: string;
-    grant_hashes: ActionHash[];
-    justification: string;
-  },
-): Promise<any[]> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "execute_bulk_grant_operation",
-    payload: input,
-  });
-}
-
-export async function cleanupExpiredGrants(
-  cell: CallableCell,
-): Promise<any> {
-  return cell.callZome({
-    zome_name: "zome_person",
-    fn_name: "cleanup_expired_grants",
     payload: null,
   });
 }
@@ -566,8 +338,8 @@ export const TEST_ROLES: Record<string, string> = {
   SIMPLE: "Simple Agent",
 
   // Governance/coordination roles
-  FOUNDER: "Primary Accountable Agent",       // maps to governance level
-  RESOURCE_COORDINATOR: "Accountable Agent",  // maps to coordination level
+  FOUNDER: "Primary Accountable Agent", // maps to governance level
+  RESOURCE_COORDINATOR: "Accountable Agent", // maps to coordination level
 
   // Stewardship roles (any of these map to stewardship level). We choose one canonical string.
   RESOURCE_STEWARD: "Transport Agent",

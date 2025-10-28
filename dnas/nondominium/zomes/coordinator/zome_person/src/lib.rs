@@ -2,15 +2,13 @@ use hdk::prelude::*;
 
 pub mod person;
 pub mod private_data;
-pub mod private_data_sharing;
+pub mod capability_based_sharing;
 pub mod role;
-pub mod audit_and_notifications;
 
 pub use person::*;
 pub use private_data::*;
-pub use private_data_sharing::*;
+pub use capability_based_sharing::*;
 pub use role::*;
-pub use audit_and_notifications::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PersonError {

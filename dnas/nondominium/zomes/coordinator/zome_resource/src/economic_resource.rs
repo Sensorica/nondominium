@@ -322,15 +322,6 @@ pub struct TransferCustodyInput {
   pub request_contact_info: Option<bool>, // Whether to auto-request private data for coordination
 }
 
-// Cross-zome call structure for requesting private data access
-#[derive(Serialize, Deserialize, Debug)]
-pub struct DataAccessRequestInput {
-  pub requested_from: AgentPubKey,
-  pub fields_requested: Vec<String>,
-  pub context: String,
-  pub resource_hash: Option<ActionHash>,
-  pub justification: String,
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransferCustodyOutput {
@@ -530,56 +521,4 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
   Ok(record)
 }
 
-/// Helper function for new custodian to request coordination info from previous custodian
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RequestCoordinationInfoInput {
-  pub resource_hash: ActionHash,
-  pub previous_custodian: AgentPubKey,
-}
 
-#[hdk_extern]
-pub fn request_coordination_info(input: RequestCoordinationInfoInput) -> ExternResult<()> {
-  let agent_info = agent_info()?;
-
-  // Verify the calling agent is the current custodian of this resource
-  let resource_record = get(input.resource_hash.clone(), GetOptions::default())?.ok_or(
-    ResourceError::EconomicResourceNotFound("EconomicResource not found".to_string()),
-  )?;
-
-  let resource: EconomicResource = resource_record
-    .entry()
-    .to_app_option()
-    .map_err(|e| ResourceError::SerializationError(format!("Failed to deserialize: {:?}", e)))?
-    .ok_or(ResourceError::EconomicResourceNotFound(
-      "Invalid EconomicResource entry".to_string(),
-    ))?;
-
-  if resource.custodian != agent_info.agent_initial_pubkey {
-    return Err(ResourceError::NotCustodian.into());
-  }
-
-  // Create a data access request for coordination
-  let data_request = DataAccessRequestInput {
-    requested_from: input.previous_custodian,
-    fields_requested: vec![
-      "email".to_string(),
-      "phone".to_string(),
-      "location".to_string(),
-      "time_zone".to_string(),
-    ],
-    context: format!("custodian_transfer_{}", input.resource_hash.to_string()),
-    resource_hash: Some(input.resource_hash),
-    justification: "New custodian requesting contact information from previous custodian for resource handover coordination.".to_string(),
-  };
-
-  // Call person zome to create the data access request
-  call(
-    CallTargetCell::Local,
-    "zome_person",
-    "request_private_data_access".into(),
-    None,
-    &data_request,
-  )?;
-
-  Ok(())
-}

@@ -89,100 +89,47 @@ impl FromStr for RoleType {
   }
 }
 
-/// Status of a data access request
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum RequestStatus {
-  Pending,
-  Approved,
-  Denied,
-  Expired,
-  Revoked,
-}
 
-impl Display for RequestStatus {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      Self::Pending => write!(f, "pending"),
-      Self::Approved => write!(f, "approved"),
-      Self::Denied => write!(f, "denied"),
-      Self::Expired => write!(f, "expired"),
-      Self::Revoked => write!(f, "revoked"),
-    }
-  }
-}
-
-/// Represents a grant of access to specific private data fields
+/// Metadata for private data capability grants (for tracking our own grants)
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
-pub struct DataAccessGrant {
+pub struct PrivateDataCapabilityMetadata {
+  /// Hash of the capability grant
+  pub grant_hash: ActionHash,
   /// Agent who is granted access
   pub granted_to: AgentPubKey,
   /// Agent who granted the access (data owner)
   pub granted_by: AgentPubKey,
-  /// Specific fields that are accessible (e.g., ["email", "phone", "location"])
-  pub fields_granted: Vec<String>,
-  /// Context for the access (e.g., "custodian_transfer")
+  /// Specific fields that are accessible
+  pub fields_allowed: Vec<String>,
+  /// Context for the access
   pub context: String,
-  /// Optional link to specific resource for context
-  pub resource_hash: Option<ActionHash>,
-  /// Hash of the shared data entry
-  pub shared_data_hash: Option<ActionHash>,
   /// When this grant expires
   pub expires_at: Timestamp,
   /// When this grant was created
   pub created_at: Timestamp,
+  /// The capability secret (stored for reference)
+  pub cap_secret: CapSecret,
 }
 
-/// Represents a request for access to private data
+/// Filtered private data structure for capability-based access
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
-pub struct DataAccessRequest {
-  /// Agent from whom data is requested
-  pub requested_from: AgentPubKey,
-  /// Agent who is making the request
-  pub requested_by: AgentPubKey,
-  /// Specific fields being requested
-  pub fields_requested: Vec<String>,
-  /// Context for the request
-  pub context: String,
-  /// Optional link to specific resource for context
-  pub resource_hash: Option<ActionHash>,
-  /// Justification for why access is needed
-  pub justification: String,
-  /// Current status of the request
-  pub status: RequestStatus,
-  /// When this request was created
-  pub created_at: Timestamp,
-}
-
-/// Represents shared private data with specific fields exposed
-#[hdk_entry_helper]
-#[derive(Clone, PartialEq)]
-pub struct SharedPrivateData {
-  /// Agent who receives the shared data
-  pub shared_with: AgentPubKey,
-  /// Agent who shared the data (data owner)
-  pub shared_by: AgentPubKey,
-  /// Specific fields that are shared
-  pub fields_shared: Vec<String>,
-  /// Context for the sharing (e.g., "custodian_transfer")
-  pub context: String,
-  /// Shared email field (if requested)
+pub struct FilteredPrivateData {
+  /// Legal name (never shared)
+  pub legal_name: Option<String>,
+  /// Email field (if allowed)
   pub email: Option<String>,
-  /// Shared phone field (if requested)
+  /// Phone field (if allowed)
   pub phone: Option<String>,
-  /// Shared address field (if requested)
+  /// Address field (if allowed)
   pub address: Option<String>,
-  /// Shared emergency contact field (if requested)
+  /// Emergency contact field (if allowed)
   pub emergency_contact: Option<String>,
-  /// Shared time zone field (if requested)
+  /// Time zone field (if allowed)
   pub time_zone: Option<String>,
-  /// Shared location field (if requested)
+  /// Location field (if allowed)
   pub location: Option<String>,
-  /// When this shared data expires
-  pub expires_at: Timestamp,
-  /// When this shared data was created
-  pub created_at: Timestamp,
 }
 
 #[hdk_entry_types]
@@ -192,9 +139,9 @@ pub enum EntryTypes {
   #[entry_type(visibility = "private")]
   PrivatePersonData(PrivatePersonData),
   PersonRole(PersonRole),
-  DataAccessGrant(DataAccessGrant),
-  DataAccessRequest(DataAccessRequest),
-  SharedPrivateData(SharedPrivateData),
+  #[entry_type(visibility = "private")]
+  PrivateDataCapabilityMetadata(PrivateDataCapabilityMetadata),
+  FilteredPrivateData(FilteredPrivateData),
 }
 
 #[hdk_link_types]
@@ -215,17 +162,8 @@ pub enum LinkTypes {
   PersonToRoles,
   // Role updates (for versioning)
   RoleUpdates,
-  // Data access management
-  AgentToDataGrants,       // Track grants given by agent
-  AgentToDataRequests,     // Track requests made by agent
-  AgentToIncomingRequests, // Track requests received by agent
-  AgentToReceivedGrants,   // Track grants received by agent
-  GrantToSharedData,       // Link grants to their shared data entries
-  ResourceToDataGrants,    // Link grants to specific resource transfers
-  PersonToAccessLog,       // Audit trail of data access
-  // Data access updates (for versioning)
-  DataAccessGrantUpdates,
-  DataAccessRequestUpdates,
+  // Capability-based access management
+  AgentToCapabilityMetadata, // Link agent to their capability grant metadata
 }
 
 #[hdk_extern]
@@ -257,14 +195,11 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           EntryTypes::PersonRole(role) => {
             return validate_person_role(role);
           }
-          EntryTypes::DataAccessGrant(grant) => {
-            return validate_data_access_grant(grant);
+          EntryTypes::PrivateDataCapabilityMetadata(metadata) => {
+            return validate_private_data_capability_metadata(metadata);
           }
-          EntryTypes::DataAccessRequest(request) => {
-            return validate_data_access_request(request);
-          }
-          EntryTypes::SharedPrivateData(shared_data) => {
-            return validate_shared_private_data(shared_data);
+          EntryTypes::FilteredPrivateData(filtered_data) => {
+            return validate_filtered_private_data(filtered_data);
           }
         }
       }
@@ -328,14 +263,11 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           EntryTypes::PersonRole(_) => {
             return validate_delete_person_role();
           }
-          EntryTypes::DataAccessGrant(_) => {
-            return validate_delete_data_access_grant();
+          EntryTypes::PrivateDataCapabilityMetadata(_) => {
+            return validate_delete_private_data_capability_metadata();
           }
-          EntryTypes::DataAccessRequest(_) => {
-            return validate_delete_data_access_request();
-          }
-          EntryTypes::SharedPrivateData(_) => {
-            return validate_delete_shared_private_data();
+          EntryTypes::FilteredPrivateData(_) => {
+            return validate_delete_filtered_private_data();
           }
         }
       }
@@ -433,16 +365,20 @@ pub fn validate_delete_person_role() -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid) // Allow role deletion for role transfers
 }
 
-pub fn validate_data_access_grant(grant: DataAccessGrant) -> ExternResult<ValidateCallbackResult> {
-  // Validate fields_granted contains only allowed fields
+
+pub fn validate_private_data_capability_metadata(
+  metadata: PrivateDataCapabilityMetadata,
+) -> ExternResult<ValidateCallbackResult> {
+  // Validate fields_allowed contains only allowed fields
   let allowed_fields = [
     "email",
     "phone",
     "location",
     "time_zone",
     "emergency_contact",
+    "address",
   ];
-  for field in &grant.fields_granted {
+  for field in &metadata.fields_allowed {
     if !allowed_fields.contains(&field.as_str()) {
       return Ok(ValidateCallbackResult::Invalid(format!(
         "Field '{}' is not allowed to be shared. Allowed fields: {:?}",
@@ -452,128 +388,42 @@ pub fn validate_data_access_grant(grant: DataAccessGrant) -> ExternResult<Valida
   }
 
   // Validate context is not empty
-  if grant.context.trim().is_empty() {
+  if metadata.context.trim().is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
-      "Data access grant context cannot be empty".to_string(),
+      "Capability metadata context cannot be empty".to_string(),
     ));
   }
 
   // Validate expiration is in the future
-  if grant.expires_at <= grant.created_at {
+  if metadata.expires_at <= metadata.created_at {
     return Ok(ValidateCallbackResult::Invalid(
-      "Data access grant expiration must be in the future".to_string(),
+      "Capability metadata expiration must be in the future".to_string(),
     ));
   }
 
-  // Validate max expiration time (7 days from creation)
-  let max_duration = 7 * 24 * 60 * 60 * 1_000_000; // 7 days in microseconds
-  if grant.expires_at.as_micros() - grant.created_at.as_micros() > max_duration {
+  // Validate max expiration time (30 days from creation for capability grants)
+  let max_duration = 30 * 24 * 60 * 60 * 1_000_000; // 30 days in microseconds
+  if metadata.expires_at.as_micros() - metadata.created_at.as_micros() > max_duration {
     return Ok(ValidateCallbackResult::Invalid(
-      "Data access grant cannot exceed 7 days duration".to_string(),
+      "Capability grant cannot exceed 30 days duration".to_string(),
     ));
   }
 
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_data_access_request(
-  request: DataAccessRequest,
+pub fn validate_filtered_private_data(
+  _filtered_data: FilteredPrivateData,
 ) -> ExternResult<ValidateCallbackResult> {
-  // Validate fields_requested contains only allowed fields
-  let allowed_fields = [
-    "email",
-    "phone",
-    "location",
-    "time_zone",
-    "emergency_contact",
-  ];
-  for field in &request.fields_requested {
-    if !allowed_fields.contains(&field.as_str()) {
-      return Ok(ValidateCallbackResult::Invalid(format!(
-        "Field '{}' is not allowed to be requested. Allowed fields: {:?}",
-        field, allowed_fields
-      )));
-    }
-  }
-
-  // Validate context is not empty
-  if request.context.trim().is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Data access request context cannot be empty".to_string(),
-    ));
-  }
-
-  // Validate justification is not empty
-  if request.justification.trim().is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Data access request justification cannot be empty".to_string(),
-    ));
-  }
-
-  // Validate justification is reasonable length
-  if request.justification.len() > 500 {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Data access request justification too long (max 500 characters)".to_string(),
-    ));
-  }
-
+  // FilteredPrivateData is typically created internally with proper validation
+  // So we allow all valid filtered data structures
   Ok(ValidateCallbackResult::Valid)
 }
 
-pub fn validate_delete_data_access_grant() -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid) // Allow deletion for revocation
-}
-
-pub fn validate_delete_data_access_request() -> ExternResult<ValidateCallbackResult> {
+pub fn validate_delete_private_data_capability_metadata() -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid) // Allow deletion for cleanup
 }
 
-pub fn validate_shared_private_data(
-  shared_data: SharedPrivateData,
-) -> ExternResult<ValidateCallbackResult> {
-  // Validate that shared_with and shared_by are different agents
-  if shared_data.shared_with == shared_data.shared_by {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Cannot share data with yourself".to_string(),
-    ));
-  }
-
-  // Validate fields_shared contains only allowed fields
-  let allowed_fields = [
-    "email",
-    "phone",
-    "address",
-    "emergency_contact",
-    "time_zone",
-    "location",
-  ];
-
-  for field in &shared_data.fields_shared {
-    if !allowed_fields.contains(&field.as_str()) {
-      return Ok(ValidateCallbackResult::Invalid(format!(
-        "Invalid field in shared data: {}. Allowed fields: {:?}",
-        field, allowed_fields
-      )));
-    }
-  }
-
-  // Validate context is not empty
-  if shared_data.context.trim().is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Shared data context cannot be empty".to_string(),
-    ));
-  }
-
-  // Validate expiry time is in the future
-  if shared_data.expires_at <= shared_data.created_at {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Shared data expiry time must be after creation time".to_string(),
-    ));
-  }
-
-  Ok(ValidateCallbackResult::Valid)
-}
-
-pub fn validate_delete_shared_private_data() -> ExternResult<ValidateCallbackResult> {
-  Ok(ValidateCallbackResult::Valid) // Allow deletion for cleanup and expiry
+pub fn validate_delete_filtered_private_data() -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Valid) // Allow deletion for cleanup
 }

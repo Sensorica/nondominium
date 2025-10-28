@@ -50,6 +50,31 @@ export async function runScenarioWithTwoAgents(
   });
 }
 
+export async function runScenarioWithThreeAgents(
+  callback: (
+    scenario: Scenario,
+    alice: PlayerApp,
+    bob: PlayerApp,
+    carol: PlayerApp,
+  ) => Promise<void>,
+): Promise<void> {
+  await runScenario(async (scenario) => {
+    const [alice, bob, carol] = await scenario.addPlayersWithApps([
+      appSource,
+      appSource,
+      appSource,
+    ]);
+
+    await scenario.shareAllAgents();
+
+    console.log("Running scenario with Alice, Bob, and Carol");
+
+    await callback(scenario, alice, bob, carol);
+
+    scenario.cleanUp();
+  });
+}
+
 /**
  * Decodes a set of records using MessagePack.
  * @param records The records to decode.
