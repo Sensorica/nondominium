@@ -112,6 +112,18 @@ pub struct PrivateDataCapabilityMetadata {
   pub cap_secret: CapSecret,
 }
 
+/// Marker for revoked capability grants (temporary test implementation)
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct RevokedGrantMarker {
+  /// Hash of the revoked capability grant
+  pub grant_hash: ActionHash,
+  /// When the grant was revoked
+  pub revoked_at: Timestamp,
+  /// Agent who revoked the grant
+  pub revoked_by: AgentPubKey,
+}
+
 /// Filtered private data structure for capability-based access
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -141,6 +153,8 @@ pub enum EntryTypes {
   PersonRole(PersonRole),
   #[entry_type(visibility = "private")]
   PrivateDataCapabilityMetadata(PrivateDataCapabilityMetadata),
+  #[entry_type(visibility = "private")]
+  RevokedGrantMarker(RevokedGrantMarker),
   FilteredPrivateData(FilteredPrivateData),
 }
 
@@ -164,6 +178,7 @@ pub enum LinkTypes {
   RoleUpdates,
   // Capability-based access management
   AgentToCapabilityMetadata, // Link agent to their capability grant metadata
+  RevokedGrantAnchor, // Anchor for revoked capability grants
 }
 
 #[hdk_extern]
@@ -200,6 +215,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
           EntryTypes::FilteredPrivateData(filtered_data) => {
             return validate_filtered_private_data(filtered_data);
+          }
+          EntryTypes::RevokedGrantMarker(_revoked_marker) => {
+            return validate_revoked_grant_marker();
           }
         }
       }
@@ -268,6 +286,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
           EntryTypes::FilteredPrivateData(_) => {
             return validate_delete_filtered_private_data();
+          }
+          EntryTypes::RevokedGrantMarker(_) => {
+            return validate_delete_revoked_grant_marker();
           }
         }
       }
@@ -425,5 +446,13 @@ pub fn validate_delete_private_data_capability_metadata() -> ExternResult<Valida
 }
 
 pub fn validate_delete_filtered_private_data() -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Valid) // Allow deletion for cleanup
+}
+
+pub fn validate_revoked_grant_marker() -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Valid) // Allow creation of revoked grant markers
+}
+
+pub fn validate_delete_revoked_grant_marker() -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid) // Allow deletion for cleanup
 }

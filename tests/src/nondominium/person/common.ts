@@ -173,6 +173,108 @@ export async function getMyPrivateData(
 }
 
 // ============================================================================
+// CAPABILITY-BASED PRIVATE DATA SHARING FUNCTIONS
+// ============================================================================
+
+export async function grantPrivateDataAccess(
+  cell: CallableCell,
+  payload: {
+    agent_to_grant: AgentPubKey;
+    fields_allowed: string[];
+    context: string;
+    expires_in_days?: number;
+  },
+): Promise<any> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "grant_private_data_access",
+    payload,
+  });
+}
+
+export async function createPrivateDataCapClaim(
+  cell: CallableCell,
+  payload: {
+    grantor: AgentPubKey;
+    cap_secret: any;
+    context: string;
+  },
+): Promise<any> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "create_private_data_cap_claim",
+    payload,
+  });
+}
+
+export async function getPrivateDataWithCapability(
+  cell: CallableCell,
+  payload: {
+    requested_fields: string[];
+  },
+  cap_secret: any,
+): Promise<any> {
+  return (cell.callZome as any)({
+    zome_name: "zome_person",
+    fn_name: "get_private_data_with_capability",
+    payload,
+    cap_secret,
+  });
+}
+
+export async function grantRoleBasedPrivateDataAccess(
+  cell: CallableCell,
+  payload: {
+    agent: AgentPubKey;
+    role: { role_name: string };
+    context: string;
+  },
+): Promise<any> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "grant_role_based_private_data_access",
+    payload,
+  });
+}
+
+export async function createTransferablePrivateDataAccess(
+  cell: CallableCell,
+  payload: {
+    context: string;
+    fields_allowed: string[];
+    expires_in_days?: number;
+  },
+): Promise<any> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "create_transferable_private_data_access",
+    payload,
+  });
+}
+
+export async function revokePrivateDataAccess(
+  cell: CallableCell,
+  grant_hash: any,
+): Promise<void> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "revoke_private_data_access",
+    payload: grant_hash,
+  });
+}
+
+export async function validateCapabilityGrant(
+  cell: CallableCell,
+  grant_hash: any,
+): Promise<boolean> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "validate_capability_grant",
+    payload: grant_hash,
+  });
+}
+
+// ============================================================================
 // SELF-VALIDATION FUNCTIONS (NEW ARCHITECTURE)
 // ============================================================================
 

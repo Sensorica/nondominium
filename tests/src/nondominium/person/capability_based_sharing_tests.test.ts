@@ -1,9 +1,27 @@
 import { assert, test } from "vitest";
 import { Scenario, PlayerApp, dhtSync } from "@holochain/tryorama";
-import { ActionHash, AgentPubKey } from "@holochain/client";
+import { ActionHash, AgentPubKey, CapSecret } from "@holochain/client";
 
-import { createPerson, storePrivateData } from "./common";
+import {
+  createPerson,
+  storePrivateData,
+  grantPrivateDataAccess,
+  createPrivateDataCapClaim,
+  getPrivateDataWithCapability,
+  grantRoleBasedPrivateDataAccess,
+  createTransferablePrivateDataAccess,
+  revokePrivateDataAccess,
+  validateCapabilityGrant,
+} from "./common";
 import { runScenarioWithTwoAgents, runScenarioWithThreeAgents } from "../utils";
+import type {
+  GrantPrivateDataAccessOutput,
+  CreatePrivateDataCapClaimOutput,
+  TransferableCapabilityOutput,
+  FilteredPrivateData,
+  ValidationDataRequestWithGrant,
+  ValidationResult,
+} from "../../../../packages/shared-types/src/person.types";
 
 test("capability-based private data sharing workflow", async () => {
   await runScenarioWithTwoAgents(
@@ -35,45 +53,48 @@ test("capability-based private data sharing workflow", async () => {
       await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       // Alice grants Bob access to her private data
-      const grantResult = await alice.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "grant_private_data_access",
-        payload: {
+      const grantResult: GrantPrivateDataAccessOutput =
+        await grantPrivateDataAccess(alice.cells[0], {
           agent_to_grant: bob.agentPubKey,
           fields_allowed: ["email", "phone"],
           context: "test_workflow",
           expires_in_days: 7,
-        },
-      });
+        });
 
       assert.ok(grantResult);
-      assert.typeOf(grantResult.grant_hash, "string");
-      assert.typeOf(grantResult.cap_secret, "string");
+      // grant_hash is a Buffer in the Holochain client
+      assert.ok(Buffer.isBuffer(grantResult.grant_hash));
+      // CapSecret is also a Buffer in the Holochain client
+      assert.ok(Buffer.isBuffer(grantResult.cap_secret));
       assert.typeOf(grantResult.expires_at, "number");
 
+      // Ensure DHT sync is complete after grant creation before creating claim
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
       // Bob creates a capability claim using the secret
-      const claimResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "create_private_data_cap_claim",
-        payload: {
+      const claimResult: CreatePrivateDataCapClaimOutput =
+        await createPrivateDataCapClaim(bob.cells[0], {
           grantor: alice.agentPubKey,
           cap_secret: grantResult.cap_secret,
           context: "test_workflow",
-        },
-      });
+        });
 
       assert.ok(claimResult);
-      assert.typeOf(claimResult.claim_hash, "string");
+      // claim_hash is also a Buffer in the Holochain client
+      assert.ok(Buffer.isBuffer(claimResult.claim_hash));
+
+      // Ensure DHT sync is complete before attempting access
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       // Bob now attempts to access Alice's private data using the capability
-      const privateDataResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "get_private_data_with_capability",
-        payload: {
-          requested_fields: ["email", "phone"],
-        },
-        cap_secret: claimResult.claim_hash,
-      });
+      const privateDataResult: FilteredPrivateData =
+        await getPrivateDataWithCapability(
+          bob.cells[0],
+          {
+            requested_fields: ["email", "phone"],
+          },
+          claimResult.claim_hash,
+        );
 
       assert.ok(privateDataResult);
       assert.typeOf(privateDataResult.email, "string");
@@ -81,14 +102,13 @@ test("capability-based private data sharing workflow", async () => {
       assert.equal(privateDataResult.legal_name, undefined); // Never shared
 
       // Test that Bob cannot access fields not granted
-      const unauthorizedResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "get_private_data_with_capability",
-        payload: {
+      const unauthorizedResult = await getPrivateDataWithCapability(
+        bob.cells[0],
+        {
           requested_fields: ["email", "address"], // address not granted
         },
-        cap_secret: claimResult.claim_hash,
-      });
+        claimResult.claim_hash,
+      );
 
       // This should succeed but return null for ungranted fields
       assert.ok(unauthorizedResult);
@@ -126,38 +146,38 @@ test("role-based capability grants", async () => {
       });
 
       // Alice grants Bob accountable agent role access
-      const roleGrantResult = await alice.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "grant_role_based_private_data_access",
-        payload: {
+      const roleGrantResult: GrantPrivateDataAccessOutput =
+        await grantRoleBasedPrivateDataAccess(alice.cells[0], {
           agent: bob.agentPubKey,
           role: { role_name: "Accountable Agent" },
           context: "role_test",
-        },
-      });
+        });
 
       assert.ok(roleGrantResult);
-      assert.typeOf(roleGrantResult.grant_hash, "string");
+      // grant_hash is a Buffer in the Holochain client
+      assert.ok(Buffer.isBuffer(roleGrantResult.grant_hash));
+      // CapSecret is also a Buffer in the Holochain client
+      assert.ok(Buffer.isBuffer(roleGrantResult.cap_secret));
+
+      // Ensure DHT sync is complete after grant creation before creating claim
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       // Bob creates claim and tests access
-      const claimResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "create_private_data_cap_claim",
-        payload: {
+      const claimResult: CreatePrivateDataCapClaimOutput =
+        await createPrivateDataCapClaim(bob.cells[0], {
           grantor: alice.agentPubKey,
           cap_secret: roleGrantResult.cap_secret,
           context: "role_accountable_agent_role_test",
-        },
-      });
+        });
 
-      const privateDataResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "get_private_data_with_capability",
-        payload: {
-          requested_fields: ["email"], // Accountable agent role should get email
-        },
-        cap_secret: claimResult.claim_hash,
-      });
+      const privateDataResult: FilteredPrivateData =
+        await getPrivateDataWithCapability(
+          bob.cells[0],
+          {
+            requested_fields: ["email"], // Accountable agent role should get email
+          },
+          claimResult.claim_hash,
+        );
 
       assert.ok(privateDataResult);
       assert.typeOf(privateDataResult.email, "string");
@@ -203,61 +223,55 @@ test("transferable capability grants", async () => {
       });
 
       // Alice creates a transferable capability
-      const transferableResult = await alice.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "create_transferable_private_data_access",
-        payload: {
+      const transferableResult: TransferableCapabilityOutput =
+        await createTransferablePrivateDataAccess(alice.cells[0], {
           context: "guest_access",
           fields_allowed: ["email"],
           expires_in_days: 1, // Short duration for transferable
-        },
-      });
+        });
 
       assert.ok(transferableResult);
 
+      // Ensure DHT sync is complete after creating transferable capability
+      await dhtSync([alice, bob, carol], alice.cells[0].cell_id[0]);
+
       // Alice shares the secret with Bob (in a real scenario, this would be done securely)
-      const bobClaimResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "create_private_data_cap_claim",
-        payload: {
+      const bobClaimResult: CreatePrivateDataCapClaimOutput =
+        await createPrivateDataCapClaim(bob.cells[0], {
           grantor: alice.agentPubKey,
           cap_secret: transferableResult.cap_secret,
           context: "transferable_guest_access",
-        },
-      });
+        });
 
       // Bob accesses the data
-      const bobDataResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "get_private_data_with_capability",
-        payload: {
-          requested_fields: ["email"],
-        },
-        cap_secret: bobClaimResult.claim_hash,
-      });
+      const bobDataResult: FilteredPrivateData =
+        await getPrivateDataWithCapability(
+          bob.cells[0],
+          {
+            requested_fields: ["email"],
+          },
+          bobClaimResult.claim_hash,
+        );
 
       assert.ok(bobDataResult);
       assert.typeOf(bobDataResult.email, "string");
 
       // Bob can now also share the capability with Carol
-      const carolClaimResult = await carol.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "create_private_data_cap_claim",
-        payload: {
+      const carolClaimResult: CreatePrivateDataCapClaimOutput =
+        await createPrivateDataCapClaim(carol.cells[0], {
           grantor: alice.agentPubKey,
           cap_secret: transferableResult.cap_secret,
           context: "transferable_guest_access",
-        },
-      });
+        });
 
-      const carolDataResult = await carol.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "get_private_data_with_capability",
-        payload: {
-          requested_fields: ["email"],
-        },
-        cap_secret: carolClaimResult.claim_hash,
-      });
+      const carolDataResult: FilteredPrivateData =
+        await getPrivateDataWithCapability(
+          carol.cells[0],
+          {
+            requested_fields: ["email"],
+          },
+          carolClaimResult.claim_hash,
+        );
 
       assert.ok(carolDataResult);
       assert.typeOf(carolDataResult.email, "string");
@@ -292,71 +306,65 @@ test("capability grant validation and expiration", async () => {
         bio: "Test user Bob",
       });
 
-      // Create a grant that expires immediately (for testing)
-      const shortGrantResult = await alice.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "grant_private_data_access",
-        payload: {
+      // Create a grant that expires very soon (for testing)
+      const shortGrantResult: GrantPrivateDataAccessOutput =
+        await grantPrivateDataAccess(alice.cells[0], {
           agent_to_grant: bob.agentPubKey,
           fields_allowed: ["email"],
           context: "short_test",
-          expires_in_days: 0, // Should be invalid
-        },
-      });
+          expires_in_days: 1, // Very short duration for testing
+        });
 
       // This should fail due to invalid duration
       assert.ok(shortGrantResult);
 
+      // Ensure DHT sync is complete before validating
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
       // Test grant validation
-      const isValid = await alice.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "validate_capability_grant",
-        payload: shortGrantResult.grant_hash,
-      });
+      const isValid: boolean = await validateCapabilityGrant(
+        alice.cells[0],
+        shortGrantResult.grant_hash,
+      );
 
       // Grant should be invalid due to immediate expiration
       assert.equal(isValid, false);
 
       // Test revoking a grant
-      const validGrantResult = await alice.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "grant_private_data_access",
-        payload: {
+      const validGrantResult: GrantPrivateDataAccessOutput =
+        await grantPrivateDataAccess(alice.cells[0], {
           agent_to_grant: bob.agentPubKey,
           fields_allowed: ["email"],
           context: "revoke_test",
           expires_in_days: 7,
-        },
-      });
+        });
 
       // Revoke the grant
-      await alice.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "revoke_private_data_access",
-        payload: validGrantResult.grant_hash,
-      });
+      await revokePrivateDataAccess(
+        alice.cells[0],
+        validGrantResult.grant_hash,
+      );
+
+      // Ensure DHT sync is complete after revocation
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
 
       // Bob should no longer be able to access the data
-      const claimResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "create_private_data_cap_claim",
-        payload: {
+      const claimResult: CreatePrivateDataCapClaimOutput =
+        await createPrivateDataCapClaim(bob.cells[0], {
           grantor: alice.agentPubKey,
           cap_secret: validGrantResult.cap_secret,
           context: "revoke_test",
-        },
-      });
+        });
 
       // This should fail because the capability was revoked
       try {
-        await bob.cells[0].callZome({
-          zome_name: "zome_person",
-          fn_name: "get_private_data_with_capability",
-          payload: {
+        await getPrivateDataWithCapability(
+          bob.cells[0],
+          {
             requested_fields: ["email"],
           },
-          cap_secret: claimResult.claim_hash,
-        });
+          claimResult.claim_hash,
+        );
         assert.fail("Should have failed due to revoked capability");
       } catch (error: any) {
         assert.include(error.message, "Unauthorized");
@@ -393,64 +401,61 @@ test("field access control", async () => {
       });
 
       // Grant access to specific fields
-      const grantResult = await alice.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "grant_private_data_access",
-        payload: {
+      const grantResult: GrantPrivateDataAccessOutput =
+        await grantPrivateDataAccess(alice.cells[0], {
           agent_to_grant: bob.agentPubKey,
           fields_allowed: ["email", "phone"],
           context: "field_test",
           expires_in_days: 7,
-        },
-      });
+        });
 
-      const claimResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "create_private_data_cap_claim",
-        payload: {
+      // Ensure DHT sync is complete after grant creation before creating claim
+      await dhtSync([alice, bob], alice.cells[0].cell_id[0]);
+
+      const claimResult: CreatePrivateDataCapClaimOutput =
+        await createPrivateDataCapClaim(bob.cells[0], {
           grantor: alice.agentPubKey,
           cap_secret: grantResult.cap_secret,
           context: "field_test",
-        },
-      });
+        });
 
       // Test accessing granted fields
-      const grantedFieldsResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "get_private_data_with_capability",
-        payload: {
-          requested_fields: ["email", "phone"],
-        },
-        cap_secret: claimResult.claim_hash,
-      });
+      const grantedFieldsResult: FilteredPrivateData =
+        await getPrivateDataWithCapability(
+          bob.cells[0],
+          {
+            requested_fields: ["email", "phone"],
+          },
+          claimResult.claim_hash,
+        );
 
       assert.ok(grantedFieldsResult);
       assert.typeOf(grantedFieldsResult.email, "string");
       assert.typeOf(grantedFieldsResult.phone, "string");
 
       // Test accessing ungranted fields
-      const ungrantedFieldsResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "get_private_data_with_capability",
-        payload: {
-          requested_fields: ["email", "location"], // location not granted
-        },
-        cap_secret: claimResult.claim_hash,
-      });
+      const ungrantedFieldsResult: FilteredPrivateData =
+        await getPrivateDataWithCapability(
+          bob.cells[0],
+          {
+            requested_fields: ["email", "location"], // location not granted
+          },
+          claimResult.claim_hash,
+        );
 
       assert.ok(ungrantedFieldsResult);
       assert.typeOf(ungrantedFieldsResult.email, "string");
       assert.equal(ungrantedFieldsResult.location, undefined);
 
       // Test accessing sensitive fields
-      const sensitiveFieldsResult = await bob.cells[0].callZome({
-        zome_name: "zome_person",
-        fn_name: "get_private_data_with_capability",
-        payload: {
-          requested_fields: ["email", "legal_name"], // legal_name never shared
-        },
-        cap_secret: claimResult.claim_hash,
-      });
+      const sensitiveFieldsResult: FilteredPrivateData =
+        await getPrivateDataWithCapability(
+          bob.cells[0],
+          {
+            requested_fields: ["email", "legal_name"], // legal_name never shared
+          },
+          claimResult.claim_hash,
+        );
 
       assert.ok(sensitiveFieldsResult);
       assert.typeOf(sensitiveFieldsResult.email, "string");

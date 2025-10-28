@@ -130,3 +130,46 @@ pub fn get_my_private_person_data(_: ()) -> ExternResult<Option<PrivatePersonDat
 
   Ok(None)
 }
+
+/// Get private data for a specific agent by their public key
+#[hdk_extern]
+pub fn get_agent_private_data(agent_pubkey: AgentPubKey) -> ExternResult<Option<PrivatePersonData>> {
+  // First try the direct AgentToPrivateData link (new approach)
+  let private_data_links = get_links(
+    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPrivateData)?.build(),
+  )?;
+
+  if let Some(private_data_link) = private_data_links.first() {
+    if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
+      if let Some(record) = get(action_hash, GetOptions::default())? {
+        if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
+          return Ok(Some(private_data));
+        }
+      }
+    }
+  }
+
+  // Fallback: try the old approach via Person -> PrivateData link
+  let person_links = get_links(
+    GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build(),
+  )?;
+
+  if let Some(person_link) = person_links.first() {
+    let private_data_links = get_links(
+      GetLinksInputBuilder::try_new(person_link.target.clone(), LinkTypes::PersonToPrivateData)?
+        .build(),
+    )?;
+
+    if let Some(private_data_link) = private_data_links.first() {
+      if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
+        if let Some(record) = get(action_hash, GetOptions::default())? {
+          if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
+            return Ok(Some(private_data));
+          }
+        }
+      }
+    }
+  }
+
+  Ok(None)
+}

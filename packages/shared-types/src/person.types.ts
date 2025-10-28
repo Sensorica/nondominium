@@ -1,4 +1,4 @@
-import type { ActionHash, AgentPubKey, Timestamp } from "@holochain/client";
+import type { ActionHash, AgentPubKey, Timestamp, CapSecret } from "@holochain/client";
 
 // Core Person Types
 export interface Person {
@@ -138,76 +138,96 @@ export interface GetAgentRolesOutput {
   roles: PersonRole[];
 }
 
-// Private Data Sharing types
-export type RequestStatus =
-  | "Pending"
-  | "Approved"
-  | "Denied"
-  | "Expired"
-  | "Revoked";
-
-export interface DataAccessGrant {
-  granted_to: AgentPubKey;
-  granted_by: AgentPubKey;
-  fields_granted: string[];
+// Capability Token System Types (Idiomatic Holochain)
+export interface GrantPrivateDataAccessInput {
+  agent_to_grant: AgentPubKey;
+  fields_allowed: string[];
   context: string;
-  resource_hash?: ActionHash;
-  expires_at: Timestamp;
-  created_at: Timestamp;
+  expires_in_days?: number;
 }
 
-export interface DataAccessRequest {
-  requested_from: AgentPubKey;
-  requested_by: AgentPubKey;
-  fields_requested: string[];
-  context: string;
-  resource_hash?: ActionHash;
-  justification: string;
-  status: RequestStatus;
-  created_at: Timestamp;
-}
-
-export interface DataAccessRequestInput {
-  requested_from: AgentPubKey;
-  fields_requested: string[];
-  context: string;
-  resource_hash?: ActionHash;
-  justification: string;
-}
-
-// Input type for the request_private_data_access function
-export interface RequestPrivateDataAccessInput {
-  requested_from: AgentPubKey;
-  fields_requested: string[];
-  context: string;
-  resource_hash?: ActionHash;
-  justification: string;
-}
-
-export interface DataAccessGrantInput {
-  granted_to: AgentPubKey;
-  fields_granted: string[];
-  context: string;
-  resource_hash?: ActionHash;
-  duration_days?: number;
-}
-
-export interface RespondToDataRequestInput {
-  request_hash: ActionHash;
-  approve: boolean;
-  duration_days?: number;
-}
-
-export interface SharedPrivateData {
-  fields: { [key: string]: string };
-  granted_by: AgentPubKey;
-  context: string;
+export interface GrantPrivateDataAccessOutput {
+  grant_hash: ActionHash;
+  cap_secret: CapSecret;
   expires_at: Timestamp;
 }
 
-export interface RequestCoordinationInfoInput {
-  resource_hash: ActionHash;
-  previous_custodian: AgentPubKey;
+export interface CreatePrivateDataCapClaimInput {
+  grantor: AgentPubKey;
+  cap_secret: CapSecret;
+  context: string;
+}
+
+export interface CreatePrivateDataCapClaimOutput {
+  claim_hash: ActionHash;
+}
+
+export interface GetPrivateDataWithCapabilityInput {
+  requested_fields: string[];
+}
+
+export interface FilteredPrivateData {
+  legal_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  emergency_contact?: string;
+  time_zone?: string;
+  location?: string;
+}
+
+export interface PrivateDataCapabilityMetadata {
+  grant_hash: ActionHash;
+  granted_to: AgentPubKey;
+  granted_by: AgentPubKey;
+  fields_allowed: string[];
+  context: string;
+  expires_at: Timestamp;
+  created_at: Timestamp;
+  cap_secret: CapSecret;
+}
+
+export interface GrantRoleBasedAccessInput {
+  agent: AgentPubKey;
+  role: { role_name: string };
+  context: string;
+}
+
+export interface CreateTransferableAccessInput {
+  context: string;
+  fields_allowed: string[];
+  expires_in_days?: number;
+}
+
+export interface TransferableCapabilityOutput {
+  grant_hash: ActionHash;
+  cap_secret: CapSecret;
+  expires_at: Timestamp;
+}
+
+// Data structures for governance validation requests
+export interface ValidationDataRequest {
+  target_agent: AgentPubKey;
+  validation_context: string;
+  required_fields: string[];
+  governance_requester: AgentPubKey;
+}
+
+export interface ValidationResult {
+  is_valid: boolean;
+  validated_data?: Map<string, string>;
+  validation_context: string;
+  validated_at: Timestamp;
+  error_message?: string;
+}
+
+// Data structures for validation with grant hash
+export interface ValidationDataRequestWithGrant {
+  target_agent: AgentPubKey;
+  validation_context: string;
+  required_fields: string[];
+  governance_requester: AgentPubKey;
+  grant_hash: ActionHash;
 }
 
 // Test scenario types
