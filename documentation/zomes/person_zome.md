@@ -75,48 +75,44 @@ pub enum RoleType {
 - **stewardship**: Transport, Repair, Storage (Economic Process expertise)
 - **member**: Simple Agent (default capabilities)
 
-### Private Data Sharing Structures
+### Private Data Capability System
 
-#### DataAccessRequest Entry
-
-```rust
-pub struct DataAccessRequest {
-    pub requested_from: AgentPubKey,     // Agent from whom data is requested
-    pub requested_by: AgentPubKey,       // Agent making the request
-    pub fields_requested: Vec<String>,   // Specific fields being requested
-    pub context: String,                 // Context for the request
-    pub resource_hash: Option<ActionHash>, // Optional resource context
-    pub justification: String,           // Why access is needed
-    pub status: RequestStatus,           // Current status
-    pub created_at: Timestamp,           // When request was created
-}
-```
-
-#### DataAccessGrant Entry
+#### PrivateDataCapabilityMetadata Entry
 
 ```rust
-pub struct DataAccessGrant {
+pub struct PrivateDataCapabilityMetadata {
+    pub grant_hash: ActionHash,          // Hash of the capability grant
     pub granted_to: AgentPubKey,         // Agent granted access
-    pub granted_by: AgentPubKey,         // Agent granting access
-    pub fields_granted: Vec<String>,     // Accessible fields
-    pub context: String,                 // Context for access
-    pub resource_hash: Option<ActionHash>, // Optional resource context
-    pub expires_at: Timestamp,           // Expiration time
-    pub created_at: Timestamp,           // Creation time
+    pub granted_by: AgentPubKey,         // Agent granting access (data owner)
+    pub fields_allowed: Vec<String>,     // Specific fields accessible
+    pub context: String,                 // Context for the access
+    pub expires_at: Timestamp,           // When access expires
+    pub created_at: Timestamp,           // When grant was created
+    pub cap_secret: CapSecret,           // Capability secret for validation
 }
 ```
 
-#### RequestStatus Enum
+#### FilteredPrivateData Structure
 
 ```rust
-pub enum RequestStatus {
-    Pending,    // Awaiting response
-    Approved,   // Approved and grant created
-    Denied,     // Denied by data owner
-    Expired,    // Request expired
-    Revoked,    // Grant revoked
+pub struct FilteredPrivateData {
+    pub legal_name: Option<String>,      // Never shared for privacy
+    pub email: Option<String>,           // Email if granted
+    pub phone: Option<String>,           // Phone if granted
+    pub address: Option<String>,         // Address if granted
+    pub emergency_contact: Option<String>, // Emergency contact if granted
+    pub time_zone: Option<String>,       // Time zone if granted
+    pub location: Option<String>,        // Location if granted
 }
 ```
+
+**Capability Access Patterns**:
+
+- **Assigned Capabilities**: Direct grants to specific agents
+- **Transferable Capabilities**: Can be shared between agents
+- **Role-Based Grants**: Pre-configured access based on agent roles
+- **Field-Level Control**: Granular access to specific private data fields
+- **Time-Limited Access**: Automatic expiration with configurable duration
 
 ## API Functions
 
@@ -224,53 +220,130 @@ Retrieves private data for the calling agent.
 **Security**: Only accessible by the data owner
 **Performance**: Optimized with error handling for missing data
 
-### Private Data Sharing
+### Capability Token Private Data Sharing
 
-#### `request_private_data_access(input: DataAccessRequestInput) -> ExternResult<Record>`
+#### `grant_private_data_access(input: GrantPrivateDataAccessInput) -> ExternResult<GrantPrivateDataAccessOutput>`
 
-Requests access to another agent's private data.
+Creates a Holochain-native capability grant for private data access.
 
 **Input**:
 
 ```rust
-pub struct DataAccessRequestInput {
-    pub requested_from: AgentPubKey,
-    pub fields_requested: Vec<String>,    // ["email", "phone", "location", "time_zone", "emergency_contact"]
+pub struct GrantPrivateDataAccessInput {
+    pub agent_to_grant: AgentPubKey,
+    pub fields_allowed: Vec<String>,    // ["email", "phone", "location", "time_zone", "emergency_contact", "address"]
     pub context: String,
-    pub resource_hash: Option<ActionHash>,
-    pub justification: String,
+    pub expires_in_days: Option<u32>,    // Default 7 days, max 30 days
 }
 ```
 
-**Validation**: Only allowed fields can be requested, justification required
-**Linking**: Creates bidirectional links for request tracking
-**Economic Process Integration**: Supports custody transfer coordination workflows
-**Resource Context**: Links requests to specific resource transfers when applicable
-**Governance Support**: Enables transparent coordination while preserving privacy
+**Output**:
 
-#### `respond_to_data_request(input: RespondToDataRequestInput) -> ExternResult<Option<Record>>`
+```rust
+pub struct GrantPrivateDataAccessOutput {
+    pub grant_hash: ActionHash,
+    pub cap_secret: CapSecret,
+    pub expires_at: Timestamp,
+}
+```
 
-Approves or denies a data access request.
+**Security**: Uses Holochain's native CapGrant system
+**Validation**: Only allowed fields can be granted
+**Automatic Enforcement**: Holochain runtime validates capability claims
+**Metadata Tracking**: Stores grant metadata for audit trails
+
+#### `create_private_data_cap_claim(input: CreatePrivateDataCapClaimInput) -> ExternResult<CreatePrivateDataCapClaimOutput>`
+
+Creates a capability claim to access private data.
 
 **Input**:
 
 ```rust
-pub struct RespondToDataRequestInput {
-    pub request_hash: ActionHash,
-    pub approve: bool,
-    pub duration_days: Option<u32>,  // Default 7 days, max 7 days
+pub struct CreatePrivateDataCapClaimInput {
+    pub grantor: AgentPubKey,
+    pub cap_secret: CapSecret,
+    pub context: String,
 }
 ```
 
-**Authorization**: Only the requested agent can respond
-**Grant Creation**: Creates `DataAccessGrant` if approved
-**Returns**: Grant record if approved, None if denied
+**Output**:
 
-#### `grant_private_data_access(input: DataAccessGrantInput) -> ExternResult<Record>`
+```rust
+pub struct CreatePrivateDataCapClaimOutput {
+    pub claim_hash: ActionHash,
+}
+```
 
-Directly grants access to private data without a request.
+**Usage**: Required before accessing protected data
+**Validation**: Automatic Holochain capability checking
+**Security**: No manual authorization logic needed
+
+#### `get_private_data_with_capability(input: GetPrivateDataWithCapabilityInput) -> ExternResult<FilteredPrivateData>`
+
+Accesses private data using a valid capability claim.
 
 **Input**:
+
+```rust
+pub struct GetPrivateDataWithCapabilityInput {
+    pub requested_fields: Vec<String>,
+}
+```
+
+**Output**:
+
+```rust
+pub struct FilteredPrivateData {
+    pub legal_name: Option<String>,      // Never shared
+    pub email: Option<String>,           // If granted
+    pub phone: Option<String>,           // If granted
+    pub address: Option<String>,         // If granted
+    pub emergency_contact: Option<String>, // If granted
+    pub time_zone: Option<String>,       // If granted
+    pub location: Option<String>,        // If granted
+}
+```
+
+**Protection**: Automatically validated by Holochain capability system
+**Field Filtering**: Only returns fields included in the capability grant
+**Privacy**: Legal name never included in shared data
+
+#### `grant_role_based_private_data_access(input: GrantRoleBasedAccessInput) -> ExternResult<GrantPrivateDataAccessOutput>`
+
+Creates capability grants based on predefined role configurations.
+
+**Input**:
+
+```rust
+pub struct GrantRoleBasedAccessInput {
+    pub agent: AgentPubKey,
+    pub role: { role_name: String },     // Role name determines fields and duration
+    pub context: String,
+}
+```
+
+**Role Configurations**:
+- **Simple Agent**: email only, 7 days
+- **Accountable Agent**: email + phone, 14 days
+- **Primary Accountable Agent**: email + phone + location, 30 days
+- **Transport/Repair/Storage**: email + phone + location + time_zone, 21 days
+
+#### `create_transferable_private_data_access(input: CreateTransferableAccessInput) -> ExternResult<TransferableCapabilityOutput>`
+
+Creates transferable capability grants that can be shared between agents.
+
+**Input**:
+
+```rust
+pub struct CreateTransferableAccessInput {
+    pub context: String,
+    pub fields_allowed: Vec<String>,
+    pub expires_in_days: Option<u32>,    // Default 1 day for transferable
+}
+```
+
+**Use Case**: Guest access, temporary coordination, flexible sharing
+**Security**: Shorter duration for transferable capabilities
 
 ```rust
 pub struct DataAccessGrantInput {
