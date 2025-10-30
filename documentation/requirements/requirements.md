@@ -14,12 +14,21 @@ Built on the Holochain framework and using the ValueFlows standard, nondominium 
 
 Develop a new class of Resources that are:
 
-- **Organization-agnostic**: Not owned or controlled by any single Agent or organization
-- **Capture-resistant**: Uncapturable and resilient to monopolization
-- **Permissionless and shareable**: Accessible by default under defined governance rules
-- **Self-governing**: Integrated with embedded governance rules and peer validation
+
+- **Permissionless Access**: Anyone can Access Resources under defined governance rules
+- **Organization Agnostic**: Exist independently of any single organization. Not owned or controlled by any single Agent or organization.
+- **Capture Resistant or Unenclosable**: Uncapturable and resilient to monopolization. No Agent or group of Agents can control or delete Resources.
+- **Self-governed**: Rules driven associated directly with the Resources, which govern interactions or Actions that Agents can take, as defined by the system. **Roles**: Set of Activities or types of interactions that an Agent can perform with respect to the Resource. Also related to Custody (responsibility), maintenance or improvements (obligations). **Access control**: Rules associated with Roles of Agents, membranes, to grant permissions to interact with Resources in specific ways, Role-related. Is pseudonymous.
+- **Self-regulated**: Peer reviewed, verified and tested (quality control)
+- **Shareable by Default**: Resources are designed for sharing from inception
 - **Reputation-enabled**: Built-in accountability through cryptographically-signed participation tracking
 - **Process-aware**: Supporting structured Economic Processes (Use, Transport, Storage, Repair)
+- **Fully specified**: Machine readable in terms of function, design architecture, standards (dimensions, tolerances, quality), etc.
+- **Composable**: Resources can be combined into come complex resources, allow fork and remix
+- **Hard to Clone**: Governance, set of rules and incentives to make unnecessary copying of a resource unlikely.
+- **Lifecycle Managed**: Resources have managed lifecycles from creation through validation to end-of-life.
+- **Traceable**: Full provenance and economic activity tracking, affiliation to component resources
+
 
 ### 2.2 Supporting Goals
 
