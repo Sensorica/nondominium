@@ -1,6 +1,5 @@
 import { assert, test } from "vitest";
 import { Scenario, PlayerApp, dhtSync } from "@holochain/tryorama";
-import { ActionHash, AgentPubKey, CapSecret } from "@holochain/client";
 
 import {
   createPerson,
@@ -19,9 +18,7 @@ import type {
   CreatePrivateDataCapClaimOutput,
   TransferableCapabilityOutput,
   FilteredPrivateData,
-  ValidationDataRequestWithGrant,
-  ValidationResult,
-} from "../../../../packages/shared-types/src/person.types";
+} from "@nondominium/shared-types/src/person.types";
 
 test("capability-based private data sharing workflow", async () => {
   await runScenarioWithTwoAgents(
