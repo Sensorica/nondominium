@@ -8,112 +8,166 @@ All commands automatically build zomes and package the hApp before running tests
 
 ```bash
 # Run all tests
-bun run test
+bun tests
 
-# Watch mode for development
-bun run test:watch
+# Run tests with verbose output
+bun tests --reporter=verbose
 
-# Debug mode with verbose output
-bun run test:debug
+# Run tests in watch mode for development
+bun tests --watch
 
 # Generate coverage reports
-bun run test:coverage
+bun tests --coverage
 ```
 
-## 🎯 **Layer-Specific Tests**
+## 🎯 **Pattern-Based Test Selection**
+
+The test system uses file name pattern matching to run specific test subsets:
 
 ```bash
-# Foundation tests (basic zome connectivity)
-bun run test:foundation
+# Run all person-related tests
+bun tests person
 
-# Integration tests (multi-agent interactions)
-bun run test:integration
+# Run all resource-related tests
+bun tests resource
 
-# Scenario tests (complete user workflows)
-bun run test:scenarios
+# Run all governance-related tests
+bun tests governance
+
+# Run all PPR system tests
+bun tests ppr
 ```
 
-## 📂 **Domain-Specific Tests**
+## 📂 **Layer-Specific Test Patterns**
 
 ```bash
-# Person management tests
-bun run test:person
+# Run all foundation tests (basic connectivity)
+bun tests foundation
 
-# Resource management tests
-bun run test:resource
+# Run all integration tests (multi-agent interactions)
+bun tests integration
 
-# Governance system tests
-bun run test:governance
+# Run all scenario tests (complete user workflows)
+bun tests scenario
 ```
 
-## 🎯 **PPR System Tests** (Private Participation Receipts)
+## 🔧 **Specific Test Files**
 
 ```bash
-# All PPR system tests
-bun run test:ppr
-
-# Basic PPR functionality
-bun run test:ppr-foundation
-
-# PPR cross-zome integration
-bun run test:ppr-integration
-
-# Complete PPR user workflows
-bun run test:ppr-scenarios
-
-# PPR performance and load testing
-bun run test:ppr-performance
+# Run specific test files using partial name matching
+bun tests person-foundation
+bun tests person-integration
+bun tests person-scenario
+bun tests resource-foundation
+bun tests resource-integration
+bun tests resource-scenario
+bun tests ppr-foundation
+bun tests ppr-integration
+bun tests ppr-scenarios
+bun tests ppr-cryptography
+bun tests ppr-debug
+bun tests person-capability
+bun tests governance-foundation
 ```
 
-## 🔧 **Specialized Tests**
+## 🎯 **Development Workflow Commands**
 
 ```bash
-# Role management and access control
-bun run test:roles
+# Development with hot reload
+bun tests --watch person
 
-# Resource lifecycle management
-bun run test:resources-lifecycle
+# Debug specific test with verbose output
+bun tests --reporter=verbose ppr-foundation
+
+# Run tests for a specific feature area
+bun tests resource
+bun tests governance
+bun tests person
 ```
 
-## 🧹 **Linting & Code Quality**
+## 🧹 **Test Quality & Type Checking**
 
 ```bash
-# Check test code for linting issues
-bun run lint:tests
+# Run tests with type checking
+bun tests --typecheck
 
-# Auto-fix linting issues in test code
-bun run lint:tests:fix
+# Run type checking only (from tests directory)
+cd tests && npm run check
+
+# Run tests with coverage analysis
+bun tests --coverage
 ```
 
-## 💡 **Tips**
+## 💡 **Test Development Tips**
 
-- **All commands** include automatic build steps (zomes + hApp packaging)
-- **Test files** follow the pattern: `foundation-tests.test.ts`, `integration-tests.test.ts`, `scenario-tests.test.ts`
-- **Performance tests** have extended timeouts for complex multi-agent scenarios
-- **Debug mode** provides detailed output for troubleshooting test failures
+### Test Isolation During Development
+Use `.only()` on specific test blocks to run single tests:
 
-## 📊 **Test Structure**
+```typescript
+describe.only('specific test suite', () => { ... })  // Run only this suite
+it.only('specific test', async () => { ... })       // Run only this test
+test.only('specific test', async () => { ... })       // Run only this test
+```
+
+### Rust Zome Debugging
+Use the `warn!` macro in Rust zome functions to log debugging info:
+
+```rust
+warn!("Debug info: variable = {:?}", some_variable);
+warn!("Checkpoint reached in function_name");
+warn!("Processing entry: {}", entry_hash);
+```
+
+## 📊 **Test File Structure**
 
 ```
 tests/src/nondominium/
-├── person/                    # test:person
-├── resource/                  # test:resource
-├── governance/                # test:governance
-│   └── ppr-system/           # test:ppr
-│       ├── ppr-foundation.test.ts      # test:ppr-foundation
-│       ├── ppr-integration.test.ts     # test:ppr-integration
-│       ├── ppr-scenarios.test.ts       # test:ppr-scenarios
-│       └── performance/                # test:ppr-performance
-└── utils.ts
+├── person/                           # bun tests person
+│   ├── person-foundation-tests.test.ts
+│   ├── person-integration-tests.test.ts
+│   ├── person-scenario-tests.test.ts
+│   └── person-capability-based-sharing.test.ts
+├── resource/                         # bun tests resource
+│   ├── resource-foundation-tests.test.ts
+│   ├── resource-integration-tests.test.ts
+│   ├── resource-scenario-tests.test.ts
+│   └── resource-update-test.test.ts
+├── governance/                       # bun tests governance
+│   ├── governance-foundation-tests.test.ts
+│   └── ppr-system/                   # bun tests ppr
+│       ├── ppr-foundation.test.ts
+│       ├── ppr-integration.test.ts
+│       ├── ppr-scenarios.test.ts
+│       ├── ppr-cryptography.test.ts
+│       └── ppr-debug.test.ts
+└── misc/                             # bun tests misc
+    └── misc.test.ts
 ```
 
 ## 🎯 **Recommended Testing Workflow**
 
-1. **Development**: `bun run test:watch`
-2. **Feature Testing**: `bun run test:ppr` (for PPR work)
-3. **Pre-commit**: `bun run test:foundation && bun run lint:tests`
-4. **Full Validation**: `bun run test && bun run test:coverage`
+1. **Feature Development**: `bun tests --watch <feature-area>`
+2. **Specific Test Debugging**: `bun tests --reporter=verbose <specific-test>`
+3. **Pre-commit Validation**: `bun tests foundation && bun tests --typecheck`
+4. **Full Validation**: `bun tests && bun tests --coverage`
+
+## 🔍 **Pattern Matching Rules**
+
+The `bun tests` command uses Vitest's file filtering:
+- **Prefix Matching**: `bun tests person` matches all files starting with "person-"
+- **Partial Matching**: `bun tests foundation` matches all files containing "foundation"
+- **Specific Files**: Use unique parts of filenames for precise selection
+- **Multiple Patterns**: Chain multiple patterns for broader coverage
+
+## ⚡ **Performance Tips**
+
+- **Use Specific Patterns**: `bun tests person-foundation` is faster than `bun tests person`
+- **Foundation First**: Run foundation tests before integration/scenario tests
+- **Parallel Execution**: Tests run in parallel by default for maximum speed
+- **Verbose Output**: Use `--reporter=verbose` for debugging but not for routine runs
 
 ---
 
-All commands run from the project root and handle the complete build → test cycle automatically! 🚀
+All commands run from the project root and automatically handle the complete build → test cycle! 🚀
+
+**Environment**: Requires Nix development environment (`nix develop`) for Holochain binaries.
