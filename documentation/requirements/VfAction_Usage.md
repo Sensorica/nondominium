@@ -9,24 +9,28 @@ The `VfAction` enum provides type-safe representation of ValueFlows actions in t
 ### Standard ValueFlows Actions
 
 #### Transfer Actions
+
 - **`Transfer`** - Transfer ownership/custody between agents
 - **`Move`** - Move a resource from one location to another (used in Transport processes)
 
-#### Production/Consumption Actions  
+#### Production/Consumption Actions
+
 - **`Use`** - Core nondominium process: use a resource without consuming it (accessible to all Accountable Agents)
 - **`Consume`** - Consume/destroy a resource (used in end-of-life processes)
 - **`Produce`** - Create/produce a new resource
 - **`Work`** - Apply work/labor to a resource (used in Transport and Storage processes, requires specialized roles)
 
 #### Modification Actions
-- `Modify` - Modify an existing resource, applies to the Repair Process, accessible by Agents that have credencials for the Repair role. 
 
+- `Modify` - Modify an existing resource, applies to the Repair Process, accessible by Agents that have credencials for the Repair role.
 
 #### Quantity Adjustment Actions
+
 - **`Raise`** - Increase quantity/value of a resource
 - **`Lower`** - Decrease quantity/value of a resource
 
 #### Citation/Reference Actions
+
 - **`Cite`** - Reference or cite a resource
 - **`Accept`** - Accept delivery or responsibility
 
@@ -43,24 +47,28 @@ The nondominium system implements four structured Economic Processes that use sp
 ### Process-Action Mappings
 
 #### **Use Process** (Core nondominium process)
+
 - **Primary Action**: `Use`
 - **Access**: All Accountable Agents
 - **Resource Effect**: Resource unchanged
 - **PPR Generated**: Service process receipts
 
 #### **Transport Process** (Material resource movement)
+
 - **Primary Actions**: `Move`, `Work`
 - **Access**: Agents with Transport role credentials only
 - **Resource Effect**: Resource location changed, otherwise unchanged
 - **PPR Generated**: Transport-specific service receipts
 
 #### **Storage Process** (Temporary custody)
+
 - **Primary Actions**: `Work`, `TransferCustody`
 - **Access**: Agents with Storage role credentials only
 - **Resource Effect**: Resource unchanged
 - **PPR Generated**: Storage-specific service receipts
 
 #### **Repair Process** (Resource maintenance)
+
 - **Primary Actions**: `Modify`, `Work`
 - **Access**: Agents with Repair role credentials only
 - **Resource Effect**: Resource state may change (broken → functional)
@@ -71,6 +79,7 @@ The nondominium system implements four structured Economic Processes that use sp
 ### Economic Process Workflows
 
 #### Simple Agent First Transaction
+
 ```rust
 use zome_gouvernance_integrity::VfAction;
 
@@ -91,6 +100,7 @@ let initial_transfer_event = LogEconomicEventInput {
 ```
 
 #### Use Process (Core nondominium)
+
 ```rust
 // Creating commitment for Use process
 let use_commitment = Commitment {
@@ -116,6 +126,7 @@ let use_event = LogEconomicEventInput {
 ```
 
 #### Transport Process (Specialized role required)
+
 ```rust
 // Transport process commitment (requires Transport role)
 let transport_commitment = Commitment {
@@ -141,6 +152,7 @@ let move_event = LogEconomicEventInput {
 ```
 
 #### Repair Process (Modifies resource state)
+
 ```rust
 // Repair commitment (requires Repair role)
 let repair_commitment = Commitment {
@@ -166,6 +178,7 @@ let repair_event = LogEconomicEventInput {
 ```
 
 #### Process Chaining (Multi-role agent)
+
 ```rust
 // Agent with Transport + Repair roles chaining actions
 let chained_commitment = Commitment {
@@ -193,23 +206,23 @@ let chain_completion_event = LogEconomicEventInput {
 ### TypeScript (UI) - Process Management
 
 ```typescript
-import type { VfAction, EconomicEvent, Commitment } from './types';
+import type { VfAction, EconomicEvent, Commitment } from "./types";
 
 // Process initiation helper
 const initiateProcess = (
-  processType: 'Use' | 'Transport' | 'Storage' | 'Repair',
+  processType: "Use" | "Transport" | "Storage" | "Repair",
   resourceHash: string,
-  agentHasRole: boolean
+  agentHasRole: boolean,
 ): Commitment => {
-  if (!agentHasRole && processType !== 'Use') {
+  if (!agentHasRole && processType !== "Use") {
     throw new Error(`Agent lacks required role for ${processType} process`);
   }
 
   const actionMap: Record<string, VfAction> = {
-    'Use': 'Use',
-    'Transport': 'Work',
-    'Storage': 'Work', 
-    'Repair': 'Modify'
+    Use: "Use",
+    Transport: "Work",
+    Storage: "Work",
+    Repair: "Modify",
   };
 
   return {
@@ -218,22 +231,28 @@ const initiateProcess = (
     receiver: recipientPubKey,
     resource_inventoried_as: resourceHash,
     input_of: `${processType.toLowerCase()}_process_${Date.now()}`,
-    due_date: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+    due_date: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
     note: `${processType} process commitment`,
-    committed_at: Date.now()
+    committed_at: Date.now(),
   };
 };
 
 // Usage examples
-const useCommitment = initiateProcess('Use', resourceHash, true); // All Accountable Agents can use
-const transportCommitment = initiateProcess('Transport', resourceHash, hasTransportRole);
-const repairCommitment = initiateProcess('Repair', resourceHash, hasRepairRole);
+const useCommitment = initiateProcess("Use", resourceHash, true); // All Accountable Agents can use
+const transportCommitment = initiateProcess(
+  "Transport",
+  resourceHash,
+  hasTransportRole,
+);
+const repairCommitment = initiateProcess("Repair", resourceHash, hasRepairRole);
 
 // PPR generation tracking
 const trackPPRGeneration = (commitment: Commitment, event: EconomicEvent) => {
   // When claim links commitment to event, bi-directional PPRs are automatically generated
-  console.log(`PPRs will be issued for ${commitment.action} process completion`);
-  
+  console.log(
+    `PPRs will be issued for ${commitment.action} process completion`,
+  );
+
   // Example PPR types generated:
   // - ServiceCommitmentAccepted (when commitment created)
   // - ServiceFulfillmentCompleted (when event recorded)
@@ -338,17 +357,18 @@ if triggers_ppr_generation(&transport_action) {
 
 ### Role-Action Matrix
 
-| Action | Use Process | Transport Process | Storage Process | Repair Process | Role Required |
-|--------|-------------|-------------------|-----------------|----------------|---------------|
-| `Use` | ✓ (Primary) | - | - | - | Accountable Agent |
-| `Work` | - | ✓ (Primary) | ✓ (Primary) | ✓ (Secondary) | Transport/Storage Role |
-| `Modify` | - | - | - | ✓ (Primary) | Repair Role |
-| `Move` | - | ✓ (Secondary) | - | - | Transport Role |
-| `TransferCustody` | - | ✓ (Final) | ✓ (Final) | ✓ (Final) | Process Role + Custodian |
+| Action            | Use Process | Transport Process | Storage Process | Repair Process | Role Required            |
+| ----------------- | ----------- | ----------------- | --------------- | -------------- | ------------------------ |
+| `Use`             | ✓ (Primary) | -                 | -               | -              | Accountable Agent        |
+| `Work`            | -           | ✓ (Primary)       | ✓ (Primary)     | ✓ (Secondary)  | Transport/Storage Role   |
+| `Modify`          | -           | -                 | -               | ✓ (Primary)    | Repair Role              |
+| `Move`            | -           | ✓ (Secondary)     | -               | -              | Transport Role           |
+| `TransferCustody` | -           | ✓ (Final)         | ✓ (Final)       | ✓ (Final)      | Process Role + Custodian |
 
 ## Migration from String-Based Actions
 
 ### Before (String-based)
+
 ```rust
 // Old approach - error-prone
 let event = EconomicEvent {
@@ -358,6 +378,7 @@ let event = EconomicEvent {
 ```
 
 ### After (Enum-based)
+
 ```rust
 // New approach - type-safe
 let event = EconomicEvent {
@@ -369,6 +390,7 @@ let event = EconomicEvent {
 ## Benefits
 
 ### Core Development Benefits
+
 1. **Type Safety**: Compile-time validation prevents typos and invalid actions
 2. **IDE Support**: Better autocomplete and refactoring support
 3. **Documentation**: Self-documenting code with clear action definitions
@@ -376,6 +398,7 @@ let event = EconomicEvent {
 5. **Maintainability**: Easier to add new actions and understand existing code
 
 ### Governance Integration Benefits
+
 6. **Role-Based Access Control**: Automatic validation of agent roles for specialized processes
 7. **PPR Integration**: Seamless Private Participation Receipt generation for reputation tracking
 8. **Process Validation**: Built-in support for Economic Process validation requirements
@@ -383,12 +406,14 @@ let event = EconomicEvent {
 10. **Audit Trail Completeness**: Every action properly logged with governance context
 
 ### Economic Process Benefits
+
 11. **Process Chaining Support**: Enable complex multi-step service delivery
 12. **State Management**: Proper resource state transitions based on action type
 13. **Validation Automation**: Automatic triggering of appropriate validation workflows
 14. **Performance Tracking**: Built-in performance metrics for service quality assessment
 
 ### Security & Privacy Benefits
+
 15. **Capability Enforcement**: Actions respect progressive agent capability levels
 16. **End-to-End Validation**: From commitment through completion with cryptographic signatures
 17. **Dispute Resolution Support**: Clear action history for conflict resolution
@@ -399,10 +424,11 @@ let event = EconomicEvent {
 The VfAction enum is designed for extensibility to support advanced governance features:
 
 ### Phase 2 Action Extensions
+
 ```rust
 pub enum VfAction {
     // ... existing actions
-    
+
     // Advanced governance actions
     Delegate,        // Delegate responsibility to another agent
     Revoke,          // Revoke access or role assignment
@@ -413,10 +439,11 @@ pub enum VfAction {
 ```
 
 ### Phase 3 Network Actions
+
 ```rust
 pub enum VfAction {
     // ... existing actions
-    
+
     // Cross-network actions
     Bridge,          // Bridge resource to another network
     Federate,        // Federate governance across networks
@@ -474,7 +501,7 @@ fn triggers_ppr_generation(action: &VfAction) -> bool {
 }
 
 // 5. TypeScript update
-export type VfAction = 
+export type VfAction =
   // ... existing actions
   | "Delegate"; // Delegate responsibility to another agent
 ```
@@ -482,6 +509,7 @@ export type VfAction =
 ### Action Design Principles
 
 New actions should follow these principles:
+
 - **ValueFlows Alignment**: Maintain compatibility with ValueFlows standard
 - **Role-Based Access**: Clear role requirements for governance
 - **PPR Generation**: Automatic reputation tracking integration

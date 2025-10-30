@@ -15,11 +15,13 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 ## Fundamental Concepts
 
 ### Commitments and Fulfillments
+
 - **Commitments**: Actions (resource creation, transfer, maintenance) are formally committed by agents
 - **Validations**: Fulfillments that confirm commitments have been properly executed
 - **Good Faith Usage**: Users commit to honest usage practices (reporting damage, avoiding monopolization)
 
 ### Receipt Generation Logic
+
 - **Two Receipts Per Action**: Each economic interaction generates exactly 2 bi-directional receipts between participating agents
 - **Implicit Resource Validation**: Resource validation is implicit through agent validation (except for creation events)
 - **Agent-Focused**: Receipts track agent behavior and reliability, not resource state changes
@@ -31,6 +33,7 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 #### Resource Creation Events
 
 **1.1 Resource Creation & Validation (Single Transaction)**
+
 - **Trigger**: A resource is registered on the network and validated by another agent
 - **Generated Receipts** (2 total):
   1. **Creator Agent**: Receives "successful resource contribution" receipt
@@ -40,7 +43,9 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 ### 2. Core Usage Role - Custodianship
 
 #### Custody Transfer Events
+
 **2.1 Resource Custody Transfer**
+
 - **Trigger**: Resource custody is transferred between agents
 - **Generated Receipts** (2 total):
   1. **Outgoing Custodian**: Receives "responsible custody transfer" receipt
@@ -50,10 +55,11 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 ### 3. Intermediate Roles - Specialized Services
 
 #### Specialized Service Receipts
+
 **Participant Structure**: Involves 2 or 3 agents (original custodian, intermediate service provider, final recipient).Thus, the Resource is transferred from original custodian (User) to intermediate service provider, back to another or the same User.
 
+**3.1 Maintenance Service**
 
-**3.1 Maintenance Service** 
 - **Commitment Phase**: Service provider commits to maintenance duties
 - **Generated Receipts** (2 total):
   1. **Maintenance Agent**: Receives "maintenance commitment accepted" receipt
@@ -64,6 +70,7 @@ Private Participation Receipts are cryptographically signed, cumulative records 
   2. **Resource Recipient**: Receives "custody acceptance" receipt
 
 **3.2 Storage Service**
+
 - **Commitment Phase**: Service provider commits to storage duties
 - **Generated Receipts** (2 total):
   1. **Storage Agent**: Receives "storage commitment accepted" receipt
@@ -74,6 +81,7 @@ Private Participation Receipts are cryptographically signed, cumulative records 
   2. **Resource Recipient**: Receives "custody acceptance" receipt
 
 **3.3 Transport Service**
+
 - **Commitment Phase**: Service provider commits to transport duties
 - **Generated Receipts** (2 total):
   1. **Transport Agent**: Receives "transport commitment accepted" receipt
@@ -84,12 +92,14 @@ Private Participation Receipts are cryptographically signed, cumulative records 
   2. **Resource Recipient**: Receives "custody acceptance" receipt
 
 #### Role Chaining Mechanics
+
 - **Multi-role Agents**: Agents can hold multiple intermediate roles simultaneously, ex. they can hold credencials for transport, maintenance and storage at the same time.
 - **Action Chaining**: Service Agents can chain multiple actions (transport → repair → transport) within a single commitment
 - **Self-Managed Chains**: Intermediate steps don't require external validation
 - **Atomic Transactions**: Entire chain treated as single commitment/fulfillment cycle
 
 #### Example Workflow: Transport + Repair Service
+
 ```
 Initial State: Lynn (custodian) → Resource needs repair
 Service Request: Lynn requests Bob (transport + repair credentials) to service resource
@@ -114,11 +124,13 @@ Completion Phase:
 ## Additional PPR Contexts
 
 ### 4. Network Governance
+
 - **Dispute Resolution Participation**: Receipts for constructive participation in conflict resolution
 - **Validation Activities**: Receipts for performing validation duties beyond specific transactions
 - **Rule Compliance**: Receipts for consistent adherence to governance protocols
 
 ### 5. Quality Assurance
+
 - **Economic Event Completion**: Receipts for successfully completing any EconomicEvent
 - **Commitment Fulfillment**: Receipts when claims properly link commitments to their fulfillment
 - **Performance Standards**: Receipts for meeting or exceeding quality thresholds
@@ -148,9 +160,11 @@ This design maintains ValueFlows compliance while enabling the cumulative reputa
 ### 6. Resource Decommissioning
 
 #### Critical Lifecycle Completion
+
 Resources require formal end-of-life processing to prevent abuse vectors and maintain network integrity.
 
 **6.1 Resource End-of-Life Declaration**
+
 - **Trigger**: Resource becomes permanently unusable, damaged beyond repair, or deliberately retired
 - **Security Concern**: This event is a potential attack vector where agents might claim resources are "destroyed" to steal or monopolize them
 - **Generated Receipts** (2 total):
@@ -158,12 +172,13 @@ Resources require formal end-of-life processing to prevent abuse vectors and mai
   2. **Validator Agent**: Receives "end-of-life validation performed" receipt
 
 #### Strict Validation Requirements
+
 To prevent end-of-life abuse:
 
 - **Multiple Validators Required**: Minimum 2-3 validators must confirm end-of-life status
- - The number of validators required can be adjusted based on the resource's value and sensitivity
- - The declarator agent can't be a validator and even less than the disposal agent
- - The validators must be experts (maintainers) that can validate the resource's condition and authenticity
+- The number of validators required can be adjusted based on the resource's value and sensitivity
+- The declarator agent can't be a validator and even less than the disposal agent
+- The validators must be experts (maintainers) that can validate the resource's condition and authenticity
 - **Evidence Documentation**: Physical evidence (photos, inspection reports) required
 - **Validator Accountability**: Validators become liable for false end-of-life approvals
 - **Historical Review**: Past custodians notified and can challenge the declaration
@@ -172,6 +187,7 @@ To prevent end-of-life abuse:
 - **Resource final transfer**: Resource can not stay with the declaring agent. Validators can transfer the resource to a storage for broken resource in waiting for reparation attempt or definitively decommission it.
 
 #### Complete Resource Lifecycle
+
 ```
 Genesis → Active Use → Service Cycles → End-of-Life → Decommissioned
    ↓         ↓             ↓              ↓             ↓

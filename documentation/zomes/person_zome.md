@@ -1,6 +1,6 @@
 # Person Zome (`zome_person`) Documentation
 
-The Person zome provides the foundational identity, privacy, and access control infrastructure for the nondominium ecosystem. It implements a comprehensive agent capability progression system (Simple → Accountable → Primary Accountable Agent), sophisticated private data sharing workflows, role-based access control for Economic Processes, and seamless integration with the Private Participation Receipt (PPR) reputation system.
+The Person zome provides the foundational identity, privacy, and access control infrastructure for the nondominium ecosystem. It implements agent identity management, role-based access control, capability-based private data sharing, and integration with the Private Participation Receipt (PPR) reputation system.
 
 ## Core Data Structures
 
@@ -64,18 +64,12 @@ pub enum RoleType {
 
 **Agent Capability Progression**:
 
-- **Simple Agent** (Entry Level): General capability token, can create resources and make first transaction
-- **Accountable Agent** (Validated): Restricted capability token, can access resources, validate others, participate in Economic Processes
-- **Primary Accountable Agent** (Custodian): Full capability token, holds physical custody, validates specialized roles, participates in dispute resolution
+- **Simple Agent** (Entry Level): Default capabilities
+- **Accountable Agent** (Validated): Enhanced capabilities after resource validation
+- **Primary Accountable Agent** (Custodian): Full governance rights and physical custody
+- **Specialized Roles**: Transport, Repair, Storage for specific service types
 
-**Capability Levels for Role Assignment**:
-
-- **governance**: Primary Accountable Agent (full governance rights and physical custody)
-- **coordination**: Accountable Agent (validation and resource access)
-- **stewardship**: Transport, Repair, Storage (Economic Process expertise)
-- **member**: Simple Agent (default capabilities)
-
-### Private Data Capability System
+### Capability-Based Private Data Sharing
 
 #### PrivateDataCapabilityMetadata Entry
 
@@ -108,11 +102,10 @@ pub struct FilteredPrivateData {
 
 **Capability Access Patterns**:
 
-- **Assigned Capabilities**: Direct grants to specific agents
-- **Transferable Capabilities**: Can be shared between agents
-- **Role-Based Grants**: Pre-configured access based on agent roles
 - **Field-Level Control**: Granular access to specific private data fields
-- **Time-Limited Access**: Automatic expiration with configurable duration
+- **Time-Limited Access**: Automatic expiration with configurable duration (max 30 days)
+- **Context-Aware Grants**: Access linked to specific purposes and resource transfers
+- **Holochain Native Security**: Uses CapGrant/CapClaim system for cryptographic access control
 
 ## API Functions
 
@@ -149,7 +142,6 @@ Updates an existing person profile with versioning support.
 
 **Authorization**: Only the person's author can update
 **Versioning**: Creates update links for version history
-**Links Created**: `original_hash -> updated_hash` (version tracking)
 
 #### `get_latest_person(original_action_hash: ActionHash) -> ExternResult<Person>`
 
@@ -176,27 +168,6 @@ Gets public profile information for a specific agent.
 Gets complete profile information for the calling agent.
 
 **Privacy**: Includes both public `Person` and private `PrivatePersonData`
-**Optimization**: Efficient private data retrieval with error handling
-
-#### `promote_agent_to_accountable(input: PromoteAgentInput) -> ExternResult<String>`
-
-Promotes a Simple Agent to Accountable Agent status through governance validation.
-
-**Input**:
-
-```rust
-pub struct PromoteAgentInput {
-    pub agent: AgentPubKey,
-    pub first_resource_hash: ActionHash,
-}
-```
-
-**Cross-Zome Integration**: Calls `zome_gouvernance.validate_agent_identity`
-**Governance**: Implements REQ-GOV-03 (Agent Validation) workflow
-**Agent Progression**: Transitions Simple Agent → Accountable Agent after first transaction validation
-**PPR Integration**: Triggers bi-directional Private Participation Receipt issuance for reputation tracking
-**Capability Advancement**: Upgrades from general to restricted capability token
-**Returns**: Success message or error if promotion fails
 
 ### Private Data Management
 
@@ -218,9 +189,8 @@ Updates private personal information.
 Retrieves private data for the calling agent.
 
 **Security**: Only accessible by the data owner
-**Performance**: Optimized with error handling for missing data
 
-### Capability Token Private Data Sharing
+### Capability-Based Private Data Sharing
 
 #### `grant_private_data_access(input: GrantPrivateDataAccessInput) -> ExternResult<GrantPrivateDataAccessOutput>`
 
@@ -250,59 +220,17 @@ pub struct GrantPrivateDataAccessOutput {
 **Security**: Uses Holochain's native CapGrant system
 **Validation**: Only allowed fields can be granted
 **Automatic Enforcement**: Holochain runtime validates capability claims
-**Metadata Tracking**: Stores grant metadata for audit trails
 
 #### `create_private_data_cap_claim(input: CreatePrivateDataCapClaimInput) -> ExternResult<CreatePrivateDataCapClaimOutput>`
 
 Creates a capability claim to access private data.
 
-**Input**:
-
-```rust
-pub struct CreatePrivateDataCapClaimInput {
-    pub grantor: AgentPubKey,
-    pub cap_secret: CapSecret,
-    pub context: String,
-}
-```
-
-**Output**:
-
-```rust
-pub struct CreatePrivateDataCapClaimOutput {
-    pub claim_hash: ActionHash,
-}
-```
-
 **Usage**: Required before accessing protected data
 **Validation**: Automatic Holochain capability checking
-**Security**: No manual authorization logic needed
 
 #### `get_private_data_with_capability(input: GetPrivateDataWithCapabilityInput) -> ExternResult<FilteredPrivateData>`
 
 Accesses private data using a valid capability claim.
-
-**Input**:
-
-```rust
-pub struct GetPrivateDataWithCapabilityInput {
-    pub requested_fields: Vec<String>,
-}
-```
-
-**Output**:
-
-```rust
-pub struct FilteredPrivateData {
-    pub legal_name: Option<String>,      // Never shared
-    pub email: Option<String>,           // If granted
-    pub phone: Option<String>,           // If granted
-    pub address: Option<String>,         // If granted
-    pub emergency_contact: Option<String>, // If granted
-    pub time_zone: Option<String>,       // If granted
-    pub location: Option<String>,        // If granted
-}
-```
 
 **Protection**: Automatically validated by Holochain capability system
 **Field Filtering**: Only returns fields included in the capability grant
@@ -312,17 +240,8 @@ pub struct FilteredPrivateData {
 
 Creates capability grants based on predefined role configurations.
 
-**Input**:
-
-```rust
-pub struct GrantRoleBasedAccessInput {
-    pub agent: AgentPubKey,
-    pub role: { role_name: String },     // Role name determines fields and duration
-    pub context: String,
-}
-```
-
 **Role Configurations**:
+
 - **Simple Agent**: email only, 7 days
 - **Accountable Agent**: email + phone, 14 days
 - **Primary Accountable Agent**: email + phone + location, 30 days
@@ -332,69 +251,22 @@ pub struct GrantRoleBasedAccessInput {
 
 Creates transferable capability grants that can be shared between agents.
 
-**Input**:
-
-```rust
-pub struct CreateTransferableAccessInput {
-    pub context: String,
-    pub fields_allowed: Vec<String>,
-    pub expires_in_days: Option<u32>,    // Default 1 day for transferable
-}
-```
-
 **Use Case**: Guest access, temporary coordination, flexible sharing
 **Security**: Shorter duration for transferable capabilities
 
-```rust
-pub struct DataAccessGrantInput {
-    pub granted_to: AgentPubKey,
-    pub fields_granted: Vec<String>,
-    pub context: String,
-    pub resource_hash: Option<ActionHash>,
-    pub duration_days: Option<u32>,  // Default 7 days
-}
-```
-
-**Use Case**: Economic Process workflows requiring immediate coordination data access
-**Process Integration**: Supports Transport, Repair, Storage process coordination
-**Custody Transfer**: Enables custodian-to-custodian contact information sharing
-
-#### `get_granted_private_data(granted_by: AgentPubKey) -> ExternResult<Option<SharedPrivateData>>`
-
-Retrieves private data that has been granted to the calling agent.
-
-**Output**:
-
-```rust
-pub struct SharedPrivateData {
-    pub fields: HashMap<String, String>,  // Only granted fields
-    pub granted_by: AgentPubKey,
-    pub context: String,
-    pub expires_at: Timestamp,
-}
-```
-
-**Security**: Only returns data from valid, non-expired grants
-**Field Filtering**: Only includes specifically granted fields
-
-#### `revoke_data_access_grant(grant_hash: ActionHash) -> ExternResult<()>`
+#### `revoke_private_data_access(grant_hash: ActionHash) -> ExternResult<()>`
 
 Revokes a previously granted data access.
 
 **Authorization**: Only the granting agent can revoke
-**Implementation**: Deletes the grant entry to immediately revoke access
 
-#### `get_pending_data_requests() -> ExternResult<Vec<DataAccessRequest>>`
+#### `get_my_capability_grants() -> ExternResult<Vec<PrivateDataCapabilityMetadata>>`
 
-Gets all pending data access requests for the calling agent.
+Gets all capability grants created by the calling agent.
 
-#### `get_my_data_grants() -> ExternResult<Vec<DataAccessGrant>>`
+#### `validate_capability_grant(grant_hash: ActionHash) -> ExternResult<bool>`
 
-Gets all data access grants given by the calling agent.
-
-#### `get_my_data_requests() -> ExternResult<Vec<DataAccessRequest>>`
-
-Gets all data access requests made by the calling agent.
+Validates whether a capability grant is still valid and not expired.
 
 ### Role Management
 
@@ -413,31 +285,8 @@ pub struct PersonRoleInput {
 ```
 
 **Validation**: Role name must be from predefined `RoleType` enum
-**Cross-Zome Integration**: For specialized roles (Transport, Repair, Storage), calls `zome_gouvernance.validate_specialized_role`
-**Economic Process Access Control**: Specialized roles enable participation in restricted Economic Processes
-**Governance Validation**: Specialized roles require validation by existing Primary Accountable Agents
-**PPR Integration**: Role assignment triggers appropriate Private Participation Receipt generation
+**Cross-Zome Integration**: For specialized roles, calls governance zome for validation
 **Metadata**: Tracks who assigned the role and when
-**Linking**: Links role to person profile for efficient queries
-
-**Specialized Role Validation**:
-
-```rust
-pub struct ValidateSpecializedRoleInput {
-    pub agent: AgentPubKey,
-    pub requested_role: String,        // "Transport", "Repair", "Storage"
-    pub credentials: Option<String>,   // Supporting credentials/evidence
-    pub validation_history: Option<ActionHash>, // Previous validation records
-    pub context: Option<String>,       // Additional validation context
-}
-
-pub struct ValidateSpecializedRoleOutput {
-    pub validation_receipt_hash: ActionHash,
-    pub role_approved: bool,
-    pub role_granted: String,
-    pub ppr_issued: bool,              // Whether PPR was generated for validation
-}
-```
 
 #### `get_person_roles(agent_pubkey: AgentPubKey) -> ExternResult<GetPersonRolesOutput>`
 
@@ -454,18 +303,68 @@ Gets all roles for the calling agent.
 
 Checks if an agent has a specific role capability.
 
-**Usage**: Access control validation in other zomes (resource and governance zomes)
-**Economic Process Integration**: Validates agent capabilities for specialized processes
-**Performance**: Optimized boolean check with caching
+**Usage**: Access control validation in other zomes
+**Performance**: Optimized boolean check
 
 #### `get_person_capability_level(agent_pubkey: AgentPubKey) -> ExternResult<String>`
 
 Determines the highest capability level for an agent based on their roles.
 
 **Returns**: "governance" | "coordination" | "stewardship" | "member"
-**Logic**: Hierarchical evaluation of role capabilities with specialized role integration
-**Cross-Zome Usage**: Used by resource and governance zomes for access control decisions
-**Economic Process Access**: Determines which Economic Processes an agent can initiate
+**Logic**: Hierarchical evaluation of role capabilities
+
+### Agent Promotion and Validation
+
+#### `promote_agent_to_accountable(input: PromoteAgentInput) -> ExternResult<String>`
+
+Promotes a Simple Agent to Accountable Agent status through governance validation.
+
+**Input**:
+
+```rust
+pub struct PromoteAgentInput {
+    pub agent: AgentPubKey,
+    pub first_resource_hash: ActionHash,
+}
+```
+
+**Cross-Zome Integration**: Calls `zome_gouvernance.validate_agent_identity`
+**Governance**: Implements agent validation workflow
+**Agent Progression**: Transitions Simple Agent → Accountable Agent after validation
+
+#### `promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<Record>`
+
+Promotes an agent with comprehensive validation workflow.
+
+**Process**: Multi-step validation with governance integration
+**Validation**: Creates validation receipt and triggers PPR generation
+
+#### `request_role_promotion(input: RolePromotionRequest) -> ExternResult<ActionHash>`
+
+Requests promotion to a higher role level.
+
+**Workflow**: Creates request for existing agents to validate and approve
+
+#### `approve_role_promotion(input: ApprovePromotionInput) -> ExternResult<Record>`
+
+Approves a role promotion request.
+
+**Authorization**: Only existing Primary Accountable Agents can approve promotions
+
+### Cross-Zome Integration Functions
+
+#### `validate_agent_private_data(input: ValidationDataRequest) -> ExternResult<ValidationResult>`
+
+Validates agent private data for governance workflows.
+
+**Purpose**: Enables governance zome to validate agent identity and private data
+**Privacy**: Requires explicit consent for private data access
+
+#### `validate_agent_private_data_with_grant(input: ValidationDataRequestWithGrant) -> ExternResult<ValidationResult>`
+
+Validates agent private data using existing capability grant.
+
+**Usage**: Optimized validation when access has already been granted
 
 ## Link Architecture
 
@@ -477,25 +376,21 @@ Determines the highest capability level for an agent based on their roles.
 ### Privacy Links
 
 - **PersonToPrivateData**: `person_hash -> private_data_hash` - Private data access
+- **AgentToPrivateData**: `agent_pubkey -> private_data_hash` - Direct private data access
 
 ### Role Links
 
 - **PersonToRoles**: `person_hash -> role_hash` - Agent role queries
+- **RoleUpdates**: `original_hash -> updated_hash` - Role version history
 
 ### Versioning Links
 
 - **PersonUpdates**: `original_hash -> updated_hash` - Person version history
-- **RoleUpdates**: `original_hash -> updated_hash` - Role version history
 
-### Private Data Sharing Links
+### Capability Management Links
 
-- **AgentToDataGrants**: `agent_pubkey -> grant_hash` - Track grants given by agent
-- **AgentToDataRequests**: `agent_pubkey -> request_hash` - Track requests made by agent
-- **AgentToIncomingRequests**: `agent_pubkey -> request_hash` - Track requests received by agent
-- **ResourceToDataGrants**: `resource_hash -> grant_hash` - Link grants to specific resource transfers
-- **PersonToAccessLog**: `person_hash -> access_log_hash` - Audit trail of data access
-- **DataAccessGrantUpdates**: `original_hash -> updated_hash` - Grant version history
-- **DataAccessRequestUpdates**: `original_hash -> updated_hash` - Request version history
+- **AgentToCapabilityMetadata**: `agent_pubkey -> grant_hash` - Track grants created by agent
+- **RevokedGrantAnchor**: Anchor for revoked capability grants
 
 ## Error Handling
 
@@ -512,6 +407,7 @@ pub enum PersonError {
     EntryOperationFailed(String), // DHT operation failures
     LinkOperationFailed(String),  // Link operation failures
     InvalidInput(String),         // Input validation failures
+    InsufficientCapability(String), // Capability level restrictions
 }
 ```
 
@@ -524,7 +420,7 @@ pub enum PersonError {
 
 - **Person entries**: Name, avatar, bio (discoverable)
 - **Role assignments**: Role name, assignment metadata (auditable)
-- **Data access requests**: Request metadata (discoverable by involved parties)
+- **Capability metadata**: Grant information for audit trails
 
 ### Private Data Layer
 
@@ -533,294 +429,84 @@ pub enum PersonError {
 
 ### Controlled Sharing Layer
 
-- **DataAccessGrant entries**: Time-limited, field-specific access grants
-- **Allowed Fields**: email, phone, location, time_zone, emergency_contact
-- **Grant Duration**: Maximum 7 days, configurable by data owner
-- **Context-Aware**: Grants linked to specific resource transfers or interactions
-
-### Access Control Patterns
-
-```rust
-// Public profile access (any agent)
-get_person_profile(target_agent) -> Person data only
-
-// Private profile access (owner only)
-get_my_person_profile() -> Person + PrivatePersonData
-
-// Controlled sharing access (granted agents only)
-get_granted_private_data(granting_agent) -> SharedPrivateData with only granted fields
-
-// Request-based access workflow
-request_private_data_access() -> Creates DataAccessRequest
-respond_to_data_request(approve=true) -> Creates DataAccessGrant
-get_granted_private_data() -> Access to specifically granted fields
-```
+- **Capability grants**: Time-limited, field-specific access grants
+- **Allowed Fields**: email, phone, location, time_zone, emergency_contact, address
+- **Grant Duration**: Maximum 30 days, configurable by data owner
+- **Context-Aware**: Grants linked to specific purposes and resource transfers
 
 ## Integration with Other Zomes
 
-### Role-Based Access Control for Resources
+### Cross-Zome Role Validation
 
 ```rust
 // Check if agent has required role for operation
-let has_capability = has_person_role_capability((agent_pubkey, "Resource Coordinator".to_string()))?;
-if !has_capability {
-    return Err(ResourceError::GovernanceViolation("Resource Coordinator role required".to_string()));
-}
-```
-
-### Economic Process Role Validation
-
-```rust
-// Specialized role validation for Economic Processes
-let has_transport_role = has_person_role_capability((agent_pubkey, "Transport".to_string()))?;
-if !has_transport_role && process_type == "Transport" {
-    return Err(ProcessError::InsufficientRole("Transport role required".to_string()));
-}
-
-let has_repair_role = has_person_role_capability((agent_pubkey, "Repair".to_string()))?;
-if !has_repair_role && process_type == "Repair" {
-    return Err(ProcessError::InsufficientRole("Repair role required".to_string()));
-}
-```
-
-### Capability Level Validation
-
-```rust
-// Resource creation authorization check
-let capability_level = get_person_capability_level(agent_pubkey)?;
-match capability_level.as_str() {
-    "governance" | "coordination" => {
-        // Allow resource specification creation
-    },
-    _ => return Err(ResourceError::GovernanceViolation("Insufficient capability".to_string()))
-}
-```
-
-### Private Data Coordination for Economic Processes
-
-```rust
-// Automatic private data coordination for custody transfers
-let coordination_request = DataAccessRequestInput {
-    requested_from: previous_custodian,
-    fields_requested: vec!["email".to_string(), "phone".to_string(), "location".to_string()],
-    context: format!("custodian_transfer_{}", resource_hash),
-    resource_hash: Some(resource_hash),
-    justification: "New custodian requesting coordination info for resource handover".to_string(),
-};
-
-call(
+let has_capability = call(
     CallTargetCell::Local,
     "zome_person",
-    "request_private_data_access".into(),
+    "has_person_role_capability".into(),
     None,
-    &coordination_request,
+    &("agent_pubkey", "required_role".to_string()),
 )?;
 ```
 
-### Cross-Zome Integration Patterns
-
-#### Agent Promotion Workflow
+### Agent Capability Level Validation
 
 ```rust
-// Called by governance zome during Simple Agent validation
-let promotion_result = call(
+// Check agent capability level for resource operations
+let capability_level = call(
     CallTargetCell::Local,
     "zome_person",
-    "promote_agent_to_accountable".into(),
+    "get_person_capability_level".into(),
     None,
-    &PromoteAgentInput {
-        agent: simple_agent_pubkey,
-        first_resource_hash: validated_resource_hash,
-    },
+    &agent_pubkey,
 )?;
-
-// Triggers capability token upgrade and PPR generation
 ```
 
-#### Private Data Access for Governance Validation
+### Private Data Validation for Governance
 
 ```rust
 // Governance zome accessing private data for agent validation
-pub struct GovernanceDataAccessInput {
-    pub agent_to_validate: AgentPubKey,
-    pub validation_type: String,          // "agent_promotion", "role_validation"
-    pub requesting_validator: AgentPubKey, // Validator requesting access
-    pub validation_context: ActionHash,   // Link to validation process
-}
-
-// Function called by governance zome for agent identity validation
-get_private_data_for_governance_validation(input: GovernanceDataAccessInput) -> ExternResult<GovernanceDataAccessOutput>
-
-pub struct GovernanceDataAccessOutput {
-    pub identity_verified: bool,
-    pub data_quality_score: f64,         // Completeness of identity data
-    pub validation_eligible: bool,        // Whether agent meets validation criteria
-    pub private_data_hash: Option<ActionHash>, // Link for validation receipt
-}
-```
-
-#### Bidirectional PPR Coordination
-
-```rust
-// Person zome receiving PPR generation notifications from governance zome
-pub struct PPRGenerationNotification {
-    pub agent: AgentPubKey,
-    pub ppr_hash: ActionHash,
-    pub claim_type: String,               // ParticipationClaimType as string
-    pub interaction_context: String,
-    pub performance_score: Option<f64>,
-}
-
-// Function to handle PPR notifications for reputation updates
-handle_ppr_generation_notification(input: PPRGenerationNotification) -> ExternResult<()>
-```
-
-#### Specialized Role Assignment
-
-```rust
-// Cross-zome validation for specialized roles
 let validation_result = call(
     CallTargetCell::Local,
-    "zome_gouvernance",
-    "validate_specialized_role".into(),
+    "zome_person",
+    "validate_agent_private_data".into(),
     None,
-    &ValidateSpecializedRoleInput {
-        agent: agent_pubkey,
-        requested_role: "Transport".to_string(),
-        credentials: Some(transport_credentials),
-        validation_history: Some(previous_validation_hash),
+    &ValidationDataRequest {
+        agent_to_validate: agent_pubkey,
+        validation_type: "agent_promotion".to_string(),
+        requesting_validator: validator_pubkey,
+        validation_context: validation_hash,
     },
 )?;
-
-// Role granted only after governance validation
 ```
-
-## Private Participation Receipt (PPR) Integration
-
-The Person zome serves as a crucial integration point for the Private Participation Receipt reputation system, providing identity context and access control for PPR-related workflows.
-
-### PPR Support Infrastructure
-
-#### Identity Verification for PPR Issuance
-
-- **Agent Validation**: Ensures PPR recipients are validated Accountable or Primary Accountable Agents
-- **Role Context**: Provides role information for specialized process PPRs (Transport, Repair, Storage)
-- **Cross-Zome Coordination**: Supplies agent identity data to governance zome for PPR generation
-
-#### Agent Capability Progression with PPR Integration
-
-```rust
-// Agent promotion triggers automatic PPR issuance
-promote_agent_to_accountable(PromoteAgentInput {
-    agent: simple_agent_pubkey,
-    first_resource_hash: validated_resource_hash,
-}) -> {
-    // Triggers in governance zome:
-    // 1. ResourceContribution PPR for resource creation
-    // 2. NetworkValidation PPR for community validation participation
-    // 3. Capability token upgrade from general to restricted
-}
-```
-
-### Role-Based PPR Categories
-
-The person zome's role system directly supports PPR categorization:
-
-#### **Genesis Role PPRs** (Network Entry)
-
-- **ResourceContribution**: Issued upon Simple Agent's first validated resource creation
-- **NetworkValidation**: Issued to Accountable Agents performing validation duties
-
-#### **Core Usage PPRs** (Custodianship)
-
-- **ResponsibleTransfer**: Role validation ensures only appropriate agents initiate transfers
-- **CustodyAcceptance**: Agent capability levels determine custody eligibility
-
-#### **Specialized Process PPRs** (Economic Processes)
-
-- **Transport, Repair, Storage roles**: Enable specialized PPR issuance for process completion
-- **Role validation**: Ensures PPR authenticity through validated agent credentials
-- **Performance context**: Role experience contributes to PPR performance metrics
-
-### Future PPR Enhancements (Aligned with specifications)
-
-#### Direct PPR Storage (Phase 2 Enhancement)
-
-```rust
-// Future enhancement: Direct PPR storage in person zome
-pub struct PrivateParticipationClaim {
-    // Standard ValueFlows fields
-    pub fulfills: ActionHash,
-    pub fulfilled_by: ActionHash,
-    pub claimed_at: Timestamp,
-
-    // PPR-specific fields
-    pub claim_type: ParticipationClaimType,
-    pub counterparty: AgentPubKey,
-    pub performance_metrics: PerformanceMetrics,
-    pub bilateral_signature: CryptographicSignature,
-    pub interaction_context: String,
-    pub role_context: Option<String>,    // From person zome role system
-    pub resource_reference: Option<ActionHash>,
-}
-
-// Future functions
-get_my_participation_claims() -> Vec<PrivateParticipationClaim>
-get_reputation_summary() -> ReputationSummary
-get_participation_claims_by_type(claim_type: ParticipationClaimType) -> Vec<PrivateParticipationClaim>
-```
-
-#### Reputation-Based Capability Enhancement
-
-- **Dynamic capability levels**: Integrate PPR-derived reputation scores with role-based access control
-- **Performance-based role advancement**: Use PPR performance metrics for specialized role qualification
-- **Reputation-weighted validation**: Enhance validation processes with agent reputation context
 
 ## Implementation Status
 
-### Phase 1 (Complete)
+### ✅ **Completed Features**
 
-- ✅ Person profile management with public/private data separation
-- ✅ Role-based access control with 8-level hierarchy
-- ✅ Capability level system for cross-zome authorization
-- ✅ Comprehensive discovery and versioning patterns
-- ✅ Privacy-preserving data access controls
-- ✅ Complete validation and error handling
-- ✅ Private data sharing system with request/grant workflows
-- ✅ Time-limited, field-specific data access grants
-- ✅ Cross-zome integration for specialized role validation
-- ✅ Agent promotion workflow (Simple Agent → Accountable Agent)
-- ✅ Context-aware data sharing for resource transfers
+- **Person Profile Management**: Public identity with name, avatar, bio
+- **Private Data Management**: Secure personal information storage with field-level control
+- **Role-Based Access Control**: 6-level role hierarchy with capability evaluation
+- **Capability-Based Sharing**: Holochain native CapGrant/CapClaim system for private data
+- **Agent Promotion Workflows**: Simple Agent → Accountable Agent promotion with governance validation
+- **Cross-Zome Integration**: Role and capability validation for resource and governance zomes
+- **Versioning Support**: Complete update history for persons and roles
+- **Privacy Controls**: Four-layer privacy model with granular access control
+- **Validation Functions**: Private data validation for governance workflows
 
-### Current Features
+### 🔧 **Current Limitations**
 
-- **Comprehensive Privacy**: Four-layer privacy model (public, private, controlled sharing, process-specific coordination)
-- **Agent Capability Progression**: Complete Simple → Accountable → Primary Accountable Agent advancement system
-- **Economic Process Integration**: Role-based access control for Transport, Repair, Storage processes
-- **PPR System Integration**: Seamless Private Participation Receipt generation for reputation tracking
-- **Cross-Zome Coordination**: Deep integration with governance and resource zomes for complete workflows
-- **Specialized Role Management**: Validation-gated role assignment for Economic Process participation
-- **Granular Data Control**: Field-specific access grants with expiration times and process context
-- **Workflow Integration**: Data sharing automatically triggered by custody transfers and process coordination
-- **Audit Trails**: Complete tracking of data access, role assignments, and capability progressions
-- **Security Validation**: Comprehensive validation for all data types, access patterns, and role transitions
+- **No Economic Processes**: Specialized roles (Transport, Repair, Storage) defined but not fully integrated with process workflows
+- **Basic PPR Integration**: PPR system exists but integration with person zome is primarily through validation workflows
+- **No Role Delegation**: Temporary role assignments and delegation workflows not implemented
+- **Limited Audit Features**: Capability grant tracking exists but comprehensive audit trails need enhancement
 
-### Phase 2 Enhancement Opportunities (Future)
+### 📋 **Future Enhancement Opportunities**
 
-- **PPR Integration Expansion**: Direct PPR storage and reputation summary calculation within person zome
-- **Advanced Role Delegation**: Temporary role assignments and delegation workflows
-- **Dynamic Data Sharing**: AI-assisted private data sharing recommendations based on process context
-- **Automated Grant Management**: Smart expiration and renewal based on ongoing Economic Process participation
-- **Cross-Network Identity**: Federated identity management across multiple nondominium networks
-- **Enhanced Dispute Resolution**: Expanded private data access for mediation and conflict resolution
-- **Performance Analytics**: Agent performance tracking integration with role capability assessments
+- **Economic Process Integration**: Full integration with structured process workflows
+- **Enhanced PPR Features**: Direct PPR storage and reputation calculation in person zome
+- **Advanced Delegation**: Temporary role assignments with time-based expiration
+- **Smart Grant Management**: AI-assisted private data sharing recommendations
+- **Cross-Network Identity**: Federated identity management across multiple networks
 
-### Phase 3 Advanced Features (Future)
-
-- **Reputation-Based Access Control**: Dynamic capability levels based on PPR-derived reputation scores
-- **Machine Learning Privacy**: AI-driven privacy preference learning and automatic data sharing optimization
-- **Multi-Modal Identity**: Integration of biometric and cryptographic identity verification
-- **Legal Framework Integration**: Compliance with evolving privacy regulations and governance frameworks
-- **Scalable Validation**: Optimized validation schemes for large-scale network participation
-
-The Person zome provides the foundational identity, privacy, and access control infrastructure for the nondominium ecosystem. It enables secure, privacy-preserving agent interactions with comprehensive role-based governance capabilities, sophisticated private data sharing workflows, and seamless integration with Economic Processes and the Private Participation Receipt reputation system.
+The Person zome provides the foundational identity and privacy infrastructure for the nondominium ecosystem, enabling secure agent interactions with comprehensive role-based governance and sophisticated private data sharing capabilities.

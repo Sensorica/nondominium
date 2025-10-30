@@ -24,6 +24,7 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 ### Phase 1: Foundation Layer ✅ **COMPLETED** (Existing Working Code)
 
 #### 3.1 Agent Identity & Role System (`zome_person`) ✅ **COMPLETED**
+
 - [x] Implement `Person` (public info) and `PrivateData` (private entry, PII).
 - [x] Implement `PersonRole` entry with validation metadata and links to validation receipts.
 - [x] **Modular Architecture**: Refactored into `person.rs`, `private_data.rs`, `role.rs` modules
@@ -32,6 +33,7 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 - [x] **Testing**: Comprehensive test suite with foundation, integration, and scenario tests
 
 #### 3.2 Resource Management (`zome_resource`) ✅ **COMPLETED**
+
 - [x] Implement `ResourceSpecification` with embedded governance rules.
 - [x] Implement `EconomicResource` with custodian tracking and state management.
 - [x] **Modular Architecture**: Refactored into `resource_specification.rs`, `economic_resource.rs`, `governance_rule.rs`
@@ -41,6 +43,7 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 - [x] **Testing**: Comprehensive test suite with integration and scenario coverage
 
 #### 3.3 Governance Foundation (`zome_gouvernance`) ✅ **CORE COMPLETE**
+
 - [x] **Basic VfAction Enum**: Type-safe economic action vocabulary
 - [x] **Validation Infrastructure**: ValidationReceipt creation and management
 - [x] **Economic Event Logging**: Basic economic event recording
@@ -52,7 +55,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 ### Phase 2: Enhanced Governance & Process Integration 🚀 **HIGH PRIORITY**
 
 #### 2.1 Enhanced Private Data Sharing (`zome_person`) 📋 **NEXT SPRINT**
-*Building on existing private data infrastructure without breaking changes*
+
+_Building on existing private data infrastructure without breaking changes_
 
 - [ ] **Data Access Request System** (NEW):
   - [ ] `DataAccessRequest` entry type with status tracking
@@ -70,7 +74,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
   - [ ] Enhanced role validation with identity verification
 
 #### 2.2 Economic Process Infrastructure (`zome_resource`) 📋 **CURRENT SPRINT**
-*Extending existing resource management with process-aware workflows*
+
+_Extending existing resource management with process-aware workflows_
 
 - [ ] **Economic Process Data Structures** (NEW):
   - [ ] `EconomicProcess` entry type with status tracking and role requirements
@@ -87,7 +92,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
   - [ ] Private data coordination for custody transfers
 
 #### 2.3 Private Participation Receipt (PPR) System (`zome_gouvernance`) 🌟 **MAJOR FEATURE**
-*Adding comprehensive reputation system on top of existing governance infrastructure*
+
+_Adding comprehensive reputation system on top of existing governance infrastructure_
 
 - [ ] **PPR Data Structures** (NEW):
   - [ ] `PrivateParticipationClaim` entry type (private entry)
@@ -106,7 +112,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
   - [ ] Agent promotion generates appropriate PPR types
 
 #### 2.4 Complete Agent Capability Progression 🎯 **GOVERNANCE CRITICAL**
-*Implementing the full Simple → Accountable → Primary Accountable Agent progression*
+
+_Implementing the full Simple → Accountable → Primary Accountable Agent progression_
 
 - [ ] **Enhanced Agent Promotion** (EXTEND existing `promote_agent_to_accountable`):
   - [ ] Cross-zome coordination with governance validation
@@ -127,7 +134,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 ### Phase 3: Advanced Security & Cross-Zome Coordination 🔒 **PRODUCTION READINESS**
 
 #### 3.1 Enhanced Capability-Based Security
-*Building on existing capability infrastructure with Economic Process integration*
+
+_Building on existing capability infrastructure with Economic Process integration_
 
 - [ ] **Progressive Capability Tokens** (EXTEND):
   - [ ] `general_access` tokens for Simple Agents (existing foundation)
@@ -144,7 +152,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
   - [ ] Cross-zome capability validation for complex workflows
 
 #### 3.2 Comprehensive Cross-Zome Coordination
-*Ensuring atomic operations and consistency across the three-zome architecture*
+
+_Ensuring atomic operations and consistency across the three-zome architecture_
 
 - [ ] **Transaction Consistency** (NEW):
   - [ ] Atomic custody transfer operations spanning resource and governance zomes
@@ -160,7 +169,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
   - [ ] Role assignments coordinated with governance validation workflows
 
 #### 3.3 Advanced Validation & Dispute Resolution
-*Building on basic validation infrastructure with sophisticated governance*
+
+_Building on basic validation infrastructure with sophisticated governance_
 
 - [ ] **Enhanced Validation Schemes** (EXTEND):
   - [ ] 2-of-3, N-of-M reviewer support with PPR-weighted selection
@@ -180,7 +190,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 ### Phase 4: Network Maturity & Advanced Features 🌐 **SCALING & OPTIMIZATION**
 
 #### 4.1 Advanced Economic Process Workflows
-*Building sophisticated process chaining and automation on established foundation*
+
+_Building sophisticated process chaining and automation on established foundation_
 
 - [ ] **Process Chaining & Automation** (NEW):
   - [ ] Multi-step Economic Process workflows (Transport → Repair → Transport)
@@ -196,7 +207,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
   - [ ] Agent performance trends and specialization insights
 
 #### 4.2 Advanced PPR & Reputation Systems
-*Enhancing the reputation system with AI and cross-network capabilities*
+
+_Enhancing the reputation system with AI and cross-network capabilities_
 
 - [ ] **Advanced Reputation Algorithms** (EXTEND):
   - [ ] Machine learning-based trust prediction and recommendation systems
@@ -212,7 +224,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
   - [ ] Automated role progression based on performance metrics and community recognition
 
 #### 4.3 Performance & Scalability Optimization
-*Optimizing the system for large-scale network operation*
+
+_Optimizing the system for large-scale network operation_
 
 - [ ] **DHT & Query Optimization** (EXTEND):
   - [ ] Advanced DHT anchor strategies for efficient Economic Process discovery
@@ -250,14 +263,16 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 ## 6. Success Metrics & Implementation Tracking
 
 ### Phase 1 Achievements ✅ **FOUNDATION COMPLETE**
+
 - [x] **Person Management**: Complete agent identity system with public/private data separation
-- [x] **Resource Management**: Full resource specification and economic resource lifecycle  
+- [x] **Resource Management**: Full resource specification and economic resource lifecycle
 - [x] **Governance Foundation**: Basic validation infrastructure and cross-zome functions
 - [x] **Modular Architecture**: Clean separation of concerns across all three zomes
 - [x] **Comprehensive Testing**: Foundation, integration, and scenario test coverage
 - [x] **Error Handling**: Robust error types and proper DHT signal handling
 
 ### Phase 2 Targets 🎯 **GOVERNANCE & PROCESSES**
+
 - [ ] **Enhanced Private Data Sharing**: Request/grant workflows with 7-day expiration and field-specific control
 - [ ] **Economic Process Infrastructure**: Four structured processes (Use, Transport, Storage, Repair) with role-based access
 - [ ] **PPR Reputation System**: Bi-directional Private Participation Receipts with cryptographic signatures
@@ -265,7 +280,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 - [ ] **Cross-Zome Integration**: Seamless coordination across person, resource, and governance zomes
 - [ ] **Validation Workflows**: Resource validation, agent promotion, and specialized role validation operational
 
-### Phase 3 Targets 🔒 **PRODUCTION SECURITY**  
+### Phase 3 Targets 🔒 **PRODUCTION SECURITY**
+
 - [ ] **Progressive Capability Security**: Automatic capability token progression based on PPR milestones
 - [ ] **Economic Process Access Control**: Role-validated access to specialized processes with reputation influence
 - [ ] **Transaction Consistency**: Atomic operations across all three zomes with comprehensive rollback
@@ -273,6 +289,7 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 - [ ] **Dispute Resolution**: Edge-based conflict resolution with PPR context and private data coordination
 
 ### Phase 4 Targets 🌐 **NETWORK MATURITY**
+
 - [ ] **Advanced Process Workflows**: Multi-step process chaining with automated agent selection
 - [ ] **AI-Enhanced Reputation**: Machine learning-based trust prediction and context-aware weighting
 - [ ] **Cross-Network Integration**: PPR portability and federated identity management
@@ -284,17 +301,20 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 ## 7. UI Development Plan 🎨 **ENHANCED FOR COMPREHENSIVE BACKEND**
 
 ### Current Frontend Status
+
 - **Base Setup**: Svelte 5.0 + TypeScript + Vite 6.2.5 development environment
 - **Holochain Client**: @holochain/client 0.19.0 integration ready
 - **Architecture Foundation**: Prepared for 7-layer Effect-TS architecture supporting Economic Processes and PPR
 
 ### Phase 1: Enhanced Foundation UI 🚀 **IMMEDIATE PRIORITY**
+
 - [ ] **SvelteKit Migration**: Convert to full-stack framework with Economic Process support
-- [ ] **TailwindCSS Integration**: Design system supporting role-based UI and process workflows  
+- [ ] **TailwindCSS Integration**: Design system supporting role-based UI and process workflows
 - [ ] **Effect-TS Integration**: Functional programming layer for complex async state including PPR tracking
 - [ ] **Enhanced HolochainClientService**: Type-safe DHT connection with Economic Process and PPR integration
 
 ### Phase 2: Comprehensive Service Layer 🏗️
+
 - [ ] **PersonService**: Person + PrivateData + DataAccessRequest/Grant workflows
 - [ ] **ResourceService**: Resource + EconomicProcess + state management + custody transfers
 - [ ] **GovernanceService**: ValidationReceipt + EconomicEvent + PPR + reputation management
@@ -302,7 +322,8 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 - [ ] **ProcessService**: Economic Process initiation, tracking, completion, and chaining
 - [ ] **ReputationService**: PPR retrieval, reputation calculation, and selective disclosure
 
-### Phase 3: Advanced Store Architecture (Effect-TS) 📊  
+### Phase 3: Advanced Store Architecture (Effect-TS) 📊
+
 - [ ] **PersonStore**: Agent profiles + private data sharing + capability progression tracking
 - [ ] **ResourceStore**: Resources + processes + custody + state transitions + process scheduling
 - [ ] **GovernanceStore**: Validation workflows + PPR tracking + reputation summaries
@@ -311,6 +332,7 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 - [ ] **ValidationStore**: Validation status + approval processes + audit trails + dispute resolution
 
 ### Phase 4: Advanced UI Components & Process Workflows 🖼️
+
 - [ ] **Enhanced Person Management**: Profile + private data sharing + role progression + reputation display
 - [ ] **Economic Process Workflows**: Process initiation + tracking + completion + chaining interface
 - [ ] **Resource Lifecycle Management**: Creation + validation + processes + custody + end-of-life
@@ -319,15 +341,17 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 - [ ] **Reputation Dashboard**: PPR tracking + reputation summaries + selective disclosure controls
 
 ### Phase 5: Advanced Features & Analytics 📈
+
 - [ ] **Process Analytics**: Performance tracking + efficiency metrics + optimization suggestions
 - [ ] **Network Health Dashboard**: Agent activity + resource utilization + process completion rates
 - [ ] **Reputation Insights**: Trend analysis + role performance + network trust metrics
 - [ ] **Advanced Workflow Management**: Multi-step process orchestration + automated agent matching
 
 ### UI Architecture Benefits for Enhanced System
+
 - **Complete Backend Integration**: Full mapping to person, resource, and governance zomes
 - **Economic Process Support**: Native UI for all four process types with role-based access
-- **PPR Integration**: Real-time reputation tracking and selective disclosure interface  
+- **PPR Integration**: Real-time reputation tracking and selective disclosure interface
 - **Agent Progression UI**: Visual capability advancement and role acquisition workflows
 - **Type Safety**: End-to-end type safety from Rust entries through Economic Processes to UI
 - **Progressive Enhancement**: Phase 1 foundation supports immediate demonstration, Phase 2+ unlocks full capabilities
@@ -337,24 +361,28 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 ## 8. Enhanced Roadmap & Future Enhancements
 
 ### Immediate Development Priorities (Next 6 Months)
-- **Phase 2.1**: Enhanced private data sharing system implementation 
+
+- **Phase 2.1**: Enhanced private data sharing system implementation
 - **Phase 2.2**: Economic Process infrastructure with four process types
 - **Phase 2.3**: Private Participation Receipt system with reputation tracking
 - **UI Phase 1-2**: Foundation UI with Economic Process and PPR support
 
 ### Medium-Term Enhancements (6-18 Months)
+
 - **Phase 3**: Production security with progressive capability tokens
 - **Phase 4.1**: Advanced process workflows and automation
 - **Cross-Network Integration**: Federated nondominium networks with PPR portability
 - **Mobile Interface**: Progressive Web App with full Economic Process support
 
 ### Long-Term Vision (18+ Months)
+
 - **AI-Enhanced Governance**: Machine learning-based validation and process optimization
 - **Interoperability**: Deep integration with other ValueFlows and commons-based systems
 - **Network Federation**: Multi-network reputation and resource sharing protocols
 - **Governance Evolution**: Community-driven rule evolution with reputation-weighted decision making
 
 ### Success Indicators
+
 - **Network Health**: >1000 active agents with >90% successful Economic Process completion
 - **Reputation System**: >80% agent participation in PPR system with meaningful reputation differentiation
 - **Process Efficiency**: Average Economic Process completion time <24 hours with automated matching
@@ -367,23 +395,27 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 This enhanced implementation plan transforms the nondominium hApp from a foundational resource management system into a comprehensive, production-ready ecosystem for decentralized commons governance. The plan:
 
 ### **Builds Incrementally on Existing Code**
+
 - Preserves all existing working functionality without breaking changes
 - Extends current data structures and functions rather than replacing them
 - Maintains backward compatibility while adding advanced features
 
 ### **Delivers Complete Economic Process Integration**
+
 - Four structured Economic Processes (Use, Transport, Storage, Repair) with role-based access
 - Complete agent capability progression (Simple → Accountable → Primary Accountable Agent)
 - Sophisticated cross-zome coordination ensuring atomic operations and consistency
 
-### **Implements Privacy-Preserving Reputation**  
+### **Implements Privacy-Preserving Reputation**
+
 - Bi-directional Private Participation Receipts with cryptographic signatures
 - Privacy-preserving reputation calculation with selective disclosure
 - Performance metrics enabling quality assurance and trust without central authority
 
 ### **Ensures Production Readiness**
+
 - Progressive capability-based security with automatic token advancement
 - Comprehensive error handling and rollback mechanisms across all zomes
 - Advanced validation schemes with reputation-weighted consensus and dispute resolution
 
-This plan ensures the nondominium hApp will fulfill its vision of decentralized, commons-based resource management with sophisticated governance, Economic Process management, privacy-preserving reputation tracking, and embedded accountability at every layer, in strict alignment with the enhanced requirements and technical specifications. 
+This plan ensures the nondominium hApp will fulfill its vision of decentralized, commons-based resource management with sophisticated governance, Economic Process management, privacy-preserving reputation tracking, and embedded accountability at every layer, in strict alignment with the enhanced requirements and technical specifications.

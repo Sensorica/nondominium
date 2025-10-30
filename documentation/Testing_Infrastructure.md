@@ -21,7 +21,7 @@ Our testing approach follows **Holochain community best practices** with emphasi
 ```
 📊 Test Layers (Bottom-up approach)
 ├── 🔧 Foundation Tests     - Basic connectivity & function calls
-├── 🧩 Unit Tests          - Individual zome functionality 
+├── 🧩 Unit Tests          - Individual zome functionality
 ├── 🔗 Integration Tests   - Cross-zome & multi-agent interactions
 ├── 🎭 Scenario Tests      - Real-world usage patterns
 └── ⚡ Performance Tests   - Scalability & timing validation (planned)
@@ -62,6 +62,7 @@ tests/
 **File**: `foundation-tests.test.ts`
 
 **Test Coverage**:
+
 - Basic Connectivity Test - Verify zome function calls work
 - Person Creation Test - Validate profile creation functionality
 - Person Profile Retrieval Test - Test profile retrieval and validation
@@ -70,6 +71,7 @@ tests/
 - Error Handling Test - Test failure scenarios and edge cases
 
 **Key Features**:
+
 - Immediate feedback on API compatibility issues
 - Basic entry validation
 - Error boundary testing
@@ -84,12 +86,14 @@ tests/
 **File**: `integration-tests.test.ts`
 
 **Test Coverage**:
+
 - Two Agents Create Profiles - Basic multi-agent interaction
 - Role Assignment Cross-Agent - Governance functionality across agents
 - Community Discovery Test - Multi-perspective community visibility
 - DHT Consistency Test - Distributed hash table synchronization validation
 
 **Key Features**:
+
 - Multi-conductor setup
 - DHT timing validation
 - Cross-agent visibility testing
@@ -106,6 +110,7 @@ tests/
 **Test Scenarios**:
 
 #### 1. New Community Member Onboarding
+
 - Public profile creation
 - Private identity data storage
 - Role assignment by community steward
@@ -113,6 +118,7 @@ tests/
 - Privacy boundary verification
 
 #### 2. Community Governance Evolution
+
 - Community founder establishment
 - Progressive member onboarding
 - Role hierarchy development
@@ -120,12 +126,14 @@ tests/
 - Distributed authority validation
 
 #### 3. Privacy and Trust Verification
+
 - Sensitive data protection
 - Access level differentiation
 - Trust boundary enforcement
 - Community visibility controls
 
 **Key Features**:
+
 - Complete user journey testing
 - Real governance workflow simulation
 - Privacy and security validation
@@ -144,7 +152,7 @@ Standardized test data creation:
 createTestPerson() → Standard person profile
 createTestPersonVariation(suffix) → Unique profiles for multi-agent tests
 
-// Identity and security data  
+// Identity and security data
 createTestPrivateData() → Sample private identity data
 createTestRole() → Standard role assignment data
 ```
@@ -155,7 +163,7 @@ Comprehensive response validation:
 
 ```typescript
 validatePersonCreation() → Complete person entry validation
-validatePrivateDataCreation() → Private data validation  
+validatePrivateDataCreation() → Private data validation
 validateAgentProfile() → Profile retrieval validation
 ```
 
@@ -191,12 +199,14 @@ getAppBundleSource() → Returns correct AppBundleSource for Tryorama
 ### Prerequisites
 
 1. **Build hApp bundle**:
+
    ```bash
    cd workdir
    hc app pack .
    ```
 
 2. **Install dependencies**:
+
    ```bash
    cd tests
    npm install
@@ -243,23 +253,23 @@ DEBUG=true nix develop --command npm run test:debug
 
 ### Phase 1 Foundation Layer
 
-| Component | Foundation | Integration | Scenarios | Status |
-|-----------|------------|-------------|-----------|--------|
-| **Person Management** | ✅ Complete | ✅ Complete | 🔲 Planned | Ready |
-| **Identity Storage** | ✅ Complete | 🔲 Planned | 🔲 Planned | Ready |
-| **Role Assignment** | 🔲 Planned | ✅ Complete | 🔲 Planned | Ready |
-| **Community Discovery** | ✅ Complete | ✅ Complete | 🔲 Planned | Ready |
-| **Privacy Boundaries** | ✅ Basic | 🔲 Planned | 🔲 Planned | Ready |
-| **DHT Consistency** | ⚠️ Basic | ✅ Complete | 🔲 Planned | Ready |
+| Component               | Foundation  | Integration | Scenarios  | Status |
+| ----------------------- | ----------- | ----------- | ---------- | ------ |
+| **Person Management**   | ✅ Complete | ✅ Complete | 🔲 Planned | Ready  |
+| **Identity Storage**    | ✅ Complete | 🔲 Planned  | 🔲 Planned | Ready  |
+| **Role Assignment**     | 🔲 Planned  | ✅ Complete | 🔲 Planned | Ready  |
+| **Community Discovery** | ✅ Complete | ✅ Complete | 🔲 Planned | Ready  |
+| **Privacy Boundaries**  | ✅ Basic    | 🔲 Planned  | 🔲 Planned | Ready  |
+| **DHT Consistency**     | ⚠️ Basic    | ✅ Complete | 🔲 Planned | Ready  |
 
 ### API Compatibility Status
 
-| Component | HDK 0.5.3 | Tryorama 0.18.x | Status |
-|-----------|-----------|-----------------|--------|
-| **Foundation Tests** | ✅ Compatible | ✅ Compatible | Ready |
-| **Integration Tests** | ✅ Compatible | ✅ Compatible | Ready |
-| **Bundle Loading** | ✅ Compatible | ✅ Compatible | Ready |
-| **Environment Setup** | ✅ Compatible | ✅ Compatible | Ready |
+| Component             | HDK 0.5.3     | Tryorama 0.18.x | Status |
+| --------------------- | ------------- | --------------- | ------ |
+| **Foundation Tests**  | ✅ Compatible | ✅ Compatible   | Ready  |
+| **Integration Tests** | ✅ Compatible | ✅ Compatible   | Ready  |
+| **Bundle Loading**    | ✅ Compatible | ✅ Compatible   | Ready  |
+| **Environment Setup** | ✅ Compatible | ✅ Compatible   | Ready  |
 
 ### Recent Fixes Applied
 
@@ -274,7 +284,7 @@ DEBUG=true nix develop --command npm run test:debug
 ### Test-Driven Development
 
 1. **Foundation First**: Start with basic connectivity tests
-2. **Build Integration**: Add multi-agent interaction tests  
+2. **Build Integration**: Add multi-agent interaction tests
 3. **Validate Scenarios**: Create real-world usage tests
 4. **Iterate & Debug**: Use layered approach to isolate issues
 
@@ -298,6 +308,7 @@ Common issues and solutions:
 ### Continuous Integration
 
 Tests are designed for CI environments with:
+
 - Deterministic test data and timing
 - Proper cleanup between test runs
 - Clear pass/fail indicators
@@ -308,6 +319,7 @@ Tests are designed for CI environments with:
 ### DHT Synchronization
 
 Always account for distributed timing:
+
 ```typescript
 await waitForDHTSync(2000); // Basic operations
 await waitForDHTSync(5000); // Complex multi-agent operations
@@ -316,16 +328,18 @@ await waitForDHTSync(5000); // Complex multi-agent operations
 ### Multi-Agent Testing
 
 Use consistent agent setup patterns:
+
 ```typescript
 const [alice, bob] = await scenario.addPlayersWithApps([
   { appBundleSource: getAppBundleSource() },
-  { appBundleSource: getAppBundleSource() }
+  { appBundleSource: getAppBundleSource() },
 ]);
 ```
 
 ### Validation Consistency
 
 Use provided validation helpers for consistency:
+
 ```typescript
 validatePersonCreation(result, input, agentPubKey);
 ```
@@ -333,15 +347,19 @@ validatePersonCreation(result, input, agentPubKey);
 ### Error Testing
 
 Include negative test cases:
+
 ```typescript
 await expectError(async () => {
-  await cell.callZome({ /* invalid operation */ });
+  await cell.callZome({
+    /* invalid operation */
+  });
 }, "Expected error pattern");
 ```
 
 ### Environment Management
 
 Always run tests in the correct environment:
+
 ```bash
 # Correct way
 nix develop --command npm run test:foundation
@@ -355,6 +373,7 @@ npm run test:foundation
 ### Performance Testing
 
 Planned additions include:
+
 - Load testing with multiple agents
 - DHT performance validation
 - Scalability benchmarks
@@ -363,6 +382,7 @@ Planned additions include:
 ### Advanced Scenarios
 
 Future scenario tests will cover:
+
 - Complex governance workflows
 - Resource allocation patterns
 - Economic transaction flows
@@ -371,6 +391,7 @@ Future scenario tests will cover:
 ### Integration Expansion
 
 Extended integration testing for:
+
 - Cross-zome data dependencies
 - Complex linking patterns
 - Advanced validation workflows
@@ -379,6 +400,7 @@ Extended integration testing for:
 ### Resource and Governance Tests
 
 Planned test coverage for:
+
 - Resource specification and management
 - Economic resource validation
 - Governance rule enforcement
@@ -390,7 +412,8 @@ This testing infrastructure provides a robust foundation for ensuring the reliab
 
 **Current Status**: Foundation and Integration tests are API-compatible and ready for environment testing. The infrastructure is designed to scale with the application's complexity, providing clear pathways for adding new test coverage as additional features are implemented.
 
-**Next Steps**: 
+**Next Steps**:
+
 1. Complete environment testing to verify all tests pass in Nix environment
 2. Implement Resource and Governance zome tests
 3. Add comprehensive scenario tests for real-world workflows
@@ -398,5 +421,5 @@ This testing infrastructure provides a robust foundation for ensuring the reliab
 
 ---
 
-*For detailed technical documentation, see `/tests/src/nondominium/nondominium/TEST_STRATEGY.md`*
-*For quick start instructions, see `/tests/README.md`* 
+_For detailed technical documentation, see `/tests/src/nondominium/nondominium/TEST_STRATEGY.md`_
+_For quick start instructions, see `/tests/README.md`_

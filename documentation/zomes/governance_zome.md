@@ -1,10 +1,11 @@
 # Governance Zome (`zome_gouvernance`) Documentation
 
-The Governance zome implements the core economic coordination and validation infrastructure for the nondominium ecosystem, providing ValueFlows-compliant economic event logging, comprehensive governance workflows, agent capability progression system, Economic Process validation, Private Participation Receipt (PPR) issuance, and seamless cross-zome integration. It serves as the governance backbone enabling decentralized resource sharing with embedded accountability and reputation tracking.
+The Governance zome implements the core economic coordination and validation infrastructure for the nondominium ecosystem, providing ValueFlows-compliant economic event logging, commitment management, Private Participation Receipt (PPR) reputation system, and comprehensive agent validation workflows. It serves as the governance backbone enabling decentralized resource sharing with embedded accountability and cryptographically-secured reputation tracking.
 
 ## Core Data Structures
 
 ### VfAction Enum
+
 ```rust
 pub enum VfAction {
     // Standard ValueFlows transfer actions
@@ -38,31 +39,22 @@ pub enum VfAction {
 ```
 
 **ValueFlows Compliance**: Complete economic action vocabulary supporting all standard and nondominium-specific actions
-**Economic Process Integration**: Actions mapped to structured processes (Use, Transport, Storage, Repair) with role-based access control
-**Helper Methods**: Resource validation, quantity modification, custody change detection, specialized role requirements
-**PPR Integration**: Automatic Private Participation Receipt generation for reputation tracking
-**Type Safety**: Replaces string-based actions with type-safe enum ensuring compile-time validation
+**Type Safety**: Replaces string-based actions with compile-time validation
+**Helper Methods**: Resource validation, quantity modification, custody change detection
 
 ### VfAction Helper Methods
+
 ```rust
 impl VfAction {
     pub fn requires_existing_resource(&self) -> bool;  // Resource validation
     pub fn creates_resource(&self) -> bool;            // New resource detection
     pub fn modifies_quantity(&self) -> bool;           // Quantity change detection
     pub fn changes_custody(&self) -> bool;             // Custody transfer detection
-    
-    // Economic Process integration methods
-    pub fn requires_specialized_role(&self, process_type: &str) -> Option<String>; // Role requirements
-    pub fn triggers_ppr_generation(&self) -> bool;                                 // PPR automation
-    pub fn get_validation_requirements(&self, process_type: &str) -> ValidationRequirements; // Process validation
 }
 ```
 
-**Process Integration**: Determines role requirements for specialized Economic Processes
-**PPR Automation**: Identifies actions that trigger automatic Private Participation Receipt issuance
-**Validation Support**: Provides process-specific validation requirements
-
 ### ValidationReceipt Entry
+
 ```rust
 pub struct ValidationReceipt {
     pub validator: AgentPubKey,           // Agent providing validation
@@ -79,6 +71,7 @@ pub struct ValidationReceipt {
 **Flexibility**: Supports multiple validation types with contextual notes
 
 ### EconomicEvent Entry
+
 ```rust
 pub struct EconomicEvent {
     pub action: VfAction,                 // Economic action performed
@@ -97,856 +90,714 @@ pub struct EconomicEvent {
 **Action Integration**: Uses type-safe VfAction enum
 
 ### Commitment Entry
+
 ```rust
 pub struct Commitment {
-    pub action: VfAction,                     // Committed action
-    pub provider: AgentPubKey,                // Agent making the commitment
-    pub receiver: AgentPubKey,                // Agent receiving the commitment
+    pub action: VfAction,                 // Economic action committed to
+    pub provider: AgentPubKey,            // Provider of the commitment
+    pub receiver: AgentPubKey,            // Receiver of the commitment
     pub resource_inventoried_as: Option<ActionHash>, // Specific resource if applicable
-    pub resource_conforms_to: Option<ActionHash>,    // ResourceSpecification for general commitments
-    pub input_of: Option<ActionHash>,         // Optional link to a Process (future)
-    pub due_date: Timestamp,                  // Commitment deadline
-    pub note: Option<String>,                 // Commitment description
-    pub committed_at: Timestamp,              // When commitment was made
+    pub resource_conforms_to: Option<ActionHash>,    // Resource specification if general
+    pub input_of: Option<ActionHash>,     // Optional link to a Process
+    pub due_date: Timestamp,              // Commitment due date
+    pub note: Option<String>,             // Optional commitment description
+    pub committed_at: Timestamp,          // When commitment was made
 }
 ```
 
-**ValueFlows Compliance**: Complete commitment specification
-**Flexibility**: Supports both specific resource and general specification commitments
-**Process Integration**: Ready for future process workflow integration
+**Planning**: Economic planning and commitment tracking
+**Flexibility**: Supports both specific and general resource commitments
+**Due Date Management**: Time-bound commitments with expiry
 
 ### Claim Entry
+
 ```rust
 pub struct Claim {
-    pub fulfills: ActionHash,             // Link to the Commitment being fulfilled
-    pub fulfilled_by: ActionHash,         // Link to the fulfilling EconomicEvent
+    pub fulfills: ActionHash,             // References the Commitment
+    pub fulfilled_by: ActionHash,         // References the resulting EconomicEvent
     pub claimed_at: Timestamp,            // When claim was made
-    pub note: Option<String>,             // Optional fulfillment notes
+    pub note: Option<String>,             // Optional claim description
 }
 ```
 
-**ValueFlows Compliance**: Commitment fulfillment tracking
-**Audit Trail**: Links commitments to their actual fulfillment events
+**Fulfillment Tracking**: Links commitments to their actual execution
+**Accountability**: Creates audit trail of promise vs. delivery
+**Performance Data**: Basis for reputation calculation
 
 ### ResourceValidation Entry
+
 ```rust
 pub struct ResourceValidation {
-    pub resource: ActionHash,             // Link to EconomicResource being validated
-    pub validation_scheme: String,        // Validation scheme: "simple_approval", "2-of-3"
+    pub resource: ActionHash,             // Link to the EconomicResource being validated
+    pub validation_scheme: String,        // e.g., "2-of-3", "simple_majority"
     pub required_validators: u32,         // Number of validators required
-    pub current_validators: u32,          // Current number of validators
-    pub status: String,                   // Status: "pending", "approved", "rejected"
-    pub created_at: Timestamp,            // When validation was initiated
-    pub updated_at: Timestamp,            // Last status update
+    pub current_validators: u32,          // Number of validators who have validated
+    pub status: String,                   // "pending", "approved", "rejected"
+    pub created_at: Timestamp,            // Validation creation time
+    pub updated_at: Timestamp,            // Last update time
 }
 ```
 
-**Governance**: Resource approval workflow management
-**Flexibility**: Configurable validation schemes for different resource types
-**Progress Tracking**: Real-time validation progress monitoring
+**Multi-Reviewer Validation**: Support for complex validation schemes
+**Progress Tracking**: Monitor validation progress in real-time
+**Configurable Schemes**: Flexible validation requirements
 
-### Private Participation Receipt (PPR) Data Structures
+## Private Participation Receipt (PPR) System
 
-#### PrivateParticipationClaim Entry (Private Entry)
-```rust
-pub struct PrivateParticipationClaim {
-    // Standard ValueFlows fields
-    pub fulfills: ActionHash,                    // Link to the Commitment fulfilled
-    pub fulfilled_by: ActionHash,                // Link to the resulting EconomicEvent
-    pub claimed_at: Timestamp,                   // When the claim was created
-    
-    // PPR-specific extensions
-    pub claim_type: ParticipationClaimType,      // Type of participation claimed
-    pub counterparty: AgentPubKey,               // The other agent involved
-    pub performance_metrics: PerformanceMetrics, // Quantitative performance measures
-    pub bilateral_signature: CryptographicSignature, // Cryptographic proof of agreement
-    pub interaction_context: String,             // Context: "resource_creation", "custody_transfer", etc.
-    pub role_context: Option<String>,            // Specific role context (Transport, Repair, Storage)
-    pub resource_reference: Option<ActionHash>,  // Link to resource involved
-}
-```
+### ParticipationClaimType Enum
 
-**Privacy**: Stored as Holochain private entry accessible only to owning agent
-**Bi-directional**: Every economic interaction generates exactly 2 receipts between participating agents
-**Cryptographic Integrity**: All receipts cryptographically signed for authenticity
-**Reputation Foundation**: Enables privacy-preserving reputation derivation
-
-#### ParticipationClaimType Enum
 ```rust
 pub enum ParticipationClaimType {
     // Genesis Role - Network Entry
-    ResourceContribution,              // Successfully creating and validating a Resource
-    NetworkValidation,                 // Performing validation duties
-    
+    ResourceCreation,         // Creator receives this for successful resource contribution
+    ResourceValidation,       // Validator receives this for network validation performed
+
     // Core Usage Role - Custodianship
-    ResponsibleTransfer,               // Properly transferring Resource custody
-    CustodyAcceptance,                 // Accepting Resource custody responsibly
-    
+    CustodyTransfer,         // Outgoing custodian receives this for responsible custody transfer
+    CustodyAcceptance,       // Incoming custodian receives this for custody acceptance
+
     // Intermediate Roles - Specialized Services
-    ServiceCommitmentAccepted,         // Accepting service commitments
-    GoodFaithTransfer,                 // Transferring Resource in good faith for service
-    ServiceFulfillmentCompleted,       // Completing services successfully
-    MaintenanceFulfillment,            // Completing maintenance/repair service
-    StorageFulfillment,                // Completing storage service
-    TransportFulfillment,              // Completing transport service
-    
+    MaintenanceCommitmentAccepted, // Maintenance agent receives this for accepted commitment
+    MaintenanceFulfillmentCompleted, // Maintenance agent receives this for completed fulfillment
+    StorageCommitmentAccepted,     // Storage agent receives this for accepted commitment
+    StorageFulfillmentCompleted,   // Storage agent receives this for completed fulfillment
+    TransportCommitmentAccepted,   // Transport agent receives this for accepted commitment
+    TransportFulfillmentCompleted, // Transport agent receives this for completed fulfillment
+    GoodFaithTransfer,            // Custodian receives this for good faith transfer to service provider
+
     // Network Governance
-    DisputeResolutionParticipation,    // Constructive dispute resolution participation
-    GovernanceCompliance,              // Consistent adherence to governance protocols
-    EndOfLifeDeclaration,              // Declaring Resource end-of-life
-    EndOfLifeValidation,               // Validating Resource end-of-life
+    DisputeResolutionParticipation, // For constructive participation in conflict resolution
+    ValidationActivity,            // For performing validation duties beyond specific transactions
+    RuleCompliance,               // For consistent adherence to governance protocols
+
+    // Resource End-of-Life Management
+    EndOfLifeDeclaration,         // Declaring agent receives this for end-of-life declaration
+    EndOfLifeValidation,          // Expert validator receives this for end-of-life validation
 }
 ```
 
-**Process Integration**: Each Economic Process type generates specific PPR categories
-**Context-Aware**: PPR types reflect the actual governance context and agent roles involved
+**Comprehensive Coverage**: 14 claim types covering all economic interactions
+**Role-Based Categories**: Claims organized by agent roles and interaction types
+**Reputation Foundation**: Each claim type contributes to reputation calculation
 
-#### PerformanceMetrics Structure
+### PerformanceMetrics Structure
+
 ```rust
 pub struct PerformanceMetrics {
-    pub timeliness_score: f64,                    // Promptness in fulfilling commitments (0.0-1.0)
-    pub quality_score: f64,                       // Quality of service provided (0.0-1.0)
-    pub reliability_score: f64,                   // Consistency and dependability (0.0-1.0)
-    pub communication_score: f64,                 // Effectiveness of communication (0.0-1.0)
-    pub completion_rate: f64,                     // Percentage of commitments successfully completed
-    pub resource_condition_maintained: Option<bool>, // Whether resource condition was maintained
-    pub additional_metrics: Option<String>,       // JSON-encoded context-specific metrics
+    pub timeliness: f64,              // Punctuality score (0.0 to 1.0)
+    pub quality: f64,                 // Task quality score (0.0 to 1.0)
+    pub reliability: f64,             // Commitment fulfillment reliability (0.0 to 1.0)
+    pub communication: f64,           // Communication effectiveness (0.0 to 1.0)
+    pub overall_satisfaction: f64,    // Counterparty satisfaction (0.0 to 1.0)
+    pub notes: Option<String>,        // Optional contextual notes
 }
 ```
 
-**Quantitative Tracking**: Enables objective performance assessment across all interactions
-**Service Quality**: Supports quality assurance for specialized Economic Processes
-**Reputation Input**: Provides data for privacy-preserving reputation calculation
+**Quantitative Assessment**: Numerical scores for objective reputation calculation
+**Weighted Average**: Customizable weights for different aspects of performance
+**Validation**: All scores must be within valid range (0.0 to 1.0)
 
-### Economic Process Data Structures
+### CryptographicSignature Structure
 
-#### ProcessValidationRequirements Entry
 ```rust
-pub struct ProcessValidationRequirements {
-    pub process_type: String,                     // "Use", "Transport", "Storage", "Repair"
-    pub required_role: Option<String>,            // Role required to initiate process
-    pub minimum_validators: u32,                  // Minimum validators required for completion
-    pub validation_scheme: String,                // Validation scheme to use
-    pub completion_validation_required: bool,     // Whether completion needs separate validation
-    pub performance_thresholds: PerformanceThresholds, // Minimum performance requirements
-    pub special_requirements: Vec<String>,        // Any special requirements for this process type
+pub struct CryptographicSignature {
+    pub recipient_signature: Signature,     // Signature from PPR owner
+    pub counterparty_signature: Signature,   // Signature from counterparty
+    pub signed_data_hash: [u8; 32],        // Hash of signed data for verification
+    pub signed_at: Timestamp,              // When signatures were created
 }
 ```
 
-**Process Governance**: Defines validation requirements for each Economic Process type
-**Role Integration**: Links process access to agent capability progression system
-**Quality Assurance**: Ensures minimum performance standards for service delivery
+**Bilateral Authentication**: Both parties sign to acknowledge the interaction
+**Cryptographic Security**: Tamper-evident signatures for reputation integrity
+**Verification Support**: Complete context for signature verification
+
+### PrivateParticipationClaim Entry
+
+```rust
+pub struct PrivateParticipationClaim {
+    // Standard ValueFlows fields
+    pub fulfills: ActionHash,           // References the commitment fulfilled
+    pub fulfilled_by: ActionHash,       // References the economic event
+    pub claimed_at: Timestamp,
+
+    // PPR-specific extensions
+    pub claim_type: ParticipationClaimType,
+    pub performance_metrics: PerformanceMetrics,
+    pub bilateral_signature: CryptographicSignature,
+
+    // Additional context
+    pub counterparty: AgentPubKey,      // The other agent involved in the interaction
+    pub resource_hash: Option<ActionHash>, // Optional link to the resource involved
+    pub notes: Option<String>,          // Optional contextual notes
+}
+```
+
+**Privacy**: Stored as private entry, accessible only to the claim owner
+**Complete Context**: Links commitment, event, performance, and cryptographic proof
+**Reputation Data**: Foundation for trust and reputation calculation
+
+### ReputationSummary Structure
+
+```rust
+pub struct ReputationSummary {
+    pub total_claims: u32,              // Total number of participation claims
+    pub average_performance: f64,       // Average performance score across all claims
+    pub creation_claims: u32,           // Resource creation and validation claims
+    pub custody_claims: u32,            // Custody-related claims
+    pub service_claims: u32,            // Service provision claims
+    pub governance_claims: u32,          // Governance participation claims
+    pub end_of_life_claims: u32,        // End-of-life management claims
+    pub period_start: Timestamp,        // Time period this summary covers
+    pub period_end: Timestamp,          // End of time period
+    pub agent: AgentPubKey,             // Agent this summary belongs to
+    pub generated_at: Timestamp,        // When summary was generated
+}
+```
+
+**Privacy-Preserving**: Share reputation without revealing individual claims
+**Category Breakdown**: Reputation scores by interaction type
+**Time-Period Based**: Configurable time windows for reputation calculation
 
 ## API Functions
-
-### Validation Receipt Management
-
-#### `create_validation_receipt(input: CreateValidationReceiptInput) -> ExternResult<CreateValidationReceiptOutput>`
-Creates a new validation receipt for governance workflows.
-
-**Input**:
-```rust
-pub struct CreateValidationReceiptInput {
-    pub validated_item: ActionHash,       // Item being validated
-    pub validation_type: String,          // Validation context
-    pub approved: bool,                   // Validation result
-    pub notes: Option<String>,            // Optional notes
-}
-```
-
-**Output**:
-```rust
-pub struct CreateValidationReceiptOutput {
-    pub receipt_hash: ActionHash,
-    pub receipt: ValidationReceipt,
-}
-```
-
-**Business Logic**:
-- Records validator identity and timestamp
-- Creates discovery links for audit trails
-- Links receipt to validated item
-- Supports all governance validation types
-
-**Discovery Links Created**:
-- Global discovery: `all_validation_receipts anchor -> receipt_hash`
-- Item validation: `validated_item -> receipt_hash`
-
-#### `get_validation_history(item_hash: ActionHash) -> ExternResult<Vec<ValidationReceipt>>`
-Retrieves complete validation history for any validated item.
-
-**Usage**: Audit trails for resources, agents, roles, and processes
-**Performance**: Efficient validation history queries
-
-#### `get_all_validation_receipts() -> ExternResult<Vec<ValidationReceipt>>`
-Gets all validation receipts in the network for governance oversight.
-
-### Resource Validation Management
-
-#### `create_resource_validation(input: CreateResourceValidationInput) -> ExternResult<CreateResourceValidationOutput>`
-Initiates a resource validation workflow.
-
-**Input**:
-```rust
-pub struct CreateResourceValidationInput {
-    pub resource: ActionHash,             // Resource to validate
-    pub validation_scheme: String,        // Validation requirements
-    pub required_validators: u32,         // Number of validators needed
-}
-```
-
-**Validation Schemes**: "simple_approval", "2-of-3", "majority_consensus"
-**Progress Tracking**: Real-time validation status updates
-
-#### `check_validation_status(resource_hash: ActionHash) -> ExternResult<Option<ResourceValidation>>`
-Checks current validation status for a resource.
-
-**Returns**: Current validation state or None if no validation exists
-**Usage**: Resource status checking across zomes
-
-### Cross-Zome Validation Functions
-
-#### `validate_new_resource(input: ValidateNewResourceInput) -> ExternResult<ValidateNewResourceOutput>`
-Cross-zome function called by resource zome during resource creation.
-
-**Input**:
-```rust
-pub struct ValidateNewResourceInput {
-    pub resource_hash: ActionHash,
-    pub resource_spec_hash: ActionHash,
-    pub creator: AgentPubKey,
-    pub validation_scheme: String,
-}
-```
-
-**Output**:
-```rust
-pub struct ValidateNewResourceOutput {
-    pub validation_hash: ActionHash,
-    pub validation_required: bool,
-    pub status: String,
-}
-```
-
-**Governance Integration**: Implements REQ-GOV-02 (Resource Validation)
-**Workflow**: Automatically initiates community validation for new resources
-
-#### `validate_agent_identity(input: ValidateAgentIdentityInput) -> ExternResult<ValidateAgentIdentityOutput>`
-Cross-zome function for Simple Agent → Accountable Agent promotion.
-
-**Input**:
-```rust
-pub struct ValidateAgentIdentityInput {
-    pub agent: AgentPubKey,
-    pub resource_hash: ActionHash,        // Their first resource
-    pub private_data_hash: Option<ActionHash>, // Identity verification
-}
-```
-
-**Output**:
-```rust
-pub struct ValidateAgentIdentityOutput {
-    pub validation_receipt_hash: ActionHash,
-    pub promotion_approved: bool,
-    pub new_capability_level: String,
-}
-```
-
-**Governance Integration**: Implements REQ-GOV-03 (Agent Validation)
-**Capability Progression**: Enables agent advancement through governance validation
-
-#### `validate_specialized_role(input: ValidateSpecializedRoleInput) -> ExternResult<ValidateSpecializedRoleOutput>`
-Cross-zome function for specialized role validation (Transport, Repair, Storage).
-
-**Input**:
-```rust
-pub struct ValidateSpecializedRoleInput {
-    pub agent: AgentPubKey,
-    pub requested_role: String,           // Transport, Repair, Storage
-    pub credentials: Option<String>,      // Supporting credentials
-    pub validation_history: Option<ActionHash>, // Previous validations
-}
-```
-
-**Output**:
-```rust
-pub struct ValidateSpecializedRoleOutput {
-    pub validation_receipt_hash: ActionHash,
-    pub role_approved: bool,
-    pub role_granted: String,
-}
-```
-
-**Governance Integration**: Implements REQ-GOV-04 (Specialized Role Validation)
-**Role Progression**: Enables specialized capability acquisition
 
 ### Economic Event Management
 
 #### `log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEconomicEventOutput>`
-Records economic events for resource transactions and process activities.
+
+Logs an economic event to the distributed ledger.
 
 **Input**:
+
 ```rust
 pub struct LogEconomicEventInput {
-    pub action: VfAction,                 // Type-safe economic action
-    pub provider: AgentPubKey,            // Service/resource provider
-    pub receiver: AgentPubKey,            // Service/resource receiver
-    pub resource_inventoried_as: ActionHash, // Affected resource
-    pub resource_quantity: f64,           // Quantity involved
-    pub note: Option<String>,             // Event description
-}
-```
-
-**Output**:
-```rust
-pub struct LogEconomicEventOutput {
-    pub event_hash: ActionHash,
-    pub event: EconomicEvent,
-}
-```
-
-**ValueFlows Compliance**: Complete economic event recording
-**Resource Integration**: Links events to affected resources
-**Discovery Links**: Creates searchable audit trails
-
-#### `log_initial_transfer(input: LogInitialTransferInput) -> ExternResult<LogInitialTransferOutput>`
-Specialized function for Simple Agent first transactions.
-
-**Input**:
-```rust
-pub struct LogInitialTransferInput {
-    pub resource_hash: ActionHash,
+    pub action: VfAction,
+    pub provider: AgentPubKey,
     pub receiver: AgentPubKey,
-    pub quantity: f64,
-}
-```
-
-**Governance Trigger**: Initiates Simple Agent promotion workflow
-**Special Handling**: Uses VfAction::InitialTransfer for governance tracking
-
-#### Economic Event Query Functions
-- `get_all_economic_events() -> ExternResult<Vec<EconomicEvent>>`
-- `get_events_for_resource(resource_hash: ActionHash) -> ExternResult<Vec<EconomicEvent>>`
-- `get_events_for_agent(agent: AgentPubKey) -> ExternResult<Vec<EconomicEvent>>`
-
-**Performance**: Efficient event discovery and filtering
-**Audit Trails**: Complete transaction history for resources and agents
-
-### Private Participation Receipt (PPR) Management
-
-#### `issue_participation_receipts(input: IssueParticipationReceiptsInput) -> ExternResult<IssueParticipationReceiptsOutput>`
-Issues bi-directional Private Participation Claims for both agents involved in an economic interaction.
-
-**Input**:
-```rust
-pub struct IssueParticipationReceiptsInput {
-    pub commitment_hash: ActionHash,              // The commitment being fulfilled
-    pub event_hash: ActionHash,                   // The fulfilling economic event
-    pub counterparty: AgentPubKey,                // The other agent involved
-    pub performance_metrics: PerformanceMetrics, // Performance assessment
-    pub interaction_context: String,              // Context of interaction
-    pub role_context: Option<String>,             // Role-specific context
-}
-```
-
-**Output**:
-```rust
-pub struct IssueParticipationReceiptsOutput {
-    pub provider_receipt_hash: ActionHash,        // Provider's PPR
-    pub receiver_receipt_hash: ActionHash,        // Receiver's PPR
-    pub claim_types_issued: (ParticipationClaimType, ParticipationClaimType), // Types for each agent
+    pub resource_inventoried_as: ActionHash,
+    pub affects: ActionHash,
+    pub resource_quantity: f64,
+    pub note: Option<String>,
 }
 ```
 
 **Business Logic**:
-- Automatically triggered for every completed Commitment-Claim-Event cycle
-- Creates bi-directional receipts with appropriate ParticipationClaimType for each agent
-- Links receipts to the fulfilling EconomicEvent and original Commitment
-- Stores receipts as private entries accessible only to owning agents
-- Generates context-aware claim types based on Economic Process type and agent roles
 
-#### `sign_participation_claim(input: SignParticipationClaimInput) -> ExternResult<SignParticipationClaimOutput>`
-Adds cryptographic signature to a participation claim to complete the bi-directional receipt process.
+- Validates action compatibility with resource state
+- Creates economic event with timestamp
+- Links to affected resource for audit trail
+- Triggers PPR generation if applicable
 
-**Input**:
-```rust
-pub struct SignParticipationClaimInput {
-    pub claim_hash: ActionHash,                   // PPR to sign
-    pub signature: CryptographicSignature,       // Cryptographic signature
-}
-```
+**Integration**: Automatically generates appropriate PPR claims
+**Validation**: Cross-zome validation with resource and person zomes
 
-**Cryptographic Integrity**: Ensures authenticity and prevents manipulation
-**Bilateral Agreement**: Completes the mutual validation of economic interactions
+#### `log_initial_transfer(input: LogInitialTransferInput) -> ExternResult<LogEconomicEventOutput>`
 
-#### `validate_participation_claim_signature(input: ValidateParticipationClaimSignatureInput) -> ExternResult<bool>`
-Validates the cryptographic signature of a participation claim for authenticity verification.
+Special function for Simple Agent's first resource transfer.
 
-**Input**:
-```rust
-pub struct ValidateParticipationClaimSignatureInput {
-    pub claim_hash: ActionHash,                   // PPR to validate
-    pub expected_signer: AgentPubKey,             // Expected signing agent
-}
-```
+**Business Logic**: Handles special case for agent progression
+**Validation**: Validates this is the agent's first transfer
+**Integration**: May trigger Simple Agent promotion workflow
 
-**Security**: Prevents falsified participation claims
-**Trust**: Enables verification of bilateral agreement authenticity
+#### `get_all_economic_events() -> ExternResult<Vec<EconomicEvent>>`
 
-#### `get_my_participation_claims() -> ExternResult<Vec<PrivateParticipationClaim>>`
-Returns all Private Participation Receipts for the calling agent.
+Retrieves all economic events (with appropriate access control).
 
-**Privacy**: Only returns agent's own private receipts
-**Reputation Input**: Provides data for reputation summary calculation
+**Privacy**: Filters events based on participant access rights
+**Performance**: Efficient query via economic event anchors
 
-#### `derive_reputation_summary(input: DeriveReputationSummaryInput) -> ExternResult<ReputationSummary>`
-Calculates aggregated reputation metrics from an agent's Private Participation Claims.
+#### `get_events_for_resource(resource_hash: ActionHash) -> ExternResult<Vec<EconomicEvent>>`
 
-**Input**:
-```rust
-pub struct DeriveReputationSummaryInput {
-    pub time_range: Option<(Timestamp, Timestamp)>, // Optional time range filter
-    pub role_filter: Option<String>,                 // Optional role-specific summary
-    pub include_recent_activity: bool,               // Whether to include recent interaction details
-}
-```
+Gets all economic events affecting a specific resource.
 
-**Privacy-Preserving**: Calculation performed locally, agent controls sharing
-**Selective Disclosure**: Agents can generate role-specific or time-bounded summaries
-**Comprehensive**: Aggregates performance across all interaction types
+**Pattern**: Follows resource-to-events link chain
+**Use Case**: Complete resource lifecycle and history
+
+#### `get_events_for_agent(agent: AgentPubKey) -> ExternResult<Vec<EconomicEvent>>`
+
+Gets all economic events involving a specific agent.
+
+**Pattern**: Queries agent participation in economic activities
+**Use Case**: Agent's economic activity history
 
 ### Commitment Management
 
 #### `propose_commitment(input: ProposeCommitmentInput) -> ExternResult<ProposeCommitmentOutput>`
-Creates a commitment for future resource provision or service delivery.
+
+Creates a new economic commitment.
 
 **Input**:
+
 ```rust
 pub struct ProposeCommitmentInput {
-    pub action: VfAction,                 // Committed action
-    pub resource_hash: Option<ActionHash>, // Specific resource
-    pub resource_spec_hash: Option<ActionHash>, // General specification
-    pub provider: AgentPubKey,            // Committing agent
-    pub due_date: Timestamp,              // Commitment deadline
-    pub note: Option<String>,             // Commitment details
+    pub action: VfAction,
+    pub provider: AgentPubKey,
+    pub receiver: AgentPubKey,
+    pub resource_conforms_to: Option<ActionHash>,
+    pub input_of: Option<ActionHash>,
+    pub due_date: Timestamp,
+    pub note: Option<String>,
 }
 ```
 
-**Flexibility**: Supports both specific resource and general specification commitments
-**ValueFlows Integration**: Complete commitment workflow support
+**Business Logic**:
+
+- Validates commitment feasibility
+- Creates commitment with automatic expiration
+- Links to resource specification if applicable
+- Sets up claim fulfillment tracking
+
+**Integration**: Creates framework for PPR generation upon fulfillment
+
+#### `get_all_commitments() -> ExternResult<Vec<Commitment>>`
+
+Retrieves all commitments (with appropriate access control).
+
+**Privacy**: Filters commitments based on participant access rights
+
+#### `get_commitments_for_agent(agent: AgentPubKey) -> ExternResult<Vec<Commitment>>`
+
+Gets all commitments involving a specific agent.
+
+**Pattern**: Queries agent as provider or receiver
+**Use Case**: Agent's commitment portfolio and obligations
 
 #### `claim_commitment(input: ClaimCommitmentInput) -> ExternResult<ClaimCommitmentOutput>`
-Claims fulfillment of a previously made commitment.
+
+Claims fulfillment of a commitment, creating the link to an economic event.
+
+**Business Logic**:
+
+- Validates economic event fulfills commitment requirements
+- Creates claim linking commitment to event
+- Triggers PPR generation for both parties
+- Updates reputation metrics
+
+**Integration**: Core mechanism for PPR generation
+
+#### `get_all_claims() -> ExternResult<Vec<Claim>>`
+
+Retrieves all claims (with appropriate access control).
+
+#### `get_claims_for_commitment(commitment_hash: ActionHash) -> ExternResult<Vec<Claim>>`
+
+Gets all claims for a specific commitment.
+
+**Pattern**: Track commitment fulfillment history
+**Use Case**: Commitment performance analysis
+
+### Validation System
+
+#### `create_validation_receipt(input: CreateValidationReceiptInput) -> ExternResult<Record>`
+
+Creates a validation receipt for any validated item.
 
 **Input**:
+
 ```rust
-pub struct ClaimCommitmentInput {
-    pub commitment_hash: ActionHash,      // Commitment being fulfilled
-    pub fulfillment_note: Option<String>, // Fulfillment details
+pub struct CreateValidationReceiptInput {
+    pub validated_item: ActionHash,
+    pub validation_type: String,
+    pub approved: bool,
+    pub notes: Option<String>,
 }
 ```
 
-**Validation**: Verifies commitment exists and hasn't been claimed
-**Audit Trail**: Links claims to original commitments
+**Business Logic**:
 
-#### Commitment Query Functions
-- `get_all_commitments() -> ExternResult<Vec<Commitment>>`
-- `get_commitments_for_agent(agent: AgentPubKey) -> ExternResult<Vec<Commitment>>`
-- `get_all_claims() -> ExternResult<Vec<Claim>>`
-- `get_claims_for_commitment(commitment_hash: ActionHash) -> ExternResult<Vec<Claim>>`
+- Records validator's assessment
+- Links to validated item for audit trail
+- Creates validation history
+- May trigger PPR generation for validation activity
+
+#### `get_validation_history(item_hash: ActionHash) -> ExternResult<Vec<ValidationReceipt>>`
+
+Gets complete validation history for an item.
+
+**Pattern**: Follows validated_item_to_receipt links
+**Use Case**: Comprehensive validation audit trail
+
+#### `get_all_validation_receipts() -> ExternResult<Vec<ValidationReceipt>>`
+
+Retrieves all validation receipts (with appropriate access control).
+
+#### `create_resource_validation(input: CreateResourceValidationInput) -> ExternResult<Record>`
+
+Creates a resource validation workflow.
+
+**Input**:
+
+```rust
+pub struct CreateResourceValidationInput {
+    pub resource: ActionHash,
+    pub validation_scheme: String,        // "2-of-3", "simple_majority", etc.
+    pub required_validators: u32,
+}
+```
+
+**Business Logic**:
+
+- Creates validation workflow with specified scheme
+- Tracks validation progress
+- Manages validator assignments
+- Determines final validation outcome
+
+#### `check_validation_status(validation_hash: ActionHash) -> ExternResult<String>`
+
+Checks the current status of a validation workflow.
+
+**Returns**: "pending" | "approved" | "rejected"
+**Use Case**: Monitor validation progress
+
+#### `validate_new_resource(input: ValidateNewResourceInput) -> ExternResult<ValidationResult>`
+
+Validates a new resource according to community standards.
+
+**Cross-Zome Integration**: Works with resource zome for validation
+**Validation Logic**: Applies governance rules and community standards
+**Outcome**: May approve resource or require further validation
+
+### Agent Validation and Promotion
+
+#### `validate_agent_identity(input: ValidateAgentIdentityInput) -> ExternResult<ValidationResult>`
+
+Validates agent identity and private information for promotion.
+
+**Input**:
+
+```rust
+pub struct ValidateAgentIdentityInput {
+    pub agent: AgentPubKey,
+    pub resource_hash: ActionHash,
+    pub private_data_hash: Option<ActionHash>,
+}
+```
+
+**Business Logic**:
+
+- Cross-zome call to person zome for private data access
+- Validates agent meets promotion requirements
+- Creates validation receipt for audit trail
+- May trigger agent promotion workflow
+
+**Privacy**: Respects private data access controls
+
+#### `validate_agent_for_promotion(input: ValidateAgentForPromotionInput) -> ExternResult<ValidationResult>`
+
+Comprehensive validation for agent promotion to higher capability levels.
+
+**Validation Logic**:
+
+- Checks resource creation requirements
+- Validates community participation
+- Evaluates PPR-based reputation
+- Assesses governance understanding
+
+#### `validate_agent_for_custodianship(input: ValidateAgentForCustodianshipInput) -> ExternResult<ValidationResult>`
+
+Validates agent suitability for resource custodianship.
+
+**Validation Logic**:
+
+- Capability level validation
+- PPR reputation assessment
+- Custody history review
+- Community standing evaluation
+
+#### `validate_specialized_role(input: ValidateSpecializedRoleInput) -> ExternResult<ValidationResult>`
+
+Validates agent for specialized roles (Transport, Repair, Storage).
+
+**Role-Specific Validation**:
+
+- Technical capability assessment
+- Equipment/facility requirements
+- Safety and compliance validation
+- Performance history review
+
+### Private Participation Receipt (PPR) System
+
+#### `issue_participation_receipts(input: IssueParticipationReceiptsInput) -> ExternResult<IssueParticipationReceiptsOutput>`
+
+Issues PPRs to both parties involved in an economic interaction.
+
+**Input**:
+
+```rust
+pub struct IssueParticipationReceiptsInput {
+    pub fulfills: ActionHash,
+    pub fulfilled_by: ActionHash,
+    pub provider: AgentPubKey,
+    pub receiver: AgentPubKey,
+    pub claim_types: Vec<ParticipationClaimType>,
+    pub provider_metrics: PerformanceMetrics,
+    pub receiver_metrics: PerformanceMetrics,
+    pub resource_hash: Option<ActionHash>,
+    pub notes: Option<String>,
+}
+```
+
+**Business Logic**:
+
+- Creates private PPR entries for both parties
+- Generates bilateral cryptographic signatures
+- Links to commitment and economic event
+- Stores performance metrics for reputation calculation
+
+**Privacy**: Private entries accessible only to respective owners
+**Security**: Cryptographic signatures prevent tampering
+
+#### `sign_participation_claim(input: SignParticipationClaimInput) -> ExternResult<SignParticipationClaimOutput>`
+
+Signs a participation claim with bilateral authentication.
+
+**Cryptography**: Creates cryptographic signatures for both parties
+**Verification**: Supports signature verification for authenticity
+**Integration**: Used in PPR creation and validation workflows
+
+#### `validate_participation_claim_signature(input: ValidateParticipationClaimSignatureInput) -> ExternResult<bool>`
+
+Validates the cryptographic signatures on a participation claim.
+
+**Security**: Ensures claim authenticity and integrity
+**Verification**: Supports cross-agent claim verification
+
+#### `validate_participation_claim_signature_enhanced(input: ValidateParticipationClaimSignatureInput) -> ExternResult<EnhancedValidationResult>`
+
+Enhanced signature validation with detailed verification results.
+
+**Additional Features**:
+
+- Signature timestamp validation
+- Agent verification status
+- Claim context validation
+- Detailed security assessment
+
+#### `get_my_participation_claims(filter: Option<PPRFilter>) -> ExternResult<Vec<PrivateParticipationClaim>>`
+
+Retrieves the calling agent's participation claims.
+
+**Privacy**: Only returns claims owned by the calling agent
+**Filtering**: Optional filtering by claim type, time period, counterparty
+**Use Case**: Agent's reputation portfolio and history
+
+#### `derive_reputation_summary(input: DeriveReputationSummaryInput) -> ExternResult<ReputationSummary>`
+
+Derives a privacy-preserving reputation summary from participation claims.
+
+**Input**:
+
+```rust
+pub struct DeriveReputationSummaryInput {
+    pub period_start: Timestamp,
+    pub period_end: Timestamp,
+    pub include_categories: Option<Vec<String>>, // Optional category filtering
+}
+```
+
+**Business Logic**:
+
+- Calculates weighted average performance scores
+- Categorizes claims by type
+- Generates privacy-preserving summary
+- Supports time-period based analysis
+
+**Privacy**: Can be shared without revealing individual claim details
+
+### Private Data Validation
+
+#### `request_agent_validation_data(input: AgentValidationInput) -> ExternResult<ValidationResult>`
+
+Requests private data validation for agent validation workflows.
+
+**Input**:
+
+```rust
+pub struct AgentValidationInput {
+    pub agent_to_validate: AgentPubKey,
+    pub validation_type: String,
+    pub requesting_validator: AgentPubKey,
+    pub validation_context: ActionHash,
+}
+```
+
+**Business Logic**:
+
+- Cross-zome call to person zome for private data access
+- Validates specific data requirements based on validation type
+- Creates validation receipt for audit trail
+- Respects privacy and consent requirements
+
+#### `create_validation_with_private_data(input: CreateValidationWithPrivateDataInput) -> ExternResult<Record>`
+
+Creates validation with explicit private data access.
+
+**Privacy**: Requires explicit consent for private data access
+**Security**: Creates audit trail of private data access
+**Compliance**: Ensures privacy requirements are met
 
 ## Link Architecture
 
-### Discovery Links
-- **AllValidationReceipts**: `all_validation_receipts anchor -> receipt_hash` - Global validation discovery
-- **AllEconomicEvents**: `all_economic_events anchor -> event_hash` - Global event discovery
-- **AllCommitments**: `all_commitments anchor -> commitment_hash` - Global commitment discovery
-- **AllClaims**: `all_claims anchor -> claim_hash` - Global claim discovery
-- **AllResourceValidations**: `all_resource_validations anchor -> validation_hash` - Global resource validation discovery
-- **AllProcessValidationRequirements**: `all_process_requirements anchor -> requirements_hash` - Global process validation requirements
-
-### Validation Links
-- **ValidatedItemToReceipt**: `validated_item -> receipt_hash` - Item validation history
-- **ResourceToValidation**: `resource_hash -> validation_hash` - Resource validation tracking
-- **ProcessToValidationRequirements**: `process_type -> requirements_hash` - Process validation requirements
-
 ### Economic Event Links
-- **ResourceToEvent**: `resource_hash -> event_hash` - Resource transaction history
-- **ProcessToEvent**: `process_hash -> event_hash` - Economic Process event tracking
-- **AgentToEvents**: `agent_pubkey -> event_hash` - Agent economic activity history
+
+- **AllEconomicEvents**: `economic_events anchor -> event_hash` - Global discovery
+- **ResourceToEvents**: `resource_hash -> event_hash` - Resource history
+- **AgentToEvents**: `agent_pubkey -> event_hash` - Agent participation
+- **EventToPrivateParticipationClaims**: `event_hash -> claim_hash` - PPR generation
 
 ### Commitment Links
-- **CommitmentToClaim**: `commitment_hash -> claim_hash` - Commitment fulfillment tracking
-- **ProcessToCommitment**: `process_hash -> commitment_hash` - Economic Process commitment tracking
 
-### Private Participation Receipt Links
-*Note: PPRs are stored as private entries, so no DHT links are created for privacy preservation*
-- PPRs are linked internally within each agent's source chain
-- Reputation derivation performed locally from agent's own PPR collection
-- Selective sharing controlled entirely by owning agent
+- **AllCommitments**: `commitments anchor -> commitment_hash` - Global discovery
+- **CommitmentToClaims**: `commitment_hash -> claim_hash` - Fulfillment tracking
+- **CommitmentToPrivateParticipationClaims**: `commitment_hash -> claim_hash` - PPR tracking
+
+### Validation Links
+
+- **AllValidationReceipts**: `validation_receipts anchor -> receipt_hash` - Global discovery
+- **ValidatedItemToReceipt**: `validated_item -> receipt_hash` - Validation history
+- **ResourceToValidation**: `resource_hash -> validation_hash` - Resource validation
+- **AllResourceValidations**: `resource_validations anchor -> validation_hash` - Validation discovery
+
+### PPR System Links
+
+- **AgentToPrivateParticipationClaims**: `agent_pubkey -> claim_hash` - Agent PPR portfolio
+- **EventToPrivateParticipationClaims**: `event_hash -> claim_hash` - Event to PPR mapping
+- **CommitmentToPrivateParticipationClaims**: `commitment_hash -> claim_hash` - Commitment to PPR mapping
+- **ResourceToPrivateParticipationClaims**: `resource_hash -> claim_hash` - Resource to PPR mapping
+
+## Signal Architecture
+
+The Governance zome emits signals for real-time UI updates:
+
+```rust
+pub enum Signal {
+    LinkCreated { action },
+    LinkDeleted { action },
+    EntryCreated { action },
+    EntryUpdated { action },
+    EntryDeleted { action },
+}
+```
+
+**Real-time Updates**: Enables UI reactivity to governance changes
+**Cross-Zome Coordination**: Supports complex workflows with other zomes
 
 ## Error Handling
 
 ### GovernanceError Types
+
 ```rust
 pub enum GovernanceError {
-    ValidationReceiptNotFound(String),    // Validation lookup failures
-    EconomicEventNotFound(String),        // Event lookup failures
-    ResourceValidationNotFound(String),   // Resource validation failures
-    CommitmentNotFound(String),           // Commitment lookup failures
-    ClaimNotFound(String),                // Claim lookup failures
-    PPRNotFound(String),                  // Private Participation Receipt lookup failures
-    ProcessValidationNotFound(String),    // Process validation failures
-    NotAuthorizedValidator,               // Validation authorization failures
-    InsufficientCapability(String),       // Capability level failures
-    ValidationAlreadyExists(String),      // Duplicate validation prevention
-    InvalidValidationScheme(String),      // Validation scheme errors
-    ValidationFailed(String),             // General validation failures
-    PPRGenerationFailed(String),          // PPR issuance failures
-    SignatureValidationFailed(String),    // Cryptographic signature failures
-    SerializationError(String),           // Data serialization issues
-    EntryOperationFailed(String),         // DHT operation failures
-    LinkOperationFailed(String),          // Link operation failures
-    InvalidInput(String),                 // Input validation failures
-    CrossZomeCallFailed(String),          // Cross-zome communication failures
+    ValidationReceiptNotFound(String),     // Validation lookup failures
+    EconomicEventNotFound(String),       // Event lookup failures
+    ResourceValidationNotFound(String),  // Resource validation lookup failures
+    CommitmentNotFound(String),          // Commitment lookup failures
+    NotAuthorizedValidator,              // Authorization failures
+    InsufficientCapability(String),      // Capability level restrictions
+    ValidationAlreadyExists(String),     // Duplicate validation prevention
+    InvalidValidationScheme(String),     // Validation scheme validation
+    SerializationError(String),          // Data serialization issues
+    EntryOperationFailed(String),       // DHT operation failures
+    LinkOperationFailed(String),        // Link operation failures
+    InvalidInput(String),               // Input validation failures
+    CrossZomeCallFailed(String),        // Cross-zome communication failures
 }
 ```
 
-### Cross-Zome Error Coordination
+**Pattern**: Comprehensive error coverage with descriptive messages
+**Integration**: Converts to `WasmError` for Holochain compatibility
+
+## Privacy and Security Model
+
+### Private Data Protection
+
+- **Private Participation Claims**: Stored as private entries, owner-only access
+- **Performance Metrics**: Only accessible to claim owner
+- **Signature Verification**: Cryptographic proof without revealing private data
+- **Reputation Summaries**: Privacy-preserving reputation sharing
+
+### Cryptographic Security
+
+- **Bilateral Signatures**: Both parties authenticate each interaction
+- **Tamper Evidence**: Cryptographic hashes prevent undetected modifications
+- **Non-Repudiation**: Agents cannot deny their participation in interactions
+- **Verification Support**: Complete context for signature verification
+
+### Access Control
+
+- **Role-Based Access**: Different functions require different capability levels
+- **Cross-Zome Validation**: Private data access requires explicit validation
+- **Context-Aware Permissions**: Access granted based on specific contexts and needs
+- **Audit Trails**: Complete logging of all validation and access requests
+
+## Integration with Other Zomes
+
+### Resource Zome Integration
+
 ```rust
-// Standardized error translation for consistent cross-zome error handling
-impl From<ResourceError> for GovernanceError {
-    fn from(error: ResourceError) -> Self {
-        match error {
-            ResourceError::GovernanceViolation(msg) => GovernanceError::ValidationFailed(msg),
-            ResourceError::InsufficientRole(msg) => GovernanceError::InsufficientCapability(msg),
-            ResourceError::ProcessValidationFailed(msg) => GovernanceError::ValidationFailed(msg),
-            ResourceError::CrossZomeCallFailed(msg) => GovernanceError::CrossZomeCallFailed(msg),
-            _ => GovernanceError::CrossZomeCallFailed(format!("Resource zome error: {}", error)),
-        }
-    }
-}
-
-impl From<PersonError> for GovernanceError {
-    fn from(error: PersonError) -> Self {
-        match error {
-            PersonError::RoleNotFound(msg) => GovernanceError::InsufficientCapability(msg),
-            PersonError::NotAuthor => GovernanceError::NotAuthorizedValidator,
-            PersonError::InvalidInput(msg) => GovernanceError::InvalidInput(msg),
-            _ => GovernanceError::CrossZomeCallFailed(format!("Person zome error: {}", error)),
-        }
-    }
-}
-
-// Unified error handling for cross-zome operations
-pub fn handle_cross_zome_governance_error<T, E: Into<GovernanceError>>(
-    result: Result<T, E>, 
-    operation: &str
-) -> Result<T, GovernanceError> {
-    result.map_err(|e| {
-        let gov_error = e.into();
-        // Log the operation context for better debugging
-        match &gov_error {
-            GovernanceError::CrossZomeCallFailed(msg) => {
-                GovernanceError::CrossZomeCallFailed(format!("{} operation failed: {}", operation, msg))
-            },
-            _ => gov_error
-        }
-    })
-}
+// Create economic event for resource custody transfer
+let event_output = call(
+    CallTargetCell::Local,
+    "zome_gouvernance",
+    "log_economic_event".into(),
+    None,
+    &LogEconomicEventInput {
+        action: VfAction::TransferCustody,
+        provider: current_custodian,
+        receiver: new_custodian,
+        resource_inventoried_as: resource_hash,
+        affects: resource_hash,
+        resource_quantity: 1.0,
+        note: Some("Custody transfer completed".to_string()),
+    },
+)?;
 ```
 
-**Comprehensive Coverage**: All governance operation failure modes
-**Cross-Zome Integration**: Special handling for inter-zome communication errors
+### Person Zome Integration
 
-## Cross-Zome Integration
-
-### Integration with Resource Zome
-
-#### Automatic Resource Validation
 ```rust
-// Called automatically during resource creation
+// Validate agent private data for promotion
 let validation_result = call(
-    CallTargetCell::Local,
-    "zome_gouvernance",
-    "validate_new_resource".into(),
-    None,
-    &ValidateNewResourceInput {
-        resource_hash: resource_hash.clone(),
-        resource_spec_hash: spec_hash.clone(),
-        creator: agent_pubkey.clone(),
-        validation_scheme: "simple_approval".to_string(),
-    },
-)?;
-```
-
-#### Economic Process Validation
-```rust
-// Called during Economic Process completion
-let process_validation = call(
-    CallTargetCell::Local,
-    "zome_gouvernance",
-    "validate_process_completion".into(),
-    None,
-    &ValidateProcessCompletionInput {
-        process_hash: process_hash.clone(),
-        completion_evidence: completion_data,
-        performance_metrics: process_metrics,
-    },
-)?;
-```
-
-#### PPR Issuance for Resource Activities
-```rust
-// Automatic PPR generation for resource transactions
-let ppr_result = call(
-    CallTargetCell::Local,
-    "zome_gouvernance",
-    "issue_participation_receipts".into(),
-    None,
-    &IssueParticipationReceiptsInput {
-        commitment_hash: commitment_hash.clone(),
-        event_hash: economic_event_hash,
-        counterparty: counterparty_agent,
-        performance_metrics: transaction_metrics,
-        interaction_context: "custody_transfer".to_string(),
-        role_context: None, // or Some("Transport") for specialized processes
-    },
-)?;
-```
-
-#### Resource Validation Workflows
-- New resource creation triggers automatic validation
-- Community validators can approve/reject resources
-- Validation status affects resource availability
-- Economic Process completion triggers process-specific validation
-- All resource transactions generate appropriate PPRs for reputation tracking
-
-### Integration with Person Zome
-
-#### Agent Promotion Workflows
-```rust
-// Simple Agent → Accountable Agent promotion
-let promotion_result = call(
     CallTargetCell::Local,
     "zome_gouvernance",
     "validate_agent_identity".into(),
     None,
     &ValidateAgentIdentityInput {
-        agent: agent_pubkey.clone(),
+        agent: agent_to_validate,
         resource_hash: first_resource_hash,
-        private_data_hash: identity_data_hash,
+        private_data_hash: Some(private_data_hash),
     },
 )?;
 ```
-
-#### Specialized Role Validation
-```rust
-// Transport, Repair, Storage role validation
-let role_result = call(
-    CallTargetCell::Local,
-    "zome_gouvernance",
-    "validate_specialized_role".into(),
-    None,
-    &ValidateSpecializedRoleInput {
-        agent: agent_pubkey.clone(),
-        requested_role: "Transport".to_string(),
-        credentials: Some(credentials_data),
-        validation_history: Some(previous_validation_hash),
-        context: Some("economic_process_preparation".to_string()),
-    },
-)?;
-```
-
-#### Person Zome Private Data Access
-```rust
-// Accessing private data for governance validation
-let private_data_result = call(
-    CallTargetCell::Local,
-    "zome_person",
-    "get_private_data_for_governance_validation".into(),
-    None,
-    &GovernanceDataAccessInput {
-        agent_to_validate: simple_agent_pubkey,
-        validation_type: "agent_promotion".to_string(),
-        requesting_validator: validator_pubkey,
-        validation_context: validation_process_hash,
-    },
-)?;
-
-// Example of complete agent validation with private data
-let agent_validation = match private_data_result {
-    Ok(data_access) if data_access.validation_eligible => {
-        // Proceed with validation
-        create_validation_receipt(CreateValidationReceiptInput {
-            validated_item: agent_to_validate,
-            validation_type: "agent_promotion".to_string(),
-            approved: true,
-            notes: Some(format!("Identity verified with quality score: {}", data_access.data_quality_score)),
-        })?
-    },
-    Ok(_) => {
-        // Insufficient data quality
-        return Err(GovernanceError::ValidationFailed("Insufficient identity data quality".to_string()));
-    },
-    Err(e) => {
-        return Err(GovernanceError::CrossZomeCallFailed(format!("Private data access failed: {}", e)));
-    }
-};
-```
-
-#### Resource Zome Coordination
-```rust
-// Coordinating with resource zome for process validation
-let process_state_changes = call(
-    CallTargetCell::Local,
-    "zome_resource",
-    "get_process_state_changes".into(),
-    None,
-    &ProcessStateChangesInput {
-        process_hash: economic_process_hash,
-        include_resource_effects: true,
-    },
-)?;
-
-// Validate state changes are appropriate for process type
-let validation_result = validate_process_state_changes(&process_state_changes)?;
-```
-
-## ValueFlows Compliance
-
-### Complete Economic Vocabulary
-- **VfAction Enum**: Type-safe implementation of all ValueFlows actions with nondominium-specific extensions
-- **Economic Events**: Full ValueFlows event specification with Economic Process integration
-- **Commitments**: Complete commitment and claim workflow supporting Economic Process chaining
-- **Resource Integration**: Seamless integration with resource management and Economic Process workflows
-- **Process Compliance**: Structured Economic Processes mapped to appropriate VfAction sequences
-
-### Economic Event Model
-- **Provider/Receiver Pattern**: Clear agent roles in all transactions with capability progression support
-- **Resource Effects**: Detailed tracking of resource modifications through specialized processes (Use, Transport, Storage, Repair)
-- **Quantity Tracking**: Precise quantity changes for all events with process-specific validation
-- **Time Tracking**: Complete temporal audit trails with performance metrics
-- **Process Integration**: Events linked to Economic Processes for structured activity tracking
-
-### Commitment/Claim Pattern with PPR Integration
-- **Future Planning**: Commitments enable Economic Process planning with role-based access control
-- **Fulfillment Tracking**: Claims link commitments to actual events with automatic PPR generation
-- **Due Date Management**: Time-based commitment tracking with performance assessment
-- **Flexible Resources**: Both specific and specification-based commitments supporting process workflows
-- **Bi-directional Receipts**: Every Commitment-Claim-Event cycle generates Private Participation Receipts for both agents
-- **Performance Tracking**: Quantitative metrics embedded in fulfillment workflows for reputation derivation
-
-### Economic Process ValueFlows Extension
-- **Process-Action Mapping**: Each Economic Process type uses specific VfAction combinations (Use→Use, Transport→Work+Move, etc.)
-- **Role-Based Access**: Process initiation restricted by agent capability progression and specialized role validation
-- **State Management**: Process completion affects resource states according to ValueFlows resource lifecycle patterns
-- **Validation Integration**: Process completion validation follows ValueFlows governance patterns with community review
-
-## Signal Architecture
-
-### Governance Zome Signals
-```rust
-pub enum Signal {
-    LinkCreated { action: SignedActionHashed },      // New governance links
-    LinkDeleted { action: SignedActionHashed },      // Governance link removal
-    EntryCreated { action: SignedActionHashed },     // New governance entries
-    EntryUpdated { action: SignedActionHashed },     // Governance updates
-    EntryDeleted { action: SignedActionHashed },     // Governance deletions
-}
-```
-
-**Real-time Updates**: Enables UI reactivity to governance changes
-**Cross-Zome Coordination**: Supports inter-zome event coordination
 
 ## Implementation Status
 
-### Phase 1 (Complete) ✅
-- ✅ Complete VfAction enum with helper methods
-- ✅ ValidationReceipt infrastructure for all governance workflows
-- ✅ EconomicEvent logging with type-safe actions
-- ✅ Commitment and claim management
-- ✅ ResourceValidation workflow infrastructure
-- ✅ Discovery links and query patterns
-- ✅ Signal architecture for real-time updates
-- ✅ Cross-zome validation functions
-- ✅ ValueFlows-compliant data structures
+### ✅ **Completed Features**
 
-### Phase 2 (Complete) ✅
-- ✅ Cross-zome integration with resource and person zomes
-- ✅ Agent identity validation workflows (Simple → Accountable promotion)
-- ✅ Specialized role validation (Transport, Repair, Storage)
-- ✅ Automatic resource validation upon creation
-- ✅ Economic event tracking for all resource transactions
-- ✅ Complete audit trails and validation history
-- ✅ Initial transfer handling for Simple Agent workflows
-- ✅ Economic Process validation infrastructure
-- ✅ Private Participation Receipt (PPR) issuance and management
-- ✅ Cryptographic signature support for PPR authenticity
-- ✅ Performance metrics integration for reputation tracking
-- ✅ Role-based access control for Economic Processes
-- ✅ Bi-directional receipt generation for all economic interactions
+- **Economic Event Logging**: Complete ValueFlows-compliant economic event system
+- **Commitment Management**: Full commitment lifecycle with claim tracking
+- **Validation System**: Comprehensive validation workflows with receipt tracking
+- **PPR System**: Complete Private Participation Receipt system with 14 claim types
+- **Reputation Management**: Privacy-preserving reputation calculation and sharing
+- **Agent Validation**: Comprehensive agent promotion and capability validation
+- **Cryptographic Security**: Bilateral signatures and tamper-evident claims
+- **Private Data Protection**: Secure private data validation workflows
+- **Cross-Zome Integration**: Full integration with person and resource zomes
 
-### Current Features
-- **Complete Governance Infrastructure**: Full validation workflows for all community activities including Economic Processes
-- **ValueFlows Integration**: Type-safe economic action vocabulary with Economic Process mapping and PPR generation
-- **Cross-Zome Coordination**: Seamless integration with person and resource management for Economic Process workflows
-- **Agent Progression**: Automated workflows for capability advancement with specialized role validation
-- **Private Participation Receipt System**: Comprehensive reputation tracking with cryptographically-signed, bi-directional receipts
-- **Performance Tracking**: Quantitative performance metrics embedded in all economic interactions
-- **Privacy-Preserving Reputation**: Local reputation derivation with selective disclosure control
-- **Process-Aware Governance**: Economic Process validation with role-based access control and quality assurance
-- **Audit Trails**: Complete tracking of all governance decisions, economic events, and process activities
-- **Validation Flexibility**: Configurable validation schemes for different governance needs and process types
-- **Cryptographic Integrity**: All PPRs cryptographically signed for authenticity and non-repudiation
+### 🔧 **Current Limitations**
 
-### Phase 3 (Planned) 📋
-- Advanced validation schemes (N-of-M consensus, weighted voting) with reputation-based weighting
-- Enhanced Economic Process workflows with complex process chaining and conditional logic
-- AI-assisted validation and anomaly detection for governance workflows
-- Advanced reputation algorithms with machine learning-based trust prediction
-- Automated governance rule enforcement with smart contract-like logic
-- Community governance parameter adjustment through democratic processes
-- Enhanced dispute resolution mechanisms with formal mediation protocols
-- Cross-network PPR reputation portability and federation
-- Performance optimizations for large-scale governance with millions of agents
+- **Basic Validation Schemes**: Limited to simple approval, no complex multi-reviewer schemes
+- **No Economic Processes**: Structured process workflows not implemented
+- **Limited Governance Rules**: Basic rule enforcement without complex logic
+- **No Dispute Resolution**: Structured dispute resolution workflows not implemented
 
-## Development Patterns
+### 📋 **Future Enhancement Opportunities**
 
-### Cross-Zome Call Pattern
-```rust
-// Standard cross-zome validation call
-let validation_result = call(
-    CallTargetCell::Local,
-    "zome_gouvernance",
-    "validate_new_resource".into(),
-    None,
-    &ValidateNewResourceInput { /* ... */ },
-)?;
-```
+- **Advanced Validation Schemes**: Implementation of 2-of-3, N-of-M, weighted voting
+- **Economic Process Integration**: Structured workflows for Use, Transport, Storage, Repair
+- **Dispute Resolution System**: Formal dispute resolution with mediator selection
+- **Smart Contract Integration**: Automated rule enforcement and trigger conditions
+- **Reputation Analytics**: Advanced reputation analysis and prediction
+- **Multi-Network Reputation**: Cross-network reputation portability and validation
 
-### Validation Receipt Pattern
-```rust
-// Create validation receipt for any governance decision
-let receipt = create_validation_receipt(CreateValidationReceiptInput {
-    validated_item: item_hash,
-    validation_type: "resource_approval".to_string(),
-    approved: true,
-    notes: Some("Community validated resource".to_string()),
-})?;
-```
-
-### Economic Event Logging Pattern
-```rust
-// Log all economic activities
-let event = log_economic_event(LogEconomicEventInput {
-    action: VfAction::Transfer,
-    provider: current_custodian,
-    receiver: new_custodian,
-    resource_inventoried_as: resource_hash,
-    resource_quantity: transferred_quantity,
-    note: Some("Resource custody transfer".to_string()),
-})?;
-```
-
-The Governance zome provides the foundational economic coordination and validation infrastructure for the nondominium resource sharing ecosystem, enabling ValueFlows-compliant economic activities with comprehensive governance workflows, structured Economic Process management, Private Participation Receipt reputation tracking, and seamless cross-zome integration. It serves as the governance backbone that transforms the theoretical nondominium principles into a production-ready, privacy-preserving, and accountability-enabled decentralized resource sharing platform with embedded economic coordination, progressive trust models, and community-driven validation processes.
+The Governance zome provides the foundational economic coordination infrastructure for the nondominium ecosystem, enabling ValueFlows-compliant resource sharing with comprehensive validation, cryptographically-secured reputation tracking, and sophisticated governance workflows.
