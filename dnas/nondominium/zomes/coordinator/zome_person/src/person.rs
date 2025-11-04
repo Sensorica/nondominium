@@ -46,22 +46,8 @@ pub fn create_person(input: PersonInput) -> ExternResult<Record> {
     PersonError::EntryOperationFailed("Failed to retrieve created person".to_string()),
   )?;
 
-  // Create discovery link
-  let path = Path::from("persons");
-  create_link(
-    path.path_entry_hash()?,
-    person_hash.clone(),
-    LinkTypes::AllPersons,
-    (),
-  )?;
-
-  // Create agent-to-person link for quick lookup
-  create_link(
-    agent_pubkey,
-    person_hash.clone(),
-    LinkTypes::AgentToPerson,
-    (),
-  )?;
+  // Use the unified Person-centric link creation function
+  create_person_entry_links(person_hash, agent_pubkey)?;
 
   Ok(record)
 }
@@ -103,7 +89,7 @@ pub fn get_latest_person(original_action_hash: ActionHash) -> ExternResult<Perso
 }
 
 #[hdk_extern]
-pub fn get_agent_person(agent_pubkey: AgentPubKey) -> ExternResult<Vec<Link>> {
+pub fn get_agent_person_links(agent_pubkey: AgentPubKey) -> ExternResult<Vec<Link>> {
   get_links(GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build())
 }
 
@@ -180,17 +166,20 @@ pub struct PersonProfileOutput {
 
 #[hdk_extern]
 pub fn get_person_profile(agent_pubkey: AgentPubKey) -> ExternResult<PersonProfileOutput> {
-  let links = get_agent_person(agent_pubkey)?;
+  // Use the new get_agent_person function for cleaner code
+  let person_hash = match get_agent_person(agent_pubkey)? {
+    Some(hash) => hash,
+    None => return Ok(PersonProfileOutput {
+      person: None,
+      private_data: None,
+    }),
+  };
 
-  if let Some(link) = links.first() {
-    if let Some(action_hash) = link.target.clone().into_action_hash() {
-      if let Ok(person) = get_latest_person(action_hash) {
-        return Ok(PersonProfileOutput {
-          person: Some(person),
-          private_data: None, // Private data is only available through get_my_person_profile
-        });
-      }
-    }
+  if let Ok(person) = get_latest_person(person_hash) {
+    return Ok(PersonProfileOutput {
+      person: Some(person),
+      private_data: None, // Private data is only available through get_my_person_profile
+    });
   }
 
   Ok(PersonProfileOutput {
@@ -202,23 +191,27 @@ pub fn get_person_profile(agent_pubkey: AgentPubKey) -> ExternResult<PersonProfi
 #[hdk_extern]
 pub fn get_my_person_profile(_: ()) -> ExternResult<PersonProfileOutput> {
   let agent_info = agent_info()?;
-  let links = get_agent_person(agent_info.agent_initial_pubkey.clone())?;
 
-  if let Some(link) = links.first() {
-    if let Some(action_hash) = link.target.clone().into_action_hash() {
-      if let Ok(person) = get_latest_person(action_hash.clone()) {
-        // Only try to get private data if we have a person, and do it efficiently
-        let private_data = match get_private_data_for_person(action_hash) {
-          Ok(data) => data,
-          Err(_) => None, // If private data query fails, just return None instead of erroring
-        };
+  // Use the new get_agent_person function for cleaner code
+  let person_hash = match get_agent_person(agent_info.agent_initial_pubkey.clone())? {
+    Some(hash) => hash,
+    None => return Ok(PersonProfileOutput {
+      person: None,
+      private_data: None,
+    }),
+  };
 
-        return Ok(PersonProfileOutput {
-          person: Some(person),
-          private_data,
-        });
-      }
-    }
+  if let Ok(person) = get_latest_person(person_hash.clone()) {
+    // Only try to get private data if we have a person, and do it efficiently
+    let private_data = match get_private_data_for_person(person_hash) {
+      Ok(data) => data,
+      Err(_) => None, // If private data query fails, just return None instead of erroring
+    };
+
+    return Ok(PersonProfileOutput {
+      person: Some(person),
+      private_data,
+    });
   }
 
   Ok(PersonProfileOutput {
@@ -259,27 +252,208 @@ fn get_private_data_for_person(person_hash: ActionHash) -> ExternResult<Option<P
   Ok(None)
 }
 
+// ============================================================================
+// PERSON-CENTRIC LINK MANAGEMENT FUNCTIONS
+// ============================================================================
+
+/// Core helper function to create Person entry links
+/// This replaces the multiple link strategies with a single, unified approach
+fn create_person_entry_links(person_hash: ActionHash, agent_pubkey: AgentPubKey) -> ExternResult<()> {
+  // Create discovery link
+  let path = Path::from("persons");
+  create_link(
+    path.path_entry_hash()?,
+    person_hash.clone(),
+    LinkTypes::AllPersons,
+    (),
+  )?;
+
+  // Create Agent -> Person link (primary relationship)
+  create_link(
+    agent_pubkey.clone(),
+    person_hash.clone(),
+    LinkTypes::AgentToPerson,
+    (),
+  )?;
+
+  // Create Person -> Agent link (reverse lookup for multi-device support)
+  create_link(
+    person_hash.clone(),
+    agent_pubkey.clone(),
+    LinkTypes::PersonToAgents,
+    (),
+  )?;
+
+  // Create Agent-Person relationship entry
+  let relationship = AgentPersonRelationship {
+    agent: agent_pubkey.clone(),
+    person: person_hash,
+    established_at: sys_time()?,
+    relationship_type: AgentPersonRelationshipType::Primary,
+  };
+
+  create_entry(&EntryTypes::AgentPersonRelationship(relationship))?;
+
+  Ok(())
+}
+
+/// Get the Person associated with a specific Agent
+#[hdk_extern]
+pub fn get_agent_person(agent_pubkey: AgentPubKey) -> ExternResult<Option<ActionHash>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build(),
+  )?;
+
+  if let Some(link) = links.first() {
+    if let Some(person_hash) = link.target.clone().into_action_hash() {
+      return Ok(Some(person_hash));
+    }
+  }
+
+  Ok(None)
+}
+
+/// Get all Agents associated with a specific Person (supports multi-device)
+#[hdk_extern]
+pub fn get_person_agents(person_hash: ActionHash) -> ExternResult<Vec<AgentPubKey>> {
+  let links = get_links(
+    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToAgents)?.build(),
+  )?;
+
+  let mut agents = Vec::new();
+  for link in links {
+    if let Some(agent_hash) = link.target.into_agent_pub_key() {
+      agents.push(agent_hash);
+    }
+  }
+
+  Ok(agents)
+}
+
+/// Add an additional Agent to a Person (for multi-device support)
+#[hdk_extern]
+pub fn add_agent_to_person(input: (AgentPubKey, ActionHash)) -> ExternResult<bool> {
+  let (new_agent, person_hash) = input;
+  let agent_info = agent_info()?;
+
+  // Verify the caller is associated with this person
+  let caller_person = get_agent_person(agent_info.agent_initial_pubkey)?;
+  if caller_person != Some(person_hash.clone()) {
+    return Err(PersonError::InsufficientCapability(
+      "You can only add agents to your own person".to_string()
+    ).into());
+  }
+
+  // Check if agent is already associated
+  let existing_agents = get_person_agents(person_hash.clone())?;
+  if existing_agents.contains(&new_agent) {
+    return Ok(false); // Already associated
+  }
+
+  // Create Agent -> Person link
+  create_link(
+    new_agent.clone(),
+    person_hash.clone(),
+    LinkTypes::AgentToPerson,
+    (),
+  )?;
+
+  // Create Person -> Agent link
+  create_link(
+    person_hash.clone(),
+    new_agent.clone(),
+    LinkTypes::PersonToAgents,
+    (),
+  )?;
+
+  // Create Agent-Person relationship entry
+  let relationship = AgentPersonRelationship {
+    agent: new_agent,
+    person: person_hash,
+    established_at: sys_time()?,
+    relationship_type: AgentPersonRelationshipType::Secondary,
+  };
+
+  create_entry(&EntryTypes::AgentPersonRelationship(relationship))?;
+
+  Ok(true)
+}
+
+/// Remove an Agent from a Person (for device removal)
+#[hdk_extern]
+pub fn remove_agent_from_person(input: (AgentPubKey, ActionHash)) -> ExternResult<bool> {
+  let (agent_to_remove, person_hash) = input;
+  let agent_info = agent_info()?;
+  let agent_pubkey = agent_info.agent_initial_pubkey;
+
+  // Verify the caller is associated with this person
+  let caller_person = get_agent_person(agent_pubkey.clone())?;
+  if caller_person != Some(person_hash.clone()) {
+    return Err(PersonError::InsufficientCapability(
+      "You can only remove agents from your own person".to_string()
+    ).into());
+  }
+
+  // Cannot remove yourself
+  if agent_to_remove == agent_pubkey {
+    return Err(PersonError::InvalidInput(
+      "Cannot remove yourself from your own person".to_string()
+    ).into());
+  }
+
+  // Find and delete the Agent -> Person link
+  let agent_links = get_links(
+    GetLinksInputBuilder::try_new(agent_to_remove.clone(), LinkTypes::AgentToPerson)?.build(),
+  )?;
+
+  for link in agent_links {
+    if let Some(target_person) = link.target.clone().into_action_hash() {
+      if target_person == person_hash {
+        delete_link(link.create_link_hash)?;
+        break;
+      }
+    }
+  }
+
+  // Find and delete the Person -> Agent link
+  let person_links = get_links(
+    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToAgents)?.build(),
+  )?;
+
+  for link in person_links {
+    if let Some(target_agent) = link.target.clone().into_agent_pub_key() {
+      if target_agent == agent_to_remove {
+        delete_link(link.create_link_hash)?;
+        break;
+      }
+    }
+  }
+
+  Ok(true)
+}
+
+/// Check if an Agent is associated with a Person
+#[hdk_extern]
+pub fn is_agent_associated_with_person(input: (AgentPubKey, ActionHash)) -> ExternResult<bool> {
+  let (agent, person_hash) = input;
+
+  let agents = get_person_agents(person_hash)?;
+  Ok(agents.contains(&agent))
+}
+
 // Agent Promotion Function for Simple Agent → Accountable Agent
 #[hdk_extern]
 pub fn promote_agent_to_accountable(input: PromoteAgentInput) -> ExternResult<String> {
   // This implements REQ-GOV-03: Agent Validation
   // Call governance zome to validate agent identity and promote them
-  
-  // Get the agent's private data hash if it exists
-  let agent_links = get_links(
-    GetLinksInputBuilder::try_new(input.agent.clone(), LinkTypes::AgentToPerson)?.build(),
-  )?;
-  
-  let private_data_hash = if let Some(person_link) = agent_links.first() {
-    if let Some(person_hash) = person_link.target.clone().into_action_hash() {
-      get_private_data_for_person(person_hash)?.map(|_| {
-        // We found private data, but don't expose the actual hash for security
-        // Use a safe placeholder hash format to avoid runtime panics.
-        ActionHash::from_raw_36(vec![0; 36])
-      })
-    } else {
-      None
-    }
+
+  // Get the agent's private data hash if it exists using Person-centric approach
+  let private_data_hash = if let Some(person_hash) = get_agent_person(input.agent.clone())? {
+    get_private_data_for_person(person_hash)?.map(|_| {
+      // We found private data, but don't expose the actual hash for security
+      // Use a safe placeholder hash format to avoid runtime panics.
+      ActionHash::from_raw_36(vec![0; 36])
+    })
   } else {
     None
   };

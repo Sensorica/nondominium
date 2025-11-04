@@ -1,6 +1,16 @@
 # Person Zome (`zome_person`) Documentation
 
-The Person zome provides the foundational identity, privacy, and access control infrastructure for the nondominium ecosystem. It implements agent identity management, role-based access control, capability-based private data sharing, and integration with the Private Participation Receipt (PPR) reputation system.
+The Person zome provides the foundational identity, privacy, and access control infrastructure for the nondominium ecosystem. It implements **Person-centric identity management**, role-based access control, capability-based private data sharing, multi-device support, and integration with the Private Participation Receipt (PPR) reputation system.
+
+## Architecture Overview
+
+The Person zome follows a **Person-Centric Link Strategy** with the relationship pattern: **Agent → Person → Data**
+
+This architecture enables:
+- **Multi-device support**: Multiple agents can represent the same person across different devices
+- **Unified identity**: All data and roles are linked to the Person, not individual Agent devices
+- **Simplified link management**: Single coherent strategy replacing multiple redundant approaches
+- **Scalable access control**: Person-based permissions work across all devices
 
 ## Core Data Structures
 
@@ -33,6 +43,56 @@ pub struct PrivatePersonData {
 
 **Privacy**: Private entry, only accessible by owner
 **Validation**: Legal name and valid email required
+
+### Device Management Entries
+
+#### AgentPersonRelationship Entry
+
+```rust
+pub struct AgentPersonRelationship {
+    pub agent_pubkey: AgentPubKey,     // Agent representing the person
+    pub person_hash: ActionHash,       // Person entry hash
+    pub device_type: String,           // Device type (mobile, desktop, web, etc.)
+    pub device_name: Option<String>,   // User-friendly device name
+    pub created_at: Timestamp,         // When relationship was created
+    pub is_active: bool,               // Whether device is currently active
+}
+```
+
+**Purpose**: Links Agents to Persons, enabling multi-device scenarios
+**Validation**: One-to-one Agent-Person relationship prevents ambiguity
+
+#### Device Entry
+
+```rust
+pub struct Device {
+    pub device_id: String,             // Unique device identifier
+    pub device_type: String,           // Device category
+    pub device_name: String,           // User-friendly name
+    pub person_hash: ActionHash,       // Associated person
+    pub created_at: Timestamp,         // Device registration time
+    pub last_active: Timestamp,        // Last activity timestamp
+    pub capabilities: Vec<String>,     // Device-specific capabilities
+}
+```
+
+**Purpose**: Physical device management for security and access control
+**Features**: Activity tracking, capability management, device lifecycle
+
+#### DeviceSession Entry
+
+```rust
+pub struct DeviceSession {
+    pub device_id: String,             // Device identifier
+    pub session_start: Timestamp,      // Session start time
+    pub session_end: Option<Timestamp>, // Session end time (optional for active sessions)
+    pub ip_address: Option<String>,    // Network location
+    pub user_agent: Option<String>,    // Client information
+}
+```
+
+**Purpose**: Session tracking for security and audit purposes
+**Security**: Enables device-based security policies and monitoring
 
 ### PersonRole Entry
 
@@ -127,14 +187,15 @@ pub struct PersonInput {
 
 **Business Logic**:
 
-- Validates one person per agent (prevents duplicates)
+- Validates one person per agent through AgentPersonRelationship (prevents duplicates)
 - Creates discovery links for efficient queries
-- Links agent to person profile for quick lookup
+- Establishes Person-centric identity foundation
 
 **Links Created**:
 
-- `persons anchor -> person_hash` (discovery)
-- `agent_pubkey -> person_hash` (agent lookup)
+- `persons anchor -> person_hash` (global discovery)
+- `agent_pubkey -> person_hash` (via AgentPersonRelationship)
+- `person_hash -> agent_pubkey` (reverse lookup for device management)
 
 #### `update_person(input: UpdatePersonInput) -> ExternResult<Record>`
 
@@ -189,6 +250,62 @@ Updates private personal information.
 Retrieves private data for the calling agent.
 
 **Security**: Only accessible by the data owner
+
+### Device Management
+
+#### `register_device_for_person(input: RegisterDeviceInput) -> ExternResult<Record>`
+
+Registers a new device for the calling agent's person.
+
+**Input**:
+
+```rust
+pub struct RegisterDeviceInput {
+    pub device_type: String,           // Device category (mobile, desktop, web, etc.)
+    pub device_name: String,           // User-friendly device name
+    pub capabilities: Vec<String>,     // Device-specific capabilities
+}
+```
+
+**Business Logic**:
+
+- Links device to agent's existing person profile
+- Creates AgentPersonRelationship for device tracking
+- Automatically generates unique device identifier
+- Supports device-specific capability management
+
+**Multi-Device Support**: Enables same person across multiple devices
+
+#### `get_my_devices() -> ExternResult<GetMyDevicesOutput>`
+
+Retrieves all devices registered for the calling agent's person.
+
+**Output**:
+
+```rust
+pub struct GetMyDevicesOutput {
+    pub devices: Vec<Device>,
+}
+```
+
+**Security**: Only accessible by the person who owns the devices
+**Features**: Returns device metadata, activity status, and capabilities
+
+#### `update_device_activity(device_id: String) -> ExternResult<()>`
+
+Updates the last activity timestamp for a device.
+
+**Usage**: Called automatically during user interactions to maintain device activity tracking
+**Security**: Only device owner can update activity
+**Purpose**: Enables device-based security policies and session management
+
+#### `get_agent_person(agent_pubkey: AgentPubKey) -> ExternResult<Option<ActionHash>>`
+
+Retrieves the person hash associated with a specific agent.
+
+**Cross-Zome Usage**: Essential for other zomes to resolve Agent → Person relationships
+**Person-Centric Pattern**: Core function enabling unified data access across devices
+**Returns**: Person hash if Agent-Person relationship exists, None otherwise
 
 ### Capability-Based Private Data Sharing
 
@@ -368,29 +485,61 @@ Validates agent private data using existing capability grant.
 
 ## Link Architecture
 
+The Person-Centric Link Strategy uses a unified **Agent → Person → Data** pattern that simplifies access while enabling multi-device scenarios.
+
 ### Discovery Links
 
 - **AllPersons**: `persons anchor -> person_hash` - Global person discovery
-- **AgentToPerson**: `agent_pubkey -> person_hash` - Agent profile lookup
+- **AgentToPerson**: `agent_pubkey -> person_hash` - Agent-to-Person relationship lookup
+- **PersonToAgent**: `person_hash -> agent_pubkey` - Reverse lookup for device management
 
-### Privacy Links
+### Privacy Links (Person-Centric)
 
-- **PersonToPrivateData**: `person_hash -> private_data_hash` - Private data access
-- **AgentToPrivateData**: `agent_pubkey -> private_data_hash` - Direct private data access
+- **PersonToPrivateData**: `person_hash -> private_data_hash` - **Primary private data access**
+- **PrivateDataUpdates**: `original_hash -> updated_hash` - Private data version history
 
-### Role Links
+**Key Improvement**: Simplified from 3 redundant strategies to 1 unified Person-centric approach
 
-- **PersonToRoles**: `person_hash -> role_hash` - Agent role queries
+### Role Links (Person-Centric)
+
+- **PersonToRoles**: `person_hash -> role_hash` - Person role queries (works across all devices)
 - **RoleUpdates**: `original_hash -> updated_hash` - Role version history
+
+**Multi-Device Benefit**: Roles are assigned to Persons, not individual Agents, so they work across all devices
 
 ### Versioning Links
 
 - **PersonUpdates**: `original_hash -> updated_hash` - Person version history
 
+### Device Management Links
+
+- **PersonToDevices**: `person_hash -> device_hash` - All devices belonging to a person
+- **DeviceToSessions**: `device_id -> session_hash` - Device session tracking
+- **AgentToRelationship**: `agent_pubkey -> relationship_hash` - AgentPersonRelationship tracking
+
 ### Capability Management Links
 
 - **AgentToCapabilityMetadata**: `agent_pubkey -> grant_hash` - Track grants created by agent
 - **RevokedGrantAnchor**: Anchor for revoked capability grants
+
+### Cross-Zome Integration Pattern
+
+```rust
+// Other zomes use this pattern for Person-centric access
+let person_hash = call(
+    CallTargetCell::Local,
+    "zome_person",
+    "get_agent_person".into(),
+    None,
+    &agent_pubkey,
+)?;
+
+if let Some(person) = person_hash {
+    // Access Person's data, roles, resources
+    let roles = call("zome_person", "get_person_roles", None, &person_hash)?;
+    let resources = call("zome_resource", "get_person_resources", None, &person_hash)?;
+}
+```
 
 ## Error Handling
 
@@ -436,63 +585,124 @@ pub enum PersonError {
 
 ## Integration with Other Zomes
 
-### Cross-Zome Role Validation
+The Person-Centric architecture provides a unified integration pattern for all zomes.
+
+### Person-Centric Access Pattern
 
 ```rust
-// Check if agent has required role for operation
-let has_capability = call(
+// RESOLUTION PATTERN: Agent → Person → Data
+let person_hash = call(
     CallTargetCell::Local,
     "zome_person",
-    "has_person_role_capability".into(),
+    "get_agent_person".into(),
     None,
-    &("agent_pubkey", "required_role".to_string()),
+    &agent_pubkey,
 )?;
+
+if let Some(person) = person_hash {
+    // Access Person's unified data across all their devices
+    let roles = call("zome_person", "get_person_roles", None, &person_hash)?;
+    let private_data = call("zome_person", "get_person_private_data", None, &person_hash)?;
+    let resources = call("zome_resource", "get_person_resources", None, &person_hash)?;
+}
 ```
+
+### Cross-Zome Role Validation (Person-Centric)
+
+```rust
+// Check if PERSON (not agent) has required role for operation
+let person_hash = call("zome_person", "get_agent_person", None, &agent_pubkey)?;
+if let Some(person) = person_hash {
+    let has_capability = call(
+        CallTargetCell::Local,
+        "zome_person",
+        "has_person_role_capability".into(),
+        None,
+        &(person, "required_role".to_string()),
+    )?;
+}
+```
+
+**Multi-Device Benefit**: Role validation works consistently across all user devices
 
 ### Agent Capability Level Validation
 
 ```rust
-// Check agent capability level for resource operations
-let capability_level = call(
-    CallTargetCell::Local,
-    "zome_person",
-    "get_person_capability_level".into(),
-    None,
-    &agent_pubkey,
-)?;
+// Check PERSON's capability level (unified across devices)
+let person_hash = call("zome_person", "get_agent_person", None, &agent_pubkey)?;
+if let Some(person) = person_hash {
+    let capability_level = call(
+        CallTargetCell::Local,
+        "zome_person",
+        "get_person_capability_level".into(),
+        None,
+        &person,
+    )?;
+}
 ```
 
 ### Private Data Validation for Governance
 
 ```rust
-// Governance zome accessing private data for agent validation
-let validation_result = call(
-    CallTargetCell::Local,
-    "zome_person",
-    "validate_agent_private_data".into(),
-    None,
-    &ValidationDataRequest {
-        agent_to_validate: agent_pubkey,
-        validation_type: "agent_promotion".to_string(),
-        requesting_validator: validator_pubkey,
-        validation_context: validation_hash,
-    },
-)?;
+// Governance zome accessing PERSON's private data (not agent-specific)
+let person_hash = call("zome_person", "get_agent_person", None, &agent_pubkey)?;
+if let Some(person) = person_hash {
+    let validation_result = call(
+        CallTargetCell::Local,
+        "zome_person",
+        "validate_agent_private_data".into(),
+        None,
+        &ValidationDataRequest {
+            agent_to_validate: agent_pubkey,
+            validation_type: "agent_promotion".to_string(),
+            requesting_validator: validator_pubkey,
+            validation_context: validation_hash,
+        },
+    )?;
+}
+```
+
+### Resource Zome Integration
+
+```rust
+// Resources linked to PERSON, not individual agents
+let person_hash = call("zome_person", "get_agent_person", None, &agent_pubkey)?;
+if let Some(person) = person_hash {
+    // Get all resources belonging to this person (across all devices)
+    let resources = call("zome_resource", "get_person_resources", None, &person_hash)?;
+
+    // Create new resource linked to person
+    let resource = call("zome_resource", "create_resource", None, &ResourceInput {
+        person_hash: person,
+        // ... other fields
+    })?;
+}
 ```
 
 ## Implementation Status
 
 ### ✅ **Completed Features**
 
+- **Person-Centric Architecture**: Unified Agent → Person → Data relationship pattern
+- **Multi-Device Support**: Complete device management with AgentPersonRelationship tracking
 - **Person Profile Management**: Public identity with name, avatar, bio
-- **Private Data Management**: Secure personal information storage with field-level control
-- **Role-Based Access Control**: 6-level role hierarchy with capability evaluation
+- **Private Data Management**: Simplified Person-centric private data access (1 unified strategy)
+- **Role-Based Access Control**: 6-level role hierarchy with Person-centric assignment
 - **Capability-Based Sharing**: Holochain native CapGrant/CapClaim system for private data
+- **Device Management**: Complete device registration, tracking, and session management
 - **Agent Promotion Workflows**: Simple Agent → Accountable Agent promotion with governance validation
-- **Cross-Zome Integration**: Role and capability validation for resource and governance zomes
-- **Versioning Support**: Complete update history for persons and roles
-- **Privacy Controls**: Four-layer privacy model with granular access control
+- **Cross-Zome Integration**: Person-centric role and capability validation for all zomes
+- **Versioning Support**: Complete update history for persons, roles, and devices
+- **Privacy Controls**: Four-layer privacy model with Person-centric access control
 - **Validation Functions**: Private data validation for governance workflows
+
+### 🚀 **New Person-Centric Capabilities**
+
+- **Simplified Link Management**: Reduced from 3 redundant strategies to 1 unified approach
+- **Multi-Device Identity**: Same Person can operate across multiple devices seamlessly
+- **Unified Data Access**: All data (roles, resources, private info) accessed through Person
+- **Device Security Policies**: Device-based access control and session management
+- **Cross-Device Consistency**: Roles and permissions work consistently across all devices
 
 ### 🔧 **Current Limitations**
 
@@ -508,5 +718,7 @@ let validation_result = call(
 - **Advanced Delegation**: Temporary role assignments with time-based expiration
 - **Smart Grant Management**: AI-assisted private data sharing recommendations
 - **Cross-Network Identity**: Federated identity management across multiple networks
+- **Device Trust Scoring**: Reputation-based device security policies
+- **Advanced Session Management**: Multi-device session coordination and security
 
 The Person zome provides the foundational identity and privacy infrastructure for the nondominium ecosystem, enabling secure agent interactions with comprehensive role-based governance and sophisticated private data sharing capabilities.

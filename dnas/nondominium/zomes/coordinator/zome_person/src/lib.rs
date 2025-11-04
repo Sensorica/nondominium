@@ -4,11 +4,19 @@ pub mod person;
 pub mod private_data;
 pub mod capability_based_sharing;
 pub mod role;
+pub mod device_management;
 
 pub use person::*;
 pub use private_data::*;
 pub use capability_based_sharing::*;
 pub use role::*;
+pub use device_management::*;
+
+// Resolve ambiguous re-exports
+pub use person::PromoteAgentInput as PersonPromoteAgentInput;
+pub use role::PromoteAgentInput as RolePromoteAgentInput;
+pub use capability_based_sharing::ValidationResult as SharingValidationResult;
+pub use role::ValidationResult as RoleValidationResult;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PersonError {

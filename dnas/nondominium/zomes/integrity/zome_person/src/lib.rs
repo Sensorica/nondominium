@@ -124,6 +124,58 @@ pub struct RevokedGrantMarker {
   pub revoked_by: AgentPubKey,
 }
 
+/// Device registration for multi-device support
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct Device {
+  /// Unique device identifier
+  pub device_id: String,
+  /// Human-readable device name
+  pub device_name: String,
+  /// Device type (e.g., "mobile", "desktop", "tablet")
+  pub device_type: String,
+  /// Agent that owns this device
+  pub owner_agent: AgentPubKey,
+  /// Person this device belongs to
+  pub owner_person: ActionHash,
+  /// When the device was registered
+  pub registered_at: Timestamp,
+  /// Last time this device was active
+  pub last_active: Timestamp,
+  /// Device status (active, inactive, revoked)
+  pub status: DeviceStatus,
+}
+
+/// Device status enumeration
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DeviceStatus {
+  Active,
+  Inactive,
+  Revoked,
+}
+
+/// Agent-Person relationship entry for tracking many-to-many relationships
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct AgentPersonRelationship {
+  /// Agent in the relationship
+  pub agent: AgentPubKey,
+  /// Person in the relationship
+  pub person: ActionHash,
+  /// When this relationship was established
+  pub established_at: Timestamp,
+  /// Type of relationship (primary, secondary, device-specific)
+  pub relationship_type: AgentPersonRelationshipType,
+}
+
+/// Types of Agent-Person relationships
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum AgentPersonRelationshipType {
+  Primary,      // Primary agent for a person
+  Secondary,    // Additional agent for a person (multi-device)
+  Device,       // Device-specific agent
+}
+
 /// Filtered private data structure for capability-based access
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -156,29 +208,37 @@ pub enum EntryTypes {
   #[entry_type(visibility = "private")]
   RevokedGrantMarker(RevokedGrantMarker),
   FilteredPrivateData(FilteredPrivateData),
+  // Multi-device support entries
+  Device(Device),
+  AgentPersonRelationship(AgentPersonRelationship),
 }
 
 #[hdk_link_types]
 pub enum LinkTypes {
-  // Person discovery
-  AllPersons,
-  // Agent to their person profile
-  AgentToPerson,
-  // Person updates (for versioning)
-  PersonUpdates,
-  // Person to their private data
-  PersonToPrivateData,
-  // Agent to their private data (direct link for reliability)
-  AgentToPrivateData,
-  // Private data discovery via anchor paths
-  PrivateDataDiscovery,
-  // Person to their roles
-  PersonToRoles,
-  // Role updates (for versioning)
-  RoleUpdates,
+  // === CORE PERSON-CENTRIC LINKS ===
+
+  // Person discovery and indexing
+  AllPersons,                    // Anchor -> Person (global discovery)
+  PersonUpdates,                 // Person -> Person (versioning)
+
+  // Agent-Person relationships (supports multi-device)
+  AgentToPerson,                 // Agent -> Person (primary relationship)
+  PersonToAgents,                // Person -> Agent (reverse lookup for multi-device)
+
+  // Person data relationships
+  PersonToPrivateData,           // Person -> PrivateData (person-centric access)
+  PersonToRoles,                 // Person -> Role (person-centric roles)
+
+  // Versioning and updates
+  RoleUpdates,                   // Role -> Role (versioning)
+
   // Capability-based access management
-  AgentToCapabilityMetadata, // Link agent to their capability grant metadata
-  RevokedGrantAnchor, // Anchor for revoked capability grants
+  AgentToCapabilityMetadata,     // Agent -> CapabilityMetadata (tracking grants)
+  RevokedGrantAnchor,            // Anchor -> RevokedGrantMarker (cleanup tracking)
+
+  // Device management (for multi-device support)
+  PersonToDevices,               // Person -> Device (device registry)
+  DeviceToPerson,                // Device -> Person (device ownership)
 }
 
 #[hdk_extern]
@@ -218,6 +278,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
           EntryTypes::RevokedGrantMarker(_revoked_marker) => {
             return validate_revoked_grant_marker();
+          }
+          EntryTypes::Device(device) => {
+            return validate_device(device);
+          }
+          EntryTypes::AgentPersonRelationship(relationship) => {
+            return validate_agent_person_relationship(relationship);
           }
         }
       }
@@ -289,6 +355,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
           EntryTypes::RevokedGrantMarker(_) => {
             return validate_delete_revoked_grant_marker();
+          }
+          EntryTypes::Device(_) => {
+            return validate_delete_device();
+          }
+          EntryTypes::AgentPersonRelationship(_) => {
+            return validate_delete_agent_person_relationship();
           }
         }
       }
@@ -455,4 +527,61 @@ pub fn validate_revoked_grant_marker() -> ExternResult<ValidateCallbackResult> {
 
 pub fn validate_delete_revoked_grant_marker() -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid) // Allow deletion for cleanup
+}
+
+pub fn validate_device(device: Device) -> ExternResult<ValidateCallbackResult> {
+  // Validate device_id is not empty
+  if device.device_id.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Device ID cannot be empty".to_string(),
+    ));
+  }
+
+  // Validate device_name is not empty
+  if device.device_name.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Device name cannot be empty".to_string(),
+    ));
+  }
+
+  // Validate device_type is not empty
+  if device.device_type.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Device type cannot be empty".to_string(),
+    ));
+  }
+
+  // Validate device_type is one of allowed types
+  let allowed_types = ["mobile", "desktop", "tablet", "web", "server"];
+  if !allowed_types.contains(&device.device_type.as_str()) {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "Invalid device type: {}. Must be one of: {:?}",
+      device.device_type, allowed_types
+    )));
+  }
+
+  // Validate timestamps are reasonable
+  if device.registered_at > device.last_active {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Registration time cannot be after last active time".to_string(),
+    ));
+  }
+
+  Ok(ValidateCallbackResult::Valid)
+}
+
+pub fn validate_delete_device() -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Valid) // Allow device deletion for cleanup
+}
+
+pub fn validate_agent_person_relationship(
+  _relationship: AgentPersonRelationship,
+) -> ExternResult<ValidateCallbackResult> {
+  // Basic validation - the relationship structure itself ensures most constraints
+  // Timestamp validation is handled at the coordinator level where sys_time is available
+  Ok(ValidateCallbackResult::Valid)
+}
+
+pub fn validate_delete_agent_person_relationship() -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Valid) // Allow relationship deletion for cleanup
 }

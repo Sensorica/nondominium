@@ -2,6 +2,7 @@ use crate::PersonError;
 use hdk::prelude::*;
 use zome_person_integrity::*;
 use nondominium_utils::call_governance_zome;
+use crate::person::get_agent_person;
 
 // Cross-zome call structure for governance validation
 #[derive(Serialize, Deserialize, Debug)]
@@ -86,19 +87,18 @@ pub fn assign_person_role(input: PersonRoleInput) -> ExternResult<Record> {
     PersonError::EntryOperationFailed("Failed to retrieve created role".to_string()),
   )?;
 
-  // Link from person to role
-  let person_links = get_links(
-    GetLinksInputBuilder::try_new(input.agent_pubkey, LinkTypes::AgentToPerson)?.build(),
-  )?;
+  // Link from person to role using Person-centric approach
+  let person_hash = match get_agent_person(input.agent_pubkey.clone())? {
+    Some(hash) => hash,
+    None => return Err(PersonError::PersonNotFound("No person found for agent".to_string()).into()),
+  };
 
-  if let Some(person_link) = person_links.first() {
-    create_link(
-      person_link.target.clone(),
-      role_hash,
-      LinkTypes::PersonToRoles,
-      (),
-    )?;
-  }
+  create_link(
+    person_hash,
+    role_hash,
+    LinkTypes::PersonToRoles,
+    (),
+  )?;
 
   Ok(record)
 }
@@ -189,21 +189,22 @@ pub struct GetPersonRolesOutput {
 
 #[hdk_extern]
 pub fn get_person_roles(agent_pubkey: AgentPubKey) -> ExternResult<GetPersonRolesOutput> {
-  let person_links =
-    get_links(GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build())?;
-
   let mut roles = Vec::new();
 
-  if let Some(person_link) = person_links.first() {
-    let role_links = get_links(
-      GetLinksInputBuilder::try_new(person_link.target.clone(), LinkTypes::PersonToRoles)?.build(),
-    )?;
+  // Use the new get_agent_person function for cleaner code
+  let person_hash = match get_agent_person(agent_pubkey)? {
+    Some(hash) => hash,
+    None => return Ok(GetPersonRolesOutput { roles }),
+  };
 
-    for role_link in role_links {
-      if let Some(action_hash) = role_link.target.into_action_hash() {
-        if let Ok(role) = get_latest_person_role(action_hash) {
-          roles.push(role);
-        }
+  let role_links = get_links(
+    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToRoles)?.build(),
+  )?;
+
+  for role_link in role_links {
+    if let Some(action_hash) = role_link.target.into_action_hash() {
+      if let Ok(role) = get_latest_person_role(action_hash) {
+        roles.push(role);
       }
     }
   }
@@ -368,7 +369,7 @@ pub fn request_role_promotion(input: RolePromotionRequest) -> ExternResult<Actio
   
   // Create a promotion request entry (for now, we'll use a simple data structure)
   // In a full implementation, this would be a new entry type
-  let request_context = format!(
+  let _request_context = format!(
     "promotion_request_{}_{}_{}",
     agent_info.agent_initial_pubkey,
     input.target_role.replace(" ", "_").to_lowercase(),

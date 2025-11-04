@@ -1,6 +1,7 @@
 use crate::PersonError;
 use hdk::prelude::*;
 use zome_person_integrity::*;
+use crate::person::get_agent_person;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PrivatePersonDataInput {
@@ -30,46 +31,29 @@ pub fn store_private_person_data(input: PrivatePersonDataInput) -> ExternResult<
     PersonError::EntryOperationFailed("Failed to retrieve created private data".to_string()),
   )?;
 
-  // Create multiple link strategies to ensure private data can be found
+  // Person-centric private data management - single unified strategy
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
 
-  // Strategy 1: Direct Agent -> PrivateData link (new approach)
-  warn!("🔗 Creating AgentToPrivateData link");
-  create_link(
-    agent_pubkey.clone(),
-    private_data_hash.clone(),
-    LinkTypes::AgentToPrivateData,
-    (),
-  )?;
-
-  // Strategy 2: Try to create Person -> PrivateData link if person exists
-  let mut person_link_created = false;
+  // Get the person for this agent
   let person_links = get_links(
     GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
   )?;
 
   if let Some(person_link) = person_links.first() {
-    warn!("🔗 Creating PersonToPrivateData link");
-    create_link(
-      person_link.target.clone(),
-      private_data_hash.clone(),
-      LinkTypes::PersonToPrivateData,
-      (),
-    )?;
-    person_link_created = true;
+    if let Some(person_hash) = person_link.target.clone().into_action_hash() {
+      // Create Person -> PrivateData link (person-centric approach)
+      create_link(
+        person_hash,
+        private_data_hash.clone(),
+        LinkTypes::PersonToPrivateData,
+        (),
+      )?;
+    } else {
+      return Err(PersonError::PersonNotFound("No person found for agent".to_string()).into());
+    }
   } else {
-    warn!("⚠️ No AgentToPerson links found, skipping PersonToPrivateData link");
+    return Err(PersonError::PersonNotFound("No person found for agent".to_string()).into());
   }
-
-  // Strategy 3: Create an anchor-based link for discovery
-  warn!("🔗 Creating private data discovery anchor link");
-  let anchor_path = Path::from(format!("private_data_{}", agent_pubkey.to_string()));
-  create_link(
-    anchor_path.path_entry_hash()?,
-    private_data_hash.clone(),
-    LinkTypes::PrivateDataDiscovery,
-    (),
-  )?;
 
   Ok(record)
 }
@@ -108,35 +92,16 @@ pub fn update_private_person_data(input: UpdatePrivatePersonDataInput) -> Extern
 #[hdk_extern]
 pub fn get_my_private_person_data(_: ()) -> ExternResult<Option<PrivatePersonData>> {
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
-  let person_links =
-    get_links(GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build())?;
 
-  if let Some(person_link) = person_links.first() {
-    let private_data_links = get_links(
-      GetLinksInputBuilder::try_new(person_link.target.clone(), LinkTypes::PersonToPrivateData)?
-        .build(),
-    )?;
+  // Use the new get_agent_person function for cleaner code
+  let person_hash = match get_agent_person(agent_pubkey)? {
+    Some(hash) => hash,
+    None => return Ok(None),
+  };
 
-    if let Some(private_data_link) = private_data_links.first() {
-      if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
-        if let Some(record) = get(action_hash, GetOptions::default())? {
-          if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
-            return Ok(Some(private_data));
-          }
-        }
-      }
-    }
-  }
-
-  Ok(None)
-}
-
-/// Get private data for a specific agent by their public key
-#[hdk_extern]
-pub fn get_agent_private_data(agent_pubkey: AgentPubKey) -> ExternResult<Option<PrivatePersonData>> {
-  // First try the direct AgentToPrivateData link (new approach)
+  // Get private data through Person-centric approach
   let private_data_links = get_links(
-    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPrivateData)?.build(),
+    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToPrivateData)?.build(),
   )?;
 
   if let Some(private_data_link) = private_data_links.first() {
@@ -149,23 +114,28 @@ pub fn get_agent_private_data(agent_pubkey: AgentPubKey) -> ExternResult<Option<
     }
   }
 
-  // Fallback: try the old approach via Person -> PrivateData link
-  let person_links = get_links(
-    GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build(),
+  Ok(None)
+}
+
+/// Get private data for a specific agent by their public key (Person-centric approach)
+#[hdk_extern]
+pub fn get_agent_private_data(agent_pubkey: AgentPubKey) -> ExternResult<Option<PrivatePersonData>> {
+  // Use the new get_agent_person function for cleaner code
+  let person_hash = match get_agent_person(agent_pubkey)? {
+    Some(hash) => hash,
+    None => return Ok(None),
+  };
+
+  // Get private data through Person-centric approach
+  let private_data_links = get_links(
+    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToPrivateData)?.build(),
   )?;
 
-  if let Some(person_link) = person_links.first() {
-    let private_data_links = get_links(
-      GetLinksInputBuilder::try_new(person_link.target.clone(), LinkTypes::PersonToPrivateData)?
-        .build(),
-    )?;
-
-    if let Some(private_data_link) = private_data_links.first() {
-      if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
-        if let Some(record) = get(action_hash, GetOptions::default())? {
-          if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
-            return Ok(Some(private_data));
-          }
+  if let Some(private_data_link) = private_data_links.first() {
+    if let Some(action_hash) = private_data_link.target.clone().into_action_hash() {
+      if let Some(record) = get(action_hash, GetOptions::default())? {
+        if let Ok(Some(private_data)) = record.entry().to_app_option::<PrivatePersonData>() {
+          return Ok(Some(private_data));
         }
       }
     }

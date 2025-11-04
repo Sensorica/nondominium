@@ -669,7 +669,6 @@ pub struct ValidationDataRequestWithGrant {
 /// to access the target agent's private data
 #[hdk_extern]
 pub fn validate_agent_private_data(input: ValidationDataRequest) -> ExternResult<ValidationResult> {
-  let agent_info = agent_info()?;
   let now = sys_time()?;
 
   // Check if the governance requester has a valid capability grant from the target agent
