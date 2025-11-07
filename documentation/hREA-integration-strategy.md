@@ -12,23 +12,23 @@ This document outlines the comprehensive integration strategy for incorporating 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    TrueCommon                                │
-│  (Broader application using Nondominium as core engine)      │
+│                    TrueCommon - Peer Production             │
+│  (Broader application using Nondominium as core engine)     │
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
-│                  Nondominium                                │
-│           (Specialized Engine - 3 Zomes)                    │
+│                  Nondominium - Peer Sharing                 │
+│                (Specialized Engine - 3 Zomes)               │
 │  ┌─────────────────┬─────────────────┬─────────────────┐    │
 │  │   Person        │    Resource     │   Governance    │    │
 │  │   Management    │   Lifecycle     │   + PPR System  │    │
 │  └─────────────────┴─────────────────┴─────────────────┘    │
-│                      │  Cross-DNA Calls                      │
+│                      │  Cross-DNA Calls                     │
 └─────────────────────▼───────────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
 │                     hREA                                    │
-│        (Standard ValueFlows Implementation)                  │
+│        (Standard ValueFlows Implementation)                 │
 │  ┌─────────────────┬─────────────────┬─────────────────┐    │
 │  │   ReaAgent      │ EconomicResource│  ReaCommitment  │    │
 │  │   (Enhanced)    │   (Enhanced)    │   (Enhanced)    │    │
@@ -49,6 +49,7 @@ This document outlines the comprehensive integration strategy for incorporating 
 ### Phase 1: Person Zome Pilot (Starting Point)
 
 **Why Person Zome First?**
+
 - Self-contained with minimal dependencies
 - Tests cross-DNA calls without complex business logic
 - Immediate value - agents are foundational to all hREA functionality
@@ -274,7 +275,7 @@ pub struct EncryptedProfileData {
 
 ```typescript
 // tests/src/multi-dna/hrea-integration.test.ts
-describe('Nondominium-hREA Integration', () => {
+describe("Nondominium-hREA Integration", () => {
   let scenario: Scenario;
   let agents: PlayerApp[];
 
@@ -283,19 +284,19 @@ describe('Nondominium-hREA Integration', () => {
       // Setup dual-DNA environment
       const nondominiumConfig = {
         appBundleSource: { type: "path", value: "workdir/nondominium.happ" },
-        options: { networkSeed: "integration_test" }
+        options: { networkSeed: "integration_test" },
       };
 
       const hreaConfig = {
         appBundleSource: { type: "path", value: "workdir/hrea.happ" },
-        options: { networkSeed: "integration_test" }
+        options: { networkSeed: "integration_test" },
       };
 
       return await s.addPlayersWithApps([nondominiumConfig, hreaConfig]);
     });
   });
 
-  test('Person creation cross-DNA integration', async () => {
+  test("Person creation cross-DNA integration", async () => {
     // 1. Create person via Nondominium interface
     const personResult = await agents[0].appWs.callZome({
       role_name: "person",
@@ -303,8 +304,8 @@ describe('Nondominium-hREA Integration', () => {
       fn_name: "create_person_with_private_data",
       payload: {
         name: "Alice Smith",
-        privateData: { email: "alice@example.com", phone: "555-1234" }
-      }
+        privateData: { email: "alice@example.com", phone: "555-1234" },
+      },
     });
 
     // 2. Verify HreaAgent created in hREA DNA
@@ -312,7 +313,7 @@ describe('Nondominium-hREA Integration', () => {
       role_name: "planning",
       zome_name: "economic_agent",
       fn_name: "get_agent",
-      payload: personResult.hrea_agent_hash
+      payload: personResult.hrea_agent_hash,
     });
 
     expect(hreaAgent.name).toBe("Alice Smith");
@@ -323,7 +324,7 @@ describe('Nondominium-hREA Integration', () => {
       role_name: "person",
       zome_name: "person",
       fn_name: "get_private_profile",
-      payload: personResult.encrypted_profile_hash
+      payload: personResult.encrypted_profile_hash,
     });
 
     expect(privateProfile.email).toBe("alice@example.com");
@@ -344,12 +345,16 @@ describe('Nondominium-hREA Integration', () => {
 ```typescript
 // tests/src/helpers/multi-dna-helpers.ts
 export class HreaIntegrationTestUtils {
-  static async createTestPerson(player: PlayerApp, name: string, privateData?: any) {
+  static async createTestPerson(
+    player: PlayerApp,
+    name: string,
+    privateData?: any,
+  ) {
     return await player.appWs.callZome({
       role_name: "person",
       zome_name: "person",
       fn_name: "create_person_with_private_data",
-      payload: { name, privateData }
+      payload: { name, privateData },
     });
   }
 
@@ -358,7 +363,7 @@ export class HreaIntegrationTestUtils {
       role_name: "planning",
       zome_name: "economic_agent",
       fn_name: "get_agent",
-      payload: personHash
+      payload: personHash,
     });
     return hreaAgent;
   }
@@ -367,7 +372,7 @@ export class HreaIntegrationTestUtils {
     try {
       await dhtSync(players, players[0].cells[0].cell_id[0], {
         timeout,
-        pollingInterval: 1000
+        pollingInterval: 1000,
       });
     } catch (error) {
       console.warn("DHT sync timeout, proceeding with test");
@@ -466,6 +471,7 @@ While maintaining Nondominium's innovations as a separate layer initially, the P
 ## Implementation Roadmap
 
 ### Phase 1: Foundation (Person Zome Integration)
+
 - [ ] Set up git submodule structure
 - [ ] Implement Person zome bridge functions
 - [ ] Create EncryptedProfile integration
@@ -473,18 +479,21 @@ While maintaining Nondominium's innovations as a separate layer initially, the P
 - [ ] Validate cross-DNA capability patterns
 
 ### Phase 2: Expansion (Resource Integration)
+
 - [ ] Extend resource lifecycle with hREA integration
 - [ ] Implement bi-directional synchronization
 - [ ] Add performance optimization layer
 - [ ] Create comprehensive resource sharing tests
 
 ### Phase 3: Governance Integration
+
 - [ ] Integrate PPR system with hREA commitments
 - [ ] Implement governance workflow bridges
 - [ ] Develop governance-specific testing scenarios
 - [ ] Document governance enhancement patterns
 
 ### Phase 4: Production Readiness
+
 - [ ] Performance optimization and monitoring
 - [ ] Security audit of cross-DNA interactions
 - [ ] Documentation and deployment guides
@@ -519,6 +528,6 @@ The git submodule + cross-DNA approach provides the right balance of integration
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: 2025-11-04*
-*Status: Implementation Planning*
+_Document Version: 1.0_
+_Last Updated: 2025-11-04_
+_Status: Implementation Planning_
