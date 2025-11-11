@@ -1,6 +1,6 @@
 // Basic entry template for simple data structures
 // Use this for entries that just need basic CRUD operations
-// 🚨 CRITICAL: Follow proper Holochain patterns - NO timestamps, NO direct references
+// 🚨 CRITICAL: Follow proper Holochain patterns - NO create or update timestamps (already present in header metadata), NO direct references to other entries (prefer links)
 // 🆕 UPDATED 2025: Modern patterns with validation requirements
 
 #[hdk_entry_helper]
@@ -9,9 +9,6 @@ pub struct BasicEntry {
     // Business logic fields ONLY
     pub name: String,
     pub description: Option<String>,
-
-    // Agent ownership (NO timestamps!)
-    pub created_by: AgentPubKey,
 }
 
 // 🆕 MODERN Entry Type Definition with Validation Requirements

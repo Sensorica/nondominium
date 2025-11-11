@@ -1,28 +1,29 @@
 ---
-name: nondominium-holochain-dev
-description: Specialized development skill for nondominium Holochain zome development, providing workflows, patterns, and tools for creating, modifying, and building ValueFlows-compliant zomes with integrity/coordinator architecture. Use when working with Holochain zomes in the nondominium project, creating new economic resource sharing features, or following ValueFlows standards.
+name: nondominium-holochain-dna-dev
+description: Specialized skill for nondominium Holochain DNA development, focusing on zome creation, entry patterns, integrity/coordinator architecture, ValueFlows compliance, and WASM optimization. Use when creating new zomes, implementing entry types, or modifying Holochain DNA code.
 ---
 
-# Nondominium Holochain Development
+# Nondominium Holochain DNA Development
 
-This skill transforms Claude into a specialized nondominium Holochain development assistant, providing expert guidance for zome development following ValueFlows standards and the project's unique 3-zome architecture.
+This skill transforms Claude into a specialized nondominium Holochain DNA development assistant, providing expert guidance for creating zomes, implementing entry patterns, and following ValueFlows standards.
 
 ## When to Use This Skill
 
 **Use this skill when:**
-- Creating new zomes for the nondominium project
-- Implementing ValueFlows-compliant economic resource sharing features
-- Following integrity/coordinator zome architecture patterns
-- Working with capability-based access control systems
-- Building WASM-optimized Holochain applications
-- Debugging cross-zome communication issues
+- Creating new zomes or modifying existing DNA code
+- Implementing entry types and validation functions
+- Working with integrity/coordinator architecture
+- Following ValueFlows compliance patterns
+- Optimizing WASM compilation and performance
+- Implementing capability-based access control
+- Creating cross-zome communication patterns
 
 **Do NOT use for:**
-- General Holochain development (use generic Holochain guides instead)
-- Testing workflows (use the separate testing skill)
+- Testing workflows (use the Tryorama testing skill)
 - Frontend/UI development (use appropriate web development skills)
+- Generic Holochain development outside nondominium context
 
-## Core Development Workflows
+## Core DNA Development Workflows
 
 ### 1. Zome Creation Workflow
 
@@ -134,7 +135,7 @@ Follow ValueFlows-compliant entry patterns:
    ./scripts/package_happ.sh production
    ```
 
-## Critical Holochain Patterns
+## Critical Holochain DNA Patterns
 
 ### ✅ CORRECT Data Structure Patterns
 
@@ -349,62 +350,6 @@ Validate ValueFlows compliance:
 - Economic events must have valid participants
 - Commitments must have proper timing constraints
 
-## Performance Optimization
-
-### WASM Size Management
-
-- Use minimal dependencies and feature flags
-- Prefer compact data structures (u8 flags, bit fields)
-- Use `wee_alloc` for memory allocation
-- Enable LTO (Link-Time Optimization) in release builds
-
-### Query Optimization
-
-- Use targeted link queries with tag filters
-- Implement pagination for large result sets
-- Batch operations when possible
-- Cache frequently accessed cross-zome data
-
-### Memory Management
-
-- Avoid unnecessary clones of large data structures
-- Use references instead of owned data where possible
-- Implement efficient serialization patterns
-- Monitor memory usage in complex operations
-
-## Capability-Based Security
-
-### Role Management
-
-Implement hierarchical capability levels:
-- **Viewer (100)**: Read-only access to resources
-- **Member (200)**: Basic participation and resource usage
-- **Contributor (300)**: Resource modification and contribution
-- **Manager (400)**: Resource management and member oversight
-- **Admin (500)**: Full administrative access
-- **Owner (1000)**: Complete ownership and control
-
-### Access Control Patterns
-
-```rust
-// Check capability before operations
-if !agent_has_capability(&agent_pubkey, "create_resource") {
-    return Err(ZomeError::InsufficientCapability(
-        "Agent lacks 'create_resource' capability".to_string()
-    ).into());
-}
-
-// Store capability grants as entries
-let capability = CapabilityEntry {
-    agent: target_agent,
-    role: "contributor".to_string(),
-    capability_level: 300,
-    granted_by: agent_pubkey,
-    expires_at: Some(expiration_time),
-    // ... other fields
-};
-```
-
 ## Cross-Zome Communication
 
 ### Integrity Function Calls
@@ -486,49 +431,7 @@ create_link(resource_hash, owner_hash, LinkTypes::ResourceToOwner, LinkTag::new(
 create_link(resource_hash, facility_hash, LinkTypes::ResourceToFacility, LinkTag::new("located_at"))?;
 ```
 
-## Private Data Handling
-
-### PPR (Private Permissioned Requests)
-
-Implement secure private data sharing:
-
-1. **Request Creation**: Agent creates encrypted request with capability requirements
-2. **Permission Validation**: Target agent validates capabilities before decryption
-3. **Secure Response**: Encrypted response with audit trail
-4. **Access Logging**: All access logged for transparency
-
-### Encryption Patterns
-
-Use Holochain's built-in encryption for sensitive data:
-- Store encrypted private entries
-- Share decryption keys through capability tokens
-- Implement access logging and audit trails
-- Validate access permissions before decryption
-
-## Development Tools
-
-### Scripts
-
-- `create_zome.sh` - Automated zome creation with proper structure
-- `build_wasm.sh` - WASM compilation with optimization and validation
-- `validate_entry.sh` - Pattern validation for entry creation
-- `sync_integrity_coordinator.sh` - Layer consistency checking
-- `package_happ.sh` - hApp packaging and distribution
-
-### Templates
-
-- `assets/zome_template/` - Complete zome structure templates
-- `assets/entry_types/` - Common entry type patterns
-- `assets/function_templates/` - CRUD and query function templates
-
-### Reference Documentation
-
-- `references/zome_patterns.md` - Core architectural patterns
-- `references/valueflows_compliance.md` - ValueFlows implementation guide
-- `references/entry_creation_patterns.md` - Detailed entry creation workflows
-- `references/performance_patterns.md` - Optimization techniques
-
-## 🆕 Modern Validation Patterns (2025)
+## Modern Validation Patterns (2025)
 
 ### Current Validation Callback Structure
 
@@ -611,34 +514,60 @@ Op::RegisterCreateLink(create_link) => {
 }
 ```
 
-### Modern Error Handling
+## Performance Optimization
 
-Use structured error handling with clear messages:
+### WASM Size Management
+
+- Use minimal dependencies and feature flags
+- Prefer compact data structures (u8 flags, bit fields)
+- Use `wee_alloc` for memory allocation
+- Enable LTO (Link-Time Optimization) in release builds
+
+### Query Optimization
+
+- Use targeted link queries with tag filters
+- Implement pagination for large result sets
+- Batch operations when possible
+- Cache frequently accessed cross-zome data
+
+### Memory Management
+
+- Avoid unnecessary clones of large data structures
+- Use references instead of owned data where possible
+- Implement efficient serialization patterns
+- Monitor memory usage in complex operations
+
+## Capability-Based Security
+
+### Role Management
+
+Implement hierarchical capability levels:
+- **Viewer (100)**: Read-only access to resources
+- **Member (200)**: Basic participation and resource usage
+- **Contributor (300)**: Resource modification and contribution
+- **Manager (400)**: Resource management and member oversight
+- **Admin (500)**: Full administrative access
+- **Owner (1000)**: Complete ownership and control
+
+### Access Control Patterns
 
 ```rust
-#[derive(Debug, thiserror::Error)]
-pub enum ZomeError {
-    #[error("Entry not found: {0}")]
-    EntryNotFound(String),
-
-    #[error("Validation failed: {0}")]
-    ValidationError(String),
-
-    #[error("Link validation failed: {0}")]
-    LinkValidationError(String),
-
-    #[error("Permission denied: {0}")]
-    PermissionDenied(String),
-
-    #[error("Serialization error: {0}")]
-    SerializationError(#[from] SerializedBytesError),
+// Check capability before operations
+if !agent_has_capability(&agent_pubkey, "create_resource") {
+    return Err(ZomeError::InsufficientCapability(
+        "Agent lacks 'create_resource' capability".to_string()
+    ).into());
 }
 
-impl From<ZomeError> for WasmError {
-    fn from(err: ZomeError) -> Self {
-        wasm_error!(WasmErrorInner::Guest(err.to_string()))
-    }
-}
+// Store capability grants as entries
+let capability = CapabilityEntry {
+    agent: target_agent,
+    role: "contributor".to_string(),
+    capability_level: 300,
+    granted_by: agent_pubkey,
+    expires_at: Some(expiration_time),
+    // ... other fields
+};
 ```
 
 ## Quality Assurance
@@ -661,14 +590,6 @@ impl From<ZomeError> for WasmError {
 - [ ] Capability checks implemented for sensitive operations
 - [ ] WASM size under target limits
 - [ ] Performance optimizations applied
-
-### Testing Integration
-
-While this skill focuses on development, integrate with testing workflows:
-- Use foundation tests for basic function validation
-- Implement integration tests for cross-zome interactions
-- Create scenario tests for complete user workflows
-- Validate capability-based access control
 
 ## Best Practices
 
@@ -705,7 +626,7 @@ While this skill focuses on development, integrate with testing workflows:
 ## Resources
 
 ### Scripts/
-Executable automation scripts for common development tasks:
+Executable automation scripts for DNA development:
 - `create_zome.sh` - Creates new zomes with integrity/coordinator structure
 - `build_wasm.sh` - Compiles Rust code to WASM with optimization
 - `validate_entry.sh` - Validates entry creation patterns and conventions
@@ -713,14 +634,14 @@ Executable automation scripts for common development tasks:
 - `package_happ.sh` - Packages hApp bundles for distribution
 
 ### References/
-Comprehensive documentation for development patterns and standards:
+Comprehensive documentation for DNA development patterns:
 - `zome_patterns.md` - Core architectural patterns and conventions
 - `valueflows_compliance.md` - ValueFlows implementation guidelines
 - `entry_creation_patterns.md` - Detailed entry creation workflows
 - `performance_patterns.md` - Optimization techniques and best practices
 
 ### Assets/
-Code templates and boilerplate for rapid development:
+Code templates and boilerplate for rapid DNA development:
 - `zome_template/` - Complete integrity/coordinator zome templates
 - `entry_types/` - Common entry type patterns (basic, ValueFlows, capabilities)
 - `function_templates/` - CRUD and query function templates
