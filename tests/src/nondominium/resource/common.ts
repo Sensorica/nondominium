@@ -1,5 +1,10 @@
 import { CallableCell } from "@holochain/tryorama";
-import { ActionHash, Record as HolochainRecord, Link, AgentPubKey } from "@holochain/client";
+import {
+  ActionHash,
+  Record as HolochainRecord,
+  Link,
+  AgentPubKey,
+} from "@holochain/client";
 import {
   ResourceSpecification,
   EconomicResource,
@@ -20,7 +25,7 @@ import {
 
 // Sample data generators
 export function sampleResourceSpecification(
-  partialSpec: Partial<ResourceSpecificationInput> = {}
+  partialSpec: Partial<ResourceSpecificationInput> = {},
 ): ResourceSpecificationInput {
   return {
     name: "Community Tool",
@@ -41,7 +46,7 @@ export function sampleResourceSpecification(
 
 export function sampleEconomicResource(
   spec_hash: ActionHash,
-  partialResource: Partial<EconomicResourceInput> = {}
+  partialResource: Partial<EconomicResourceInput> = {},
 ): EconomicResourceInput {
   return {
     spec_hash,
@@ -53,7 +58,7 @@ export function sampleEconomicResource(
 }
 
 export function sampleGovernanceRule(
-  partialRule: Partial<GovernanceRuleInput> = {}
+  partialRule: Partial<GovernanceRuleInput> = {},
 ): GovernanceRuleInput {
   return {
     rule_type: "usage_limit",
@@ -66,7 +71,7 @@ export function sampleGovernanceRule(
 // Zome function wrappers for resource management
 export async function createResourceSpecification(
   cell: CallableCell,
-  spec: ResourceSpecificationInput
+  spec: ResourceSpecificationInput,
 ): Promise<CreateResourceSpecificationOutput> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -77,7 +82,7 @@ export async function createResourceSpecification(
 
 export async function createEconomicResource(
   cell: CallableCell,
-  resource: EconomicResourceInput
+  resource: EconomicResourceInput,
 ): Promise<CreateEconomicResourceOutput> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -88,7 +93,7 @@ export async function createEconomicResource(
 
 export async function createGovernanceRule(
   cell: CallableCell,
-  rule: GovernanceRuleInput
+  rule: GovernanceRuleInput,
 ): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -98,7 +103,7 @@ export async function createGovernanceRule(
 }
 
 export async function getAllResourceSpecifications(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<GetAllResourceSpecificationsOutput> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -108,7 +113,7 @@ export async function getAllResourceSpecifications(
 }
 
 export async function getAllEconomicResources(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<GetAllEconomicResourcesOutput> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -118,7 +123,7 @@ export async function getAllEconomicResources(
 }
 
 export async function getAllGovernanceRules(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<GetAllGovernanceRulesOutput> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -129,7 +134,7 @@ export async function getAllGovernanceRules(
 
 export async function getResourceSpecificationWithRules(
   cell: CallableCell,
-  spec_hash: ActionHash
+  spec_hash: ActionHash,
 ): Promise<GetResourceSpecWithRulesOutput> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -140,7 +145,7 @@ export async function getResourceSpecificationWithRules(
 
 export async function getResourcesBySpecification(
   cell: CallableCell,
-  spec_hash: ActionHash
+  spec_hash: ActionHash,
 ): Promise<HolochainRecord[]> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -150,7 +155,7 @@ export async function getResourcesBySpecification(
 }
 
 export async function getMyEconomicResources(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -160,7 +165,7 @@ export async function getMyEconomicResources(
 }
 
 export async function getMyResourceSpecifications(
-  cell: CallableCell
+  cell: CallableCell,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -171,7 +176,7 @@ export async function getMyResourceSpecifications(
 
 export async function transferCustody(
   cell: CallableCell,
-  input: TransferCustodyInput
+  input: TransferCustodyInput,
 ): Promise<TransferCustodyOutput> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -182,7 +187,7 @@ export async function transferCustody(
 
 export async function updateResourceState(
   cell: CallableCell,
-  input: { resource_hash: ActionHash; new_state: ResourceState }
+  input: { resource_hash: ActionHash; new_state: ResourceState },
 ): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -193,7 +198,7 @@ export async function updateResourceState(
 
 export async function getAgentEconomicResources(
   cell: CallableCell,
-  agent_pubkey: AgentPubKey
+  agent_pubkey: AgentPubKey,
 ): Promise<Link[]> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -204,7 +209,7 @@ export async function getAgentEconomicResources(
 
 export async function checkFirstResourceRequirement(
   cell: CallableCell,
-  agent_pub_key: AgentPubKey
+  agent_pub_key: AgentPubKey,
 ): Promise<boolean> {
   return cell.callZome({
     zome_name: "zome_resource",
@@ -216,7 +221,7 @@ export async function checkFirstResourceRequirement(
 // Test helper functions
 export function validateResourceSpecificationData(
   expected: ResourceSpecificationInput,
-  actual: ResourceSpecification
+  actual: ResourceSpecification,
 ): boolean {
   return (
     expected.name === actual.name &&
@@ -230,10 +235,10 @@ export function validateResourceSpecificationData(
 
 export function validateEconomicResourceData(
   expected: EconomicResourceInput,
-  actual: EconomicResource
+  actual: EconomicResource,
 ): boolean {
   return (
-    expected.spec_hash.toString() === actual.conforms_to.toString() &&
+    expected.spec_hash.toString() === (actual.conforms_to?.toString() || "") &&
     expected.quantity === actual.quantity &&
     expected.unit === actual.unit &&
     expected.current_location === actual.current_location &&
@@ -243,7 +248,7 @@ export function validateEconomicResourceData(
 
 export function validateGovernanceRuleData(
   expected: GovernanceRuleInput,
-  actual: GovernanceRule
+  actual: GovernanceRule,
 ): boolean {
   return (
     expected.rule_type === actual.rule_type &&
@@ -270,7 +275,7 @@ export interface ResourceTestContext {
 
 export async function setupBasicResourceSpecifications(
   lynn: any,
-  bob: any
+  bob: any,
 ): Promise<ResourceTestContext> {
   // Create resource specifications for both agents
   const lynnSpec = await createResourceSpecification(
@@ -278,7 +283,7 @@ export async function setupBasicResourceSpecifications(
     sampleResourceSpecification({
       name: "Lynn's Tool",
       category: "personal_tools",
-    })
+    }),
   );
 
   const bobSpec = await createResourceSpecification(
@@ -286,7 +291,7 @@ export async function setupBasicResourceSpecifications(
     sampleResourceSpecification({
       name: "Bob's Equipment",
       category: "equipment",
-    })
+    }),
   );
 
   return {
@@ -301,7 +306,7 @@ export async function setupBasicResourceSpecifications(
 
 export async function setupBasicResources(
   lynn: any,
-  bob: any
+  bob: any,
 ): Promise<ResourceTestContext> {
   const context = await setupBasicResourceSpecifications(lynn, bob);
 
@@ -312,7 +317,7 @@ export async function setupBasicResources(
       quantity: 2.0,
       unit: "pieces",
       current_location: "Lynn's Workspace",
-    })
+    }),
   );
 
   const bobResource = await createEconomicResource(
@@ -321,7 +326,7 @@ export async function setupBasicResources(
       quantity: 1.0,
       unit: "set",
       current_location: "Bob's Workshop",
-    })
+    }),
   );
 
   return {
@@ -335,7 +340,7 @@ export async function setupBasicResources(
 
 export async function setupResourcesWithGovernance(
   lynn: any,
-  bob: any
+  bob: any,
 ): Promise<ResourceTestContext> {
   // Create resource specifications with more governance rules
   const lynnSpec = await createResourceSpecification(
@@ -355,13 +360,13 @@ export async function setupResourcesWithGovernance(
           enforced_by: "Community",
         },
       ],
-    })
+    }),
   );
-  
+
   const bobSpec = await createResourceSpecification(
     bob.cells[0],
     sampleResourceSpecification({
-      name: "Bob's Equipment", 
+      name: "Bob's Equipment",
       category: "equipment",
       governance_rules: [
         {
@@ -370,7 +375,7 @@ export async function setupResourcesWithGovernance(
           enforced_by: "Resource Coordinator",
         },
       ],
-    })
+    }),
   );
 
   // Create additional standalone governance rule
@@ -380,7 +385,7 @@ export async function setupResourcesWithGovernance(
       rule_type: "safety_protocol",
       rule_data: JSON.stringify({ certification_required: true }),
       enforced_by: "Safety Officer",
-    })
+    }),
   );
 
   return {
@@ -396,7 +401,7 @@ export async function setupResourcesWithGovernance(
 
 export async function setupResourcesWithSpecifications(
   lynn: any,
-  bob: any
+  bob: any,
 ): Promise<ResourceTestContext> {
   const context = await setupBasicResourceSpecifications(lynn, bob);
 
@@ -407,7 +412,7 @@ export async function setupResourcesWithSpecifications(
       quantity: 2.0,
       unit: "pieces",
       current_location: "Lynn's Workspace",
-    })
+    }),
   );
 
   const bobResource = await createEconomicResource(
@@ -416,7 +421,7 @@ export async function setupResourcesWithSpecifications(
       quantity: 1.0,
       unit: "set",
       current_location: "Bob's Workshop",
-    })
+    }),
   );
 
   return {
@@ -428,7 +433,7 @@ export async function setupResourcesWithSpecifications(
 
 export async function setupGovernanceRules(
   lynn: any,
-  bob: any
+  bob: any,
 ): Promise<ResourceTestContext> {
   // Create governance rules for both agents
   const lynnRule = await createGovernanceRule(
@@ -437,7 +442,7 @@ export async function setupGovernanceRules(
       rule_type: "access_requirement",
       rule_data: JSON.stringify({ member_level: "verified" }),
       enforced_by: "Lynn",
-    })
+    }),
   );
 
   const bobRule = await createGovernanceRule(
@@ -446,7 +451,7 @@ export async function setupGovernanceRules(
       rule_type: "usage_limit",
       rule_data: JSON.stringify({ max_days: 7 }),
       enforced_by: "Bob",
-    })
+    }),
   );
 
   return {
@@ -476,7 +481,7 @@ export const TEST_CATEGORIES = {
 
 export const TEST_TAGS = {
   SHARED: "shared",
-  COMMUNITY: "community", 
+  COMMUNITY: "community",
   PERSONAL: "personal",
   VERIFIED: "verified",
   EXPERIMENTAL: "experimental",

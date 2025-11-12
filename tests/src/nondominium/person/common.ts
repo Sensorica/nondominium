@@ -1,4 +1,4 @@
-import { CallableCell } from "@holochain/tryorama";
+import { CallableCell, PlayerApp, dhtSync } from "@holochain/tryorama";
 import {
   ActionHash,
   Record as HolochainRecord,
@@ -484,3 +484,344 @@ export function getExpectedCapabilityLevel(roles: RoleType[]): CapabilityLevel {
     return CAPABILITY_LEVELS.MEMBER;
   }
 }
+
+// ============================================================================
+// DEVICE MANAGEMENT FUNCTIONS
+// ============================================================================
+
+export interface DeviceInput {
+  device_id: string;
+  device_name: string;
+  device_type: string;
+  person_hash: ActionHash;
+}
+
+export interface DeviceInfo {
+  device_id: string;
+  device_name: string;
+  device_type: string;
+  registered_at: number;
+  last_active: number;
+  status: "Active" | "Inactive" | "Revoked";
+}
+
+export function sampleDevice(
+  person_hash: ActionHash,
+  partialDevice: Partial<DeviceInput> = {},
+): DeviceInput {
+  return {
+    device_id: "device_" + Math.random().toString(36).substr(2, 9),
+    device_name: "Test Device",
+    device_type: "mobile",
+    person_hash,
+    ...partialDevice,
+  };
+}
+
+export function sampleDeviceWithId(
+  device_id: string,
+  person_hash: ActionHash,
+  partialDevice: Partial<DeviceInput> = {},
+): DeviceInput {
+  return {
+    device_id,
+    device_name: `Device ${device_id}`,
+    device_type: "mobile",
+    person_hash,
+    ...partialDevice,
+  };
+}
+
+// Device management zome function wrappers
+export async function registerDeviceForPerson(
+  cell: CallableCell,
+  deviceInput: DeviceInput,
+): Promise<HolochainRecord> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "register_device_for_person",
+    payload: deviceInput,
+  });
+}
+
+export async function getDevicesForPerson(
+  cell: CallableCell,
+  person_hash: ActionHash,
+): Promise<DeviceInfo[]> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "get_devices_for_person",
+    payload: person_hash,
+  });
+}
+
+export async function getMyDevices(cell: CallableCell): Promise<DeviceInfo[]> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "get_my_devices",
+    payload: null,
+  });
+}
+
+export async function getDeviceInfo(
+  cell: CallableCell,
+  device_id: string,
+): Promise<DeviceInfo | null> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "get_device_info",
+    payload: device_id,
+  });
+}
+
+export async function updateDeviceActivity(
+  cell: CallableCell,
+  device_id: string,
+): Promise<boolean> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "update_device_activity",
+    payload: device_id,
+  });
+}
+
+export async function deactivateDevice(
+  cell: CallableCell,
+  device_id: string,
+): Promise<boolean> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "deactivate_device",
+    payload: device_id,
+  });
+}
+
+// Agent-Person relationship management for multi-device support
+export async function addAgentToPerson(
+  cell: CallableCell,
+  agentToAdd: AgentPubKey,
+  personHash: ActionHash,
+): Promise<boolean> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "add_agent_to_person",
+    payload: [agentToAdd, personHash],
+  });
+}
+
+// Device validation helper functions
+export function validateDeviceData(
+  expected: DeviceInput,
+  actual: DeviceInfo,
+): boolean {
+  return (
+    expected.device_id === actual.device_id &&
+    expected.device_name === actual.device_name &&
+    expected.device_type === actual.device_type &&
+    actual.status === "Active"
+  );
+}
+
+export function validateDeviceTimestamps(device: DeviceInfo): boolean {
+  const now = Date.now() * 1000; // Convert to microseconds
+  const oneHourAgo = now - 60 * 60 * 1000000; // 1 hour ago in microseconds
+
+  return (
+    device.registered_at >= oneHourAgo &&
+    device.last_active >= device.registered_at &&
+    device.last_active <= now
+  );
+}
+
+// Multi-device test setup helpers
+export interface DeviceTestContext {
+  alice: PlayerApp;
+  bob: PlayerApp;
+  carol: PlayerApp;
+  alicePerson: HolochainRecord;
+  personHash: ActionHash;
+  aliceDevice: DeviceInfo;
+  bobDevice: DeviceInfo;
+  carolDevice: DeviceInfo;
+}
+
+export async function setupPersonWithMultipleDevices(
+  alice: PlayerApp,
+  bob: PlayerApp,
+  carol: PlayerApp,
+  personData: PersonInput = samplePerson({ name: "Alice Smith" }),
+  deviceCount: number = 3,
+): Promise<DeviceTestContext> {
+  // Alice creates person profile on primary device
+  const alicePerson = await createPerson(alice.cells[0], personData);
+  const personHash = alicePerson.signed_action.hashed.hash;
+
+  // Store private data for complete setup
+  await storePrivateData(
+    alice.cells[0],
+    samplePrivateData({
+      legal_name: "Alice Smith",
+      email: "alice@example.com",
+    }),
+  );
+
+  // Add Bob and Carol as agents to Alice's person for multi-device support
+  await addAgentToPerson(alice.cells[0], bob.agentPubKey, personHash);
+  await addAgentToPerson(alice.cells[0], carol.agentPubKey, personHash);
+
+  // Wait for agent-person relationships to propagate through DHT
+  await dhtSync([alice, bob, carol], alice.cells[0].cell_id[0]);
+
+  // Register devices (Alice=mobile, Bob=desktop, Carol=tablet)
+  const aliceDeviceInput = sampleDeviceWithId("alice_mobile", personHash, {
+    device_name: "Alice's Mobile",
+    device_type: "mobile",
+  });
+
+  const bobDeviceInput = sampleDeviceWithId("bob_desktop", personHash, {
+    device_name: "Bob's Desktop (Alice's device)",
+    device_type: "desktop",
+  });
+
+  const carolDeviceInput = sampleDeviceWithId("carol_tablet", personHash, {
+    device_name: "Carol's Tablet (Alice's device)",
+    device_type: "tablet",
+  });
+
+  // Register devices from different agents (now they can because they're associated with Alice's person)
+  await registerDeviceForPerson(alice.cells[0], aliceDeviceInput);
+  await registerDeviceForPerson(bob.cells[0], bobDeviceInput);
+  await registerDeviceForPerson(carol.cells[0], carolDeviceInput);
+
+  // Get device info for validation
+  const aliceDevices = await getMyDevices(alice.cells[0]);
+  const bobDevices = await getMyDevices(bob.cells[0]);
+  const carolDevices = await getMyDevices(carol.cells[0]);
+
+  const aliceDevice = aliceDevices.find((d) => d.device_id === "alice_mobile");
+  const bobDevice = bobDevices.find((d) => d.device_id === "bob_desktop");
+  const carolDevice = carolDevices.find((d) => d.device_id === "carol_tablet");
+
+  // Validate devices were found
+  if (!aliceDevice || !bobDevice || !carolDevice) {
+    throw new Error("Failed to find expected devices after registration");
+  }
+
+  return {
+    alice,
+    bob,
+    carol,
+    alicePerson,
+    personHash,
+    aliceDevice,
+    bobDevice,
+    carolDevice,
+  };
+}
+
+export async function validateCrossDevicePersonAccess(
+  devices: Array<{ agent: PlayerApp; deviceInfo: DeviceInfo }>,
+): Promise<boolean> {
+  const personProfiles = await Promise.all(
+    devices.map(async ({ agent }) => {
+      return await getMyProfile(agent.cells[0]);
+    }),
+  );
+
+  // All devices should see the same person
+  const firstPerson = personProfiles[0].person;
+  if (!firstPerson) return false;
+
+  return personProfiles.every(
+    (profile) =>
+      profile.person?.name === firstPerson.name &&
+      profile.person?.avatar_url === firstPerson.avatar_url &&
+      profile.person?.bio === firstPerson.bio,
+  );
+}
+
+export async function validateCrossDevicePrivateDataAccess(
+  devices: Array<{ agent: PlayerApp; deviceInfo: DeviceInfo }>,
+): Promise<boolean> {
+  const privateDataProfiles = await Promise.all(
+    devices.map(async ({ agent }) => {
+      return await getMyProfile(agent.cells[0]);
+    }),
+  );
+
+  // All devices should see private data (from their associated person)
+  // In a multi-device scenario, all agents should have access to private data
+  // through their agent-person relationships
+  return privateDataProfiles.every(
+    (profile) => profile.private_data !== undefined
+  );
+}
+
+// Governance zome function wrappers removed - these functions don't exist in the actual zome implementation
+
+export async function validateAgentPrivateData(
+  cell: CallableCell,
+  input: { requesting_agent: AgentPubKey; target_agent: AgentPubKey },
+): Promise<boolean> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "validate_agent_private_data",
+    payload: input,
+  });
+}
+
+
+export async function removeAgentFromPerson(
+  cell: CallableCell,
+  input: { agent: AgentPubKey; person_hash: ActionHash },
+): Promise<boolean> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "remove_agent_from_person",
+    payload: [input.agent, input.person_hash],
+  });
+}
+
+export async function isAgentAssociatedWithPerson(
+  cell: CallableCell,
+  input: { agent: AgentPubKey; person_hash: ActionHash },
+): Promise<boolean> {
+  return cell.callZome({
+    zome_name: "zome_person",
+    fn_name: "is_agent_associated_with_person",
+    payload: [input.agent, input.person_hash],
+  });
+}
+
+// Resource update wrappers
+export async function updateEconomicResource(
+  cell: CallableCell,
+  input: { resource_hash: ActionHash; new_quantity: number; note?: string },
+): Promise<HolochainRecord> {
+  return cell.callZome({
+    zome_name: "zome_resource",
+    fn_name: "update_economic_resource",
+    payload: input,
+  });
+}
+
+export async function getMyResourceSpecifications(
+  cell: CallableCell,
+): Promise<any> {
+  return cell.callZome({
+    zome_name: "zome_resource",
+    fn_name: "get_my_resource_specifications",
+    payload: null,
+  });
+}
+
+// Device type constants for testing
+export const DEVICE_TYPES = {
+  MOBILE: "mobile",
+  DESKTOP: "desktop",
+  TABLET: "tablet",
+  WEB: "web",
+  SERVER: "server",
+} as const;
+
+export type DeviceType = (typeof DEVICE_TYPES)[keyof typeof DEVICE_TYPES];

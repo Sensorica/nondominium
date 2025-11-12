@@ -231,6 +231,7 @@ pub enum LinkTypes {
 
   // Versioning and updates
   RoleUpdates,                   // Role -> Role (versioning)
+  DeviceUpdates,                 // Device -> Device (versioning)
 
   // Capability-based access management
   AgentToCapabilityMetadata,     // Agent -> CapabilityMetadata (tracking grants)
