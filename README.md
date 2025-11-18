@@ -1,5 +1,7 @@
 # Nondominium
 
+![Nondominium logo](nondominium.png)
+
 A **ValueFlows-compliant resource sharing Holochain application** implementing distributed, agent-centric resource management with embedded governance.
 
 ## Overview
