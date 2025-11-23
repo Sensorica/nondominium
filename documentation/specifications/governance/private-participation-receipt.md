@@ -200,14 +200,13 @@ This comprehensive lifecycle ensures complete accountability from resource creat
 ## PPR Process Flow Diagram
 
 ```mermaid
-graph TD
-    %% Genesis Phase
+flowchart TB
     subgraph Genesis["Genesis Phase"]
-        RC[Resource Creation]
-        Creator[Creator Agent]
-        Validator1[Validator Agent]
-        CreatorReceipt[Receipt: Resource Contribution]
-        ValidatorReceipt[Receipt: Network Validation]
+        RC["Resource Creation"]
+        Creator["Creator Agent"]
+        Validator1["Validator Agent"]
+        CreatorReceipt["Receipt: Resource Contribution"]
+        ValidatorReceipt["Receipt: Network Validation"]
 
         RC --> Creator
         RC --> Validator1
@@ -215,13 +214,12 @@ graph TD
         Validator1 --> ValidatorReceipt
     end
 
-    %% Active Use Phase
     subgraph ActiveUse["Active Use Phase"]
-        Transfer[Custody Transfer]
-        CustodianOut[Outgoing Custodian]
-        CustodianIn[Incoming Custodian]
-        OutReceipt[Receipt: Responsible Transfer]
-        InReceipt[Receipt: Custody Acceptance]
+        Transfer["Custody Transfer"]
+        CustodianOut["Outgoing Custodian"]
+        CustodianIn["Incoming Custodian"]
+        OutReceipt["Receipt: Responsible Transfer"]
+        InReceipt["Receipt: Custody Acceptance"]
 
         Transfer --> CustodianOut
         Transfer --> CustodianIn
@@ -229,18 +227,17 @@ graph TD
         CustodianIn --> InReceipt
     end
 
-    %% Service Phase
     subgraph ServicePhase["Service Phase"]
-        ServiceCommitment[Service Commitment]
-        ServiceFulfillment[Service Fulfillment]
-        ServiceAgent[Service Provider]
-        CustodianAgent[Custodian Agent]
-        ResourceRecipient[Resource Recipient]
+        ServiceCommitment["Service Commitment"]
+        ServiceFulfillment["Service Fulfillment"]
+        ServiceAgent["Service Provider"]
+        CustodianAgent["Custodian Agent"]
+        ResourceRecipient["Resource Recipient"]
 
-        CommitmentReceipt1[Receipt: Commitment Accepted]
-        CommitmentReceipt2[Receipt: Good Faith Transfer]
-        FulfillmentReceipt1[Receipt: Fulfillment Completed]
-        FulfillmentReceipt2[Receipt: Custody Acceptance]
+        CommitmentReceipt1["Receipt: Commitment Accepted"]
+        CommitmentReceipt2["Receipt: Good Faith Transfer"]
+        FulfillmentReceipt1["Receipt: Fulfillment Completed"]
+        FulfillmentReceipt2["Receipt: Custody Acceptance"]
 
         ServiceCommitment --> ServiceAgent
         ServiceCommitment --> CustodianAgent
@@ -253,17 +250,16 @@ graph TD
         ResourceRecipient --> FulfillmentReceipt2
     end
 
-    %% End of Life Phase
     subgraph EndOfLife["End-of-Life Phase"]
-        EOLDeclaration[End-of-Life Declaration]
-        DeclaringAgent[Declaring Agent]
-        ExpertValidator[Expert Validator - 2-3 Required]
-        PastCustodians[Past Custodians Notification]
-        ChallengePeriod[7-14 Day Challenge Period]
-        FinalDisposal[Final Disposal/Storage]
-        ValidationReview[Validation Review]
-        EOLReceipt[Receipt: EOL Declaration]
-        ValidationReceipt[Receipt: EOL Validation]
+        EOLDeclaration["End-of-Life Declaration"]
+        DeclaringAgent["Declaring Agent"]
+        ExpertValidator["Expert Validator<br/>(2-3 Required)"]
+        PastCustodians["Past Custodians<br/>Notification"]
+        ChallengePeriod["7-14 Day<br/>Challenge Period"]
+        FinalDisposal["Final Disposal/Storage"]
+        ValidationReview["Validation Review"]
+        EOLReceipt["Receipt: EOL Declaration"]
+        ValidationReceipt["Receipt: EOL Validation"]
 
         EOLDeclaration --> DeclaringAgent
         EOLDeclaration --> ExpertValidator
@@ -277,24 +273,25 @@ graph TD
         ExpertValidator --> ValidationReceipt
     end
 
-    %% Phase Connections
     RC -->|Validated| Transfer
     Transfer -->|May Need Service| ServiceCommitment
     ServiceCommitment --> ServiceFulfillment
     ServiceFulfillment -->|Return to Use| Transfer
     Transfer -->|End of Lifecycle| EOLDeclaration
-
-    class CreatorReceipt,ValidatorReceipt,OutReceipt,InReceipt,CommitmentReceipt1,CommitmentReceipt2,FulfillmentReceipt1,FulfillmentReceipt2,EOLReceipt,ValidationReceipt receiptStyle
-    class Creator,Validator1,CustodianOut,CustodianIn,ServiceAgent,CustodianAgent,ResourceRecipient,DeclaringAgent,ExpertValidator agentStyle
-    class RC,Transfer,ServiceCommitment,ServiceFulfillment,EOLDeclaration eventStyle
-    class ChallengePeriod,ValidationReview,FinalDisposal securityStyle
 ```
 
-### Diagram Key Features:
+### Key Process Features
 
-1. **Four Main Phases**: Genesis → Active Use → Service Cycles → End-of-Life
-2. **Bi-directional Receipts**: Each interaction generates exactly 2 receipts between agents
-3. **Security Constraints**: Visual indicators for end-of-life restrictions
-4. **Validation Requirements**: Shows multi-validator requirement and challenge period
-5. **Lifecycle Loops**: Service phase can cycle multiple times during active use
-6. **Complete Accountability**: Every phase tracked with appropriate receipts
+- **Bi-directional Receipts**: Each economic interaction generates exactly 2 receipts between agents
+- **Security Constraints**: Multi-validator requirement (2-3 experts) and challenge period for end-of-life restrictions
+- **Validation Requirements**: Shows expert validators needed and time-based challenge periods
+- **Lifecycle Loops**: Service phase can cycle multiple times during active resource utilization
+- **Complete Accountability**: Every phase tracked with appropriate cryptographic receipts
+
+### Security Highlights
+
+- **Multi-Validator System**: 2-3 expert validators required for end-of-life declarations
+- **Challenge Period**: 7-14 day window for contesting end-of-life claims
+- **Past Custodian Notification**: Historical custodians informed of end-of-life events
+- **Evidence Documentation**: Physical evidence requirements for validation
+- **Reputation Impact**: False declarations severely impact agent reputation
