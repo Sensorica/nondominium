@@ -1,8 +1,9 @@
 # Nondominium Architecture Components
 
-**Generated**: 2025-10-30
-**Version**: 2.0 (Advanced PPR & Capability System)
-**Scope**: Detailed component breakdown and interaction patterns
+- **Generated**: 2025-10-30
+- **Updated**: 2025-11-23
+- **Version**: 3.0 (Improved mermaid diagrams)
+- **Scope**: Detailed component breakdown and interaction patterns
 
 ---
 
@@ -14,12 +15,67 @@ Nondominium implements a sophisticated **3-zome Holochain architecture** that en
 
 ## 🏗️ System Architecture
 
+### High-Level System Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend Layer"
+        UI["Svelte 5.0 + TypeScript"]
+        Client["holochain-client 0.19.0"]
+    end
+
+    subgraph "Holochain Runtime"
+        WASM[WASM Compilation]
+        DHT[DHT-based P2P Network]
+        CapSec[Capability-Based Security]
+    end
+
+    subgraph "Zome Layer"
+        Person["zome_person<br/>Identity and Access"]
+        Resource["zome_resource<br/>Resource Management"]
+        Gov["zome_gouvernance<br/>Governance and Reputation"]
+    end
+
+    UI --> Client
+    Client --> WASM
+    WASM --> DHT
+    WASM --> CapSec
+
+    Person --> DHT
+    Resource --> DHT
+    Gov --> DHT
+```
+
+### Data Flow Architecture
+
+```mermaid
+sequenceDiagram
+    participant Agent as Agent Request
+    participant UI as UI Client
+    participant Auth as Auth & Cap Check
+    participant Role as Role Validation
+    participant Zome as Zome Function
+    participant PPR as PPR System
+
+    Agent->>UI: Submit Request
+    UI->>Auth: Validate Capability Token
+    Auth->>Role: Check Role Permissions
+    Role->>Zome: Execute Function
+    Zome->>PPR: Issue PPR if Applicable
+    PPR-->>Zome: PPR Issued
+    Zome-->>Role: Function Result
+    Role-->>Auth: Validation Complete
+    Auth-->>UI: Access Granted
+    UI-->>Agent: Response/Result
+```
+
 ### Core Technology Stack
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    FRONTEND LAYER                           │
 ├─────────────────────────────────────────────────────────────┤
-│ Svelte 5.0 + TypeScript + Vite 6.2.5                       │
+│ Svelte 5.0 + TypeScript + Vite 6.2.5                        │
 │ @holochain/client 0.19.0                                    │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -27,7 +83,7 @@ Nondominium implements a sophisticated **3-zome Holochain architecture** that en
 ┌─────────────────────────────────────────────────────────────┐
 │                 HOLOCHAIN RUNTIME                           │
 ├─────────────────────────────────────────────────────────────┤
-│ Rust (HDK/HDI 0.5.x-0.6.x) → WASM Compilation              │
+│ Rust (HDK/HDI 0.5.x-0.6.x) → WASM Compilation               │
 │ DHT-based peer-to-peer network                              │
 │ Capability-based security & gossip                          │
 └─────────────────────────────────────────────────────────────┘
@@ -36,26 +92,9 @@ Nondominium implements a sophisticated **3-zome Holochain architecture** that en
 ┌─────────────────────────────────────────────────────────────┐
 │                    ZOME LAYER                               │
 ├─────────────────────────────────────────────────────────────┤
-│  zome_person    │  zome_resource  │  zome_gouvernance      │
-│  (Identity)     │  (Resources)    │  (Governance)          │
+│  zome_person    │  zome_resource  │  zome_gouvernance       │
+│  (Identity)     │  (Resources)    │  (Governance)           │
 └─────────────────────────────────────────────────────────────┘
-```
-
-### Data Flow Architecture
-```
-Agent Request → Capability Validation → Role Check → Function Execution
-      │                │                   │              │
-      ▼                ▼                   ▼              ▼
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│ UI Client   │─▶│ Auth & Cap  │─▶│ Role Valid  │─▶│ Zome Func   │
-│ (Svelte)    │  │ Check       │  │ Check       │  │ Execution   │
-└─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘
-                                                           │
-                                                           ▼
-                                              ┌─────────────────────┐
-                                              │   PPR Issuance      │
-                                              │ (Reputation Track)  │
-                                              └─────────────────────┘
 ```
 
 ---
@@ -64,7 +103,45 @@ Agent Request → Capability Validation → Role Check → Function Execution
 
 ### 1. zome_person - Identity & Access Management
 
+#### Zome Person Architecture
+
+```mermaid
+graph TB
+    subgraph "zome_person"
+        subgraph "Agent Identity"
+            Person[Person Entry<br/>Public Profile]
+            EncProfile[EncryptedProfile<br/>Private Data]
+            Discovery[Discovery Anchors<br/>Agent Directory]
+        end
+
+        subgraph "Capability System"
+            CapToken["CapabilityToken<br/>Role-based Access"]
+            CapProgress["CapabilityProgression<br/>Trust Advancement"]
+            ACL["Access Control Lists<br/>Resource Permissions"]
+        end
+
+        subgraph "Private Data Sharing"
+            DataReq["DataAccessRequest<br/>7-day Expiration"]
+            DataGrant["DataAccessGrant<br/>Field-specific Control"]
+            PrivateData["PrivateDataEntry<br/>Encrypted Info"]
+        end
+
+        subgraph "Role Management"
+            RoleAssign["RoleAssignment<br/>Validation Metadata"]
+            RoleQual["RoleQualification<br/>Requirements Tracking"]
+            RoleProgress["RoleProgression<br/>Advancement Criteria"]
+        end
+    end
+
+    Person --> Discovery
+    EncProfile --> DataGrant
+    CapToken --> CapProgress
+    DataReq --> DataGrant
+    RoleAssign --> RoleQual
+```
+
 #### Core Components
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                   zome_person                               │
@@ -75,12 +152,12 @@ Agent Request → Capability Validation → Role Check → Function Execution
 │ └── Discovery Anchors (findable agent directory)            │
 │                                                             │
 │ 1.2 CAPABILITY SYSTEM                                       │
-│ ├── CapabilityToken Entry (role-based access)              │
+│ ├── CapabilityToken Entry (role-based access)               │
 │ ├── CapabilityProgression (trust advancement)               │
 │ └── Access Control Lists (resource permissions)             │
 │                                                             │
 │ 1.3 PRIVATE DATA SHARING                                    │
-│ ├── DataAccessRequest Entry (7-day expiration)             │
+│ ├── DataAccessRequest Entry (7-day expiration)              │
 │ ├── DataAccessGrant Entry (field-specific control)          │
 │ └── PrivateDataEntry (encrypted personal information)       │
 │                                                             │
@@ -92,6 +169,7 @@ Agent Request → Capability Validation → Role Check → Function Execution
 ```
 
 #### Key Functions
+
 ```rust
 // Identity Management
 create_person(PersonInput) -> PersonHash
@@ -119,17 +197,66 @@ validate_role_requirements(AgentPubKey, RoleType) -> ValidationStatus
 
 ### 2. zome_resource - Resource Lifecycle Management
 
+#### Zome Resource Architecture
+
+```mermaid
+graph TB
+    subgraph "zome_resource"
+        subgraph "Resource Specification"
+            ResSpec[ResourceSpecification<br/>Type Definition]
+            ResProp[ResourceProperty<br/>Custom Properties]
+            SpecCat[SpecificationCategory<br/>Classification]
+        end
+
+        subgraph "Economic Resource"
+            EconRes[EconomicResource<br/>Resource Instance]
+            ResState[ResourceState<br/>State Tracking]
+            ResHistory[ResourceHistory<br/>Audit Trail]
+            ResCustody[ResourceCustody<br/>Custody Tracking]
+        end
+
+        subgraph "Economic Processes"
+            UseProc[UseProcess<br/>Time-limited Access]
+            TransProc[TransportProcess<br/>Location Movement]
+            StorageProc[StorageProcess<br/>Preservation]
+            RepairProc[RepairProcess<br/>Restoration]
+        end
+
+        subgraph "Economic Events"
+            EconEvent[EconomicEvent<br/>State Changes]
+            EventVal[EventValidation<br/>Validation Workflow]
+            EventImpact[EventImpact<br/>Resource Impact]
+        end
+    end
+
+    ResSpec --> EconRes
+    ResProp --> ResSpec
+    SpecCat --> ResSpec
+    EconRes --> ResState
+    EconRes --> ResHistory
+    EconRes --> ResCustody
+
+    UseProc --> EconEvent
+    TransProc --> EconEvent
+    StorageProc --> EconEvent
+    RepairProc --> EconEvent
+
+    EconEvent --> EventVal
+    EconEvent --> EventImpact
+```
+
 #### Core Components
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                  zome_resource                              │
 ├─────────────────────────────────────────────────────────────┤
-│ 2.1 RESOURCE SPECIFICATION                                   │
+│ 2.1 RESOURCE SPECIFICATION                                  │
 │ ├── ResourceSpecification Entry (type definition)           │
 │ ├── ResourceProperty Entry (custom properties)              │
-│ └── SpecificationCategory Entry (classification)             │
+│ └── SpecificationCategory Entry (classification)            │
 │                                                             │
-│ 2.2 ECONOMIC RESOURCE                                        │
+│ 2.2 ECONOMIC RESOURCE                                       │
 │ ├── EconomicResource Entry (resource instance)              │
 │ ├── ResourceState Entry (current state tracking)            │
 │ ├── ResourceHistory Entry (audit trail)                     │
@@ -141,7 +268,7 @@ validate_role_requirements(AgentPubKey, RoleType) -> ValidationStatus
 │ ├── StorageProcess Entry (preservation)                     │
 │ └── RepairProcess Entry (restoration)                       │
 │                                                             │
-│ 2.4 ECONOMIC EVENTS                                          │
+│ 2.4 ECONOMIC EVENTS                                         │
 │ ├── EconomicEvent Entry (state changes)                     │
 │ ├── EventValidation Entry (validation workflow)             │
 │ └── EventImpact Entry (resource impact tracking)            │
@@ -149,6 +276,7 @@ validate_role_requirements(AgentPubKey, RoleType) -> ValidationStatus
 ```
 
 #### Key Functions
+
 ```rust
 // Resource Specification
 create_resource_specification(ResourceSpecInput) -> ResourceSpecHash
@@ -176,29 +304,81 @@ complete_repair_process(RepairProcessHash, RepairDetails) -> CompletionResult
 
 ### 3. zome_gouvernance - Governance & Reputation
 
+#### Zome Governance Architecture
+
+```mermaid
+graph TB
+    subgraph "zome_gouvernance"
+        subgraph "Commitment System"
+            Commitment[Commitment<br/>Agreements & Obligations]
+            CommitFulfill[CommitmentFulfillment<br/>Completion Tracking]
+            CommitValidation[CommitmentValidation<br/>Validation Workflow]
+        end
+
+        subgraph "PPR Reputation System"
+            PPR[PPR Entry<br/>14 Categories]
+            PPRValidation[PPRValidation<br/>Crypto Verification]
+            ReputationSummary[ReputationSummary<br/>Derived Metrics]
+            PPRMilestone[PPRMilestone<br/>Advancement Criteria]
+        end
+
+        subgraph "Multi-Reviewer Validation"
+            ValWorkflow[ValidationWorkflow<br/>Validation Setup]
+            ValReview[ValidationReview<br/>Individual Assessments]
+            ValConsensus[ValidationConsensus<br/>Consensus Determination]
+            ValAppeal[ValidationAppeal<br/>Dispute Resolution]
+        end
+
+        subgraph "Agent Promotion"
+            PromotionElig[PromotionEligibility<br/>Qualification Check]
+            PromotionApp[PromotionApplication<br/>Advancement Request]
+            PromotionDecision[PromotionDecision<br/>Approval/Rejection]
+            PromotionHistory[PromotionHistory<br/>Audit Trail]
+        end
+    end
+
+    Commitment --> CommitFulfill
+    CommitFulfill --> CommitValidation
+    PPR --> PPRValidation
+    PPRValidation --> ReputationSummary
+    ReputationSummary --> PPRMilestone
+
+    ValWorkflow --> ValReview
+    ValReview --> ValConsensus
+    ValConsensus --> ValAppeal
+
+    PromotionElig --> PromotionApp
+    PromotionApp --> PromotionDecision
+    PromotionDecision --> PromotionHistory
+
+    PPRMilestone -.-> PromotionElig
+    ValConsensus -.-> PPRValidation
+```
+
 #### Core Components
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                 zome_gouvernance                             │
+│                 zome_gouvernance                            │
 ├─────────────────────────────────────────────────────────────┤
-│ 3.1 COMMITMENT SYSTEM                                        │
+│ 3.1 COMMITMENT SYSTEM                                       │
 │ ├── Commitment Entry (agreements & obligations)             │
 │ ├── CommitmentFulfillment Entry (completion tracking)       │
 │ └── CommitmentValidation Entry (validation workflow)        │
 │                                                             │
-│ 3.2 PPR REPUTATION SYSTEM                                    │
+│ 3.2 PPR REPUTATION SYSTEM                                   │
 │ ├── PPR Entry (14 reputation categories)                    │
 │ ├── PPRValidation Entry (cryptographic verification)        │
 │ ├── ReputationSummary Entry (derived metrics)               │
-│ └── PPRMilestone Entry (advancement criteria)              │
+│ └── PPRMilestone Entry (advancement criteria)               │
 │                                                             │
-│ 3.3 MULTI-REVIEWER VALIDATION                                │
+│ 3.3 MULTI-REVIEWER VALIDATION                               │
 │ ├── ValidationWorkflow Entry (validation setup)             │
 │ ├── ValidationReview Entry (individual assessments)         │
 │ ├── ValidationConsensus Entry (consensus determination)     │
 │ └── ValidationAppeal Entry (dispute resolution)             │
 │                                                             │
-│ 3.4 AGENT PROMOTION                                          │
+│ 3.4 AGENT PROMOTION                                         │
 │ ├── PromotionEligibility Entry (qualification check)        │
 │ ├── PromotionApplication Entry (advancement request)        │
 │ ├── PromotionDecision Entry (approval/rejection)            │
@@ -207,6 +387,7 @@ complete_repair_process(RepairProcessHash, RepairDetails) -> CompletionResult
 ```
 
 #### PPR System Categories
+
 ```rust
 pub enum PPRCategory {
     // Resource & Service Categories
@@ -230,6 +411,7 @@ pub enum PPRCategory {
 ```
 
 #### Key Functions
+
 ```rust
 // Commitment Management
 create_commitment(CommitmentInput) -> CommitmentHash
@@ -260,7 +442,68 @@ get_promotion_history(AgentPubKey) -> Vec<PromotionRecord>
 
 ## 🔄 Cross-Zome Integration Patterns
 
+### Cross-Zome Data Flow
+
+```mermaid
+graph LR
+    subgraph "zome_person"
+        Person[Person Entry]
+        CapToken[Capability Token]
+        RoleAssign[Role Assignment]
+    end
+
+    subgraph "zome_resource"
+        ResSpec[Resource Spec]
+        EconRes[Economic Resource]
+        UseProc[Use Process]
+        EconEvent[Economic Event]
+    end
+
+    subgraph "zome_gouvernance"
+        PPR[PPR Entry]
+        Commitment[Commitment]
+        ValWorkflow[Validation Workflow]
+        Promotion[Promotion]
+    end
+
+    Person --> CapToken
+    CapToken --> RoleAssign
+    RoleAssign -.-> UseProc
+    ResSpec --> EconRes
+    EconRes --> UseProc
+    UseProc --> EconEvent
+    EconEvent --> PPR
+    PPR --> ValWorkflow
+    ValWorkflow --> Promotion
+    Promotion -.-> CapToken
+```
+
 ### 1. Capability Progression Integration
+
+```mermaid
+sequenceDiagram
+    participant Agent as Agent
+    participant Person as zome_person
+    participant Resource as zome_resource
+    participant Gov as zome_gouvernance
+
+    Agent->>Person: Request Process Access
+    Person->>Person: Get Capability Level
+    Person->>Gov: Get Reputation Score
+    Gov-->>Person: Return Reputation
+    Person->>Person: Validate Process Access
+    alt Access Granted
+        Person->>Resource: Authorize Process
+        Resource->>Resource: Execute Economic Process
+        Resource->>Gov: Trigger PPR Issuance
+        Gov->>Gov: Update Agent Reputation
+        Gov-->>Person: Promotion Eligibility
+        Person-->>Agent: Process Complete
+    else Access Denied
+        Person-->>Agent: Access Denied
+    end
+```
+
 ```rust
 // Cross-zome capability validation
 fn validate_process_access(agent: AgentPubKey, process_type: EconomicProcess) -> bool {
@@ -282,6 +525,7 @@ fn validate_process_access(agent: AgentPubKey, process_type: EconomicProcess) ->
 ```
 
 ### 2. PPR Issuance Coordination
+
 ```rust
 // PPR issuance coordination across zomes
 fn coordinate_ppr_issuance(event: EconomicEvent) -> Vec<PPRIssuance> {
@@ -320,6 +564,7 @@ fn coordinate_ppr_issuance(event: EconomicEvent) -> Vec<PPRIssuance> {
 ```
 
 ### 3. Private Data Sharing with Economic Processes
+
 ```rust
 // Private data access for economic processes
 fn authorize_process_data_access(
@@ -354,7 +599,55 @@ fn authorize_process_data_access(
 
 ## 🛡️ Security Architecture
 
+### Capability-Based Access Control Flow
+
+```mermaid
+graph TD
+    subgraph "Trust Levels"
+        Simple[Simple Agent<br/>Basic Member]
+        Accountable[Accountable Agent<br/>Stewardship Role]
+        Primary[Primary Accountable<br/>Coordination Role]
+        Advanced[Advanced Agent<br/>Governance Role]
+    end
+
+    subgraph "Simple Agent Capabilities"
+        S1[General Capability Token]
+        S2[Create Resources]
+        S3[Initial Transfer]
+        S4[Basic PPR Eligibility]
+    end
+
+    subgraph "Accountable Agent Capabilities"
+        A1[Restricted Capability Token<br/>Role-specific]
+        A2[Access Resources]
+        A3[Validate Others]
+        A4[Initiate Use Processes]
+        A5[Service PPR Eligibility]
+    end
+
+    subgraph "Primary Accountable Capabilities"
+        P1[Full Capability Token<br/>Comprehensive Access]
+        P2[Hold Custody]
+        P3[Validate Specialized Roles]
+        P4[Initiate All Processes]
+        P5[All 14 PPR Categories<br/>Including Custodianship]
+    end
+
+    subgraph "Advanced Agent Capabilities"
+        AD1[Advanced Governance Token]
+        AD2[Dispute Resolution]
+        AD3[End-of-Life Validation]
+        AD4[System Leadership]
+    end
+
+    Simple --> S1 --> S2 --> S3 --> S4 --> Accountable
+    Accountable --> A1 --> A2 --> A3 --> A4 --> A5 --> Primary
+    Primary --> P1 --> P2 --> P3 --> P4 --> P5 --> Advanced
+    Advanced --> AD1 --> AD2 --> AD3 --> AD4
+```
+
 ### 1. Capability-Based Access Control
+
 ```
 Trust Level Progression:
 Simple Agent (member)
@@ -377,6 +670,7 @@ Primary Accountable Agent (coordination/governance)
 ```
 
 ### 2. Cryptographic Reputation System
+
 ```
 PPR Cryptographic Structure:
 ├── Issuer Signature (Ed25519)
@@ -395,6 +689,7 @@ Reputation Derivation:
 ```
 
 ### 3. Private Data Protection
+
 ```
 Data Access Control:
 ├── Field-Level Granularity (specific data elements)
@@ -416,7 +711,78 @@ Encryption Strategy:
 
 ## 📊 Economic Process Architecture
 
+### Economic Process Flow
+
+```mermaid
+graph TB
+    subgraph "Economic Resources"
+        Resource[Economic Resource<br/>Physical/Digital Asset]
+        Spec[Resource Specification<br/>Type & Properties]
+    end
+
+    subgraph "Process Types"
+        Use[Use Process<br/>Time-Limited Access]
+        Transport[Transport Process<br/>Custody Transfer]
+        Storage[Storage Process<br/>Preservation]
+        Repair[Repair Process<br/>Restoration]
+    end
+
+    subgraph "Process Roles"
+        User[User<br/>Accountable Agent]
+        Provider[Provider<br/>Resource Owner]
+        Transporter[Transporter<br/>Primary Accountable]
+        StorageProvider[Storage Provider<br/>Primary Accountable]
+        RepairProvider[Repair Provider<br/>Primary Accountable]
+    end
+
+    subgraph "Economic Events"
+        CreateEvent[Create Event<br/>Resource Creation]
+        UseEvent[Use Event<br/>Resource Access]
+        TransferEvent[Transfer Event<br/>Custody Change]
+        RepairEvent[Repair Event<br/>Resource Restoration]
+    end
+
+    Resource --> Use
+    Resource --> Transport
+    Resource --> Storage
+    Resource --> Repair
+
+    Use --> User
+    Use --> Provider
+    Transport --> Transporter
+    Storage --> StorageProvider
+    Repair --> RepairProvider
+
+    Use --> UseEvent
+    Transport --> TransferEvent
+    Repair --> RepairEvent
+    Resource --> CreateEvent
+```
+
 ### 1. Use Process (Time-Limited Access)
+
+```mermaid
+sequenceDiagram
+    participant User as User (Accountable Agent)
+    participant Provider as Provider (Resource Owner)
+    participant Resource as Resource System
+    participant Gov as Governance (PPR System)
+
+    User->>Provider: Request Resource Access
+    Provider->>Resource: Check Resource Availability
+    Resource-->>Provider: Availability Confirmed
+    Provider->>User: Grant Access (Time-limited)
+    User->>Resource: Use Resource
+    Resource->>Resource: Track Usage
+    Resource-->>User: Usage Complete
+
+    User->>Gov: Report Service Quality
+    Provider->>Gov: Report User Compliance
+    Gov->>Gov: Issue PPRs to Both Parties
+    Gov-->>User: PPR Issued (UseService)
+    Gov-->>Provider: PPR Issued (ServiceValidation)
+```
+
 ```rust
 UseProcess {
     resource: EconomicResourceHash,
@@ -431,11 +797,13 @@ UseProcess {
 ```
 
 **Role Requirements:**
+
 - **User**: Accountable Agent (stewardship role)
 - **Provider**: Resource owner or custodian
 - **Validation**: Service quality assessment possible
 
 ### 2. Transport Process (Custody Transfer)
+
 ```rust
 TransportProcess {
     resource: EconomicResourceHash,
@@ -449,11 +817,13 @@ TransportProcess {
 ```
 
 **Role Requirements:**
+
 - **Transporter**: Primary Accountable Agent (coordination role)
 - **Custodian**: Resource owner or appointed custodian
 - **Validation**: Transport service assessment possible
 
 ### 3. Storage Process (Preservation)
+
 ```rust
 StorageProcess {
     resource: EconomicResourceHash,
@@ -466,11 +836,13 @@ StorageProcess {
 ```
 
 **Role Requirements:**
+
 - **Storage Provider**: Primary Accountable Agent (coordination role)
 - **Resource Owner**: Maintains ultimate ownership
 - **Validation**: Storage service assessment possible
 
 ### 4. Repair Process (Restoration)
+
 ```rust
 RepairProcess {
     resource: EconomicResourceHash,
@@ -483,6 +855,7 @@ RepairProcess {
 ```
 
 **Role Requirements:**
+
 - **Repair Provider**: Primary Accountable Agent (coordination role)
 - **Quality Validator**: Specialized validation role
 - **Validation**: Repair service assessment possible
@@ -491,7 +864,77 @@ RepairProcess {
 
 ## 🔄 Validation & Governance Workflows
 
-### 1. Multi-Reviewer Validation System
+### PPR System Workflow
+
+```mermaid
+stateDiagram-v2
+    [*] --> EventOccurrence: Economic Event
+    EventOccurrence --> PPRIssuance: Trigger PPR Creation
+    PPRIssuance --> ValidationRequired: Needs Verification
+    ValidationRequired --> UnderReview: Assign Reviewers
+
+    state UnderReview {
+        [*] --> Reviewer1
+        Reviewer1 --> Reviewer2
+        Reviewer2 --> Reviewer3
+        Reviewer3 --> ConsensusCheck
+    }
+
+    UnderReview --> ValidationApproved: Consensus Reached
+    UnderReview --> ValidationRejected: No Consensus
+
+    ValidationApproved --> PPRActive: Activate PPR
+    ValidationRejected --> AppealProcess: Dispute Filed
+
+    AppealProcess --> Reconsideration: Valid Appeal
+    AppealProcess --> PPRRejected: Appeal Denied
+
+    Reconsideration --> UnderReview: Re-validate
+    PPRActive --> ReputationUpdate: Update Score
+    ReputationUpdate --> [*]
+    PPRRejected --> [*]
+```
+
+### Multi-Reviewer Validation System
+
+```mermaid
+graph TB
+    subgraph "Validation Workflow"
+        ValType[Validation Type<br/>2-of-3, N-of-M, Majority]
+        Subject[Validation Subject<br/>Resource/Service/Commitment]
+        Reviewers[Required Reviewers<br/>Min 2, Max 5]
+        Deadline[Review Deadline<br/>24-72 hours]
+        Criteria[Validation Criteria<br/>Quality Rules]
+    end
+
+    subgraph "Review Process"
+        Assign[Assign Reviewers<br/>Random Selection]
+        Collect[Collect Reviews<br/>Parallel Process]
+        Consensus[Consensus Check<br/>Threshold Analysis]
+        Outcome[Validation Outcome<br/>Approved/Rejected]
+    end
+
+    subgraph "Appeal Process"
+        Appeal[Appeal Initiation<br/>3-day Window]
+        ReReview[Re-review Process<br/>New Reviewers]
+        FinalDecision[Final Decision<br/>Binding Outcome]
+    end
+
+    ValType --> Assign
+    Subject --> Assign
+    Reviewers --> Assign
+    Deadline --> Collect
+    Criteria --> Collect
+
+    Assign --> Collect
+    Collect --> Consensus
+    Consensus --> Outcome
+
+    Outcome --> Appeal
+    Appeal --> ReReview
+    ReReview --> FinalDecision
+```
+
 ```rust
 ValidationWorkflow {
     workflow_type: ValidationType,  // 2-of-3, N-of-M, simple_majority
@@ -504,11 +947,45 @@ ValidationWorkflow {
 ```
 
 **Validation Types:**
+
 - **2-of-3 Validation**: 3 reviewers, 2 required for consensus
 - **N-of-M Validation**: Custom reviewer numbers and consensus thresholds
 - **Simple Majority**: Democratic decision-making with minimum participation
 
 ### 2. Agent Promotion Workflow
+
+```mermaid
+graph TD
+    subgraph "Promotion Levels"
+        Simple[Simple Agent<br/>Base Access]
+        Accountable[Accountable Agent<br/>Stewardship Role]
+        Primary[Primary Accountable<br/>Coordination Role]
+        Advanced[Advanced Agent<br/>Governance Role]
+    end
+
+    subgraph "Simple → Accountable"
+        S1[First Validated Transaction]
+        S2[Basic PPR Earned]
+        S3[Identity Verified]
+    end
+
+    subgraph "Accountable → Primary"
+        A1[Multiple PPR Categories<br/>3+ Categories]
+        A2[Specialized Validation<br/>Process Expertise]
+        A3[Community Standing<br/>Reputation Threshold]
+    end
+
+    subgraph "Primary → Advanced"
+        P1[Governance Participation<br/>Commitment Fulfillment]
+        P2[Dispute Resolution<br/>Mediation Experience]
+        P3[System Leadership<br/>Coordination Excellence]
+    end
+
+    Simple --> S1 --> S2 --> S3 --> Accountable
+    Accountable --> A1 --> A2 --> A3 --> Primary
+    Primary --> P1 --> P2 --> P3 --> Advanced
+```
+
 ```rust
 PromotionWorkflow {
     current_level: CapabilityLevel,
@@ -522,11 +999,13 @@ PromotionWorkflow {
 ```
 
 **Promotion Criteria:**
+
 - **Simple → Accountable**: First validated transaction + basic PPR
 - **Accountable → Primary**: Multiple PPR categories + specialized validation
 - **Primary → Advanced**: Governance participation + dispute resolution experience
 
 ### 3. Dispute Resolution Process
+
 ```rust
 DisputeResolution {
     dispute_type: DisputeCategory,
@@ -539,6 +1018,7 @@ DisputeResolution {
 ```
 
 **Dispute Categories:**
+
 - **Resource Quality**: Resource not meeting specifications
 - **Service Quality**: Service not meeting agreed standards
 - **Access Violations**: Unauthorized resource access or use
@@ -550,6 +1030,7 @@ DisputeResolution {
 ## 📈 Performance & Scalability Architecture
 
 ### 1. DHT Optimization Strategies
+
 ```
 Anchor Pattern Optimization:
 ├── Resource Discovery Anchors (category-based indexing)
@@ -565,6 +1046,7 @@ Link Traversal Optimization:
 ```
 
 ### 2. Reputation System Performance
+
 ```
 PPR Calculation Optimization:
 ├── Incremental Updates (only calculate changes)
@@ -580,6 +1062,7 @@ Scalability Considerations:
 ```
 
 ### 3. Private Data Access Performance
+
 ```
 Access Control Optimization:
 ├── Capability Token Caching (reduced validation overhead)
@@ -599,24 +1082,28 @@ Encryption Performance:
 ## 🔮 Future Architecture Extensions
 
 ### 1. Advanced Governance Features
+
 - **Dynamic Rule Updates**: Community-driven governance rule modifications
 - **Delegated Validation**: Hierarchical validation delegation systems
 - **Cross-Community Coordination**: Inter-hApp governance coordination
 - **Automated Dispute Resolution**: AI-assisted dispute mediation
 
 ### 2. Enhanced Economic Processes
+
 - **Process Composition**: Complex multi-process workflows
 - **Resource Bundling**: Package deals and combined services
 - **Subscription Models**: Recurring access and service arrangements
 - **Market Integration**: External market price discovery and integration
 
 ### 3. Advanced Reputation Systems
+
 - **Skill-Based Reputation**: Domain-specific expertise tracking
 - **Temporal Reputation Patterns**: Time-based reputation analysis
 - **Network Reputation**: Relationship-based reputation scoring
 - **Privacy-Preserving Reputation**: Zero-knowledge reputation proofs
 
 ### 4. Performance & Scalability Enhancements
+
 - **Sharding Strategies**: Horizontal scaling through network partitioning
 - **Caching Layers**: Multi-level caching for frequently accessed data
 - **Compression Algorithms**: Advanced data compression for storage efficiency
@@ -627,24 +1114,28 @@ Encryption Performance:
 ## 📋 Architecture Decision Records (ADRs)
 
 ### ADR-001: Three-Zome Architecture
+
 **Decision**: Implement 3-zome architecture (person, resource, governance)
 **Rationale**: Clear separation of concerns, focused responsibility domains
 **Alternatives Considered**: Single monolithic zome, 5+ specialized zomes
 **Impact**: Simplified development, clear API boundaries, cross-zome coordination complexity
 
 ### ADR-002: PPR-Based Reputation System
+
 **Decision**: Implement 14-category PPR reputation system with cryptographic proofs
 **Rationale**: Comprehensive reputation tracking, fraud resistance, privacy preservation
 **Alternatives Considered**: Simple scoring system, centralized reputation database
 **Impact**: Complex implementation, strong trust foundations, computational overhead
 
 ### ADR-003: Four Economic Processes
+
 **Decision**: Standardize on Use, Transport, Storage, Repair processes
 **Rationale**: Covers common sharing scenarios, clear role definitions, structured workflows
 **Alternatives Considered**: Unlimited process types, minimal process structure
 **Impact**: Standardized workflows, limited flexibility, easier validation
 
 ### ADR-004: Capability-Based Security Model
+
 **Decision**: Progressive capability tokens with role-based restrictions
 **Rationale**: Gradual trust building, principle of least privilege, automated advancement
 **Alternatives Considered**: All-or-nothing access, centralized authorization
@@ -655,24 +1146,28 @@ Encryption Performance:
 ## 🎯 Architecture Quality Metrics
 
 ### Performance Targets
+
 - **Zome Function Response Time**: < 500ms for common operations
 - **PPR Calculation Time**: < 2s for reputation score derivation
 - **Validation Workflow Time**: < 24h for standard validations
 - **Private Data Access Time**: < 1s for authorized access requests
 
 ### Security Metrics
+
 - **Capability Token Security**: Cryptographically secure, non-repudiable
 - **PPR System Integrity**: Tamper-evident, cryptographically verifiable
 - **Private Data Protection**: End-to-end encryption, field-level access control
 - **Access Control Compliance**: 100% enforcement of capability restrictions
 
 ### Scalability Targets
+
 - **Concurrent Users**: Support 1000+ concurrent agents
 - **Resource Management**: 10,000+ concurrent economic resources
 - **Process Throughput**: 100+ concurrent economic processes
 - **Reputation Queries**: 10,000+ concurrent reputation calculations
 
 ### Reliability Requirements
+
 - **System Availability**: 99.9% uptime for critical functions
 - **Data Consistency**: Strong consistency for all economic transactions
 - **Backup Recovery**: Complete data recovery from any network state
@@ -680,4 +1175,4 @@ Encryption Performance:
 
 ---
 
-*This architecture document represents the current state of the Nondominium system as of October 30, 2025. It is a living document that evolves with the implementation and community feedback.*
+_This architecture document represents the current state of the Nondominium system as of October 30, 2025. It is a living document that evolves with the implementation and community feedback._
