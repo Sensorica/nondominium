@@ -35,6 +35,7 @@ pub struct DeviceInfo {
   pub device_id: String,
   pub device_name: String,
   pub device_type: String,
+  pub owner_agent: AgentPubKey,
   pub registered_at: Timestamp,
   pub last_active: Timestamp,
   pub status: DeviceStatus,
@@ -138,6 +139,7 @@ pub fn get_devices_for_person(person_hash: ActionHash) -> ExternResult<Vec<Devic
               device_id: device.device_id,
               device_name: device.device_name,
               device_type: device.device_type,
+              owner_agent: device.owner_agent,
               registered_at: device.registered_at,
               last_active: device.last_active,
               status: device.status,
@@ -405,14 +407,22 @@ pub fn deactivate_device(device_id: String) -> ExternResult<bool> {
 #[hdk_extern]
 pub fn get_my_devices(_: ()) -> ExternResult<Vec<DeviceInfo>> {
   let agent_info = agent_info()?;
+  let agent_pubkey = agent_info.agent_initial_pubkey.clone();
 
   let person_links = get_links(
-    GetLinksInputBuilder::try_new(agent_info.agent_initial_pubkey, LinkTypes::AgentToPerson)?.build(),
+    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
   )?;
 
   if let Some(person_link) = person_links.first() {
     if let Some(person_hash) = person_link.target.clone().into_action_hash() {
-      return get_devices_for_person(person_hash);
+      let all_devices = get_devices_for_person(person_hash)?;
+
+      // Filter devices to only include those owned by current agent
+      let my_devices: Vec<DeviceInfo> = all_devices.into_iter()
+        .filter(|device| device.owner_agent == agent_pubkey)
+        .collect();
+
+      return Ok(my_devices);
     }
   }
 
