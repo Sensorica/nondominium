@@ -125,27 +125,30 @@ pub fn get_devices_for_person(person_hash: ActionHash) -> ExternResult<Vec<Devic
   for (index, device_link) in device_links.iter().enumerate() {
     debug!("Processing device link {}: {:?}", index, device_link.target);
     if let Some(device_action_hash) = device_link.target.clone().into_action_hash() {
-      debug!("Getting device record for action hash: {:?}", device_action_hash);
+      debug!("Getting latest device record for action hash: {:?}", device_action_hash);
 
-      // Get the device record directly using get()
-      if let Some(record) = get(device_action_hash.clone(), GetOptions::default())? {
-        debug!("Got record, checking entry");
-        if let Ok(Some(device)) = record.entry().to_app_option::<Device>() {
-          debug!("Found device: {}, last_active: {:?}, status: {:?}",
-                device.device_id, device.last_active, device.status);
-          devices.push(DeviceInfo {
-            device_id: device.device_id,
-            device_name: device.device_name,
-            device_type: device.device_type,
-            registered_at: device.registered_at,
-            last_active: device.last_active,
-            status: device.status,
-          });
-        } else {
-          debug!("Failed to deserialize device entry");
+      // Get the latest device record by following DeviceUpdates links
+      match get_latest_device_record(device_action_hash.clone())? {
+        Some(record) => {
+          debug!("Got latest record, checking entry");
+          if let Ok(Some(device)) = record.entry().to_app_option::<Device>() {
+            debug!("Found device: {}, last_active: {:?}, status: {:?}",
+                  device.device_id, device.last_active, device.status);
+            devices.push(DeviceInfo {
+              device_id: device.device_id,
+              device_name: device.device_name,
+              device_type: device.device_type,
+              registered_at: device.registered_at,
+              last_active: device.last_active,
+              status: device.status,
+            });
+          } else {
+            debug!("Failed to deserialize device entry");
+          }
         }
-      } else {
-        debug!("No record found for device action hash");
+        None => {
+          debug!("No latest device record found for action hash");
+        }
       }
     }
   }
@@ -189,6 +192,53 @@ fn get_device_action_hash(person_hash: ActionHash, device_id: String) -> ExternR
   }
 
   Ok(None)
+}
+
+/// Get the latest device record by following DeviceUpdates links
+fn get_latest_device_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  warn!("get_latest_device_record called for: {:?}", original_action_hash);
+
+  // Get all DeviceUpdates links from this record
+  let update_links = get_links(
+    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::DeviceUpdates)?.build(),
+  )?;
+
+  warn!("Found {} DeviceUpdates links", update_links.len());
+
+  if update_links.is_empty() {
+    // No updates, return the original record
+    warn!("No DeviceUpdates links found, returning original record");
+    return get(original_action_hash, GetOptions::default());
+  }
+
+  // Find the latest update by getting the most recent link
+  // For now, we'll take the last one (Holochain typically returns links in creation order)
+  if let Some(latest_link) = update_links.last() {
+    if let Some(latest_action_hash) = latest_link.target.clone().into_action_hash() {
+      warn!("Getting latest record from: {:?}", latest_action_hash);
+      let latest_record = get(latest_action_hash, GetOptions::default())?;
+
+      // Recursively check if there are more updates (this handles multiple update levels)
+      if let Some(record) = latest_record {
+        let action_hash: ActionHash = record.action_address().clone().into();
+        let further_updates = get_links(
+          GetLinksInputBuilder::try_new(action_hash, LinkTypes::DeviceUpdates)?.build(),
+        )?;
+
+        if further_updates.is_empty() {
+          warn!("No further updates found, returning this record");
+          return Ok(Some(record));
+        } else {
+          warn!("Found further updates, recursing...");
+          return get_latest_device_record(record.action_address().clone().into());
+        }
+      }
+    }
+  }
+
+  // Fallback to original record
+  warn!("Fallback to original record");
+  get(original_action_hash, GetOptions::default())
 }
 
 /// Update device last active time
