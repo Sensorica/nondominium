@@ -89,7 +89,6 @@ impl FromStr for RoleType {
   }
 }
 
-
 /// Metadata for private data capability grants (for tracking our own grants)
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -171,9 +170,9 @@ pub struct AgentPersonRelationship {
 /// Types of Agent-Person relationships
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AgentPersonRelationshipType {
-  Primary,      // Primary agent for a person
-  Secondary,    // Additional agent for a person (multi-device)
-  Device,       // Device-specific agent
+  Primary,   // Primary agent for a person
+  Secondary, // Additional agent for a person (multi-device)
+  Device,    // Device-specific agent
 }
 
 /// Filtered private data structure for capability-based access
@@ -218,28 +217,28 @@ pub enum LinkTypes {
   // === CORE PERSON-CENTRIC LINKS ===
 
   // Person discovery and indexing
-  AllPersons,                    // Anchor -> Person (global discovery)
-  PersonUpdates,                 // Person -> Person (versioning)
+  AllPersons,    // Anchor -> Person (global discovery)
+  PersonUpdates, // Person -> Person (versioning)
 
   // Agent-Person relationships (supports multi-device)
-  AgentToPerson,                 // Agent -> Person (primary relationship)
-  PersonToAgents,                // Person -> Agent (reverse lookup for multi-device)
+  AgentToPerson,  // Agent -> Person (primary relationship)
+  PersonToAgents, // Person -> Agent (reverse lookup for multi-device)
 
   // Person data relationships
-  PersonToPrivateData,           // Person -> PrivateData (person-centric access)
-  PersonToRoles,                 // Person -> Role (person-centric roles)
+  PersonToPrivateData, // Person -> PrivateData (person-centric access)
+  PersonToRoles,       // Person -> Role (person-centric roles)
 
   // Versioning and updates
-  RoleUpdates,                   // Role -> Role (versioning)
-  DeviceUpdates,                 // Device -> Device (versioning)
+  RoleUpdates,   // Role -> Role (versioning)
+  DeviceUpdates, // Device -> Device (versioning)
 
   // Capability-based access management
-  AgentToCapabilityMetadata,     // Agent -> CapabilityMetadata (tracking grants)
-  RevokedGrantAnchor,            // Anchor -> RevokedGrantMarker (cleanup tracking)
+  AgentToCapabilityMetadata, // Agent -> CapabilityMetadata (tracking grants)
+  RevokedGrantAnchor,        // Anchor -> RevokedGrantMarker (cleanup tracking)
 
   // Device management (for multi-device support)
-  PersonToDevices,               // Person -> Device (device registry)
-  DeviceToPerson,                // Device -> Person (device ownership)
+  PersonToDevices, // Person -> Device (device registry)
+  DeviceToPerson,  // Device -> Person (device ownership)
 }
 
 #[hdk_extern]
@@ -458,7 +457,6 @@ pub fn validate_delete_private_person_data() -> ExternResult<ValidateCallbackRes
 pub fn validate_delete_person_role() -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Valid) // Allow role deletion for role transfers
 }
-
 
 pub fn validate_private_data_capability_metadata(
   metadata: PrivateDataCapabilityMetadata,

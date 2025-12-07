@@ -116,7 +116,6 @@ pub mod validation {
   }
 }
 
-
 /// Link creation helpers with consistent patterns
 /// Note: These functions are provided as helper patterns but may need
 /// zome-specific LinkType implementations for proper generic constraints

@@ -1,5 +1,6 @@
 use crate::{GovernanceRuleInput, ResourceError};
 use hdk::prelude::*;
+use nondominium_utils::links;
 use zome_resource_integrity::*;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -146,13 +147,11 @@ pub fn create_resource_specification(
 pub fn get_latest_resource_specification_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(
-      original_action_hash.clone(),
-      LinkTypes::ResourceSpecificationUpdates,
-    )?
-    .build(),
+  let links_query = LinkQuery::try_new(
+    original_action_hash.clone(),
+    LinkTypes::ResourceSpecificationUpdates,
   )?;
+  let links = get_links(links_query, GetStrategy::default())?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -283,13 +282,12 @@ pub struct GetAllResourceSpecificationsOutput {
 #[hdk_extern]
 pub fn get_all_resource_specifications(_: ()) -> ExternResult<GetAllResourceSpecificationsOutput> {
   let path = Path::from("resource_specifications");
-  let links = get_links(
-    GetLinksInputBuilder::try_new(
-      path.path_entry_hash()?,
-      LinkTypes::AllResourceSpecifications,
-    )?
-    .build(),
+
+  let links_query = LinkQuery::try_new(
+    path.path_entry_hash()?,
+    LinkTypes::AllResourceSpecifications,
   )?;
+  let links = get_links(links_query, GetStrategy::default())?;
 
   let mut specifications = Vec::new();
 
@@ -351,11 +349,10 @@ pub fn get_resource_specification_with_rules(
   };
 
   // Get the governance rules
-  let rule_links = get_links(
-    GetLinksInputBuilder::try_new(spec_hash, LinkTypes::SpecificationToGovernanceRule)?.build(),
-  )?;
-  let mut governance_rules = Vec::new();
+  let rule_links_query = LinkQuery::try_new(spec_hash, LinkTypes::SpecificationToGovernanceRule)?;
+  let rule_links = get_links(rule_links_query, GetStrategy::default())?;
 
+  let mut governance_rules = Vec::new();
   for rule_link in rule_links {
     if let Some(action_hash) = rule_link.target.into_action_hash() {
       if let Some(rule_record) = get(action_hash, GetOptions::default())? {
@@ -375,22 +372,20 @@ pub fn get_resource_specification_with_rules(
 #[hdk_extern]
 pub fn get_my_resource_specifications(_: ()) -> ExternResult<Vec<Link>> {
   let agent_info = agent_info()?;
-  get_links(
-    GetLinksInputBuilder::try_new(
-      agent_info.agent_initial_pubkey,
-      LinkTypes::AgentToOwnedSpecs,
-    )?
-    .build(),
-  )
+
+  let links_query = LinkQuery::try_new(
+    agent_info.agent_initial_pubkey,
+    LinkTypes::AgentToOwnedSpecs,
+  )?;
+  get_links(links_query, GetStrategy::default())
 }
 
 #[hdk_extern]
 pub fn get_resource_specifications_by_category(category: String) -> ExternResult<Vec<Record>> {
   let category_path = Path::from(format!("specs_by_category_{}", category));
-  let links = get_links(
-    GetLinksInputBuilder::try_new(category_path.path_entry_hash()?, LinkTypes::SpecsByCategory)?
-      .build(),
-  )?;
+  let links_query =
+    LinkQuery::try_new(category_path.path_entry_hash()?, LinkTypes::SpecsByCategory)?;
+  let links = get_links(links_query, GetStrategy::default())?;
 
   let get_input: Vec<GetInput> = links
     .into_iter()
@@ -413,9 +408,8 @@ pub fn get_resource_specifications_by_category(category: String) -> ExternResult
 #[hdk_extern]
 pub fn get_resource_specifications_by_tag(tag: String) -> ExternResult<Vec<Record>> {
   let tag_path = Path::from(format!("specs_by_tag_{}", tag));
-  let links = get_links(
-    GetLinksInputBuilder::try_new(tag_path.path_entry_hash()?, LinkTypes::SpecsByCategory)?.build(),
-  )?;
+  let links_query = LinkQuery::try_new(tag_path.path_entry_hash()?, LinkTypes::SpecsByCategory)?;
+  let links = get_links(links_query, GetStrategy::default())?;
 
   let get_input: Vec<GetInput> = links
     .into_iter()

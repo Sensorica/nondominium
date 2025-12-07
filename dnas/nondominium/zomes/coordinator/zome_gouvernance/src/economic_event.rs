@@ -1,6 +1,6 @@
+use crate::ppr::*;
 use hdk::prelude::*;
 use zome_gouvernance_integrity::*;
-use crate::ppr::*;
 
 // ============================================================================
 // Economic Event Management
@@ -68,15 +68,18 @@ pub fn log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEcono
   let ppr_claims = if generate_pprs {
     // Use commitment hash if provided, otherwise create a placeholder
     let commitment_hash = input.commitment_hash.unwrap_or_else(|| event_hash.clone());
-    
+
     match generate_pprs_for_economic_event(&event, commitment_hash, event_hash.clone()) {
       Ok(pprs) => {
         debug!("Generated PPR claims for economic event: {:?}", event_hash);
         Some(pprs)
-      },
+      }
       Err(e) => {
         // Log error but don't fail the whole operation
-        error!("Failed to generate PPR claims for economic event {}: {:?}", event_hash, e);
+        error!(
+          "Failed to generate PPR claims for economic event {}: {:?}",
+          event_hash, e
+        );
         None
       }
     }
@@ -84,8 +87,8 @@ pub fn log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEcono
     None
   };
 
-  Ok(LogEconomicEventOutput { 
-    event_hash, 
+  Ok(LogEconomicEventOutput {
+    event_hash,
     event,
     ppr_claims,
   })
@@ -121,7 +124,7 @@ pub fn log_initial_transfer(
     resource_inventoried_as: input.resource_hash,
     resource_quantity: input.quantity,
     note: Some("First resource transfer by Simple Agent".to_string()),
-    commitment_hash: None,   // Initial transfers don't typically have commitments
+    commitment_hash: None, // Initial transfers don't typically have commitments
     generate_pprs: Some(true), // Always generate PPRs for initial transfers
   };
 
@@ -146,8 +149,10 @@ pub fn get_all_economic_events(_: ()) -> ExternResult<Vec<EconomicEvent>> {
   let path = Path::from("all_economic_events");
   let anchor_hash = path.path_entry_hash()?;
 
-  let links =
-    get_links(GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllEconomicEvents)?.build())?;
+  let links = get_links(
+    LinkQuery::try_new(anchor_hash, LinkTypes::AllEconomicEvents)?,
+    GetStrategy::default(),
+  )?;
   let mut events = Vec::new();
 
   for link in links {
@@ -172,7 +177,8 @@ pub fn get_all_economic_events(_: ()) -> ExternResult<Vec<EconomicEvent>> {
 #[hdk_extern]
 pub fn get_events_for_resource(resource_hash: ActionHash) -> ExternResult<Vec<EconomicEvent>> {
   let links = get_links(
-    GetLinksInputBuilder::try_new(resource_hash, LinkTypes::ResourceToEvent)?.build(),
+    LinkQuery::try_new(resource_hash, LinkTypes::ResourceToEvent)?,
+    GetStrategy::default(),
   )?;
   let mut events = Vec::new();
 
@@ -199,7 +205,7 @@ pub fn get_events_for_resource(resource_hash: ActionHash) -> ExternResult<Vec<Ec
 pub fn get_events_for_agent(agent: AgentPubKey) -> ExternResult<Vec<EconomicEvent>> {
   // Get all events where agent is provider or receiver
   let all_events = get_all_economic_events(())?;
-  
+
   let agent_events: Vec<EconomicEvent> = all_events
     .into_iter()
     .filter(|event| event.provider == agent || event.receiver == agent)

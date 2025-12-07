@@ -27,9 +27,8 @@ pub struct PersonInput {
 pub fn create_person(input: PersonInput) -> ExternResult<Record> {
   // Check if person already exists for this agent
   let agent_pubkey = agent_info()?.agent_initial_pubkey;
-  let existing_links = get_links(
-    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
-  )?;
+  let link_query = LinkQuery::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?;
+  let existing_links = get_links(link_query, GetStrategy::default())?;
 
   if !existing_links.is_empty() {
     return Err(PersonError::PersonAlreadyExists.into());
@@ -54,9 +53,8 @@ pub fn create_person(input: PersonInput) -> ExternResult<Record> {
 
 #[hdk_extern]
 pub fn get_latest_person_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::PersonUpdates)?.build(),
-  )?;
+  let link_query = LinkQuery::try_new(original_action_hash.clone(), LinkTypes::PersonUpdates)?;
+  let links = get_links(link_query, GetStrategy::default())?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -90,7 +88,10 @@ pub fn get_latest_person(original_action_hash: ActionHash) -> ExternResult<Perso
 
 #[hdk_extern]
 pub fn get_agent_person_links(agent_pubkey: AgentPubKey) -> ExternResult<Vec<Link>> {
-  get_links(GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build())
+  let link_query = LinkQuery::try_new(agent_pubkey, LinkTypes::AgentToPerson)?;
+  let links = get_links(link_query, GetStrategy::default())?;
+
+  Ok(links)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -140,9 +141,9 @@ pub struct GetAllPersonsOutput {
 #[hdk_extern]
 pub fn get_all_persons(_: ()) -> ExternResult<GetAllPersonsOutput> {
   let path = Path::from("persons");
-  let links = get_links(
-    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllPersons)?.build(),
-  )?;
+
+  let link_query = LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllPersons)?;
+  let links = get_links(link_query, GetStrategy::default())?;
 
   let persons = links
     .iter()
@@ -169,10 +170,12 @@ pub fn get_person_profile(agent_pubkey: AgentPubKey) -> ExternResult<PersonProfi
   // Use the new get_agent_person function for cleaner code
   let person_hash = match get_agent_person(agent_pubkey)? {
     Some(hash) => hash,
-    None => return Ok(PersonProfileOutput {
-      person: None,
-      private_data: None,
-    }),
+    None => {
+      return Ok(PersonProfileOutput {
+        person: None,
+        private_data: None,
+      })
+    }
   };
 
   if let Ok(person) = get_latest_person(person_hash) {
@@ -195,10 +198,12 @@ pub fn get_my_person_profile(_: ()) -> ExternResult<PersonProfileOutput> {
   // Use the new get_agent_person function for cleaner code
   let person_hash = match get_agent_person(agent_info.agent_initial_pubkey.clone())? {
     Some(hash) => hash,
-    None => return Ok(PersonProfileOutput {
-      person: None,
-      private_data: None,
-    }),
+    None => {
+      return Ok(PersonProfileOutput {
+        person: None,
+        private_data: None,
+      })
+    }
   };
 
   if let Ok(person) = get_latest_person(person_hash.clone()) {
@@ -223,12 +228,8 @@ pub fn get_my_person_profile(_: ()) -> ExternResult<PersonProfileOutput> {
 // Helper function to get private data for a person
 fn get_private_data_for_person(person_hash: ActionHash) -> ExternResult<Option<PrivatePersonData>> {
   // Get links with a timeout to avoid hanging
-  let private_data_links = match get_links(
-    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToPrivateData)?.build(),
-  ) {
-    Ok(links) => links,
-    Err(_) => return Ok(None), // If we can't get links, just return None
-  };
+  let link_query = LinkQuery::try_new(person_hash, LinkTypes::PersonToPrivateData)?;
+  let private_data_links = get_links(link_query, GetStrategy::default())?;
 
   // If no links exist, return None immediately
   if private_data_links.is_empty() {
@@ -258,7 +259,10 @@ fn get_private_data_for_person(person_hash: ActionHash) -> ExternResult<Option<P
 
 /// Core helper function to create Person entry links
 /// This replaces the multiple link strategies with a single, unified approach
-fn create_person_entry_links(person_hash: ActionHash, agent_pubkey: AgentPubKey) -> ExternResult<()> {
+fn create_person_entry_links(
+  person_hash: ActionHash,
+  agent_pubkey: AgentPubKey,
+) -> ExternResult<()> {
   // Create discovery link
   let path = Path::from("persons");
   create_link(
@@ -300,9 +304,8 @@ fn create_person_entry_links(person_hash: ActionHash, agent_pubkey: AgentPubKey)
 /// Get the Person associated with a specific Agent
 #[hdk_extern]
 pub fn get_agent_person(agent_pubkey: AgentPubKey) -> ExternResult<Option<ActionHash>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::AgentToPerson)?.build(),
-  )?;
+  let link_query = LinkQuery::try_new(agent_pubkey, LinkTypes::AgentToPerson)?;
+  let links = get_links(link_query, GetStrategy::default())?;
 
   if let Some(link) = links.first() {
     if let Some(person_hash) = link.target.clone().into_action_hash() {
@@ -316,9 +319,8 @@ pub fn get_agent_person(agent_pubkey: AgentPubKey) -> ExternResult<Option<Action
 /// Get all Agents associated with a specific Person (supports multi-device)
 #[hdk_extern]
 pub fn get_person_agents(person_hash: ActionHash) -> ExternResult<Vec<AgentPubKey>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToAgents)?.build(),
-  )?;
+  let links_query = LinkQuery::try_new(person_hash, LinkTypes::PersonToAgents)?;
+  let links = get_links(links_query, GetStrategy::default())?;
 
   let mut agents = Vec::new();
   for link in links {
@@ -339,9 +341,10 @@ pub fn add_agent_to_person(input: (AgentPubKey, ActionHash)) -> ExternResult<boo
   // Verify the caller is associated with this person
   let caller_person = get_agent_person(agent_info.agent_initial_pubkey)?;
   if caller_person != Some(person_hash.clone()) {
-    return Err(PersonError::InsufficientCapability(
-      "You can only add agents to your own person".to_string()
-    ).into());
+    return Err(
+      PersonError::InsufficientCapability("You can only add agents to your own person".to_string())
+        .into(),
+    );
   }
 
   // Check if agent is already associated
@@ -389,41 +392,42 @@ pub fn remove_agent_from_person(input: (AgentPubKey, ActionHash)) -> ExternResul
   // Verify the caller is associated with this person
   let caller_person = get_agent_person(agent_pubkey.clone())?;
   if caller_person != Some(person_hash.clone()) {
-    return Err(PersonError::InsufficientCapability(
-      "You can only remove agents from your own person".to_string()
-    ).into());
+    return Err(
+      PersonError::InsufficientCapability(
+        "You can only remove agents from your own person".to_string(),
+      )
+      .into(),
+    );
   }
 
   // Cannot remove yourself
   if agent_to_remove == agent_pubkey {
-    return Err(PersonError::InvalidInput(
-      "Cannot remove yourself from your own person".to_string()
-    ).into());
+    return Err(
+      PersonError::InvalidInput("Cannot remove yourself from your own person".to_string()).into(),
+    );
   }
 
   // Find and delete the Agent -> Person link
-  let agent_links = get_links(
-    GetLinksInputBuilder::try_new(agent_to_remove.clone(), LinkTypes::AgentToPerson)?.build(),
-  )?;
+  let link_query = LinkQuery::try_new(agent_to_remove.clone(), LinkTypes::AgentToPerson)?;
+  let agent_links = get_links(link_query, GetStrategy::default())?;
 
   for link in agent_links {
     if let Some(target_person) = link.target.clone().into_action_hash() {
       if target_person == person_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
   }
 
   // Find and delete the Person -> Agent link
-  let person_links = get_links(
-    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToAgents)?.build(),
-  )?;
+  let link_query = LinkQuery::try_new(person_hash, LinkTypes::PersonToAgents)?;
+  let person_links = get_links(link_query, GetStrategy::default())?;
 
   for link in person_links {
     if let Some(target_agent) = link.target.clone().into_agent_pub_key() {
       if target_agent == agent_to_remove {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
@@ -472,6 +476,8 @@ pub fn promote_agent_to_accountable(input: PromoteAgentInput) -> ExternResult<St
 
   match validation_result {
     Ok(_) => Ok("Agent successfully promoted to Accountable Agent".to_string()),
-    Err(e) => Err(PersonError::EntryOperationFailed(format!("Agent promotion failed: {:?}", e)).into()),
+    Err(e) => {
+      Err(PersonError::EntryOperationFailed(format!("Agent promotion failed: {:?}", e)).into())
+    }
   }
 }

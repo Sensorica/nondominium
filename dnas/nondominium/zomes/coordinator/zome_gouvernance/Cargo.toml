@@ -12,5 +12,6 @@ hdk = { workspace = true }
 serde = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
 thiserror = { workspace = true }
+blake3 = "1.5"
 zome_gouvernance_integrity = { path = "../../integrity/zome_gouvernance" }
 nondominium_utils = { path = "../../../../../crates/utils" }

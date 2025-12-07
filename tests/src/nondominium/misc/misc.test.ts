@@ -25,7 +25,7 @@ test("ping", async () => {
     const [lynn] = await scenario.addPlayersWithApps([appSource]);
 
     // Access the requests_and_offers DNA cell by role name
-    const lynnRequestsAndOffers = lynn.namedCells.get("requests_and_offers")!;
+    const lynnRequestsAndOffers = lynn.namedCells.get("nondominium")!;
 
     const record: string = await lynnRequestsAndOffers.callZome({
       zome_name: "misc",

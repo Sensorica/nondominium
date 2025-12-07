@@ -19,8 +19,8 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-hdi = "=0.6.3"
-hdk = "=0.5.3"
+hdi = "^0.7.0"
+hdk = "^0.6.0"
 holochain_serialized_bytes = "*"
 serde = "1.0"
 thiserror = "2.0"

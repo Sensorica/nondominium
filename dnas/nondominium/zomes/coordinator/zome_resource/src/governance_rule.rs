@@ -70,13 +70,11 @@ pub fn create_governance_rule(input: GovernanceRuleInput) -> ExternResult<Record
 pub fn get_latest_governance_rule_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(
-      original_action_hash.clone(),
-      LinkTypes::GovernanceRuleUpdates,
-    )?
-    .build(),
+  let links_query = LinkQuery::try_new(
+    original_action_hash.clone(),
+    LinkTypes::GovernanceRuleUpdates,
   )?;
+  let links = get_links(links_query, GetStrategy::default())?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -175,9 +173,9 @@ pub struct GetAllGovernanceRulesOutput {
 #[hdk_extern]
 pub fn get_all_governance_rules(_: ()) -> ExternResult<GetAllGovernanceRulesOutput> {
   let path = Path::from("governance_rules");
-  let links = get_links(
-    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllGovernanceRules)?.build(),
-  )?;
+
+  let links_query = LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllGovernanceRules)?;
+  let links = get_links(links_query, GetStrategy::default())?;
 
   let mut rules = Vec::new();
 
@@ -213,21 +211,21 @@ pub fn get_governance_rule_profile(
 #[hdk_extern]
 pub fn get_my_governance_rules(_: ()) -> ExternResult<Vec<Link>> {
   let agent_info = agent_info()?;
-  get_links(
-    GetLinksInputBuilder::try_new(
-      agent_info.agent_initial_pubkey,
-      LinkTypes::AgentToOwnedRules,
-    )?
-    .build(),
-  )
+  let links_query = LinkQuery::try_new(
+    agent_info.agent_initial_pubkey,
+    LinkTypes::AgentToOwnedRules,
+  )?;
+
+  get_links(links_query, GetStrategy::default())
 }
 
 #[hdk_extern]
 pub fn get_governance_rules_by_type(rule_type: String) -> ExternResult<Vec<Record>> {
   let type_path = Path::from(format!("rules_by_type_{}", rule_type));
-  let links = get_links(
-    GetLinksInputBuilder::try_new(type_path.path_entry_hash()?, LinkTypes::RulesByType)?.build(),
-  )?;
+
+  let links_query = LinkQuery::try_new(type_path.path_entry_hash()?, LinkTypes::RulesByType)?;
+
+  let links = get_links(links_query, GetStrategy::default())?;
 
   let get_input: Vec<GetInput> = links
     .into_iter()

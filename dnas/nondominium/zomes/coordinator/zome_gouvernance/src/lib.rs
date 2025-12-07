@@ -4,14 +4,14 @@ use zome_gouvernance_integrity::*;
 pub mod commitment;
 pub mod economic_event;
 pub mod ppr;
-pub mod validation;
 pub mod private_data_validation;
+pub mod validation;
 
 pub use commitment::*;
 pub use economic_event::*;
 pub use ppr::*;
-pub use validation::*;
 pub use private_data_validation::*;
+pub use validation::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GovernanceError {
@@ -125,10 +125,10 @@ fn generate_promotion_validation_pprs(
 ) -> ExternResult<IssueParticipationReceiptsOutput> {
   // Create appropriate claim types for agent promotion
   let claim_types = vec![
-    ParticipationClaimType::ResourceValidation,    // Validator gets this
-    ParticipationClaimType::RuleCompliance,       // Promoted agent gets this
+    ParticipationClaimType::ResourceValidation, // Validator gets this
+    ParticipationClaimType::RuleCompliance,     // Promoted agent gets this
   ];
-  
+
   // Use good performance metrics for promotion validation
   let good_metrics = PerformanceMetrics {
     timeliness: 1.0,
@@ -138,7 +138,7 @@ fn generate_promotion_validation_pprs(
     overall_satisfaction: 1.0,
     notes: Some("Agent promotion validation completed successfully".to_string()),
   };
-  
+
   let input = IssueParticipationReceiptsInput {
     fulfills: validation_hash.clone(), // The validation acts as both commitment and fulfillment
     fulfilled_by: validation_hash,     // The validation event
@@ -150,7 +150,7 @@ fn generate_promotion_validation_pprs(
     resource_hash: Some(resource_hash),
     notes: Some("Agent promotion validation with PPR generation".to_string()),
   };
-  
+
   issue_participation_receipts(input)
 }
 

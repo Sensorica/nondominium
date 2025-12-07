@@ -6,9 +6,9 @@ use zome_person_integrity::*;
 /// This tries multiple approaches to find the agent-person relationship
 fn find_person_for_agent(agent_pubkey: AgentPubKey) -> ExternResult<Option<ActionHash>> {
   // First try: Look for AgentToPerson link (created during person creation)
-  let person_links = get_links(
-    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
-  )?;
+
+  let person_links_query = LinkQuery::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?;
+  let person_links = get_links(person_links_query, GetStrategy::default())?;
 
   if let Some(person_link) = person_links.first() {
     if let Some(person_hash) = person_link.target.clone().into_action_hash() {
@@ -52,19 +52,32 @@ pub fn register_device_for_person(input: RegisterDeviceInput) -> ExternResult<Re
   let person_hash = match find_person_for_agent(agent_pubkey.clone())? {
     Some(hash) => hash,
     None => {
-      return Err(PersonError::EntryOperationFailed("No person associated with this agent".to_string()).into());
+      return Err(
+        PersonError::EntryOperationFailed("No person associated with this agent".to_string())
+          .into(),
+      );
     }
   };
 
   // Verify that the person_hash matches the target person_hash
   if person_hash != input.person_hash {
-    return Err(PersonError::EntryOperationFailed("Agent can only register devices for their associated person".to_string()).into());
+    return Err(
+      PersonError::EntryOperationFailed(
+        "Agent can only register devices for their associated person".to_string(),
+      )
+      .into(),
+    );
   }
 
   // Check if device already exists
   let existing_devices = get_devices_for_person(input.person_hash.clone())?;
-  if existing_devices.iter().any(|d| d.device_id == input.device_id) {
-    return Err(PersonError::EntryOperationFailed("Device with this ID already exists".to_string()).into());
+  if existing_devices
+    .iter()
+    .any(|d| d.device_id == input.device_id)
+  {
+    return Err(
+      PersonError::EntryOperationFailed("Device with this ID already exists".to_string()).into(),
+    );
   }
 
   let device = Device {
@@ -116,9 +129,9 @@ pub fn register_device_for_person(input: RegisterDeviceInput) -> ExternResult<Re
 #[hdk_extern]
 pub fn get_devices_for_person(person_hash: ActionHash) -> ExternResult<Vec<DeviceInfo>> {
   debug!("get_devices_for_person called");
-  let device_links = get_links(
-    GetLinksInputBuilder::try_new(person_hash.clone(), LinkTypes::PersonToDevices)?.build(),
-  )?;
+
+  let device_links_query = LinkQuery::try_new(person_hash.clone(), LinkTypes::PersonToDevices)?;
+  let device_links = get_links(device_links_query, GetStrategy::default())?;
   debug!("Found {} device links for person", device_links.len());
 
   let mut devices = Vec::new();
@@ -126,15 +139,20 @@ pub fn get_devices_for_person(person_hash: ActionHash) -> ExternResult<Vec<Devic
   for (index, device_link) in device_links.iter().enumerate() {
     debug!("Processing device link {}: {:?}", index, device_link.target);
     if let Some(device_action_hash) = device_link.target.clone().into_action_hash() {
-      debug!("Getting latest device record for action hash: {:?}", device_action_hash);
+      debug!(
+        "Getting latest device record for action hash: {:?}",
+        device_action_hash
+      );
 
       // Get the latest device record by following DeviceUpdates links
       match get_latest_device_record(device_action_hash.clone())? {
         Some(record) => {
           debug!("Got latest record, checking entry");
           if let Ok(Some(device)) = record.entry().to_app_option::<Device>() {
-            debug!("Found device: {}, last_active: {:?}, status: {:?}",
-                  device.device_id, device.last_active, device.status);
+            debug!(
+              "Found device: {}, last_active: {:?}, status: {:?}",
+              device.device_id, device.last_active, device.status
+            );
             devices.push(DeviceInfo {
               device_id: device.device_id,
               device_name: device.device_name,
@@ -174,12 +192,13 @@ pub fn get_device_info(device_id: String) -> ExternResult<Option<DeviceInfo>> {
   }
 }
 
-
 /// Get device ActionHash by device_id for a person
-fn get_device_action_hash(person_hash: ActionHash, device_id: String) -> ExternResult<Option<ActionHash>> {
-  let device_links = get_links(
-    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToDevices)?.build(),
-  )?;
+fn get_device_action_hash(
+  person_hash: ActionHash,
+  device_id: String,
+) -> ExternResult<Option<ActionHash>> {
+  let device_links_query = LinkQuery::try_new(person_hash, LinkTypes::PersonToDevices)?;
+  let device_links = get_links(device_links_query, GetStrategy::default())?;
 
   for device_link in device_links {
     if let Some(device_hash) = device_link.target.clone().into_action_hash() {
@@ -198,12 +217,15 @@ fn get_device_action_hash(person_hash: ActionHash, device_id: String) -> ExternR
 
 /// Get the latest device record by following DeviceUpdates links
 fn get_latest_device_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
-  warn!("get_latest_device_record called for: {:?}", original_action_hash);
+  warn!(
+    "get_latest_device_record called for: {:?}",
+    original_action_hash
+  );
 
   // Get all DeviceUpdates links from this record
-  let update_links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::DeviceUpdates)?.build(),
-  )?;
+  let update_links_query =
+    LinkQuery::try_new(original_action_hash.clone(), LinkTypes::DeviceUpdates)?;
+  let update_links = get_links(update_links_query, GetStrategy::default())?;
 
   warn!("Found {} DeviceUpdates links", update_links.len());
 
@@ -223,9 +245,8 @@ fn get_latest_device_record(original_action_hash: ActionHash) -> ExternResult<Op
       // Recursively check if there are more updates (this handles multiple update levels)
       if let Some(record) = latest_record {
         let action_hash: ActionHash = record.action_address().clone().into();
-        let further_updates = get_links(
-          GetLinksInputBuilder::try_new(action_hash, LinkTypes::DeviceUpdates)?.build(),
-        )?;
+        let update_links_query = LinkQuery::try_new(action_hash.clone(), LinkTypes::DeviceUpdates)?;
+        let further_updates = get_links(update_links_query, GetStrategy::default())?;
 
         if further_updates.is_empty() {
           warn!("No further updates found, returning this record");
@@ -257,7 +278,7 @@ pub fn update_device_activity(device_id: String) -> ExternResult<bool> {
     Some(hash) => {
       warn!("Found person: {:?}", hash);
       hash
-    },
+    }
     None => {
       warn!("No person found for current agent");
       return Ok(false);
@@ -267,9 +288,8 @@ pub fn update_device_activity(device_id: String) -> ExternResult<bool> {
   warn!("Found person_hash, looking for device");
 
   // Get the device links directly
-  let device_links = get_links(
-    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToDevices)?.build(),
-  )?;
+  let device_links_query = LinkQuery::try_new(person_hash, LinkTypes::PersonToDevices)?;
+  let device_links = get_links(device_links_query, GetStrategy::default())?;
 
   warn!("Found {} device links", device_links.len());
 
@@ -279,10 +299,16 @@ pub fn update_device_activity(device_id: String) -> ExternResult<bool> {
 
       if let Some(record) = get(device_action_hash, GetOptions::default())? {
         if let Ok(Some(device)) = record.entry().to_app_option::<Device>() {
-          warn!("Found device: {}, looking for match with {}", device.device_id, device_id);
+          warn!(
+            "Found device: {}, looking for match with {}",
+            device.device_id, device_id
+          );
 
           if device.device_id == device_id {
-            warn!("FOUND MATCHING DEVICE! Current last_active: {:?}", device.last_active);
+            warn!(
+              "FOUND MATCHING DEVICE! Current last_active: {:?}",
+              device.last_active
+            );
 
             // Create updated device with new timestamp
             let mut updated_device = device.clone();
@@ -336,7 +362,7 @@ pub fn deactivate_device(device_id: String) -> ExternResult<bool> {
     Some(hash) => {
       warn!("Found person: {:?}", hash);
       hash
-    },
+    }
     None => {
       warn!("No person found for current agent");
       return Ok(false);
@@ -346,9 +372,8 @@ pub fn deactivate_device(device_id: String) -> ExternResult<bool> {
   warn!("Found person_hash, looking for device");
 
   // Get the device links directly
-  let device_links = get_links(
-    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToDevices)?.build(),
-  )?;
+  let device_links_query = LinkQuery::try_new(person_hash, LinkTypes::PersonToDevices)?;
+  let device_links = get_links(device_links_query, GetStrategy::default())?;
 
   warn!("Found {} device links", device_links.len());
 
@@ -358,7 +383,10 @@ pub fn deactivate_device(device_id: String) -> ExternResult<bool> {
 
       if let Some(record) = get(device_action_hash, GetOptions::default())? {
         if let Ok(Some(device)) = record.entry().to_app_option::<Device>() {
-          warn!("Found device: {}, looking for match with {}", device.device_id, device_id);
+          warn!(
+            "Found device: {}, looking for match with {}",
+            device.device_id, device_id
+          );
 
           if device.device_id == device_id {
             warn!("FOUND MATCHING DEVICE! Current status: {:?}", device.status);
@@ -409,16 +437,16 @@ pub fn get_my_devices(_: ()) -> ExternResult<Vec<DeviceInfo>> {
   let agent_info = agent_info()?;
   let agent_pubkey = agent_info.agent_initial_pubkey.clone();
 
-  let person_links = get_links(
-    GetLinksInputBuilder::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?.build(),
-  )?;
+  let person_links_query = LinkQuery::try_new(agent_pubkey.clone(), LinkTypes::AgentToPerson)?;
+  let person_links = get_links(person_links_query, GetStrategy::default())?;
 
   if let Some(person_link) = person_links.first() {
     if let Some(person_hash) = person_link.target.clone().into_action_hash() {
       let all_devices = get_devices_for_person(person_hash)?;
 
       // Filter devices to only include those owned by current agent
-      let my_devices: Vec<DeviceInfo> = all_devices.into_iter()
+      let my_devices: Vec<DeviceInfo> = all_devices
+        .into_iter()
         .filter(|device| device.owner_agent == agent_pubkey)
         .collect();
 

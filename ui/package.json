@@ -43,7 +43,7 @@
     "vitest-browser-svelte": "^0.1.0"
   },
   "dependencies": {
-    "@holochain/client": "^0.19.0",
+    "@holochain/client": "^0.20.0",
     "@nondominium/shared-types": "workspace:*"
   }
 }

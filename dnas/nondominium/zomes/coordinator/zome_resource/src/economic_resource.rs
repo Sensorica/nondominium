@@ -110,13 +110,11 @@ pub fn create_economic_resource(
 pub fn get_latest_economic_resource_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(
-      original_action_hash.clone(),
-      LinkTypes::EconomicResourceUpdates,
-    )?
-    .build(),
+  let links_query = LinkQuery::try_new(
+    original_action_hash.clone(),
+    LinkTypes::EconomicResourceUpdates,
   )?;
+  let links = get_links(links_query, GetStrategy::default())?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -225,10 +223,8 @@ pub struct GetAllEconomicResourcesOutput {
 #[hdk_extern]
 pub fn get_all_economic_resources(_: ()) -> ExternResult<GetAllEconomicResourcesOutput> {
   let path = Path::from("economic_resources");
-  let links = get_links(
-    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?
-      .build(),
-  )?;
+  let links_query = LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?;
+  let links = get_links(links_query, GetStrategy::default())?;
 
   let mut resources = Vec::new();
 
@@ -266,9 +262,8 @@ pub fn get_economic_resource_profile(
 
 #[hdk_extern]
 pub fn get_resources_by_specification(spec_hash: ActionHash) -> ExternResult<Vec<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(spec_hash, LinkTypes::SpecificationToResource)?.build(),
-  )?;
+  let links_query = LinkQuery::try_new(spec_hash, LinkTypes::SpecificationToResource)?;
+  let links = get_links(links_query, GetStrategy::default())?;
 
   let get_input: Vec<GetInput> = links
     .into_iter()
@@ -292,23 +287,27 @@ pub fn get_resources_by_specification(spec_hash: ActionHash) -> ExternResult<Vec
 pub fn get_my_economic_resources(_: ()) -> ExternResult<Vec<Link>> {
   let agent_info = agent_info()?;
   get_links(
-    GetLinksInputBuilder::try_new(
+    LinkQuery::try_new(
       agent_info.agent_initial_pubkey,
       LinkTypes::CustodianToResource,
-    )?
-    .build(),
+    )?,
+    GetStrategy::default(),
   )
 }
 
 #[hdk_extern]
 pub fn get_agent_economic_resources(agent_pubkey: AgentPubKey) -> ExternResult<Vec<Link>> {
-  get_links(GetLinksInputBuilder::try_new(agent_pubkey, LinkTypes::CustodianToResource)?.build())
+  get_links(
+    LinkQuery::try_new(agent_pubkey, LinkTypes::CustodianToResource)?,
+    GetStrategy::default(),
+  )
 }
 
 #[hdk_extern]
 pub fn check_first_resource_requirement(agent_pub_key: AgentPubKey) -> ExternResult<bool> {
   let links = get_links(
-    GetLinksInputBuilder::try_new(agent_pub_key, LinkTypes::CustodianToResource)?.build(),
+    LinkQuery::try_new(agent_pub_key, LinkTypes::CustodianToResource)?,
+    GetStrategy::default(),
   )?;
 
   // Agent has created at least one resource if they have any custodian links
@@ -321,7 +320,6 @@ pub struct TransferCustodyInput {
   pub new_custodian: AgentPubKey,
   pub request_contact_info: Option<bool>, // Whether to auto-request private data for coordination
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransferCustodyOutput {
@@ -379,7 +377,7 @@ pub fn transfer_custody(input: TransferCustodyInput) -> ExternResult<TransferCus
 
   // Create update link from original to new version
   create_link(
-    input.resource_hash.clone(), // original action hash 
+    input.resource_hash.clone(), // original action hash
     updated_resource_hash.clone(),
     LinkTypes::EconomicResourceUpdates,
     (),
@@ -387,21 +385,21 @@ pub fn transfer_custody(input: TransferCustodyInput) -> ExternResult<TransferCus
 
   // TEMPORARY FIX: Also update the AllEconomicResources link to point to the new version
   let path = Path::from("economic_resources");
-  
+
   // Remove the old link
   let existing_links = get_links(
-    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?
-      .build(),
+    LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?,
+    GetStrategy::default(),
   )?;
   for link in existing_links {
     if let Some(link_target) = link.target.into_action_hash() {
       if link_target == input.resource_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
   }
-  
+
   // Create new link pointing to updated version
   create_link(
     path.path_entry_hash()?,
@@ -412,17 +410,17 @@ pub fn transfer_custody(input: TransferCustodyInput) -> ExternResult<TransferCus
 
   // Remove old custodian link
   let old_links = get_links(
-    GetLinksInputBuilder::try_new(
+    LinkQuery::try_new(
       agent_info.agent_initial_pubkey.clone(),
       LinkTypes::CustodianToResource,
-    )?
-    .build(),
+    )?,
+    GetStrategy::default(),
   )?;
   for link in old_links {
     let link_target_hash: Result<ActionHash, _> = link.target.clone().try_into();
     if let Ok(target_hash) = link_target_hash {
       if target_hash == input.resource_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
@@ -491,21 +489,21 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
   // TEMPORARY FIX: Also update the AllEconomicResources link to point to the new version
   // This is a workaround until the get_latest update chain logic is fixed
   let path = Path::from("economic_resources");
-  
+
   // Remove the old link
   let existing_links = get_links(
-    GetLinksInputBuilder::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?
-      .build(),
+    LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?,
+    GetStrategy::default(),
   )?;
   for link in existing_links {
     if let Some(link_target) = link.target.into_action_hash() {
       if link_target == input.resource_hash {
-        delete_link(link.create_link_hash)?;
+        delete_link(link.create_link_hash, GetOptions::default())?;
         break;
       }
     }
   }
-  
+
   // Create new link pointing to updated version
   create_link(
     path.path_entry_hash()?,
@@ -520,5 +518,3 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
 
   Ok(record)
 }
-
-

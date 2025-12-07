@@ -49,28 +49,40 @@ pub struct ValidateAgentForCustodianshipInput {
 /// Request agent validation data from the person zome
 /// This is the main function used by governance processes to validate agent private data
 #[hdk_extern]
-pub fn request_agent_validation_data(input: AgentValidationInput) -> ExternResult<ValidationResult> {
+pub fn request_agent_validation_data(
+  input: AgentValidationInput,
+) -> ExternResult<ValidationResult> {
   let agent_info = agent_info()?;
-  
+
   // Validate that we have proper governance authority
   // TODO: In Phase 2, add proper role validation
-  
+
   // Validate required fields are reasonable
-  let allowed_fields = ["email", "phone", "location", "time_zone", "emergency_contact"];
+  let allowed_fields = [
+    "email",
+    "phone",
+    "location",
+    "time_zone",
+    "emergency_contact",
+  ];
   for field in &input.required_fields {
     if !allowed_fields.contains(&field.as_str()) {
-      return Err(GovernanceError::InvalidInput(
-        format!("Field '{}' is not allowed for governance validation", field)
-      ).into());
+      return Err(
+        GovernanceError::InvalidInput(format!(
+          "Field '{}' is not allowed for governance validation",
+          field
+        ))
+        .into(),
+      );
     }
   }
-  
+
   // Create validation context
-  let validation_context = format!("governance_{}_{}",  
-    input.validation_purpose, 
-    agent_info.agent_initial_pubkey
+  let validation_context = format!(
+    "governance_{}_{}",
+    input.validation_purpose, agent_info.agent_initial_pubkey
   );
-  
+
   // Prepare request for person zome
   let validation_request = ValidationDataRequest {
     target_agent: input.target_agent,
@@ -78,12 +90,12 @@ pub fn request_agent_validation_data(input: AgentValidationInput) -> ExternResul
     required_fields: input.required_fields,
     governance_requester: agent_info.agent_initial_pubkey,
   };
-  
+
   // Call the person zome to validate the agent's private data
-  call_person_zome("validate_agent_private_data", validation_request)
-    .map_err(|e| GovernanceError::EntryOperationFailed(
-      format!("Failed to validate agent private data: {}", e)
-    ).into())
+  call_person_zome("validate_agent_private_data", validation_request).map_err(|e| {
+    GovernanceError::EntryOperationFailed(format!("Failed to validate agent private data: {}", e))
+      .into()
+  })
 }
 
 /// Request agent validation data with a specific grant hash
@@ -93,23 +105,33 @@ fn request_agent_validation_data_with_grant(
   grant_hash: ActionHash,
 ) -> ExternResult<ValidationResult> {
   let agent_info = agent_info()?;
-  
+
   // Validate required fields are reasonable
-  let allowed_fields = ["email", "phone", "location", "time_zone", "emergency_contact"];
+  let allowed_fields = [
+    "email",
+    "phone",
+    "location",
+    "time_zone",
+    "emergency_contact",
+  ];
   for field in &input.required_fields {
     if !allowed_fields.contains(&field.as_str()) {
-      return Err(GovernanceError::InvalidInput(
-        format!("Field '{}' is not allowed for governance validation", field)
-      ).into());
+      return Err(
+        GovernanceError::InvalidInput(format!(
+          "Field '{}' is not allowed for governance validation",
+          field
+        ))
+        .into(),
+      );
     }
   }
-  
+
   // Create validation context
-  let validation_context = format!("governance_{}_{}",  
-    input.validation_purpose, 
-    agent_info.agent_initial_pubkey
+  let validation_context = format!(
+    "governance_{}_{}",
+    input.validation_purpose, agent_info.agent_initial_pubkey
   );
-  
+
   // Prepare request with grant hash
   #[derive(Debug, Clone, Serialize, Deserialize)]
   struct ValidationDataRequestWithGrant {
@@ -119,7 +141,7 @@ fn request_agent_validation_data_with_grant(
     governance_requester: AgentPubKey,
     grant_hash: ActionHash,
   }
-  
+
   let validation_request = ValidationDataRequestWithGrant {
     target_agent: input.target_agent,
     validation_context,
@@ -127,35 +149,56 @@ fn request_agent_validation_data_with_grant(
     governance_requester: agent_info.agent_initial_pubkey,
     grant_hash,
   };
-  
+
   // Call the person zome with the grant hash
-  call_person_zome("validate_agent_private_data_with_grant", validation_request)
-    .map_err(|e| GovernanceError::EntryOperationFailed(
-      format!("Failed to validate agent private data with grant: {}", e)
-    ).into())
+  call_person_zome("validate_agent_private_data_with_grant", validation_request).map_err(|e| {
+    GovernanceError::EntryOperationFailed(format!(
+      "Failed to validate agent private data with grant: {}",
+      e
+    ))
+    .into()
+  })
 }
 
 /// Validate agent for role promotion
 /// This function determines what private data is required for specific role promotions
 #[hdk_extern]
-pub fn validate_agent_for_promotion(input: ValidateAgentForPromotionInput) -> ExternResult<ValidationResult> {
+pub fn validate_agent_for_promotion(
+  input: ValidateAgentForPromotionInput,
+) -> ExternResult<ValidationResult> {
   // Define required fields based on target role
   let required_fields = match input.target_role.as_str() {
     "Simple Agent" => vec!["email".to_string()],
     "Accountable Agent" => vec!["email".to_string(), "phone".to_string()],
-    "Primary Accountable Agent" => vec!["email".to_string(), "phone".to_string(), "location".to_string()],
+    "Primary Accountable Agent" => vec![
+      "email".to_string(),
+      "phone".to_string(),
+      "location".to_string(),
+    ],
     "Transport Agent" | "Repair Agent" | "Storage Agent" => {
-      vec!["email".to_string(), "phone".to_string(), "location".to_string(), "time_zone".to_string()]
+      vec![
+        "email".to_string(),
+        "phone".to_string(),
+        "location".to_string(),
+        "time_zone".to_string(),
+      ]
     }
-    _ => return Err(GovernanceError::InvalidInput(format!("Unknown role type: {}", input.target_role)).into()),
+    _ => {
+      return Err(
+        GovernanceError::InvalidInput(format!("Unknown role type: {}", input.target_role)).into(),
+      )
+    }
   };
-  
+
   let validation_input = AgentValidationInput {
     target_agent: input.target_agent,
     required_fields,
-    validation_purpose: format!("agent_promotion_{}", input.target_role.replace(" ", "_").to_lowercase()),
+    validation_purpose: format!(
+      "agent_promotion_{}",
+      input.target_role.replace(" ", "_").to_lowercase()
+    ),
   };
-  
+
   // If grant_hash is provided, pass it to the validation
   if let Some(grant_hash) = input.grant_hash {
     request_agent_validation_data_with_grant(validation_input, grant_hash)
@@ -167,26 +210,28 @@ pub fn validate_agent_for_promotion(input: ValidateAgentForPromotionInput) -> Ex
 /// Validate agent for resource custodianship transfer
 /// This requires comprehensive contact information for coordination
 #[hdk_extern]
-pub fn validate_agent_for_custodianship(input: ValidateAgentForCustodianshipInput) -> ExternResult<ValidationResult> {
+pub fn validate_agent_for_custodianship(
+  input: ValidateAgentForCustodianshipInput,
+) -> ExternResult<ValidationResult> {
   let required_fields = vec![
     "email".to_string(),
     "phone".to_string(),
     "location".to_string(),
     "time_zone".to_string(),
   ];
-  
+
   let validation_purpose = if let Some(_) = input.resource_hash {
     "resource_custodianship_transfer".to_string()
   } else {
     "general_custodianship_validation".to_string()
   };
-  
+
   let validation_input = AgentValidationInput {
     target_agent: input.target_agent,
     required_fields,
     validation_purpose,
   };
-  
+
   request_agent_validation_data(validation_input)
 }
 
@@ -197,15 +242,33 @@ pub fn get_validation_requirements(process_type: String) -> ExternResult<Vec<Str
   let required_fields = match process_type.as_str() {
     "simple_agent_promotion" => vec!["email".to_string()],
     "accountable_agent_promotion" => vec!["email".to_string(), "phone".to_string()],
-    "primary_accountable_agent_promotion" => vec!["email".to_string(), "phone".to_string(), "location".to_string()],
+    "primary_accountable_agent_promotion" => vec![
+      "email".to_string(),
+      "phone".to_string(),
+      "location".to_string(),
+    ],
     "transport_agent_promotion" | "repair_agent_promotion" | "storage_agent_promotion" => {
-      vec!["email".to_string(), "phone".to_string(), "location".to_string(), "time_zone".to_string()]
+      vec![
+        "email".to_string(),
+        "phone".to_string(),
+        "location".to_string(),
+        "time_zone".to_string(),
+      ]
     }
-    "resource_custodianship" => vec!["email".to_string(), "phone".to_string(), "location".to_string(), "time_zone".to_string()],
+    "resource_custodianship" => vec![
+      "email".to_string(),
+      "phone".to_string(),
+      "location".to_string(),
+      "time_zone".to_string(),
+    ],
     "governance_validation" => vec!["email".to_string(), "phone".to_string()],
-    _ => return Err(GovernanceError::InvalidInput(format!("Unknown process type: {}", process_type)).into()),
+    _ => {
+      return Err(
+        GovernanceError::InvalidInput(format!("Unknown process type: {}", process_type)).into(),
+      )
+    }
   };
-  
+
   Ok(required_fields)
 }
 
@@ -235,33 +298,40 @@ pub fn create_validation_with_private_data(
     required_fields: input.required_private_data.clone(),
     validation_purpose: input.validation_type.clone(),
   };
-  
+
   let validation_result = request_agent_validation_data(validation_input)?;
-  
+
   if !validation_result.is_valid {
-    return Err(GovernanceError::InvalidValidationScheme(
-      format!("Agent private data validation failed: {}", 
-        validation_result.error_message.unwrap_or("Unknown error".to_string()))
-    ).into());
+    return Err(
+      GovernanceError::InvalidValidationScheme(format!(
+        "Agent private data validation failed: {}",
+        validation_result
+          .error_message
+          .unwrap_or("Unknown error".to_string())
+      ))
+      .into(),
+    );
   }
-  
+
   // Create the validation receipt with private data validation included
   let agent_info = agent_info()?;
   let now = sys_time()?;
-  
+
   // Create enhanced notes that include private data validation info
   let enhanced_notes = match input.notes {
-    Some(notes) => format!("{}\n\nPrivate data validated: {} fields verified at {}", 
-      notes, 
+    Some(notes) => format!(
+      "{}\n\nPrivate data validated: {} fields verified at {}",
+      notes,
       input.required_private_data.len(),
       validation_result.validated_at
     ),
-    None => format!("Private data validated: {} fields verified at {}", 
+    None => format!(
+      "Private data validated: {} fields verified at {}",
       input.required_private_data.len(),
       validation_result.validated_at
     ),
   };
-  
+
   // TODO: Create validation receipt entry (using existing ValidationReceipt from integrity zome)
   // For now, we'll return a placeholder hash
   let placeholder_hash = ActionHash::from_raw_36(vec![0; 36]);

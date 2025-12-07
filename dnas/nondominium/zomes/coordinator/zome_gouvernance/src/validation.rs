@@ -67,7 +67,8 @@ pub fn create_validation_receipt(
 #[hdk_extern]
 pub fn get_validation_history(item_hash: ActionHash) -> ExternResult<Vec<ValidationReceipt>> {
   let links = get_links(
-    GetLinksInputBuilder::try_new(item_hash, LinkTypes::ValidatedItemToReceipt)?.build(),
+    LinkQuery::try_new(item_hash, LinkTypes::ValidatedItemToReceipt)?,
+    GetStrategy::default(),
   )?;
   let mut receipts = Vec::new();
 
@@ -96,7 +97,8 @@ pub fn get_all_validation_receipts(_: ()) -> ExternResult<Vec<ValidationReceipt>
   let anchor_hash = path.path_entry_hash()?;
 
   let links = get_links(
-    GetLinksInputBuilder::try_new(anchor_hash, LinkTypes::AllValidationReceipts)?.build(),
+    LinkQuery::try_new(anchor_hash, LinkTypes::AllValidationReceipts)?,
+    GetStrategy::default(),
   )?;
   let mut receipts = Vec::new();
 
@@ -183,7 +185,8 @@ pub fn check_validation_status(
   resource_hash: ActionHash,
 ) -> ExternResult<Option<ResourceValidation>> {
   let links = get_links(
-    GetLinksInputBuilder::try_new(resource_hash, LinkTypes::ResourceToValidation)?.build(),
+    LinkQuery::try_new(resource_hash, LinkTypes::ResourceToValidation)?,
+    GetStrategy::default(),
   )?;
 
   // Get the most recent validation (there should only be one per resource)

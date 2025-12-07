@@ -1,8 +1,8 @@
+use crate::person::get_agent_person;
 use crate::PersonError;
 use hdk::prelude::*;
-use zome_person_integrity::*;
 use nondominium_utils::call_governance_zome;
-use crate::person::get_agent_person;
+use zome_person_integrity::*;
 
 // Cross-zome call structure for governance validation
 #[derive(Serialize, Deserialize, Debug)]
@@ -90,15 +90,12 @@ pub fn assign_person_role(input: PersonRoleInput) -> ExternResult<Record> {
   // Link from person to role using Person-centric approach
   let person_hash = match get_agent_person(input.agent_pubkey.clone())? {
     Some(hash) => hash,
-    None => return Err(PersonError::PersonNotFound("No person found for agent".to_string()).into()),
+    None => {
+      return Err(PersonError::PersonNotFound("No person found for agent".to_string()).into())
+    }
   };
 
-  create_link(
-    person_hash,
-    role_hash,
-    LinkTypes::PersonToRoles,
-    (),
-  )?;
+  create_link(person_hash, role_hash, LinkTypes::PersonToRoles, ())?;
 
   Ok(record)
 }
@@ -107,9 +104,8 @@ pub fn assign_person_role(input: PersonRoleInput) -> ExternResult<Record> {
 pub fn get_latest_person_role_record(
   original_action_hash: ActionHash,
 ) -> ExternResult<Option<Record>> {
-  let links = get_links(
-    GetLinksInputBuilder::try_new(original_action_hash.clone(), LinkTypes::RoleUpdates)?.build(),
-  )?;
+  let links_query = LinkQuery::try_new(original_action_hash.clone(), LinkTypes::RoleUpdates)?;
+  let links = get_links(links_query, GetStrategy::default())?;
   let latest_link = links
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
@@ -197,9 +193,8 @@ pub fn get_person_roles(agent_pubkey: AgentPubKey) -> ExternResult<GetPersonRole
     None => return Ok(GetPersonRolesOutput { roles }),
   };
 
-  let role_links = get_links(
-    GetLinksInputBuilder::try_new(person_hash, LinkTypes::PersonToRoles)?.build(),
-  )?;
+  let role_links_query = LinkQuery::try_new(person_hash, LinkTypes::PersonToRoles)?;
+  let role_links = get_links(role_links_query, GetStrategy::default())?;
 
   for role_link in role_links {
     if let Some(action_hash) = role_link.target.into_action_hash() {
@@ -281,15 +276,19 @@ pub fn get_person_capability_level(agent_pubkey: AgentPubKey) -> ExternResult<St
 #[hdk_extern]
 pub fn promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<Record> {
   let agent_info = agent_info()?;
-  
+
   // Check that the caller has sufficient authority to promote agents
   let caller_capability = get_person_capability_level(agent_info.agent_initial_pubkey.clone())?;
   if caller_capability != "governance" && caller_capability != "coordination" {
-    return Err(PersonError::InsufficientCapability(
-      format!("Need coordination or governance level, have: {}", caller_capability)
-    ).into());
+    return Err(
+      PersonError::InsufficientCapability(format!(
+        "Need coordination or governance level, have: {}",
+        caller_capability
+      ))
+      .into(),
+    );
   }
-  
+
   // If private data validation is requested, validate with governance zome
   if input.validate_private_data {
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -298,31 +297,39 @@ pub fn promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<R
       target_agent: AgentPubKey,
       grant_hash: Option<ActionHash>,
     }
-    
+
     let validation_result: ValidationResult = call_governance_zome(
       "validate_agent_for_promotion",
       ValidateInput {
         target_role: input.target_role.clone(),
         target_agent: input.target_agent.clone(),
         grant_hash: input.grant_hash,
-      }
+      },
     )?;
-    
+
     if !validation_result.is_valid {
-      return Err(PersonError::InvalidInput(format!(
-        "Agent promotion validation failed: {}",
-        validation_result.error_message.unwrap_or("Unknown validation error".to_string())
-      )).into());
+      return Err(
+        PersonError::InvalidInput(format!(
+          "Agent promotion validation failed: {}",
+          validation_result
+            .error_message
+            .unwrap_or("Unknown validation error".to_string())
+        ))
+        .into(),
+      );
     }
   }
-  
+
   // Create the role assignment
   let role_input = PersonRoleInput {
     agent_pubkey: input.target_agent,
     role_name: input.target_role,
-    description: Some(format!("Promoted by {}: {}", agent_info.agent_initial_pubkey, input.justification)),
+    description: Some(format!(
+      "Promoted by {}: {}",
+      agent_info.agent_initial_pubkey, input.justification
+    )),
   };
-  
+
   assign_person_role(role_input)
 }
 
@@ -332,7 +339,7 @@ pub fn promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<R
 pub fn request_role_promotion(input: RolePromotionRequest) -> ExternResult<ActionHash> {
   let agent_info = agent_info()?;
   let now = sys_time()?;
-  
+
   // Validate that the target role is a valid promotion
   let current_capability = get_person_capability_level(agent_info.agent_initial_pubkey.clone())?;
   let target_capability = match input.target_role.as_str() {
@@ -340,33 +347,54 @@ pub fn request_role_promotion(input: RolePromotionRequest) -> ExternResult<Actio
     "Accountable Agent" => "coordination",
     "Primary Accountable Agent" => "governance",
     "Transport Agent" | "Repair Agent" | "Storage Agent" => "stewardship",
-    _ => return Err(PersonError::InvalidInput(format!("Unknown role type: {}", input.target_role)).into()),
+    _ => {
+      return Err(
+        PersonError::InvalidInput(format!("Unknown role type: {}", input.target_role)).into(),
+      )
+    }
   };
-  
+
   // Check if this is actually a promotion
   let promotion_hierarchy = ["member", "stewardship", "coordination", "governance"];
-  let current_level = promotion_hierarchy.iter().position(|&x| x == current_capability).unwrap_or(0);
-  let target_level = promotion_hierarchy.iter().position(|&x| x == target_capability).unwrap_or(0);
-  
+  let current_level = promotion_hierarchy
+    .iter()
+    .position(|&x| x == current_capability)
+    .unwrap_or(0);
+  let target_level = promotion_hierarchy
+    .iter()
+    .position(|&x| x == target_capability)
+    .unwrap_or(0);
+
   if target_level <= current_level {
-    return Err(PersonError::InvalidInput(
-      "Cannot request promotion to equal or lower capability level".to_string()
-    ).into());
+    return Err(
+      PersonError::InvalidInput(
+        "Cannot request promotion to equal or lower capability level".to_string(),
+      )
+      .into(),
+    );
   }
-  
+
   // Check if agent has required private data before making the request
   let validation_result: ValidationResult = call_governance_zome(
     "validate_agent_for_promotion",
-    (input.target_role.clone(), agent_info.agent_initial_pubkey.clone())
+    (
+      input.target_role.clone(),
+      agent_info.agent_initial_pubkey.clone(),
+    ),
   )?;
-  
+
   if !validation_result.is_valid {
-    return Err(PersonError::InvalidInput(format!(
-      "Cannot request promotion - missing required private data: {}",
-      validation_result.error_message.unwrap_or("Unknown validation error".to_string())
-    )).into());
+    return Err(
+      PersonError::InvalidInput(format!(
+        "Cannot request promotion - missing required private data: {}",
+        validation_result
+          .error_message
+          .unwrap_or("Unknown validation error".to_string())
+      ))
+      .into(),
+    );
   }
-  
+
   // Create a promotion request entry (for now, we'll use a simple data structure)
   // In a full implementation, this would be a new entry type
   let _request_context = format!(
@@ -375,7 +403,7 @@ pub fn request_role_promotion(input: RolePromotionRequest) -> ExternResult<Actio
     input.target_role.replace(" ", "_").to_lowercase(),
     now.as_micros()
   );
-  
+
   // For now, return a placeholder hash
   let placeholder_hash = ActionHash::from_raw_36(vec![0; 36]);
   Ok(placeholder_hash)
@@ -386,36 +414,47 @@ pub fn request_role_promotion(input: RolePromotionRequest) -> ExternResult<Actio
 #[hdk_extern]
 pub fn approve_role_promotion(input: ApprovePromotionInput) -> ExternResult<Record> {
   let agent_info = agent_info()?;
-  
+
   // Check authorization
   let caller_capability = get_person_capability_level(agent_info.agent_initial_pubkey.clone())?;
   if caller_capability != "governance" && caller_capability != "coordination" {
-    return Err(PersonError::InsufficientCapability(
-      format!("Insufficient authority to approve promotions: {}", caller_capability)
-    ).into());
+    return Err(
+      PersonError::InsufficientCapability(format!(
+        "Insufficient authority to approve promotions: {}",
+        caller_capability
+      ))
+      .into(),
+    );
   }
-  
+
   // Validate the promotion again to ensure data is still valid
   let validation_result: ValidationResult = call_governance_zome(
-    "validate_agent_for_promotion", 
-    (input.target_role.clone(), input.target_agent.clone())
+    "validate_agent_for_promotion",
+    (input.target_role.clone(), input.target_agent.clone()),
   )?;
-  
+
   if !validation_result.is_valid {
-    return Err(PersonError::InvalidInput(format!(
-      "Promotion approval failed - agent no longer meets requirements: {}",
-      validation_result.error_message.unwrap_or("Unknown validation error".to_string())
-    )).into());
+    return Err(
+      PersonError::InvalidInput(format!(
+        "Promotion approval failed - agent no longer meets requirements: {}",
+        validation_result
+          .error_message
+          .unwrap_or("Unknown validation error".to_string())
+      ))
+      .into(),
+    );
   }
-  
+
   // Create the promotion with validated private data
   let promotion_input = PromoteAgentInput {
     target_agent: input.target_agent,
     target_role: input.target_role,
-    justification: input.approval_notes.unwrap_or("Approved by governance".to_string()),
+    justification: input
+      .approval_notes
+      .unwrap_or("Approved by governance".to_string()),
     validate_private_data: true,
     grant_hash: None,
   };
-  
+
   promote_agent_with_validation(promotion_input)
 }
