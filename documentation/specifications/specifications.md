@@ -57,7 +57,7 @@ Defines a specific role an agent can have (e.g., `User`, `Repair`, `Transport`, 
 
 #### 3.2.1. `ResourceSpecification`
 
-A template for a class of nondominium resources.
+A template for a class of resources.
 
 - **Fields**:
   - `name: String`
@@ -78,7 +78,7 @@ A rule embedded within a ResourceSpecification that defines how resources can be
 
 #### 3.2.3. `EconomicResource`
 
-A concrete instance of a nondominium resource.
+A concrete instance of a resource.
 
 - **Fields**:
   - `conforms_to: ActionHash`: Link to the `ResourceSpecification`.
@@ -376,7 +376,7 @@ Minimum performance thresholds for process validation.
   - **Capability**: `restricted_access`
 - `log_initial_transfer(resource_hash: ActionHash, receiver: AgentPubKey, quantity: f64) -> Record`: A simplified function for a `Simple Agent`'s first transaction (`REQ-USER-S-07`). This triggers the validation process for Simple Agent promotion (`REQ-GOV-02`).
   - **Capability**: `general_access`
-- `validate_new_resource(resource_hash: ActionHash, validation_scheme: String) -> ValidationReceipt`: Peer-validates a newly created nondominium Resource. Fulfills `REQ-USER-A-07` and `REQ-GOV-02`. Supports configurable validation schemes (`REQ-GOV-04`).
+- `validate_new_resource(resource_hash: ActionHash, validation_scheme: String) -> ValidationReceipt`: Peer-validates a newly created Resource. Fulfills `REQ-USER-A-07` and `REQ-GOV-02`. Supports configurable validation schemes (`REQ-GOV-04`).
   - **Capability**: `restricted_access`
 - `validate_process_event(event_hash: ActionHash) -> ValidationReceipt`: Validates an event related to a core process (e.g., Storage, Repair). Fulfills `REQ-USER-A-08` and `REQ-GOV-05`.
   - **Capability**: `restricted_access`
@@ -406,7 +406,7 @@ Minimum performance thresholds for process validation.
   - The `zome_resource` integrity zome ensures a resource cannot be created without a valid `ResourceSpecification` and enforces embedded governance rules (`REQ-GOV-07`).
   - The `zome_resource` integrity zome ensures that new resources start in a 'pending validation' state and are set to 'validated' upon successful peer review, as described in REQ-GOV-02 (Resource Validation).
   - The `zome_governance` integrity zome ensures a `Claim` matches its `Commitment` and validates all validation receipts for authenticity.
-  - The system supports configurable validation schemes (e.g., 2-of-3, N-of-M reviewers) for nondominium Resource approval per REQ-GOV-06 (Multi-Reviewer Validation).
+  - The system supports configurable validation schemes (e.g., 2-of-3, N-of-M reviewers) for Resource approval per REQ-GOV-06 (Multi-Reviewer Validation).
   - Certain types of validation are restricted to Agents with specific Roles per REQ-GOV-05 (Role-Gated Validation).
   - The `zome_resource` integrity zome validates that Economic Processes can only be initiated by agents with appropriate roles (Transport, Repair, Storage processes require specific credentials).
   - Economic Process validation ensures that:
