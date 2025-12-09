@@ -4,6 +4,14 @@
 
 A **ValueFlows-compliant resource sharing Holochain application** implementing distributed, agent-centric resource management with embedded governance.
 
+## Executive Summary
+**nondominium** is a foundational infrastructure project aimed at enabling a new class of Resources that are *organization-agnostic*, *uncapturable*, and *natively collaborative*. These Resources are governed not by platforms or centralized authorities, but through embedded rules, transparent peer validation, and a comprehensive reputation system.
+
+The project's central goal is to support a ***peer sharing economy***, overcoming the structural flaws of centralized platforms (centralization of power, censorship, unsuitable regulations).
+
+Built on the Holochain framework and using the ValueFlows standard, nondominium allows any Agent to interact with these Resources in a permissionless but accountable environment, with automatic reputation tracking through Private Participation Receipts (PPRs).
+
+
 ## Overview
 
 Nondominium is a 3-zome Holochain hApp that enables decentralized resource sharing through:
