@@ -32,8 +32,8 @@ pub struct ResourceSpecification {
   pub image_url: Option<String>,
   pub tags: Vec<String>,                 // For flexible discovery and filtering
   pub governance_rules: Vec<ActionHash>, // Links to GovernanceRule entries
-  pub created_by: AgentPubKey,
-  pub created_at: Timestamp,
+  pub created_by: AgentPubKey,// Todo: To remove because in action header
+  pub created_at: Timestamp, // Todo: To remove because in action header
   pub is_active: bool, // For filtering active vs inactive specs
 }
 
@@ -43,8 +43,8 @@ pub struct GovernanceRule {
   pub rule_type: String, // e.g., "access_requirement", "usage_limit", "transfer_conditions"
   pub rule_data: String, // JSON-encoded rule parameters
   pub enforced_by: Option<String>, // Role required to enforce this rule
-  pub created_by: AgentPubKey,
-  pub created_at: Timestamp,
+  pub created_by: AgentPubKey, // Todo: To remove because in action header
+  pub created_at: Timestamp, // Todo: To remove because in action header
 }
 
 #[hdk_entry_helper]
@@ -54,9 +54,9 @@ pub struct EconomicResource {
   pub quantity: f64,
   pub unit: String,
   pub custodian: AgentPubKey, // The Primary Accountable Agent holding the resource
-  pub created_by: AgentPubKey, // Who created this resource instance
-  pub created_at: Timestamp,
-  pub current_location: Option<String>, // Physical or virtual location
+  pub created_by: AgentPubKey, // Todo: To remove because in action header
+  pub created_at: Timestamp, // Todo: To remove because in action header
+  pub current_location: Option<String>, // Physical or virtual location TODO: use an enum
   pub state: ResourceState,
 }
 
