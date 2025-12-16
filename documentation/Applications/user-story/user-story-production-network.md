@@ -1,10 +1,70 @@
 # User Story: Production Network - Collaborative Manufacturing
 
-## Scenario: Makerspace Network Producing Custom Equipment Using Nondominium
+## Scenario: Makerspace Network Producing Custom Equipment Using Nondominium + TrueCommon
 
-**Context**: A distributed network of makerspaces collaborates to produce custom scientific equipment for research institutions, sharing specialized tools and expertise through Nondominium's production coordination system.
+**Context**: A distributed network of makerspaces collaborates to produce custom scientific equipment for research institutions. **This scenario clearly demonstrates the limitations of Nondominium's resource sharing economics and the critical need for TrueCommon's full REA integration with Network Resource Planning (NRP) for complete peer production network management.**
 
 ---
+
+## 🏗️ System Architecture Context
+
+### **Production Network Requirements Analysis**
+
+```mermaid
+graph TB
+    subgraph "Nondominium Capabilities (Resource Sharing)"
+        ResourceSharing[Resource Access & Sharing]
+        Transactions[Transaction Logging]
+        Reputation[PPR Reputation System]
+        Governance[Basic Governance Rules]
+    end
+
+    subgraph "TrueCommon Requirements (Production Network)"
+        NRP[Network Resource Planning]
+        REA[Full REA Economics]
+        Workflow[Production Workflow Mgt]
+        Accounting[Integrated Accounting]
+        Planning[Demand-Supply Planning]
+        Impact[Social/Environmental Impact]
+    end
+
+    subgraph "Production Network Gap Analysis"
+        Gap1["Multi-site Coordination"]
+        Gap2["Production Workflow Mgt"]
+        Gap3["Resource Optimization"]
+        Gap4["Cost Accounting"]
+        Gap5["Impact Measurement"]
+    end
+
+    ResourceSharing -.-> |Insufficient for| Gap1
+    Transactions -.-> |Limited| Gap2
+    Reputation -.-> |No workflow support| Gap3
+    Governance -.-> |No planning tools| Gap4
+    Governance -.-> |No impact tracking| Gap5
+
+    NRP --> Gap1
+    Workflow --> Gap2
+    Planning --> Gap3
+    Accounting --> Gap4
+    Impact --> Gap5
+```
+
+### **Critical Missing Capabilities for Production Networks**
+
+**What Nondominium Cannot Provide**:
+- **Multi-site Production Planning**: Coordinated scheduling across distributed facilities
+- **Production Workflow Management**: Multi-stage production process coordination
+- **Resource Optimization**: Network-wide equipment and material allocation
+- **Cost Accounting**: Complete production cost tracking and allocation
+- **Supply Chain Integration**: Material procurement and inventory management
+- **Quality Management**: Cross-facility quality assurance processes
+
+**What TrueCommon Must Provide**:
+- **Network Resource Planning (NRP)**: Distributed production coordination
+- **Full REA Integration**: Complete economic relationships and value flows
+- **Production Accounting**: Comprehensive cost and value tracking
+- **Supply Chain Management**: Material flow optimization across network
+- **Impact Assessment**: Environmental and social impact measurement
 
 ## 🏭 The Players
 
@@ -266,41 +326,91 @@ graph LR
 
 ---
 
-## 🏗️ Production Platform Architecture
+## 🏗️ Integrated Production Architecture: Nondominium + TrueCommon
 
-### **Manufacturing Coordination System**
+### **Complete Production Network Management System**
 
 ```mermaid
 graph TB
-    subgraph "Production Management Platform"
+    subgraph "Current Nondominium (Resource Sharing Layer)"
+        ND_Person[Person Zome - Agent Profiles]
+        ND_Resource[Resource Zome - Equipment Registry]
+        ND_Governance[Governance Zome - Basic Rules]
+        ND_PPR[PPR Reputation System]
+    end
+
+    subgraph "Required TrueCommon (Production Management Layer)"
+        TC_REA[Full REA Economics]
+        TC_NRP[Network Resource Planning]
+        TC_Workflow[Production Workflows]
+        TC_Accounting[Integrated Accounting]
+        TC_SupplyChain[Supply Chain Management]
+        TC_Quality[Quality Management]
+        TC_Planning[Demand-Supply Planning]
+    end
+
+    subgraph "Enhanced Production Platform"
         Design[Design Management]
         Scheduling[Production Scheduling]
         Quality[Quality Assurance]
         Inventory[Resource Inventory]
+        Costing[Cost Accounting]
+        Planning[Capacity Planning]
+        Impact[Impact Assessment]
     end
 
-    subgraph "Nondominium Production Integration"
-        Person[Person Zome - Production Roles]
-        Resource[Resource Zome - Equipment & Materials]
-        Governance[Governance Zome - Production Standards]
-    end
+    %% Nondominium provides foundation
+    Design --> ND_Person
+    Scheduling -.-> |Basic access control| ND_Resource
+    Quality -.-> |Reputation data| ND_PPR
 
-    subgraph "External Systems"
-        CAD[Computer-Aided Design]
-        ERP[Enterprise Resource Planning]
-        IoT[IoT Monitoring]
-        Compliance[Regulatory Compliance]
-    end
+    %% TrueCommon provides production management
+    Costing --> TC_Accounting
+    Planning --> TC_NRP
+    Inventory --> TC_SupplyChain
+    Quality --> TC_Quality
+    Scheduling --> TC_Workflow
+    Design --> TC_REA
+    Impact --> TC_NRP
 
-    Design --> Person
-    Scheduling --> Resource
-    Quality --> Governance
-    Inventory --> Resource
-
-    Person -.-> |Skill Validation| CAD
-    Resource -.-> |Equipment Status| IoT
-    Governance -.-> |Quality Standards| Compliance
+    %% Integration points
+    TC_NRP -.-> |Resource data| ND_Resource
+    TC_Accounting -.-> |Transaction base| ND_PPR
+    TC_REA -.-> |Agent identities| ND_Person
 ```
+
+### **Production Network Capability Gap Analysis**
+
+| **Capability** | **Nondominium** | **TrueCommon Required** | **Impact on Production Networks** |
+|----------------|----------------|------------------------|--------------------------------|
+| **Resource Discovery** | ✅ Excellent | - | Foundation layer works well |
+| **Access Governance** | ✅ Strong | - | Basic access control sufficient |
+| **Reputation Tracking** | ✅ PPR System | - | Individual reputation works |
+| **Multi-site Planning** | ❌ Not Available | ✅ NRP Module | **Critical Gap** - Production coordination |
+| **Production Workflows** | ❌ Not Available | ✅ Workflow Module | **Critical Gap** - Process management |
+| **Cost Accounting** | ❌ Transaction only | ✅ Accounting Module | **Critical Gap** - Financial tracking |
+| **Supply Chain** | ❌ Not Available | ✅ Supply Chain Module | **Critical Gap** - Material flow |
+| **Quality Management** | ❌ Not Available | ✅ Quality Module | **Critical Gap** - Cross-site QA |
+| **Impact Measurement** | ❌ Not Available | ✅ Impact Module | **Critical Gap** - Sustainability |
+
+### **Why Nondominium Alone Cannot Support Production Networks**
+
+**Limitation 1: Bilateral Transaction Focus**
+- Nondominium is designed for 1-to-1 resource sharing
+- Production networks require N-to-M coordination (multiple facilities, multiple workflows)
+- No support for complex multi-party production relationships
+
+**Limitation 2: No Production Planning**
+- Resource sharing ≠ production planning
+- No capability for capacity planning, bottleneck analysis, or production optimization
+- Missing workflow sequencing and dependency management
+
+**Limitation 3: Limited Economic Model**
+- Economic events track resource movements, not value creation
+- No support for work-in-progress, value-added processes, or production costs
+- Missing comprehensive accounting for production networks
+
+**TrueCommon's Network Resource Planning (NRP) bridges these gaps by providing complete REA integration with production-specific capabilities.**
 
 ### **Advanced Production Features**
 

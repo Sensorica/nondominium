@@ -2,9 +2,66 @@
 
 ## Scenario: University Research Team Using Shared Laboratory Equipment
 
-**Context**: A university research team needs specialized laboratory equipment for a critical experiment, accessing it through their institutional platform integrated with Nondominium.
+**Context**: A university research team needs specialized laboratory equipment for a critical experiment, accessing it through their institutional platform integrated with Nondominium. **This scenario demonstrates Nondominium's capabilities for specialized equipment access, with TrueCommon providing enhanced research network coordination and impact measurement.**
 
 ---
+
+## 🏗️ System Architecture Context
+
+### **Research Equipment Access (Nondominium Core Strength)**
+
+```mermaid
+graph TB
+    subgraph "Nondominium - Specialized Equipment Sharing"
+        Person[Person Zome - Researcher Profiles]
+        Resource[Resource Zome - Lab Equipment Registry]
+        Governance[Governance Zome - Access Protocols]
+        PPR[PPR Reputation System]
+    end
+
+    subgraph "Research Access Capabilities"
+        Certification[Research Certification Management]
+        Access[Secure Equipment Access]
+        Protocol[Experimental Protocol Validation]
+        Reputation[Research Responsibility Tracking]
+    end
+
+    Person --> Certification
+    Resource --> Access
+    Governance --> Protocol
+    PPR --> Reputation
+```
+
+**Nondominium Excellently Handles**:
+- Researcher certification and qualification verification
+- Specialized equipment access with safety protocols
+- Research reputation and responsible usage tracking
+- Secure audit trails for research compliance
+
+### **TrueCommon Research Network Enhancement**
+
+```mermaid
+graph TB
+    subgraph "TrueCommon - Research Network Coordination"
+        NRP[Research Network Planning]
+        Impact[Research Impact Measurement]
+        Accounting[Research Cost Accounting]
+        Planning[Resource Capacity Planning]
+    end
+
+    subgraph "Enhanced Research Management"
+        Collaboration[Cross-Institution Collaboration]
+        Scheduling[Research Project Scheduling]
+        ImpactTracking[Research Impact Analytics]
+        ResourceOptimization[Equipment Network Optimization]
+    end
+```
+
+**TrueCommon Enhances Research Networks With**:
+- Multi-institution research coordination
+- Research impact measurement beyond equipment usage
+- Collaborative project planning and resource allocation
+- Research network efficiency optimization
 
 ## 🎯 The Players
 

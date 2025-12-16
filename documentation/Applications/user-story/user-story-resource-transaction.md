@@ -2,9 +2,66 @@
 
 ## Scenario: Two Organizations Sharing Equipment via Tiki Wiki Integration
 
-**Context**: Sensorica (a maker space) and FabLab (a fabrication lab) want to share a CNC machine through their Tiki Wiki platform integration with Nondominium.
+**Context**: Sensorica (a maker space) and FabLab (a fabrication lab) want to share a CNC machine through their Tiki Wiki platform integration with Nondominium. **This scenario represents Nondominium's core strength - bilateral resource sharing between organizations - with potential TrueCommon enhancement for broader equipment network optimization.**
 
 ---
+
+## 🏗️ System Architecture Context
+
+### **Perfect Nondominium Use Case (Equipment Sharing)**
+
+```mermaid
+graph TB
+    subgraph "Nondominium - Equipment Sharing Excellence"
+        Person[Person Zome - Organization Reps]
+        Resource[Resource Zome - Equipment Registry]
+        Governance[Governance Zome - Access Rules]
+        PPR[PPR Reputation System]
+    end
+
+    subgraph "Equipment Sharing Capabilities"
+        Discovery[Equipment Discovery]
+        Access[Secure Access Control]
+        Validation[Operator Certification]
+        Reputation[Custodial Reputation]
+    end
+
+    Person --> Discovery
+    Resource --> Access
+    Governance --> Validation
+    PPR --> Reputation
+```
+
+**Nondominium Perfectly Supports**:
+- Equipment discovery and availability management
+- Access governance with certification requirements
+- Reputation tracking for equipment care and responsible usage
+- Secure transaction logging and audit trails
+
+### **TrueCommon Enhancement Option (Equipment Network Optimization)**
+
+```mermaid
+graph TB
+    subgraph "TrueCommon - Network Resource Planning"
+        NRP[Equipment Network Planning]
+        Utilization[Utilization Optimization]
+        Maintenance[Shared Maintenance Planning]
+        Costing[Usage-Based Costing]
+    end
+
+    subgraph "Enhanced Equipment Management"
+        Scheduling[Network-wide Scheduling]
+        Capacity[Capacity Planning]
+        Maintenance[Preventive Maintenance]
+        CostAllocation[Fair Cost Allocation]
+    end
+```
+
+**TrueCommon Would Add**:
+- Multi-equipment network optimization
+- Predictive maintenance scheduling
+- Utilization analytics and bottleneck identification
+- Fair cost allocation across network participants
 
 ## 🎯 The Players
 

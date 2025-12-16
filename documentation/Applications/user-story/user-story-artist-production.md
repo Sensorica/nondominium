@@ -2,9 +2,52 @@
 
 ## Scenario: Artists Co-producing Large-Scale Installation Using Shared Studio Resources
 
-**Context**: A collective of artists collaborates to create a large-scale public art installation, sharing specialized equipment and studio space through the Artcoin production network built on Nondominium.
+**Context**: A collective of artists collaborates to create a large-scale public art installation, sharing specialized equipment and studio space through the Artcoin production platform. **This scenario demonstrates both the current Nondominium resource sharing capabilities and the need for broader TrueCommon implementation with full REA integration for complete peer production network management through Network Resource Planning (NRP).**
 
 ---
+
+## 🏗️ System Architecture Context
+
+### **Current Nondominium Implementation (Resource Sharing Economics)**
+
+```mermaid
+graph TB
+    subgraph "Nondominium - Resource Sharing Focus"
+        Person[Person Zome - Artist Profiles]
+        Resource[Resource Zome - Studio Resources]
+        Governance[Governance Zome - PPR System]
+    end
+
+    subgraph "Current Capabilities"
+        ResourceSharing[Resource Access & Sharing]
+        Reputation[PPR Reputation Tracking]
+        Transactions[Economic Event Logging]
+    end
+```
+
+**Nondominium excels at**: Resource discovery, access governance, reputation tracking through PPRs, and secure economic transactions.
+
+### **Required TrueCommon Integration (Full REA + Network Resource Planning)**
+
+```mermaid
+graph TB
+    subgraph "TrueCommon - Complete REA Implementation"
+        REA[Full REA Integration]
+        NRP[Network Resource Planning]
+        Accounting[Integrated Accounting]
+        Planning[Resource Planning]
+    end
+
+    subgraph "Enhanced Capabilities Needed"
+        ProductionPlanning[Production Workflow Planning]
+        ResourceOptimization[Network-wide Resource Optimization]
+        DemandForecasting[Demand & Supply Planning]
+        FinancialAccounting[Complete Financial Accounting]
+        ImpactMeasurement[Social & Environmental Impact]
+    end
+```
+
+**TrueCommon provides**: Complete REA economics model, Network Resource Planning for production coordination, integrated accounting, and comprehensive impact measurement.
 
 ## 🎨 The Players
 
@@ -285,41 +328,71 @@ graph LR
 
 ---
 
-## 🏗️ Art Production Platform Architecture
+## 🏗️ Integrated Platform Architecture: Nondominium + TrueCommon
 
-### **Creative Production Management System**
+### **Complete Peer Production Management System**
 
 ```mermaid
 graph TB
-    subgraph "Artcoin Production Platform"
+    subgraph "Current Nondominium Implementation"
+        ND_Person[Person Zome - Artist Profiles]
+        ND_Resource[Resource Zome - Studio Resources]
+        ND_Governance[Governance Zome - Creative Standards]
+        PPR[PPR Reputation System]
+    end
+
+    subgraph "Required TrueCommon Implementation"
+        TC_REA[Full REA Economics Model]
+        TC_NRP[Network Resource Planning]
+        TC_Accounting[Integrated Accounting]
+        TC_Planning[Production Planning]
+        TC_Impact[Impact Measurement]
+    end
+
+    subgraph "Enhanced Production Platform"
         Creative[Concept Management]
         Scheduling[Production Timeline]
         Quality[Artistic Validation]
         Documentation[Process Documentation]
+        Financial[Cost Accounting]
+        Impact[Social Impact Tracking]
+        Workflow[Production Workflow]
     end
 
-    subgraph "Nondominium Art Production"
-        Person[Person Zome - Artist Profiles]
-        Resource[Resource Zome - Studio Resources]
-        Governance[Governance Zome - Creative Standards]
-    end
+    %% Current Nondominium Connections
+    Creative --> ND_Person
+    Scheduling --> ND_Resource
+    Quality --> ND_Governance
+    Documentation --> PPR
 
-    subgraph "Creative Tools Integration"
-        Design[Digital Design Tools]
-        CAD[3D Modeling & CAD]
-        Project[Project Management]
-        Portfolio[Portfolio Management]
-    end
+    %% TrueCommon Integration
+    Financial --> TC_Accounting
+    Workflow --> TC_NRP
+    Impact --> TC_Impact
+    Scheduling --> TC_Planning
+    Creative --> TC_REA
 
-    Creative --> Person
-    Scheduling --> Resource
-    Quality --> Governance
-    Documentation --> Resource
-
-    Person -.-> |Artistic Validation| Portfolio
-    Resource -.-> |Equipment Status| CAD
-    Governance -.-> |Creative Standards| Design
+    %% Cross-system integration
+    TC_NRP -.-> |Resource Optimization| ND_Resource
+    TC_Accounting -.-> |Transaction Data| PPR
+    TC_REA -.-> |Agent Identities| ND_Person
 ```
+
+### **Where Nondominium Ends and TrueCommon Must Begin**
+
+**Nondominium Provides (Current)**:
+- ✅ Resource discovery and access governance
+- ✅ Agent reputation through PPR system
+- ✅ Secure economic event logging
+- ✅ Bilateral transaction coordination
+
+**TrueCommon Must Provide (Missing)**:
+- ❌ **Network Resource Planning**: Coordinated multi-studio production scheduling
+- ❌ **Full REA Integration**: Complete economic relationships beyond simple transactions
+- ❌ **Production Workflow Management**: Multi-stage production process coordination
+- ❌ **Integrated Accounting**: Complete financial tracking across production network
+- ❌ **Demand-Supply Planning**: Resource allocation optimization across network
+- ❌ **Social/Environmental Impact**: Comprehensive impact measurement and reporting
 
 ### **Advanced Art Production Features**
 

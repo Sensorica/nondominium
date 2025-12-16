@@ -2,9 +2,66 @@
 
 ## Scenario: Artist Sharing Artwork Through Venues Using Nondominium
 
-**Context**: An independent artist wants to circulate their paintings through a network of venues (cafes, restaurants, offices) to gain exposure and generate rental income, using the Artcoin platform built on Nondominium infrastructure.
+**Context**: An independent artist wants to circulate their paintings through a network of venues (cafes, restaurants, offices) to gain exposure and generate rental income, using the Artcoin platform built on Nondominium infrastructure. **This scenario primarily demonstrates Nondominium's resource sharing capabilities, with optional TrueCommon integration for comprehensive cultural network economics.**
 
 ---
+
+## 🏗️ System Architecture Context
+
+### **Resource Sharing Focus (Nondominium Sweet Spot)**
+
+```mermaid
+graph TB
+    subgraph "Nondominium - Perfect Match for Art Circulation"
+        Person[Person Zome - Artist/Venue Profiles]
+        Resource[Resource Zome - Artwork Registry]
+        Governance[Governance Zome - Display Rules]
+        PPR[PPR Reputation System]
+    end
+
+    subgraph "Art Network Capabilities"
+        Discovery[Artwork Discovery]
+        Access[Venue Access Control]
+        Transactions[Rental/Sales Transactions]
+        Reputation[Artist/Venue Reputation]
+    end
+
+    Person --> Discovery
+    Resource --> Access
+    Governance --> Transactions
+    PPR --> Reputation
+```
+
+**Why Nondominium Excels for Art Networks**:
+- Perfect fit for bilateral resource sharing (artwork ↔ venue)
+- PPR system captures artistic and custodial reputation effectively
+- Economic events handle rental and sales transactions cleanly
+- Governance rules protect artwork and ensure proper care
+
+### **Optional TrueCommon Enhancement (Cultural Economics Analysis)**
+
+```mermaid
+graph TB
+    subgraph "TrueCommon - Cultural Network Analytics"
+        REA[Cultural Economics Analysis]
+        Impact[Social Impact Measurement]
+        Accounting[Cultural Value Accounting]
+        Planning[Network Growth Planning]
+    end
+
+    subgraph "Enhanced Capabilities Optional"
+        ArtistDevelopment[Artist Career Tracking]
+        CulturalMetrics[Community Impact Analysis]
+        ValueCreation[Creative Value Measurement]
+        NetworkOptimization[Venue Network Optimization]
+    end
+```
+
+**TrueCommon Enhancement**:
+- Cultural value beyond simple rental income
+- Social impact measurement of public art access
+- Artist career development analytics
+- Community cultural enrichment metrics
 
 ## 🎨 The Players
 
