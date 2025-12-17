@@ -1,8 +1,8 @@
 # Nondominium API Reference
 
-**Generated**: 2025-10-30
-**Version**: 2.0 (Complete PPR & Capability System)
-**Scope**: Complete function documentation for all zomes
+**Generated**: 2025-12-17
+**Version**: 3.0 (Updated with Current Implementation)
+**Scope**: Complete function documentation for all zomes based on actual codebase
 
 ---
 
@@ -30,10 +30,8 @@ Nondominium implements a comprehensive REST-like API through Holochain zome func
 ```rust
 pub struct PersonInput {
     pub name: String,
-    pub avatar: Option<String>,
+    pub avatar_url: Option<String>,
     pub bio: Option<String>,
-    pub location: Option<String>,
-    pub tags: Vec<String>,
 }
 ```
 **Returns**: `Record` containing the created `Person` entry
@@ -45,6 +43,15 @@ pub struct PersonInput {
 - `PersonError::PersonExists` - Agent already has a profile
 - Network/DHT errors during entry creation
 
+#### `get_latest_person_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>`
+**Purpose**: Retrieve the most recent version of a person record
+**Authorization**: Public access (person data is public)
+**Input**: `ActionHash` of the original person entry
+**Returns**: Latest `Record` entry or None if not found
+**Error Cases**:
+- `PersonError::PersonNotFound` - No person entry found
+- Network/DHT errors during retrieval
+
 #### `get_latest_person(original_action_hash: ActionHash) -> ExternResult<Person>`
 **Purpose**: Retrieve the most recent version of a person entry
 **Authorization**: Public access (person data is public)
@@ -52,7 +59,7 @@ pub struct PersonInput {
 **Returns**: Latest `Person` entry with all current fields
 **Error Cases**:
 - `PersonError::PersonNotFound` - No person entry found
-- `PersonError::CorruptRecord` - Record parsing failed
+- `PersonError::SerializationError` - Record parsing failed
 
 #### `update_person(input: UpdatePersonInput) -> ExternResult<Record>`
 **Purpose**: Update an existing person profile
@@ -106,24 +113,85 @@ pub struct PersonProfileOutput {
 **Returns**: Full profile including private information
 **Performance**: Optimized for current agent access patterns
 
+#### `get_agent_person_links(agent_pubkey: AgentPubKey) -> ExternResult<Vec<Link>>`
+**Purpose**: Get all links between an agent and person entries
+**Authorization**: Public access
+**Returns**: Vector of links showing agent-person relationships
+**Use Case**: Multi-device support and relationship management
+
+#### `get_agent_person(agent_pubkey: AgentPubKey) -> ExternResult<Option<ActionHash>>`
+**Purpose**: Get the primary person associated with an agent
+**Authorization**: Public access
+**Returns**: ActionHash of person entry if association exists
+**Use Case**: Agent-to-person lookup for profile access
+
+#### `get_person_agents(person_hash: ActionHash) -> ExternResult<Vec<AgentPubKey>>`
+**Purpose**: Get all agents associated with a person
+**Authorization**: Public access
+**Returns**: Vector of agent public keys
+**Use Case**: Multi-device support and agent management
+
+#### `add_agent_to_person(input: (AgentPubKey, ActionHash)) -> ExternResult<bool>`
+**Purpose**: Associate an additional agent with a person (multi-device support)
+**Authorization**: Person owner only
+**Input**: Tuple of (agent_pubkey, person_hash)
+**Returns**: Success status
+**Use Case**: Adding new devices to existing person profile
+
+#### `remove_agent_from_person(input: (AgentPubKey, ActionHash)) -> ExternResult<bool>`
+**Purpose**: Remove agent association from a person
+**Authorization**: Person owner only
+**Input**: Tuple of (agent_pubkey, person_hash)
+**Returns**: Success status
+**Use Case**: Removing lost or deactivated devices
+
+#### `is_agent_associated_with_person(input: (AgentPubKey, ActionHash)) -> ExternResult<bool>`
+**Purpose**: Check if agent is associated with person
+**Authorization**: Public access
+**Input**: Tuple of (agent_pubkey, person_hash)
+**Returns**: Boolean indicating association status
+**Use Case**: Authorization checks and validation
+
+#### `promote_agent_to_accountable(input: PromoteAgentInput) -> ExternResult<String>`
+**Purpose**: Promote an agent to accountable status with validation
+**Authorization**: Governance role required
+**Input**:
+```rust
+pub struct PromoteAgentInput {
+    pub agent: AgentPubKey,
+    pub first_resource_hash: ActionHash,
+}
+```
+**Returns**: String indicating new capability level
+**Use Case**: Agent promotion workflow
+
 ---
 
 ### Private Data Management
 
-#### `update_private_person_data(input: UpdatePrivatePersonDataInput) -> ExternResult<Record>`
-**Purpose**: Update private personal data with encryption
+#### `store_private_person_data(input: PrivatePersonDataInput) -> ExternResult<Record>`
+**Purpose**: Store private personal data with encryption
 **Authorization**: Current agent only
 **Input**:
 ```rust
-pub struct UpdatePrivatePersonDataInput {
-    pub original_action_hash: Option<ActionHash>,
-    pub contact_email: Option<String>,
-    pub contact_phone: Option<String>,
-    pub contact_address: Option<String>,
-    pub private_fields: HashMap<String, String>,
+pub struct PrivatePersonDataInput {
+    pub legal_name: String,
+    pub email: String,
+    pub phone: Option<String>,
+    pub address: Option<String>,
+    pub emergency_contact: Option<String>,
+    pub time_zone: Option<String>,
+    pub location: Option<String>,
 }
 ```
 **Returns**: Encrypted `Record` with private data
+**Security**: Data encrypted before storage in DHT
+
+#### `update_private_person_data(input: UpdatePrivatePersonDataInput) -> ExternResult<Record>`
+**Purpose**: Update existing private personal data
+**Authorization**: Current agent only
+**Input**: Similar to PrivatePersonDataInput with optional fields for updates
+**Returns**: Updated encrypted `Record`
 **Security**: Data encrypted before storage in DHT
 
 #### `get_my_private_person_data(()) -> ExternResult<Option<PrivatePersonData>>`
@@ -132,35 +200,103 @@ pub struct UpdatePrivatePersonDataInput {
 **Returns**: Decrypted private data if available
 **Security**: Automatic decryption for authorized access
 
-#### `get_agent_private_data(agent_pubkey: AgentPubKey) -> ExternResult<Option<PrivatePersonData>>`
+#### `get_agent_private_data(
+    agent_pubkey: AgentPubKey,
+    required_fields: Vec<String>,
+) -> ExternResult<Option<PrivatePersonData>>`
 **Purpose**: Access another agent's private data with authorization
 **Authorization**: Requires valid capability grant
+**Input**: Tuple of (agent_pubkey, required_fields)
 **Returns**: Private data if access authorized
 **Security**: Enforces capability-based access control
 
 ---
 
+### Device Management
+
+#### `register_device_for_person(input: RegisterDeviceInput) -> ExternResult<Record>`
+**Purpose**: Register a new device for a person (multi-device support)
+**Authorization**: Device owner or person representative
+**Input**:
+```rust
+pub struct RegisterDeviceInput {
+    pub device_id: String,
+    pub device_name: String,
+    pub device_type: String, // "mobile", "desktop", "tablet", "web", "server"
+    pub person_hash: ActionHash,
+}
+```
+**Returns**: Created `Device` entry record
+**Side Effects**: Creates device-person relationship links
+
+#### `get_devices_for_person(person_hash: ActionHash) -> ExternResult<Vec<DeviceInfo>>`
+**Purpose**: Get all devices registered for a specific person
+**Authorization**: Person owner or authorized agent
+**Returns**: Vector of device information structures
+**Use Case**: Multi-device management and security
+
+#### `get_device_info(device_id: String) -> ExternResult<Option<DeviceInfo>>`
+**Purpose**: Get detailed information about a specific device
+**Authorization**: Device owner or authorized agent
+**Returns**: Device information if device exists
+**Use Case**: Device verification and management
+
+#### `update_device_activity(device_id: String) -> ExternResult<bool>`
+**Purpose**: Update the last active timestamp for a device
+**Authorization**: Any authenticated request for the device
+**Returns**: Success status
+**Use Case**: Device activity tracking and security monitoring
+
+#### `deactivate_device(device_id: String) -> ExternResult<bool>`
+**Purpose**: Deactivate a device (revoke access)
+**Authorization**: Device owner or person representative
+**Returns**: Success status
+**Security**: Prevents further access from deactivated device
+
+#### `get_my_devices(()) -> ExternResult<Vec<DeviceInfo>>`
+**Purpose**: Get all devices for the current agent
+**Authorization**: Current agent only
+**Returns**: Vector of device information for current agent
+**Use Case**: Device management interface for users
+
+---
+
 ### Capability-Based Sharing
 
-#### `create_private_data_cap_claim(input: CreatePrivateDataCapClaimInput) -> ExternResult<CreatePrivateDataCapClaimOutput>`
-**Purpose**: Create capability claim for private data access
+#### `grant_private_data_access(input: GrantPrivateDataAccessInput) -> ExternResult<GrantPrivateDataAccessOutput>`
+**Purpose**: Grant another agent access to specific private data fields
 **Authorization**: Data owner only
+**Input**:
+```rust
+pub struct GrantPrivateDataAccessInput {
+    pub agent_to_grant: AgentPubKey,
+    pub fields_allowed: Vec<String>,
+    pub context: String,
+    pub expires_in_days: Option<u32>,
+}
+```
+**Returns**:
+```rust
+pub struct GrantPrivateDataAccessOutput {
+    pub grant_hash: ActionHash,
+    pub cap_secret: CapSecret,
+}
+```
+**Security**: Creates granular, field-level access control
+
+#### `create_private_data_cap_claim(input: CreatePrivateDataCapClaimInput) -> ExternResult<Record>`
+**Purpose**: Create capability claim for private data access (for grantee)
+**Authorization**: Any agent can create claims
 **Input**:
 ```rust
 pub struct CreatePrivateDataCapClaimInput {
     pub grantor: AgentPubKey,
     pub fields: Vec<String>,
     pub purpose: String,
-    pub expires_at: Option<u64>,
+    pub expires_at: Option<Timestamp>,
 }
 ```
-**Returns**:
-```rust
-pub struct CreatePrivateDataCapClaimOutput {
-    pub cap_claim: CapClaim,
-    pub cap_secret: CapSecret,
-}
-```
+**Returns**: Capability claim record
 **Security**: Creates cryptographically secure capability claim
 
 #### `get_private_data_with_capability(input: GetPrivateDataWithCapabilityInput) -> ExternResult<FilteredPrivateData>`
@@ -184,32 +320,123 @@ pub struct GetPrivateDataWithCapabilityInput {
 **Returns**: List of capability grants with metadata
 **Utility**: For managing and revoking access permissions
 
-#### `create_transferable_private_data_access(input: CreateTransferableAccessInput) -> ExternResult<TransferableCapabilityOutput>`
+#### `create_transferable_private_data_access(input: CreateTransferableAccessInput) -> ExternResult<Record>`
 **Purpose**: Create transferable access capability for delegation
 **Authorization**: Data owner only
+**Input**:
+```rust
+pub struct CreateTransferableAccessInput {
+    pub agent_pubkey: AgentPubKey,
+    pub fields: Vec<String>,
+    pub context: String,
+    pub expires_at: Option<Timestamp>,
+}
+```
 **Security**: Enables controlled delegation of access rights
 **Use Case**: Service providers needing temporary access to client data
+
+#### `revoke_private_data_access(grant_hash: ActionHash) -> ExternResult<()>`
+**Purpose**: Revoke previously granted private data access
+**Authorization**: Grant owner only
+**Input**: ActionHash of the capability grant to revoke
+**Security**: Immediately terminates access permissions
+**Use Case**: Security incident response and access management
+
+#### `validate_capability_grant(grant_hash: ActionHash) -> ExternResult<bool>`
+**Purpose**: Validate if a capability grant is still active and valid
+**Authorization**: Public access
+**Input**: ActionHash of the capability grant to validate
+**Returns**: Boolean indicating grant validity
+**Use Case**: Pre-access validation and security checks
+
+#### `grant_role_based_private_data_access(input: RoleBasedAccessInput) -> ExternResult<Record>`
+**Purpose**: Grant private data access based on role assignment
+**Authorization**: System or governance role required
+**Input**:
+```rust
+pub struct RoleBasedAccessInput {
+    pub role_name: String,
+    pub fields: Vec<String>,
+    pub context: String,
+    pub expires_at: Option<Timestamp>,
+}
+```
+**Security**: Role-based access control for private data
+**Use Case**: Organizational data access policies
+
+#### `validate_agent_private_data(input: ValidationDataRequest) -> ExternResult<ValidationResult>`
+**Purpose**: Validate an agent's request for private data access
+**Authorization**: Validation service or authorized validator
+**Input**:
+```rust
+pub struct ValidationDataRequest {
+    pub requesting_agent: AgentPubKey,
+    pub target_agent: AgentPubKey,
+    pub requested_fields: Vec<String>,
+    pub context: String,
+}
+```
+**Returns**:
+```rust
+pub struct ValidationResult {
+    pub is_valid: bool,
+    pub granted_fields: Vec<String>,
+    pub reason: Option<String>,
+}
+```
+**Security**: Structured validation with reasoning
+
+#### `validate_agent_private_data_with_grant(input: ValidationWithGrantRequest) -> ExternResult<ValidationResult>`
+**Purpose**: Validate private data access with specific capability grant
+**Authorization**: Validation service or authorized validator
+**Input**: Validation request with specific grant information
+**Returns**: Validation result with grant-specific reasoning
+**Security**: Grant-specific validation for audit trails
 
 ---
 
 ### Role Management
 
+#### `assign_person_role(input: PersonRoleInput) -> ExternResult<Record>`
+**Purpose**: Assign a role to an agent
+**Authorization**: System or governance role required
+**Input**:
+```rust
+pub struct PersonRoleInput {
+    pub agent_pubkey: AgentPubKey,
+    pub role_name: String,
+    pub description: Option<String>,
+}
+```
+**Returns**: Role assignment record
+**Security**: Role assignments create capability implications
+
+#### `get_latest_person_role_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>>`
+**Purpose**: Retrieve the most recent version of a person role record
+**Authorization**: Public access for role verification
+**Returns**: Latest role record or None if not found
+**Use Case**: Role history and validation
+
+#### `get_latest_person_role(original_action_hash: ActionHash) -> ExternResult<PersonRole>`
+**Purpose**: Retrieve the most recent version of a person role
+**Authorization**: Public access for role verification
+**Returns**: Latest `PersonRole` entry
+**Error Cases**: Role not found, record parsing failed
+
 #### `update_person_role(input: UpdatePersonRoleInput) -> ExternResult<Record>`
-**Purpose**: Assign or update agent roles with validation metadata
+**Purpose**: Update an existing person role
 **Authorization**: System or governance role required
 **Input**:
 ```rust
 pub struct UpdatePersonRoleInput {
-    pub original_action_hash: Option<ActionHash>,
-    pub agent_pubkey: AgentPubKey,
-    pub role: String,
-    pub assigned_by: AgentPubKey,
-    pub evidence: Option<String>,
-    pub expires_at: Option<u64>,
+    pub original_action_hash: ActionHash,
+    pub previous_action_hash: ActionHash,
+    pub role_name: Option<String>,
+    pub description: Option<String>,
 }
 ```
-**Returns**: Role assignment record with validation metadata
-**Security**: Role assignments create capability implications
+**Returns**: Updated role assignment record
+**Security**: Maintains audit trail of role changes
 
 #### `get_person_roles(agent_pubkey: AgentPubKey) -> ExternResult<GetPersonRolesOutput>`
 **Purpose**: Retrieve all roles assigned to an agent
@@ -229,12 +456,65 @@ pub struct GetPersonRolesOutput {
 #### `get_person_capability_level(agent_pubkey: AgentPubKey) -> ExternResult<String>`
 **Purpose**: Determine agent's capability level based on roles
 **Authorization**: Public access for capability verification
-**Returns**: String capability level ("member", "stewardship", "coordination", "governance")
+**Returns**: String capability level ("Simple Agent", "Accountable Agent", "Primary Accountable Agent", etc.)
 **Logic**:
-- "member" - Simple Agent with basic access
-- "stewardship" - Accountable Agent with resource access
-- "coordination" - Primary Accountable Agent with process initiation
-- "governance" - Advanced governance capabilities
+- "Simple Agent" - Basic agent capabilities
+- "Accountable Agent" - Resource access and management
+- "Primary Accountable Agent" - Process initiation and coordination
+- Specialized roles: "Transport Agent", "Repair Agent", "Storage Agent"
+
+#### `has_person_role_capability(input: (AgentPubKey, String)) -> ExternResult<bool>`
+**Purpose**: Check if agent has specific role capability
+**Authorization**: Public access for role verification
+**Input**: Tuple of (agent_pubkey, role_name)
+**Returns**: Boolean indicating role presence
+
+---
+
+### Role Promotion Workflow
+
+#### `promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<Record>`
+**Purpose**: Promote an agent with validation and PPR generation
+**Authorization**: Governance role required
+**Input**:
+```rust
+pub struct PromoteAgentInput {
+    pub agent: AgentPubKey,
+    pub first_resource_hash: ActionHash,
+}
+```
+**Returns**: Role promotion record with validation metadata
+**Side Effects**: Generates PPRs for promotion validation
+**Security**: Comprehensive validation with reputation assessment
+
+#### `request_role_promotion(input: RolePromotionRequest) -> ExternResult<ActionHash>`
+**Purpose**: Request role promotion for current agent
+**Authorization**: Any agent can request promotion
+**Input**:
+```rust
+pub struct RolePromotionRequest {
+    pub desired_role: String,
+    pub evidence: Option<String>,
+    pub context: String,
+}
+```
+**Returns**: ActionHash of the promotion request
+**Use Case**: Self-initiated promotion requests
+
+#### `approve_role_promotion(input: ApprovePromotionInput) -> ExternResult<Record>`
+**Purpose**: Approve a role promotion request
+**Authorization**: Governance role required
+**Input**:
+```rust
+pub struct ApprovePromotionInput {
+    pub request_hash: ActionHash,
+    pub validator_notes: Option<String>,
+    pub assigned_role: String,
+}
+```
+**Returns**: Approved role promotion record
+**Side Effects**: Creates PPRs for successful promotion
+**Security**: Multi-validator approval process
 
 ---
 
@@ -787,31 +1067,49 @@ Future API extensions will include:
 
 ### Common Error Types
 ```rust
-// Person Management Errors
+// Person Management Errors (actual implementation)
 pub enum PersonError {
-    PersonExists,
-    PersonNotFound,
-    Unauthorized,
-    CorruptRecord,
-    InvalidInput,
+    PersonAlreadyExists,
+    PersonNotFound(String),
+    PrivateDataNotFound,
+    RoleNotFound(String),
+    NotAuthor,
+    SerializationError(String),
+    EntryOperationFailed(String),
+    LinkOperationFailed(String),
+    InvalidInput(String),
+    InsufficientCapability(String),
 }
 
-// Resource Management Errors
+// Resource Management Errors (actual implementation)
 pub enum ResourceError {
-    ResourceNotFound,
-    UnauthorizedAccess,
-    InvalidSpecification,
-    InsufficientQuantity,
-    InvalidStateTransition,
+    ResourceSpecNotFound(String),
+    EconomicResourceNotFound(String),
+    GovernanceRuleNotFound(String),
+    NotAuthor,
+    NotCustodian,
+    SerializationError(String),
+    EntryOperationFailed(String),
+    LinkOperationFailed(String),
+    InvalidInput(String),
+    GovernanceViolation(String),
 }
 
-// Governance Errors
+// Governance Errors (actual implementation)
 pub enum GovernanceError {
-    CommitmentNotFound,
-    InvalidValidation,
-    InsufficientReputation,
-    PPRInvalid,
-    ValidationExpired,
+    ValidationReceiptNotFound(String),
+    EconomicEventNotFound(String),
+    ResourceValidationNotFound(String),
+    CommitmentNotFound(String),
+    NotAuthorizedValidator,
+    InsufficientCapability(String),
+    ValidationAlreadyExists(String),
+    InvalidValidationScheme(String),
+    SerializationError(String),
+    EntryOperationFailed(String),
+    LinkOperationFailed(String),
+    InvalidInput(String),
+    CrossZomeCallFailed(String),
 }
 ```
 
@@ -830,4 +1128,26 @@ pub struct ErrorDetails {
 
 ---
 
-*This API reference represents the complete current functionality of the Nondominium system. Function signatures and behaviors evolve with implementation improvements and community feedback.*
+*This API reference represents the complete current functionality of the Nondominium system based on actual codebase analysis. Function signatures and behaviors evolve with implementation improvements and community feedback.*
+
+## 🔄 **Updates in Version 3.0 (2025-12-17)**
+
+### **Major Corrections:**
+- ✅ **PersonInput structure**: Corrected `avatar` → `avatar_url`, removed non-existent `location` and `tags` fields
+- ✅ **Function signatures**: Updated all function signatures to match actual implementation
+- ✅ **Error types**: Replaced with actual error enums from the codebase
+
+### **New Function Categories Added:**
+- 🆕 **Device Management** (6 functions): Multi-device support with registration, deactivation, activity tracking
+- 🆕 **Advanced Capability Sharing** (4 functions): Grant revocation, validation, role-based access
+- 🆕 **Role Promotion Workflow** (3 functions): Request/approve/promotion with PPR integration
+
+### **Missing Functions Now Included:**
+- **Person Management**: Added 8 missing functions for agent-person relationships and promotion
+- **Private Data**: Added `store_private_person_data` and corrected `get_agent_private_data` signature
+- **Capability System**: Added `grant_private_data_access`, `revoke_private_data_access`, validation functions
+
+### **Accuracy Improvements:**
+- **Capability Levels**: Updated to reflect actual role types ("Simple Agent", "Accountable Agent", etc.)
+- **Security Patterns**: Corrected to match actual implementation patterns
+- **Data Structures**: All input/output structures now match actual code

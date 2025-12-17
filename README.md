@@ -147,19 +147,37 @@ This generates:
 
 ### Project Documentation
 
-- [Requirements](documentation/requirements.md) - Project goals and functional requirements
-- [Specifications](documentation/specifications.md) - Detailed technical specifications
-- [Implementation Plan](documentation/implementation_plan.md) - Development roadmap and phase breakdown
-- [Governance](documentation/governance.md) - Governance model and decision-making processes
-- [UI Architecture](documentation/ui_architecture.md) - Frontend architecture and design patterns
+- [Requirements](documentation/requirements/requirements.md) - Project goals and functional requirements
+- [Specifications](documentation/specifications/specifications.md) - Detailed technical specifications
+- [UI Architecture](documentation/specifications/ui_architecture.md) - Frontend architecture and design patterns
 - [Testing Infrastructure](documentation/Testing_Infrastructure.md) - Testing strategy and framework details
-- [ValueFlows Action Usage](documentation/VfAction_Usage.md) - ValueFlows implementation patterns
+- [ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md) - ValueFlows implementation patterns
+- [API Reference](documentation/API_REFERENCE.md) - Complete API documentation
+- [Documentation Index](documentation/DOCUMENTATION_INDEX.md) - Comprehensive documentation guide
 
 ### Zome Documentation
 
 - [Architecture Overview](documentation/zomes/architecture_overview.md) - Overall zome architecture and interactions
 - [Person Zome](documentation/zomes/person_zome.md) - Agent identity and profile management
 - [Resource Zome](documentation/zomes/resource_zome.md) - Resource lifecycle and management
+- [Governance Zome](documentation/zomes/governance_zome.md) - Governance rules and implementation
+
+### Governance & Security
+
+- [Governance Model](documentation/specifications/governance/governance.md) - Governance model and decision-making processes
+- [Private Participation Receipts](documentation/specifications/governance/private-participation-receipt.md) - PPR system documentation
+- [PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md) - Security implementation for PPR system
+
+### Applications & Use Cases
+
+- [Artcoin Integration](documentation/Applications/Nondominium_Artcoin.md) - Artcoin application integration
+- [User Stories](documentation/Applications/user-story/) - Complete user journey scenarios
+
+### Additional Resources
+
+- [hREA Integration Strategy](documentation/hREA-integration-strategy.md) - hREA integration planning
+- [Resource Transport Flow Protocol](documentation/specifications/resource-transport-flow-protocol.md) - Resource transport specifications
+- [Tiki Integration Specifications](documentation/specifications/tiki-integration-specifications.md) - Tiki platform integration
 
 ## Technology Stack
 
