@@ -218,7 +218,7 @@ The agent with physical possession (custodianship) of a material nondominium Res
 The hApp must be structured with three zomes:
 
 - **`zome_person`**: Agent identity, roles, reputation, and private data management
-- **`zome_resource`**: Resource specifications, economic resources, and process management
+- **`zome_resource`**: Resource specifications, economic resources, and process management (pure data model)
 - **`zome_governance`**: Validation, commitments, claims, and PPR issuance
 
 ### 9.2 ValueFlows Compliance
@@ -227,7 +227,40 @@ The hApp must be structured with three zomes:
 - **REQ-ARCH-02: Standard Actions**: Support all relevant ValueFlows actions with nondominium-specific extensions
 - **REQ-ARCH-03: Multi-Layer Ontology**: Support Knowledge, Plan, and Observation levels
 
-### 9.3 Data Integrity
+### 9.3 Modular Governance Architecture
+
+**REQ-ARCH-07: Modular Governance**: The resource zome operates as a pure data model, while the governance zome operates as a state transition operator. This separation enables independent evolution of data structures and governance rules.
+
+**Business Benefits**:
+- **Swappable Governance**: Governance rules can be updated without modifying resource data structures
+- **Independent Evolution**: Data model and governance logic can evolve separately
+- **Clear Separation of Concerns**: Data management separated from business logic enforcement
+- **Testability**: Governance logic can be tested independently of data management
+
+**REQ-ARCH-08: Swappable Governance**: Governance rules and validation logic must be modifiable without changing the resource data model. Different governance schemes can be applied to the same resource types.
+
+**Business Value**:
+- **Future-Proof**: System can adapt to new governance requirements without data migration
+- **Multi-Tenancy**: Different governance rules can be applied in different contexts
+- **Experimentation**: New governance approaches can be tested without disrupting existing data
+
+**REQ-ARCH-09: Cross-Zome Interface**: Well-defined interfaces between resource and governance zomes must support all state transitions while maintaining clear separation of responsibilities.
+
+**Interface Requirements**:
+- **State Transition Requests**: Resource zome requests state changes from governance zome
+- **Governance Decisions**: Governance zome provides validation and new state decisions
+- **Event Generation**: All state changes must generate corresponding economic events
+- **Audit Trail**: Complete history of governance decisions and state changes
+
+**REQ-ARCH-10: Event-Driven State Changes**: All resource state changes must generate corresponding economic events to maintain complete ValueFlows compliance and audit trails.
+
+**Event Requirements**:
+- **Complete History**: Every state transition must be recorded as an economic event
+- **Governance Context**: Events must include governance decision context
+- **ValueFlows Compliance**: Events must follow ValueFlows standard patterns
+- **Reputation Integration**: Events must support PPR generation for reputation tracking
+
+### 9.4 Data Integrity
 
 - **REQ-ARCH-04: Entry Validation**: Comprehensive validation logic in integrity zomes
 - **REQ-ARCH-05: Link Management**: Proper linking between related entries across zomes

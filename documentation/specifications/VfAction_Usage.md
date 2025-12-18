@@ -74,6 +74,276 @@ The nondominium system implements four structured Economic Processes that use sp
 - **Resource Effect**: Resource state may change (broken → functional)
 - **PPR Generated**: Repair-specific service receipts
 
+## Governance-as-Operator Pattern Examples
+
+### Cross-Zome State Transition Examples
+
+The governance-as-operator pattern requires explicit cross-zome calls for state changes:
+
+#### Resource Transfer with Governance Evaluation
+
+```rust
+use zome_gouvernance_integrity::VfAction;
+
+// Transfer resource custody through governance operator
+pub fn transfer_resource_with_governance(
+    resource_hash: ActionHash,
+    new_custodian: AgentPubKey,
+    notes: Option<String>,
+) -> ExternResult<GovernanceTransitionResult> {
+
+    // 1. Get current resource state
+    let resource = get_economic_resource(resource_hash)?;
+    let agent_info = agent_info()?;
+
+    // 2. Create governance transition request
+    let transition_request = GovernanceTransitionRequest {
+        action: VfAction::TransferCustody,
+        resource: resource.clone(),
+        requesting_agent: agent_info.agent_initial_pubkey,
+        context: TransitionContext {
+            target_custodian: Some(new_custodian),
+            process_notes: notes,
+            ..Default::default()
+        },
+    };
+
+    // 3. Call resource zome to handle state transition
+    let result: GovernanceTransitionResult = call(
+        CallTargetCell::Local,
+        "zome_resource",
+        "request_resource_transition".into(),
+        None,
+        &transition_request,
+    )?;
+
+    // 4. Handle result
+    if result.success {
+        println!("Transfer approved by governance");
+        if let Some(event) = result.economic_event {
+            println!("Economic event generated: {:?}", event);
+        }
+    } else {
+        println!("Transfer rejected: {:?}", result.rejection_reasons);
+    }
+
+    Ok(result)
+}
+```
+
+#### Use Process with Governance Validation
+
+```rust
+// Use process with governance operator pattern
+pub fn request_resource_use_with_governance(
+    resource_hash: ActionHash,
+    use_notes: Option<String>,
+) -> ExternResult<GovernanceTransitionResult> {
+
+    let resource = get_economic_resource(resource_hash)?;
+    let agent_info = agent_info()?;
+
+    let use_request = GovernanceTransitionRequest {
+        action: VfAction::Use,
+        resource: resource,
+        requesting_agent: agent_info.agent_initial_pubkey,
+        context: TransitionContext {
+            process_notes: use_notes,
+            ..Default::default()
+        },
+    };
+
+    let result: GovernanceTransitionResult = call(
+        CallTargetCell::Local,
+        "zome_resource",
+        "request_resource_transition".into(),
+        None,
+        &use_request,
+    )?;
+
+    // Check if specific validation was required
+    if let Some(next_steps) = result.next_steps {
+        println!("Additional validation required: {:?}", next_steps);
+    }
+
+    Ok(result)
+}
+```
+
+#### Transport Process with Role Validation
+
+```rust
+// Transport process requiring Transport role validation
+pub fn transport_resource_with_governance(
+    resource_hash: ActionHash,
+    destination: String,
+    transport_notes: Option<String>,
+) -> ExternResult<GovernanceTransitionResult> {
+
+    let resource = get_economic_resource(resource_hash)?;
+    let agent_info = agent_info()?;
+
+    let transport_request = GovernanceTransitionRequest {
+        action: VfAction::Move,
+        resource: resource,
+        requesting_agent: agent_info.agent_initial_pubkey,
+        context: TransitionContext {
+            target_location: Some(destination),
+            process_notes: transport_notes,
+            ..Default::default()
+        },
+    };
+
+    let result: GovernanceTransitionResult = call(
+        CallTargetCell::Local,
+        "zome_resource",
+        "request_resource_transition".into(),
+        None,
+        &transport_request,
+    )?;
+
+    // Transport generates both Move and Work events
+    if result.success {
+        if let Some(event) = result.economic_event {
+            match event.action {
+                VfAction::Move => println!("Transport move event generated"),
+                VfAction::Work => println!("Transport work event generated"),
+                _ => println!("Other event type: {:?}", event.action),
+            }
+        }
+    }
+
+    Ok(result)
+}
+```
+
+#### Repair Process with State Change Validation
+
+```rust
+// Repair process with state transition validation
+pub fn repair_resource_with_governance(
+    resource_hash: ActionHash,
+    repair_details: String,
+    new_state: Option<ResourceState>,
+) -> ExternResult<GovernanceTransitionResult> {
+
+    let resource = get_economic_resource(resource_hash)?;
+    let agent_info = agent_info()?;
+
+    let repair_request = GovernanceTransitionRequest {
+        action: VfAction::Modify,
+        resource: resource,
+        requesting_agent: agent_info.agent_initial_pubkey,
+        context: TransitionContext {
+            process_notes: Some(repair_details),
+            metadata: new_state.map(|state| {
+                let mut metadata = HashMap::new();
+                metadata.insert("target_state".to_string(), state.to_string());
+                metadata
+            }).unwrap_or_default(),
+            ..Default::default()
+        },
+    };
+
+    let result: GovernanceTransitionResult = call(
+        CallTargetCell::Local,
+        "zome_resource",
+        "request_resource_transition".into(),
+        None,
+        &repair_request,
+    )?;
+
+    // Verify resource state was updated as expected
+    if result.success {
+        if let (Some(expected_state), Some(actual_state)) = (new_state, result.new_resource_state.as_ref()) {
+            if actual_state.state == expected_state {
+                println!("Resource state correctly updated to: {:?}", expected_state);
+            } else {
+                warn!("Resource state mismatch: expected {:?}, got {:?}", expected_state, actual_state.state);
+            }
+        }
+    }
+
+    Ok(result)
+}
+```
+
+### Batch Processing with Governance
+
+```rust
+// Batch multiple state transitions efficiently
+pub fn batch_process_transitions(
+    requests: Vec<GovernanceTransitionRequest>,
+) -> ExternResult<Vec<GovernanceTransitionResult>> {
+
+    // Validate batch size
+    if requests.len() > 50 {
+        return Err(WasmError::Guest(
+            "Batch size too large, maximum 50 requests".to_string()
+        ).into());
+    }
+
+    // Group requests by resource specification for efficiency
+    let mut grouped_requests: HashMap<ActionHash, Vec<GovernanceTransitionRequest>> = HashMap::new();
+    for request in requests {
+        let spec_hash = request.resource.conforms_to;
+        grouped_requests.entry(spec_hash)
+            .or_insert_with(Vec::new)
+            .push(request);
+    }
+
+    // Process each group through resource zome
+    let mut all_results = Vec::new();
+    for group_requests in grouped_requests.values() {
+        let group_results: Vec<GovernanceTransitionResult> = call(
+            CallTargetCell::Local,
+            "zome_resource",
+            "batch_state_transitions".into(),
+            None,
+            &group_requests,
+        )?;
+        all_results.extend(group_results);
+    }
+
+    Ok(all_results)
+}
+
+// Example batch usage
+pub async fn example_batch_transfers() -> ExternResult<()> {
+    let transfers = vec![
+        create_transfer_request("resource_1", "agent_2"),
+        create_transfer_request("resource_2", "agent_3"),
+        create_transfer_request("resource_3", "agent_1"),
+    ];
+
+    let results = batch_process_transitions(transfers)?;
+
+    for (index, result) in results.iter().enumerate() {
+        match result.success {
+            true => println!("Transfer {} approved", index + 1),
+            false => println!("Transfer {} rejected: {:?}", index + 1, result.rejection_reasons),
+        }
+    }
+
+    Ok(())
+}
+
+fn create_transfer_request(resource_id: &str, target_agent: &str) -> GovernanceTransitionRequest {
+    let resource_hash = resource_id.parse().expect("Invalid resource ID");
+    let target_custodian = target_agent.parse().expect("Invalid agent ID");
+
+    GovernanceTransitionRequest {
+        action: VfAction::TransferCustody,
+        resource: get_economic_resource(resource_hash).unwrap(),
+        requesting_agent: agent_info().unwrap().agent_initial_pubkey,
+        context: TransitionContext {
+            target_custodian: Some(target_custodian),
+            ..Default::default()
+        },
+    }
+}
+```
+
 ## Usage Examples
 
 ### Economic Process Workflows

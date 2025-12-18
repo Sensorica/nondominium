@@ -60,6 +60,8 @@ bun run package         # Create final .webhapp distribution
 
 ### System Architecture
 
+nondominium implements a **Governance-as-Operator** architecture that separates data management from business logic enforcement:
+
 - **Framework**: Holochain HDK 0.5.3 / HDI 0.6.3 (Rust + WASM)
 - **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
 - **Testing**: Vitest 3.1.3 + @holochain/tryorama 0.18.2
@@ -68,11 +70,25 @@ bun run package         # Create final .webhapp distribution
 
 ### Zome Structure
 
-| Zome                                                             | Purpose                            | Key Features                                                                                                                                            |
-| ---------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[`zome_person`](documentation/zomes/person_zome.md)**          | Agent identity & access control    | • Agent profiles & roles<br>• Capability-based security<br>• Private data sharing workflows<br>• PPR integration & reputation tracking                  |
-| **[`zome_resource`](documentation/zomes/resource_zome.md)**      | Resource lifecycle management      | • EconomicResource & EconomicEvent handling<br>• Four Economic Processes (Use/Transport/Storage/Repair)<br>• Resource specifications & state management |
-| **[`zome_gouvernance`](documentation/zomes/governance_zome.md)** | Governance & commitment management | • Commitments & claims<br>• PPR issuance (14 categories)<br>• Multi-reviewer validation<br>• Agent promotion & capability progression                   |
+| Zome                                                             | Purpose                            | Key Features                                                                                                                                                           |
+| ---------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[`zome_person`](documentation/zomes/person_zome.md)**          | Agent identity & access control    | • Agent profiles & roles<br>• Capability-based security<br>• Private data sharing workflows<br>• PPR integration & reputation tracking                                    |
+| **[`zome_resource`](documentation/zomes/resource_zome.md)**      | Pure data model                    | • EconomicResource & EconomicEvent data structures<br>• Resource state management only<br>• Cross-zome interface for governance requests<br>• No business logic         |
+| **[`zome_gouvernance`](documentation/zomes/governance_zome.md)** | State transition operator         | • Governance rule evaluation<br>• State transition validation<br>• Economic event generation<br>• PPR issuance (16 categories)<br>• Agent promotion & capability progression |
+
+### Governance-as-Operator Architecture
+
+**Key Design Principles:**
+- **Modular Design**: Resource zome manages data, governance zome enforces rules
+- **Swappable Governance**: Different governance schemes can be applied to same resources
+- **Pure Function Governance**: Stateless evaluation with deterministic outputs
+- **Event-Driven State Changes**: All transitions generate audit events
+- **Cross-Zome Interface**: Well-defined communication protocol
+
+**Documentation:**
+- **[Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md)** - Technical architecture and design patterns
+- **[Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md)** - Detailed implementation with code examples
+- **[Cross-Zome API](documentation/specifications/governance/cross-zome-api.md)** - Complete API specifications
 
 ### Key Concepts
 
@@ -89,19 +105,22 @@ bun run package         # Create final .webhapp distribution
 
 | Document                                                                                     | Description                                    | Status      |
 | -------------------------------------------------------------------------------------------- | ---------------------------------------------- | ----------- |
-| **[Requirements](documentation/requirements/requirements.md)**                               | Complete PRD with objectives & goals           | ✅ Complete |
+| **[Requirements](documentation/requirements/requirements.md)**                               | Complete PRD with modular governance architecture | ✅ Complete |
 | **[UI Architecture](documentation/specifications/ui_architecture.md)**                         | Frontend design patterns & component structure | ✅ Complete |
 | **[UI Design](documentation/requirements/ui_design.md)**                                     | User interface design specifications           | ✅ Complete |
 | **[PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md)** | Security model for reputation system           | ✅ Complete |
-| **[ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md)**                  | ValueFlows standard implementation patterns    | ✅ Complete |
+| **[ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md)**                  | ValueFlows implementation with governance examples | ✅ Complete |
 
 ### Technical Specifications
 
-| Document                                                                     | Description                                                | Status      |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------- |
-| **[Architecture Overview](documentation/zomes/architecture_overview.md)**    | Comprehensive system architecture & cross-zome integration | ✅ Complete |
-| **[Implementation Plan](documentation/archives/implementation_plan.md)**     | Development roadmap & phase breakdown                      | ✅ Complete |
-| **[Implementation Status](documentation/archives/IMPLEMENTATION_STATUS.md)** | Current development progress & completion status           | ✅ Complete |
+| Document                                                                                              | Description                                                    | Status      |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------- |
+| **[Architecture Overview](documentation/zomes/architecture_overview.md)**                                | Comprehensive system architecture & cross-zome integration     | ✅ Complete |
+| **[Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md)** | Technical architecture for modular governance design          | ✅ Complete |
+| **[Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples            | ✅ Complete |
+| **[Cross-Zome API](documentation/specifications/governance/cross-zome-api.md)**                                    | Complete API specifications for zome communication            | ✅ Complete |
+| **[Implementation Plan](documentation/archives/implementation_plan.md)**                                 | Development roadmap & phase breakdown                          | ✅ Complete |
+| **[Implementation Status](documentation/archives/IMPLEMENTATION_STATUS.md)**                            | Current development progress & completion status               | ✅ Complete |
 
 ### Testing & Infrastructure
 
@@ -143,30 +162,53 @@ bun run package         # Create final .webhapp distribution
 - `get_agent_roles()` - Query current role assignments
 - `validate_role_requirements()` - Check role qualification status
 
-### Resource Zome API
+### Resource Zome API (Data Model Only)
 
-**Resource Specification**
+**Resource Specification Management**
 
 - `create_resource_specification()` - Define resource types and properties
 - `get_resource_specification()` - Retrieve specification details
+- `get_all_resource_specifications()` - Discover all specifications
 - `update_resource_specification()` - Modify specifications with validation
 
 **Economic Resource Management**
 
-- `create_economic_resource()` - Create resource instances with lifecycle tracking
-- `get_economic_resource()` - Retrieve resource state and history
-- `update_economic_resource()` - Update resource state with audit trail
+- `create_economic_resource()` - Create resource instances with initial state
+- `get_economic_resource()` - Retrieve resource current state and history
+- `get_economic_resource_with_state()` - Retrieve resource with full state transitions
+- `update_economic_resource_state()` - Update resource state (requires governance approval)
+- `get_my_resources()` - Discover resources where calling agent is custodian
+- `get_resources_by_specification()` - Find resources conforming to specification
+- `get_resources_by_state()` - Query resources by current state
 
-**Economic Process Management**
+**Cross-Zome State Transitions**
 
-- `initiate_use_process()` - Start Use process with role validation
-- `initiate_transport_process()` - Start Transport process with custody tracking
-- `initiate_storage_process()` - Start Storage process with location tracking
-- `initiate_repair_process()` - Start Repair process with validation requirements
+- `request_resource_transition()` - Request state change through governance evaluation
+- `batch_state_transitions()` - Process multiple state transitions efficiently
 
-### Governance Zome API
+### Governance Zome API (State Transition Operator)
 
-**Commitment Management**
+**State Transition Evaluation**
+
+- `evaluate_state_transition()` - Evaluate governance rules for state changes
+- `get_applicable_rules()` - Retrieve governance rules for resource/action
+- `evaluate_rule()` - Evaluate individual governance rule
+- `check_agent_permissions()` - Verify agent has required permissions
+- `get_agent_roles()` - Retrieve agent's current role assignments
+
+**Economic Event Generation**
+
+- `generate_economic_event()` - Create audit events for state transitions
+- `validate_transition_chain()` - Validate sequence of state changes
+- `get_transition_history()` - Retrieve complete audit trail
+
+**Governance Rule Management**
+
+- `create_governance_rule()` - Create new governance rules
+- `update_governance_rule()` - Modify existing rules
+- `get_governance_rules()` - Retrieve applicable rules
+
+**Legacy Commitment Management (PPR System)**
 
 - `create_commitment()` - Create commitments with validation rules
 - `get_commitment()` - Retrieve commitment details

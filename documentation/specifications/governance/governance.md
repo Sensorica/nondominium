@@ -588,6 +588,20 @@ The governance system spans across three integrated zomes:
 - **Multi-Network Identity**: Cross-platform agent identity and reputation portability
 - **Automated Compliance Checking**: Real-time governance rule compliance monitoring
 
+## 10. Governance-as-Operator Architecture Implementation
+
+The nondominium governance system implements a modular architecture following REQ-ARCH-07, separating data management from business logic enforcement:
+
+- **Architecture Specification**: See [Governance Operator Architecture](governance-operator-architecture.md) for detailed technical specifications and design patterns
+- **Implementation Guide**: See [Governance Operator Implementation Guide](governance-operator-implementation-guide.md) for comprehensive code examples, cross-zome interfaces, and testing patterns
+
+This modular design enables:
+
+- Independent evolution of resource data structures and governance rules
+- Swappable governance schemes for different resource types
+- Comprehensive testing of governance logic in isolation
+- Clear separation of concerns between data persistence and business rule enforcement
+
 ## References
 
 - [ValueFlows Core Concepts](https://www.valueflo.ws/introduction/core/)

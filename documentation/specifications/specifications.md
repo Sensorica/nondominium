@@ -20,11 +20,47 @@ As per the project's architectural description, the hApp will be composed of thr
 - **`zome_resource`**: Manages the lifecycle of Economic Resources and their Specifications.
 - **`zome_governance`**: Implements the logic for Commitments, Claims, and other governance-related actions.
 
-## 3. Data Structures (Integrity Zome Entries)
+## 3. Governance-as-Operator Architecture Overview
 
-### 3.1. `zome_person` Entries
+### 3.1 Architecture Principle
 
-#### 3.1.1. `AgentProfile`
+The nondominium system implements a **governance-as-operator** architecture where:
+
+- **Resource Zome** operates as a **pure data model** responsible for resource specifications, economic resources, and data persistence
+- **Governance Zome** operates as a **state transition operator** responsible for evaluating governance rules, validating state changes, and generating economic events
+
+This separation enables independent evolution of data structures and governance rules while maintaining clear interfaces and responsibilities.
+
+### 3.2 Cross-Zome Interface
+
+The primary interface between zomes follows the governance operator pattern:
+
+```rust
+// Resource zome requests state transition
+#[hdk_extern]
+pub fn request_resource_transition(
+    request: GovernanceTransitionRequest,
+) -> ExternResult<GovernanceTransitionResult>;
+
+// Governance zome evaluates and decides
+#[hdk_extern]
+pub fn evaluate_state_transition(
+    request: GovernanceTransitionRequest,
+) -> ExternResult<GovernanceTransitionResult>;
+```
+
+### 3.3 Data Flow Pattern
+
+1. **State Change Request**: Resource zome receives agent request
+2. **Governance Evaluation**: Cross-zome call to governance zome for decision
+3. **State Application**: Resource zome applies approved changes
+4. **Event Generation**: Economic events generated for audit trail
+
+## 4. Data Structures (Integrity Zome Entries)
+
+### 4.1. `zome_person` Entries
+
+#### 4.1.1. `AgentProfile`
 
 Stores public-facing information about an agent.
 
@@ -53,7 +89,7 @@ Defines a specific role an agent can have (e.g., `User`, `Repair`, `Transport`, 
 - **Links**:
   - `AgentProfile -> Role`: Assigns a role to an agent. This link's tag could hold validation info (e.g., who validated the role).
 
-### 3.2. `zome_resource` Entries
+### 4.2. `zome_resource` Entries
 
 #### 3.2.1. `ResourceSpecification`
 
@@ -325,7 +361,69 @@ Minimum performance thresholds for process validation.
   - `minimum_communication: f64`: Minimum acceptable communication score
   - `minimum_completion_rate: f64`: Minimum acceptable completion rate
 
-## 4. Zome Functions (Coordinator Zomes)
+## 5. Cross-Zome Interface Types
+
+### 5.1 Governance Transition Request
+
+Interface for requesting state changes from the governance zome:
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GovernanceTransitionRequest {
+    /// The action the requesting agent wants to perform
+    pub action: VfAction,
+    /// Current state of the resource being modified
+    pub resource: EconomicResource,
+    /// Agent requesting the state change
+    pub requesting_agent: AgentPubKey,
+    /// Additional context for the transition
+    pub context: TransitionContext,
+}
+```
+
+### 5.2 Transition Context
+
+Additional context information for state transitions:
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TransitionContext {
+    /// Target location for transport/move actions
+    pub target_location: Option<String>,
+    /// Quantity change for produce/consume actions
+    pub quantity_change: Option<f64>,
+    /// Target custodian for transfer actions
+    pub target_custodian: Option<AgentPubKey>,
+    /// Process notes and observations
+    pub process_notes: Option<String>,
+    /// Associated economic process if applicable
+    pub process_context: Option<ActionHash>,
+}
+```
+
+### 5.3 Governance Transition Result
+
+Result structure returned by the governance zome:
+
+```rust
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GovernanceTransitionResult {
+    /// Whether the transition was approved
+    pub success: bool,
+    /// Updated resource state (if approved)
+    pub new_resource_state: Option<EconomicResource>,
+    /// Generated economic event for audit trail
+    pub economic_event: Option<EconomicEvent>,
+    /// Validation receipts from governance evaluation
+    pub validation_receipts: Vec<ValidationReceipt>,
+    /// Detailed reasons for rejection (if applicable)
+    pub rejection_reasons: Option<Vec<String>>,
+    /// Required next steps or additional validation needed
+    pub next_steps: Option<Vec<String>>,
+}
+```
+
+## 6. Zome Functions (Coordinator Zomes)
 
 ### 4.1. `zome_person` Functions
 

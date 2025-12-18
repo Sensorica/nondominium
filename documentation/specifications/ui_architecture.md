@@ -57,26 +57,26 @@ Multi-Layer Structure with Economic Processes & PPR:
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ PAGES/ROUTES (Enhanced)                                                         │
-│ /dashboard, /profile, /people, /processes, /reputation, /governance, /settings │
-│ + Economic Process workflows, PPR tracking, role progression                   │
+│ /dashboard, /profile, /people, /processes, /reputation, /governance, /settings  │
+│ + Economic Process workflows, PPR tracking, role progression                    │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ COMPONENTS (Process-Aware)                                                     │
-│ PersonProfile, ProcessWorkflow, ReputationDashboard, RoleProgression,         │
-│ PrivateDataManager, ResourceLifecycle, ValidationInterface                    │
+│ COMPONENTS (Process-Aware)                                                      │
+│ PersonProfile, ProcessWorkflow, ReputationDashboard, RoleProgression,           │
+│ PrivateDataManager, ResourceLifecycle, ValidationInterface                      │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ COMPOSABLES (Economic Process & PPR Integration)                               │
-│ useEconomicProcess, usePPRTracking, useAgentProgression, usePrivateDataSharing,│
-│ useReputationManagement, useValidationWorkflows, useRoleManagement             │
+│ COMPOSABLES (Economic Process & PPR Integration)                                │
+│ useEconomicProcess, usePPRTracking, useAgentProgression, usePrivateDataSharing, │
+│ useReputationManagement, useValidationWorkflows, useRoleManagement              │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       ↓
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│ STORES (Advanced Effect-TS with Cross-Zome State)                              │
-│ personStore, resourceStore, processStore, reputationStore, governanceStore,   │
-│ validationStore, roleStore, authStore - with PPR integration                  │
+│ STORES (Advanced Effect-TS with Cross-Zome State)                               │
+│ personStore, resourceStore, processStore, reputationStore, governanceStore,     │
+│ validationStore, roleStore, authStore - with PPR integration                    │
 └─────────────────────────────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────┐

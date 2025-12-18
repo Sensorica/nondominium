@@ -23,11 +23,19 @@ Nondominium is a 3-zome Holochain hApp that enables decentralized resource shari
 
 ### Architecture
 
-**Zome Structure:**
+**Governance-as-Operator Design:**
 
-- `zome_person`: Agent profiles, roles, and capability-based access
-- `zome_resource`: Resource specifications and lifecycle management
-- `zome_gouvernance`: Commitments, economic events, and governance rules
+nondominium implements a modular governance-as-operator architecture that separates data management from business logic enforcement:
+
+- **`zome_person`**: Agent identity, profiles, roles, and capability-based access control
+- **`zome_resource`**: Pure data model for resource specifications and lifecycle management (state only)
+- **`zome_gouvernance`**: State transition operator that evaluates governance rules and validates changes
+
+**Key Architecture Benefits:**
+- **Modularity**: Governance rules can be modified without changing resource data structures
+- **Swappability**: Different governance schemes can be applied to the same resource types
+- **Testability**: Governance logic can be unit tested independently of data management
+- **Separation of Concerns**: Clear boundaries between data persistence and business rule enforcement
 
 **Technology Stack:**
 
@@ -149,9 +157,12 @@ This generates:
 
 - [Requirements](documentation/requirements/requirements.md) - Project goals and functional requirements
 - [Specifications](documentation/specifications/specifications.md) - Detailed technical specifications
+- [Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md) - Modular governance design patterns
+- [Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md) - Implementation details with code examples
+- [Cross-Zome API](documentation/specifications/governance/cross-zome-api.md) - API specifications for zome communication
 - [UI Architecture](documentation/specifications/ui_architecture.md) - Frontend architecture and design patterns
 - [Testing Infrastructure](documentation/Testing_Infrastructure.md) - Testing strategy and framework details
-- [ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md) - ValueFlows implementation patterns
+- [ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md) - ValueFlows implementation patterns with governance examples
 - [API Reference](documentation/API_REFERENCE.md) - Complete API documentation
 - [Documentation Index](documentation/DOCUMENTATION_INDEX.md) - Comprehensive documentation guide
 
@@ -164,7 +175,13 @@ This generates:
 
 ### Governance & Security
 
-- [Governance Model](documentation/specifications/governance/governance.md) - Governance model and decision-making processes
+**Governance Architecture:**
+- [Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md) - Modular governance design patterns
+- [Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md) - Implementation details with code examples
+- [Cross-Zome API](documentation/specifications/governance/cross-zome-api.md) - API specifications for zome communication
+- [Governance Model](documentation/specifications/governance/governance.md) - Legacy governance model and decision-making processes
+
+**Reputation & Security:**
 - [Private Participation Receipts](documentation/specifications/governance/private-participation-receipt.md) - PPR system documentation
 - [PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md) - Security implementation for PPR system
 
