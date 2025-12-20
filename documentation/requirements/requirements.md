@@ -21,7 +21,7 @@ Develop a new class of Resources that are:
 - **Self-governed**: Rules driven associated directly with the Resources, which govern interactions or Actions that Agents can take, as defined by the system. **Roles**: Set of Activities or types of interactions that an Agent can perform with respect to the Resource. Also related to Custody (responsibility), maintenance or improvements (obligations). **Access control**: Rules associated with Roles of Agents, membranes, to grant permissions to interact with Resources in specific ways, Role-related. Is pseudonymous.
 - **Self-regulated**: Peer reviewed, verified and tested (quality control)
 - **Shareable by Default**: Resources are designed for sharing from inception
-- **Reputation-enabled**: Built-in accountability through cryptographically-signed participation tracking
+- **Credentials and Reputation-enabled**: Built-in accountability through cryptographically-signed participation tracking
 - **Process-aware**: Supporting structured Economic Processes (Use, Transport, Storage, Repair)
 - **Fully specified**: Machine readable in terms of function, design architecture, standards (dimensions, tolerances, quality), etc.
 - **Composable**: Resources can be combined into come complex resources, allow fork and remix
