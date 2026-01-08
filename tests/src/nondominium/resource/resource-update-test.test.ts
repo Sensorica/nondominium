@@ -79,7 +79,7 @@ test("basic resource state update", async () => {
       console.log(`Found ${allResources.resources.length} resources`);
 
       const updatedResource = allResources.resources.find(
-        (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+        (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
       );
 
       assert.ok(updatedResource, "Resource should be found");

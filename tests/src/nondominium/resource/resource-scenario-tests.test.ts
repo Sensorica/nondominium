@@ -106,7 +106,7 @@ test(
         assert.equal(specWithRules.governance_rules.length, 3);
 
         const ruleTypes = specWithRules.governance_rules.map(
-          (r) => r.rule_type,
+          (r: any) => r.rule_type,
         );
         assert.include(ruleTypes, "access_requirement");
         assert.include(ruleTypes, "usage_limit");
@@ -154,7 +154,7 @@ test(
         // Verify resource is active and visible to both agents
         const allResources = await getAllEconomicResources(bob.cells[0]);
         const activePrinter = allResources.resources.find(
-          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+          (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(activePrinter);
@@ -217,7 +217,7 @@ test(
           lynn.cells[0],
         );
         const maintenancePrinter = resourcesInMaintenance.resources.find(
-          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+          (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(maintenancePrinter);
@@ -538,7 +538,7 @@ test(
 
         // Verify resource categories are discoverable
         const categories = allSpecsFromLynn.specifications.map(
-          (s) => s.category,
+          (s: any) => s.category,
         );
         assert.include(categories, TEST_CATEGORIES.SPACE);
         assert.include(categories, TEST_CATEGORIES.TOOLS);
@@ -552,7 +552,7 @@ test(
         console.log("Phase 6: Governance rule ecosystem validation");
 
         const allRules = await getAllGovernanceRules(lynn.cells[0]);
-        const ruleTypes = allRules.rules.map((r) => r.rule_type);
+        const ruleTypes = allRules.rules.map((r: any) => r.rule_type);
 
         // Should have governance rules from all specifications plus embedded ones
         assert.isAtLeast(allRules.rules.length, 5); // At least 5 rules from specifications (1+2+1+1=5)
@@ -610,7 +610,7 @@ test(
 
         // Verify all resources are active
         const activeResources = allResourcesFromLynn.resources.filter(
-          (r) => r.state === RESOURCE_STATES.ACTIVE,
+          (r: any) => r.state === RESOURCE_STATES.ACTIVE,
         );
         assert.equal(activeResources.length, 4);
 
@@ -739,7 +739,7 @@ test(
         // Verify resource is active and visible to community
         const communityView = await getAllEconomicResources(lynn.cells[0]);
         const activeCNC = communityView.resources.find(
-          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+          (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(activeCNC);
@@ -769,7 +769,7 @@ test(
         // Verify maintenance state is communicated
         const maintenanceView = await getAllEconomicResources(lynn.cells[0]);
         const maintenanceCNC = maintenanceView.resources.find(
-          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+          (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(maintenanceCNC);
@@ -851,7 +851,7 @@ test(
           lynn.cells[0],
         );
         const finalCNC = finalCommunityView.resources.find(
-          (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+          (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
         );
 
         assert.ok(finalCNC);
@@ -1122,7 +1122,7 @@ test(
 
         // Verify category diversity
         const categories = [
-          ...new Set(allSpecsFromLynn.specifications.map((s) => s.category)),
+          ...new Set(allSpecsFromLynn.specifications.map((s: any) => s.category)),
         ];
         assert.equal(categories.length, 4); // All different categories
 
@@ -1133,7 +1133,7 @@ test(
 
         // Verify state diversity
         const states = [
-          ...new Set(allResourcesFromLynn.resources.map((r) => r.state)),
+          ...new Set(allResourcesFromLynn.resources.map((r: any) => r.state)),
         ];
         assert.isAtLeast(states.length, 3); // At least 3 different states
 
@@ -1246,10 +1246,10 @@ test(
 
         // Verify resource state distribution
         const activeResources = totalCommunityResources.resources.filter(
-          (r) => r.state === RESOURCE_STATES.ACTIVE,
+          (r: any) => r.state === RESOURCE_STATES.ACTIVE,
         ).length;
         const nonActiveResources = totalCommunityResources.resources.filter(
-          (r) => r.state !== RESOURCE_STATES.ACTIVE,
+          (r: any) => r.state !== RESOURCE_STATES.ACTIVE,
         ).length;
 
         assert.isAtLeast(activeResources, 2);
@@ -1266,10 +1266,10 @@ test(
 
         // Verify custodianship distribution
         const lynnCustody = lynnFinalView.resources.filter(
-          (r) => r.custodian.toString() === lynn.agentPubKey.toString(),
+          (r: any) => r.custodian.toString() === lynn.agentPubKey.toString(),
         ).length;
         const bobCustody = lynnFinalView.resources.filter(
-          (r) => r.custodian.toString() === bob.agentPubKey.toString(),
+          (r: any) => r.custodian.toString() === bob.agentPubKey.toString(),
         ).length;
 
         // TODO: Fix custody counts - should be 2 each when duplicates are resolved

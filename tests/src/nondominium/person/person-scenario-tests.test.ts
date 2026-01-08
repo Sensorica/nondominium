@@ -96,7 +96,7 @@ test("Complete user onboarding workflow", async () => {
       assert.equal(allMembers.persons.length, 2);
 
       const memberNames = allMembers.persons
-        .map((person) => person.name)
+        .map((person: any) => person.name)
         .sort();
       assert.deepEqual(memberNames, ["Bob Williams", "Lynn Cooper"]);
 
@@ -292,7 +292,7 @@ test("Community governance workflow with role hierarchy", async () => {
 
       assert.equal(bobRolesFromLynn.roles.length, 2);
       const bobRoleNames = bobRolesFromLynn.roles
-        .map((role) => role.role_name)
+        .map((role: any) => role.role_name)
         .sort();
       assert.deepEqual(bobRoleNames, [
         TEST_ROLES.RESOURCE_COORDINATOR,
@@ -546,7 +546,7 @@ test("Community scaling and discovery workflow", async () => {
       assert.equal(allMembers.persons.length, 2);
 
       const memberNames = allMembers.persons
-        .map((person) => person.name)
+        .map((person: any) => person.name)
         .sort();
       assert.deepEqual(memberNames, ["Bob FirstMember", "Lynn Founder"]);
 
@@ -595,7 +595,9 @@ test("Community scaling and discovery workflow", async () => {
       assert.equal(lynnRoles.roles[0].role_name, TEST_ROLES.FOUNDER);
 
       assert.equal(bobRoles.roles.length, 2);
-      const bobRoleNames = bobRoles.roles.map((role) => role.role_name).sort();
+      const bobRoleNames = bobRoles.roles
+        .map((role: any) => role.role_name)
+        .sort();
       assert.deepEqual(bobRoleNames, [
         TEST_ROLES.RESOURCE_COORDINATOR,
         TEST_ROLES.RESOURCE_STEWARD,

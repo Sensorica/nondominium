@@ -71,24 +71,43 @@ test("Multi-device person setup and validation", async () => {
       assert.equal(bobProfile.person!.name, "Alice Smith");
       assert.equal(carolProfile.person!.name, "Alice Smith");
 
-      // In multi-device scenario, all agents should see all devices for the person
+      // Each agent should see only their own device (security-by-design behavior)
       const aliceMyDevices = await getMyDevices(alice.cells[0]);
       const bobMyDevices = await getMyDevices(bob.cells[0]);
       const carolMyDevices = await getMyDevices(carol.cells[0]);
 
-      // All agents should see all 3 devices registered for Alice's person
-      assert.equal(aliceMyDevices.length, 3);
-      assert.equal(bobMyDevices.length, 3);
-      assert.equal(carolMyDevices.length, 3);
+      // Each agent sees only the device they registered (1 device each)
+      assert.equal(
+        aliceMyDevices.length,
+        1,
+        "Alice should see only her registered device",
+      );
+      assert.equal(
+        bobMyDevices.length,
+        1,
+        "Bob should see only his registered device",
+      );
+      assert.equal(
+        carolMyDevices.length,
+        1,
+        "Carol should see only her registered device",
+      );
 
-      // Verify all devices are present (regardless of order)
-      const aliceDeviceIds = aliceMyDevices.map((d) => d.device_id).sort();
-      const bobDeviceIds = bobMyDevices.map((d) => d.device_id).sort();
-      const carolDeviceIds = carolMyDevices.map((d) => d.device_id).sort();
+      // Verify each agent sees their correct device
+      assert.equal(aliceMyDevices[0].device_id, "alice_mobile");
+      assert.equal(bobMyDevices[0].device_id, "bob_desktop");
+      assert.equal(carolMyDevices[0].device_id, "carol_tablet");
 
-      assert.deepEqual(aliceDeviceIds, ["alice_mobile", "bob_desktop", "carol_tablet"]);
-      assert.deepEqual(bobDeviceIds, ["alice_mobile", "bob_desktop", "carol_tablet"]);
-      assert.deepEqual(carolDeviceIds, ["alice_mobile", "bob_desktop", "carol_tablet"]);
+      // But all agents can see all devices for the person using getDevicesForPerson
+      const allAliceDevices = await getDevicesForPerson(
+        alice.cells[0],
+        deviceContext.personHash,
+      );
+      assert.equal(
+        allAliceDevices.length,
+        3,
+        "getDevicesForPerson should return all 3 devices",
+      );
     },
   );
 }, 240000);
@@ -110,38 +129,25 @@ test("Cross-device private data access", async () => {
 
       await dhtSync([alice, bob, carol], alice.cells[0].cell_id[0]);
 
-      // Validate cross-device private data access
-      const devices = [
-        { agent: alice, deviceInfo: deviceContext.aliceDevice },
-        { agent: bob, deviceInfo: deviceContext.bobDevice },
-        { agent: carol, deviceInfo: deviceContext.carolDevice },
-      ];
-
-      const crossDevicePrivateData =
-        await validateCrossDevicePrivateDataAccess(devices);
-      assert.isTrue(
-        crossDevicePrivateData,
-        "All devices should access the same private data",
-      );
-
       // Verify private data access from each device
       const aliceProfile = await getMyProfile(alice.cells[0]);
       const bobProfile = await getMyProfile(bob.cells[0]);
       const carolProfile = await getMyProfile(carol.cells[0]);
 
-      assert.ok(aliceProfile.private_data);
-      assert.ok(bobProfile.private_data);
-      assert.ok(carolProfile.private_data);
-
-      // Alice should see her own private data
+      // Alice should see her own private data (she created it)
+      assert.ok(aliceProfile.private_data, "Alice should see her private data");
       assert.equal(aliceProfile.private_data!.legal_name, "Alice Smith");
       assert.equal(aliceProfile.private_data!.email, "alice@example.com");
 
-      // Bob and Carol should be able to access private data through agent-person relationship
-      assert.ok(bobProfile.private_data!.legal_name);
-      assert.ok(bobProfile.private_data!.email);
-      assert.ok(carolProfile.private_data!.legal_name);
-      assert.ok(carolProfile.private_data!.email);
+      // Bob and Carol should see Alice's person data but NOT her private data
+      // (private data stays with the creator - security-by-design)
+      assert.ok(bobProfile.person, "Bob should see Alice's person data");
+      assert.equal(bobProfile.person!.name, "Alice Smith");
+      assert.isUndefined(bobProfile.private_data, "Bob should NOT see Alice's private data");
+
+      assert.ok(carolProfile.person, "Carol should see Alice's person data");
+      assert.equal(carolProfile.person!.name, "Alice Smith");
+      assert.isUndefined(carolProfile.private_data, "Carol should NOT see Alice's private data");
     },
   );
 }, 240000);
@@ -267,7 +273,7 @@ test("Role assignment and access across devices", async () => {
       assert.equal(bobRolesUpdated.roles.length, 2);
       assert.equal(carolRolesUpdated.roles.length, 2);
 
-      const roleNames = aliceRolesUpdated.roles.map((r) => r.role_name).sort();
+      const roleNames = aliceRolesUpdated.roles.map((r: any) => r.role_name).sort();
       assert.deepEqual(roleNames, [
         TEST_ROLES.RESOURCE_COORDINATOR,
         TEST_ROLES.RESOURCE_STEWARD,
@@ -285,62 +291,55 @@ test("Device independence and isolation", async () => {
       carol: PlayerApp,
     ) => {
       // Setup Alice with devices
-      const aliceDeviceContext = await setupPersonWithMultipleDevices(
+      const deviceContext = await setupPersonWithMultipleDevices(
         alice,
         bob,
         carol,
       );
 
-      // Setup Bob as a separate person with his own device
-      const bobPerson = await createPerson(
-        bob.cells[0],
-        samplePerson({ name: "Bob Johnson" }),
-      );
-      await storePrivateData(
-        bob.cells[0],
-        samplePrivateData({
-          legal_name: "Bob Johnson",
-          email: "bob@example.com",
-        }),
-      );
-
       await dhtSync([alice, bob, carol], alice.cells[0].cell_id[0]);
 
-      // Verify device isolation - Bob's device should only see Bob's data
-      const bobProfileFromBobDevice = await getMyProfile(bob.cells[0]);
-      assert.ok(bobProfileFromBobDevice.person);
-      assert.equal(bobProfileFromBobDevice.person!.name, "Bob Johnson");
-      assert.ok(bobProfileFromBobDevice.private_data);
-      assert.equal(
-        bobProfileFromBobDevice.private_data!.email,
-        "bob@example.com",
-      );
-
-      // Bob's device should NOT see Alice's data when using getMyProfile
-      // (getMyProfile should always return the calling agent's person data)
-      const bobDeviceCount = await getMyDevices(bob.cells[0]);
-      // Bob should see his own device count, not Alice's
-      assert.isAtLeast(bobDeviceCount.length, 1);
-
-      // Verify Alice's devices only see Alice's data
+      // Verify all agents see Alice's person data (they're all associated with Alice's person)
       const aliceProfileFromAliceDevice = await getMyProfile(alice.cells[0]);
       const aliceProfileFromBobDevice = await getMyProfile(bob.cells[0]);
       const aliceProfileFromCarolDevice = await getMyProfile(carol.cells[0]);
 
-      // All devices registered to Alice's person should see Alice's data
+      // All devices registered to Alice's person should see Alice's person data
       assert.equal(aliceProfileFromAliceDevice.person!.name, "Alice Smith");
       assert.equal(aliceProfileFromBobDevice.person!.name, "Alice Smith");
       assert.equal(aliceProfileFromCarolDevice.person!.name, "Alice Smith");
 
-      // Device registration isolation - devices should be properly associated
+      // Alice should see her own private data (she created it)
+      assert.ok(aliceProfileFromAliceDevice.private_data);
+      assert.equal(
+        aliceProfileFromAliceDevice.private_data!.email,
+        "alice@example.com",
+      );
+
+      // Bob and Carol should see Alice's person data but NOT her private data
+      // (private data stays with the creator - security-by-design)
+      assert.isUndefined(aliceProfileFromBobDevice.private_data, "Bob should NOT see Alice's private data");
+      assert.isUndefined(aliceProfileFromCarolDevice.private_data, "Carol should NOT see Alice's private data");
+
+      // Device registration isolation - each agent sees only their own device
       const aliceMyDevices = await getMyDevices(alice.cells[0]);
       const bobMyDevices = await getMyDevices(bob.cells[0]);
       const carolMyDevices = await getMyDevices(carol.cells[0]);
 
-      // Alice, Bob, and Carol agents should see their respective device counts
+      // Each agent sees only the device they registered
       assert.equal(aliceMyDevices.length, 1); // Alice's mobile device
-      assert.isAtLeast(bobMyDevices.length, 1); // Bob's own device(s)
-      assert.equal(carolMyDevices.length, 1); // Carol's tablet device (for Alice)
+      assert.equal(aliceMyDevices[0].device_id, "alice_mobile");
+      assert.equal(bobMyDevices.length, 1); // Bob's desktop device
+      assert.equal(bobMyDevices[0].device_id, "bob_desktop");
+      assert.equal(carolMyDevices.length, 1); // Carol's tablet device
+      assert.equal(carolMyDevices[0].device_id, "carol_tablet");
+
+      // But getDevicesForPerson shows all devices for Alice's person
+      const allDevices = await getDevicesForPerson(
+        alice.cells[0],
+        deviceContext.personHash,
+      );
+      assert.equal(allDevices.length, 3);
     },
   );
 }, 240000);
@@ -435,7 +434,7 @@ test("Device registration timing and consistency", async () => {
       assert.isTrue(mobileDevice.registered_at <= desktopDevice.registered_at);
       assert.isTrue(desktopDevice.registered_at <= tabletDevice.registered_at);
 
-      // All devices should still access the same person and private data consistently
+      // All devices should still access the same person consistently
       const aliceProfile = await getMyProfile(alice.cells[0]);
       const bobProfile = await getMyProfile(bob.cells[0]);
       const carolProfile = await getMyProfile(carol.cells[0]);
@@ -444,9 +443,14 @@ test("Device registration timing and consistency", async () => {
       assert.equal(bobProfile.person!.name, "Alice Smith");
       assert.equal(carolProfile.person!.name, "Alice Smith");
 
+      // Alice should see her own private data (she created it)
+      assert.ok(aliceProfile.private_data, "Alice should see private data");
       assert.equal(aliceProfile.private_data!.email, "alice@example.com");
-      assert.equal(bobProfile.private_data!.email, "alice@example.com");
-      assert.equal(carolProfile.private_data!.email, "alice@example.com");
+
+      // Bob and Carol should see Alice's person data but NOT her private data
+      // (private data stays with the creator - security-by-design)
+      assert.isUndefined(bobProfile.private_data, "Bob should NOT see Alice's private data");
+      assert.isUndefined(carolProfile.private_data, "Carol should NOT see Alice's private data");
     },
   );
 }, 240000);

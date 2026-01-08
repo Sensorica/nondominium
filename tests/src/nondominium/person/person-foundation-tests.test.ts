@@ -129,7 +129,7 @@ test("get all agents discovery", async () => {
       allPersons = await getAllPersons(lynn.cells[0]);
       assert.equal(allPersons.persons.length, 2);
 
-      const names = allPersons.persons.map((person) => person.name).sort();
+      const names = allPersons.persons.map((person: any) => person.name).sort();
       assert.deepEqual(names, ["Bob", "Lynn"]);
     },
   );

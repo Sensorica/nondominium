@@ -305,7 +305,9 @@ test("multiple role assignments and capability aggregation", async () => {
       const bobRoles = await getPersonRoles(lynn.cells[0], bob.agentPubKey);
       assert.equal(bobRoles.roles.length, 4);
 
-      const roleNames = bobRoles.roles.map((role) => role.role_name).sort();
+      const roleNames = bobRoles.roles
+        .map((role: any) => role.role_name)
+        .sort();
       assert.deepEqual(
         roleNames,
         [

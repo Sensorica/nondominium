@@ -693,6 +693,9 @@ export async function setupPersonWithMultipleDevices(
   await registerDeviceForPerson(bob.cells[0], bobDeviceInput);
   await registerDeviceForPerson(carol.cells[0], carolDeviceInput);
 
+  // Wait for device registrations to propagate through DHT
+  await dhtSync([alice, bob, carol], alice.cells[0].cell_id[0]);
+
   // Get device info for validation
   const aliceDevices = await getMyDevices(alice.cells[0]);
   const bobDevices = await getMyDevices(bob.cells[0]);
@@ -733,7 +736,7 @@ export async function validateCrossDevicePersonAccess(
   if (!firstPerson) return false;
 
   return personProfiles.every(
-    (profile) =>
+    (profile: any) =>
       profile.person?.name === firstPerson.name &&
       profile.person?.avatar_url === firstPerson.avatar_url &&
       profile.person?.bio === firstPerson.bio,
@@ -753,7 +756,7 @@ export async function validateCrossDevicePrivateDataAccess(
   // In a multi-device scenario, all agents should have access to private data
   // through their agent-person relationships
   return privateDataProfiles.every(
-    (profile) => profile.private_data !== undefined
+    (profile: any) => profile.private_data !== undefined,
   );
 }
 
@@ -769,7 +772,6 @@ export async function validateAgentPrivateData(
     payload: input,
   });
 }
-
 
 export async function removeAgentFromPerson(
   cell: CallableCell,

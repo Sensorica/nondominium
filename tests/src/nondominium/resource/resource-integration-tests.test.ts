@@ -55,12 +55,12 @@ test("multi-agent resource specification discovery and interaction", async () =>
 
       // Verify both can see each other's specifications
       const specNames = allSpecsFromLynn.specifications
-        .map((s) => s.name)
+        .map((s: any) => s.name)
         .sort();
       assert.deepEqual(specNames, ["Lynn's Tool", "Bob's Equipment"]);
 
       const bobViewNames = allSpecsFromBob.specifications
-        .map((s) => s.name)
+        .map((s: any) => s.name)
         .sort();
       assert.deepEqual(bobViewNames, ["Lynn's Tool", "Bob's Equipment"]);
 
@@ -222,7 +222,7 @@ test("governance rule consistency across agents", async () => {
       assert.equal(rulesFromLynn.rules.length, rulesFromBob.rules.length);
 
       // Test cross-agent rule validation
-      const ruleTypes = rulesFromLynn.rules.map((r) => r.rule_type);
+      const ruleTypes = rulesFromLynn.rules.map((r: any) => r.rule_type);
       assert.include(ruleTypes, "usage_limit");
       assert.include(ruleTypes, "access_control");
       assert.include(ruleTypes, "maintenance_schedule");
@@ -271,10 +271,10 @@ test("resource state management across agents", async () => {
 
       // Find Lynn's resource in both views
       const lynnResourceFromLynnView = allResourcesFromLynn.resources.find(
-        (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+        (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
       );
       const lynnResourceFromBobView = allResourcesFromBob.resources.find(
-        (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+        (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
       );
 
       assert.ok(lynnResourceFromLynnView);
@@ -295,7 +295,7 @@ test("resource state management across agents", async () => {
         bob.cells[0],
       );
       const updatedLynnResource = updatedResourcesFromBob.resources.find(
-        (r) => r.created_by?.toString() === lynn.agentPubKey.toString(),
+        (r: any) => r.created_by?.toString() === lynn.agentPubKey.toString(),
       );
 
       assert.ok(updatedLynnResource);
@@ -348,7 +348,7 @@ test("specification-to-resource relationships", async () => {
 
       // Verify resource custodianship distribution
       const custodians = lynnSpecResourcesFromLynn
-        .map((record) => {
+        .map((record: any) => {
           const decoded = record.entry as any;
           return decoded.Present
             ? (decoded.Present.entry[4] as Uint8Array) // custodian field

@@ -293,8 +293,8 @@ test("Cross-Agent Visibility: Resources created by one agent are visible to othe
     console.log(`✅ Cross-agent visibility test passed`);
 
     // Verify specific specifications are found
-    const lynnSpecNames = lynnView.specifications.map(s => s.name);
-    const bobSpecNames = bobView.specifications.map(s => s.name);
+    const lynnSpecNames = lynnView.specifications.map((s: any) => s.name);
+    const bobSpecNames = bobView.specifications.map((s: any) => s.name);
 
     if (!lynnSpecNames.includes("Lynn's Shared Tool") || !lynnSpecNames.includes("Bob's Equipment")) {
       throw new Error("Lynn cannot see all expected specifications");
