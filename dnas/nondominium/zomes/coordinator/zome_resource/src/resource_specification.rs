@@ -1,6 +1,5 @@
 use crate::{GovernanceRuleInput, ResourceError};
 use hdk::prelude::*;
-use nondominium_utils::links;
 use zome_resource_integrity::*;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,7 +24,6 @@ pub fn create_resource_specification(
   input: ResourceSpecificationInput,
 ) -> ExternResult<CreateResourceSpecificationOutput> {
   let agent_info = agent_info()?;
-  let now = sys_time()?;
 
   // Validate input
   if input.name.trim().is_empty() {
@@ -46,8 +44,6 @@ pub fn create_resource_specification(
       rule_type: rule_input.rule_type,
       rule_data: rule_input.rule_data,
       enforced_by: rule_input.enforced_by,
-      created_by: agent_info.agent_initial_pubkey.clone(),
-      created_at: now,
     };
 
     let rule_hash = create_entry(&EntryTypes::GovernanceRule(rule.clone()))?;
@@ -79,9 +75,6 @@ pub fn create_resource_specification(
     category: input.category.clone(),
     image_url: input.image_url,
     tags: input.tags.clone(),
-    governance_rules: governance_rule_hashes.clone(),
-    created_by: agent_info.agent_initial_pubkey.clone(),
-    created_at: now,
     is_active: true, // New specs are active by default
   };
 
@@ -217,9 +210,6 @@ pub fn update_resource_specification(
     return Err(ResourceError::InvalidInput("Name cannot be empty".to_string()).into());
   }
 
-  let now = sys_time()?;
-  let agent_info = agent_info()?;
-
   // Create updated governance rules
   let mut governance_rule_hashes = Vec::new();
   for rule_input in input.updated_specification.governance_rules {
@@ -227,8 +217,6 @@ pub fn update_resource_specification(
       rule_type: rule_input.rule_type,
       rule_data: rule_input.rule_data,
       enforced_by: rule_input.enforced_by,
-      created_by: agent_info.agent_initial_pubkey.clone(),
-      created_at: now,
     };
 
     let rule_hash = create_entry(&EntryTypes::GovernanceRule(rule))?;
@@ -241,9 +229,6 @@ pub fn update_resource_specification(
     category: input.updated_specification.category,
     image_url: input.updated_specification.image_url,
     tags: input.updated_specification.tags,
-    governance_rules: governance_rule_hashes.clone(),
-    created_by: agent_info.agent_initial_pubkey.clone(),
-    created_at: now,
     is_active: true,
   };
 

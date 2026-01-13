@@ -30,10 +30,7 @@ pub struct ResourceSpecification {
   pub description: String,
   pub category: String, // For efficient categorized queries (like ServiceType)
   pub image_url: Option<String>,
-  pub tags: Vec<String>,                 // For flexible discovery and filtering
-  pub governance_rules: Vec<ActionHash>, // Links to GovernanceRule entries
-  pub created_by: AgentPubKey,// Todo: To remove because in action header
-  pub created_at: Timestamp, // Todo: To remove because in action header
+  pub tags: Vec<String>, // For flexible discovery and filtering
   pub is_active: bool, // For filtering active vs inactive specs
 }
 
@@ -43,19 +40,14 @@ pub struct GovernanceRule {
   pub rule_type: String, // e.g., "access_requirement", "usage_limit", "transfer_conditions"
   pub rule_data: String, // JSON-encoded rule parameters
   pub enforced_by: Option<String>, // Role required to enforce this rule
-  pub created_by: AgentPubKey, // Todo: To remove because in action header
-  pub created_at: Timestamp, // Todo: To remove because in action header
 }
 
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct EconomicResource {
-  pub conforms_to: ActionHash, // Link to ResourceSpecification
   pub quantity: f64,
   pub unit: String,
   pub custodian: AgentPubKey, // The Primary Accountable Agent holding the resource
-  pub created_by: AgentPubKey, // Todo: To remove because in action header
-  pub created_at: Timestamp, // Todo: To remove because in action header
   pub current_location: Option<String>, // Physical or virtual location TODO: use an enum
   pub state: ResourceState,
 }
@@ -151,7 +143,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
 fn validate_create_resource_spec(
   spec: &ResourceSpecification,
-  author: &AgentPubKey,
+  _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
   if spec.name.trim().is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
@@ -171,19 +163,12 @@ fn validate_create_resource_spec(
     ));
   }
 
-  // Validate creator matches action author
-  if spec.created_by != *author {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Resource spec can only be created by the action author".to_string(),
-    ));
-  }
-
   Ok(ValidateCallbackResult::Valid)
 }
 
 fn validate_create_economic_resource(
   resource: &EconomicResource,
-  author: &AgentPubKey,
+  _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
   if resource.quantity <= 0.0 {
     return Ok(ValidateCallbackResult::Invalid(
@@ -197,19 +182,12 @@ fn validate_create_economic_resource(
     ));
   }
 
-  // Validate creator matches action author
-  if resource.created_by != *author {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Economic resource can only be created by the action author".to_string(),
-    ));
-  }
-
   Ok(ValidateCallbackResult::Valid)
 }
 
 fn validate_create_governance_rule(
   rule: &GovernanceRule,
-  author: &AgentPubKey,
+  _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
   if rule.rule_type.trim().is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
@@ -220,13 +198,6 @@ fn validate_create_governance_rule(
   if rule.rule_data.trim().is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
       "Governance rule data cannot be empty".to_string(),
-    ));
-  }
-
-  // Validate creator matches action author
-  if rule.created_by != *author {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Governance rule can only be created by the action author".to_string(),
     ));
   }
 

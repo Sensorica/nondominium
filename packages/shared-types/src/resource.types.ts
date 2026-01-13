@@ -17,22 +17,15 @@ export interface ResourceSpecification {
   unit_of_measure?: string;
   image_url?: string;
   tags?: string[];
-  governance_rules?: GovernanceRules | ActionHash[];
-  created_by: AgentPubKey;
-  created_at: Timestamp;
   is_active?: boolean;
 }
 
 export interface EconomicResource {
-  conforms_to?: ActionHash;
-  specification?: EntryHash; // ResourceSpecification hash
-  quantity?: number;
-  unit?: string;
+  quantity: number;
+  unit: string;
   custodian: AgentPubKey;
-  created_by?: AgentPubKey;
-  created_at: Timestamp;
   current_location?: string;
-  state?: ResourceState;
+  state: ResourceState;
 }
 
 // Governance Types
@@ -40,8 +33,6 @@ export interface GovernanceRule {
   rule_type: string;
   rule_data: string;
   enforced_by?: string;
-  created_by: AgentPubKey;
-  created_at: Timestamp;
 }
 
 export interface GovernanceRules {

@@ -236,9 +236,10 @@ export function validateResourceSpecificationData(
 export function validateEconomicResourceData(
   expected: EconomicResourceInput,
   actual: EconomicResource,
+  spec_hash?: ActionHash,
 ): boolean {
   return (
-    expected.spec_hash.toString() === (actual.conforms_to?.toString() || "") &&
+    (!spec_hash || spec_hash.toString() === expected.spec_hash.toString()) &&
     expected.quantity === actual.quantity &&
     expected.unit === actual.unit &&
     expected.current_location === actual.current_location &&

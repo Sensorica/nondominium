@@ -2,6 +2,12 @@ use crate::ResourceError;
 use hdk::prelude::*;
 use zome_resource_integrity::*;
 
+fn something_to_do() -> Result<String, String> {
+
+  todo!("Not yet implement")
+
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GovernanceRuleInput {
   pub rule_type: String,
@@ -12,7 +18,6 @@ pub struct GovernanceRuleInput {
 #[hdk_extern]
 pub fn create_governance_rule(input: GovernanceRuleInput) -> ExternResult<Record> {
   let agent_info = agent_info()?;
-  let now = sys_time()?;
 
   // Validate input
   if input.rule_type.trim().is_empty() {
@@ -27,8 +32,6 @@ pub fn create_governance_rule(input: GovernanceRuleInput) -> ExternResult<Record
     rule_type: input.rule_type,
     rule_data: input.rule_data,
     enforced_by: input.enforced_by,
-    created_by: agent_info.agent_initial_pubkey.clone(),
-    created_at: now,
   };
 
   let rule_hash = create_entry(&EntryTypes::GovernanceRule(rule.clone()))?;
@@ -138,15 +141,10 @@ pub fn update_governance_rule(input: UpdateGovernanceRuleInput) -> ExternResult<
     return Err(ResourceError::InvalidInput("Rule data cannot be empty".to_string()).into());
   }
 
-  let agent_info = agent_info()?;
-  let now = sys_time()?;
-
   let updated_rule = GovernanceRule {
     rule_type: input.updated_rule.rule_type,
     rule_data: input.updated_rule.rule_data,
     enforced_by: input.updated_rule.enforced_by,
-    created_by: agent_info.agent_initial_pubkey.clone(),
-    created_at: now,
   };
 
   let updated_rule_hash = update_entry(input.previous_action_hash, &updated_rule)?;

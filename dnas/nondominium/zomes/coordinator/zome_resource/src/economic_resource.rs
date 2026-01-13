@@ -30,7 +30,6 @@ pub fn create_economic_resource(
   input: EconomicResourceInput,
 ) -> ExternResult<CreateEconomicResourceOutput> {
   let agent_info = agent_info()?;
-  let now = sys_time()?;
 
   // Validate input
   if input.quantity <= 0.0 {
@@ -47,12 +46,9 @@ pub fn create_economic_resource(
   )?;
 
   let resource = EconomicResource {
-    conforms_to: input.spec_hash.clone(),
     quantity: input.quantity,
     unit: input.unit,
     custodian: agent_info.agent_initial_pubkey.clone(),
-    created_by: agent_info.agent_initial_pubkey.clone(),
-    created_at: now,
     current_location: input.current_location,
     state: ResourceState::PendingValidation, // New resources start in pending validation state
   };
@@ -81,6 +77,14 @@ pub fn create_economic_resource(
     agent_info.agent_initial_pubkey.clone(),
     resource_hash.clone(),
     LinkTypes::CustodianToResource,
+    (),
+  )?;
+
+  // Link agent to managed resources (tracks who created/owns the resource)
+  create_link(
+    agent_info.agent_initial_pubkey.clone(),
+    resource_hash.clone(),
+    LinkTypes::AgentToManagedResources,
     (),
   )?;
 
@@ -189,12 +193,9 @@ pub fn update_economic_resource(input: UpdateEconomicResourceInput) -> ExternRes
   }
 
   let updated_resource = EconomicResource {
-    conforms_to: input.updated_resource.spec_hash,
     quantity: input.updated_resource.quantity,
     unit: input.updated_resource.unit,
     custodian: original_resource.custodian, // Keep the same custodian
-    created_by: original_resource.created_by, // Keep original creator
-    created_at: original_resource.created_at, // Keep original creation time
     current_location: input.updated_resource.current_location,
     state: original_resource.state, // Keep the same state unless explicitly changed
   };
@@ -306,11 +307,11 @@ pub fn get_agent_economic_resources(agent_pubkey: AgentPubKey) -> ExternResult<V
 #[hdk_extern]
 pub fn check_first_resource_requirement(agent_pub_key: AgentPubKey) -> ExternResult<bool> {
   let links = get_links(
-    LinkQuery::try_new(agent_pub_key, LinkTypes::CustodianToResource)?,
+    LinkQuery::try_new(agent_pub_key, LinkTypes::AgentToManagedResources)?,
     GetStrategy::default(),
   )?;
 
-  // Agent has created at least one resource if they have any custodian links
+  // Agent has created at least one resource if they have any AgentToManagedResources links
   Ok(!links.is_empty())
 }
 
