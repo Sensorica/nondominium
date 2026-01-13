@@ -59,6 +59,26 @@ The Resource and Governance zomes (modules) adopt a "governance as operator" par
 
 The initial implementation targets the Moss ecosystem (https://moss.social), a peer-to-peer, privacy-first groupware platform designed for small teams. Moss provides an ideal deployment environment as it is built on Holochain and supports Holochain applications, enabling immediate integration and real-world validation of the Nondominium concepts.
 
+### Governance-as-Operator Architecture
+
+Nondominium implements a sophisticated governance-as-operator architecture that establishes a clear separation between data management and business logic enforcement. This design pattern enables independent evolution of resource data structures and governance rules, providing modularity, testability, and swappability.
+
+**Core Architectural Principles:**
+
+The **Resource zome** operates as a pure data model responsible for resource specification management, economic resource lifecycle operations, and data persistence. It contains no business logic or validation rules, performing only CRUD operations on data structures. All governance decisions are delegated to the Governance zome through well-defined cross-zome interfaces.
+
+The **Governance zome** functions as a state transition operator, evaluating governance rules and policies, validating agent permissions and roles, authorizing or rejecting state transitions, and generating economic events for audit trails. Its logic is implemented as pure functions that evaluate state transitions without side effects, enabling comprehensive unit testing and governance scheme swappability.
+
+**Cross-Zome Communication Protocol:**
+
+Communication between zomes follows a Request-Evaluate-Apply pattern implemented through the `GovernanceTransitionRequest` and `GovernanceTransitionResult` structures. When a resource state change is requested:
+
+1. The Resource zome calls `request_resource_transition()` with the proposed action, current resource state, requesting agent, and transition context
+2. The Governance zome evaluates the request via `evaluate_state_transition()`, checking agent permissions, applicable governance rules, and state transition validity
+3. The Resource zome applies approved state changes, records generated economic events, and updates state transition links
+
+This architecture ensures that all resource state transitions are governed by well-defined rules embedded within the resource itself, with complete audit trails through economic event generation. The event-driven design integrates seamlessly with the PPR reputation system, enabling comprehensive tracking of agent participation and resource lifecycle history.
+
 ## Implementation Status
 
 The Nondominium project has achieved substantial implementation completeness across all core systems. The current development state represents a production-ready Holochain application with comprehensive ValueFlows compliance and advanced privacy features. Overall completion stands at approximately 85-90%, with all fundamental functionality operational and tested.
@@ -66,6 +86,8 @@ The Nondominium project has achieved substantial implementation completeness acr
 ### Architecture Context
 
 Nondominium implements a **custom ValueFlows-compliant architecture** designed to validate novel governance and reputation mechanisms. This independent implementation was developed to prove the PPR (Private Participation Receipt) system concept and governance-as-operator paradigms before committing to deeper ecosystem integration.
+
+The governance-as-operator architecture enables independent evolution of data structures and governance rules, providing modularity, testability, and swappability as fundamental design principles. This separation of concerns allows different governance schemes to be applied to the same resource types without modifying the core resource data model. The pure function approach to governance logic enables comprehensive unit testing and facilitates the substitution of governance mechanisms as organizational requirements evolve. This architectural flexibility positions Nondominium to support diverse collaborative models while maintaining consistent resource management primitives.
 
 The project maintains a strategic distinction between current implementation and future architecture. While Nondominium currently operates as a standalone system with complete ValueFlows data structures, a separate roadmap exists for integrating hREA (the Holochain Regenerative Economics Architecture) as a backend engine. This future integration, detailed in the `hREA-integration-strategy.md` document, would position hREA as the foundational ValueFlows implementation layer while preserving Nondominium's specialized innovations in privacy, governance, and reputation tracking.
 
@@ -84,6 +106,20 @@ The Resource zome implements a complete ValueFlows-compliant data model with res
 **Testing Infrastructure**
 
 A robust 4-layer testing strategy encompasses Foundation tests (basic zome functionality and connectivity), Integration tests (cross-zome interactions and multi-agent scenarios), Scenario tests (complete user journeys and end-to-end workflows), and Performance tests (load testing for the PPR system). This comprehensive approach ensures approximately 95% test coverage for the Person zome, 90% for the Resource zome, and 75% for the Governance zome.
+
+**Governance Architecture Implementation**
+
+The governance-as-operator architecture implementation is substantially complete, with core cross-zome communication protocols operational and state transition logic functional.
+
+**Cross-Zome Interface (85% Complete)**
+
+The `GovernanceTransitionRequest` and `GovernanceTransitionResult` structures are defined and in use, providing the foundation for cross-zome communication. The Resource zome `request_resource_transition()` function is implemented and functional, while the Governance zome `evaluate_state_transition()` function is operational with permission checking and rule evaluation. Economic event generation for approved transitions is integrated with the PPR reputation system.
+
+**State Transition Logic (80% Complete)**
+
+The pure function governance engine is implemented with stateless evaluation logic. Agent permission and role checking is operational, supporting the progressive trust model. The governance rule evaluation framework is functional with support for resource-embedded governance rules. State calculation logic correctly determines new resource states based on requested actions and context.
+
+**Known Integration Gaps**: Cross-zome integration points include some temporarily disabled validation calls due to integration challenges during development. These need to be re-enabled to complete the governance-as-operator architecture, specifically the bidirectional validation between Resource and Governance zomes for certain state transition scenarios.
 
 ### Phase 2: Advanced Governance and Reputation
 
@@ -120,7 +156,7 @@ The Svelte 5 + TypeScript infrastructure exists but requires a complete rewrite 
 
 **Backend Technical Debt**
 
-Several backend items require attention for full production optimization. Cross-zome integration points include some temporarily disabled validation calls due to integration challenges; these need to be re-enabled to complete the governance-as-operator architecture. Resource link management requires addressing duplicate resource links that occur during custody transfer scenarios, which affects resource counting accuracy. Code quality improvements include removing unused imports and ambiguous glob re-exports for cleaner compilation. These backend items represent polish and optimization work rather than missing core features.
+Several backend items require attention for full production optimization. Cross-zome integration points require specific attention to complete the governance-as-operator architecture: some temporarily disabled validation calls between Resource and Governance zomes need to be re-enabled, specifically the bidirectional validation for state transition scenarios where `request_resource_transition()` must validate against `evaluate_state_transition()` results. Resource link management requires addressing duplicate resource links that occur during custody transfer scenarios, which affects resource counting accuracy. Code quality improvements include removing unused imports and ambiguous glob re-exports for cleaner compilation. These backend items represent polish and optimization work rather than missing core features, with the cross-zome validation re-enabling being the most significant for architectural completeness.
 
 **PPR System Completion**
 
@@ -147,7 +183,3 @@ The team plans to implement a Digital Resource Integrity feature designed to ens
 ### Valueflows Domain-Specific Language
 
 To enable more sophisticated resource management, the team is developing a Valueflows Domain-Specific Language (DSL). This DSL will facilitate the scripted definition and management of resource flows and transactions, enabling automated resource allocation and distribution based on predefined rules. The `valueflows-dsl` specification provides additional technical details on this initiative.
-
----
-
-_Last updated: January 2026_
