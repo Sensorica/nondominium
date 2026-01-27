@@ -1,8 +1,10 @@
-# ERP-Holochain Bridge: Connecting ERPLibre to Nondominium
+# ERP-Holochain Bridge: Connecting ERPs to Nondominium
 
 ## 1. Introduction
 
 This document outlines a strategy for bridging traditional Enterprise Resource Planning (ERP) systems with Nondominium's peer-to-peer resource-sharing infrastructure. The goal is to enable organizations using centralized ERP systems to participate in decentralized resource economies without abandoning their existing business infrastructure.
+
+**Key Architectural Principle**: The bridge is designed as a **reusable, ERP-agnostic Protocol Bridge** that can serve multiple ERP systems (ERPLibre, Dolibarr, ERPNext, etc.), while ERP-specific integration logic resides in dedicated modules for each platform.
 
 ## 2. Problem Statement
 
@@ -24,9 +26,90 @@ Nondominium offers a **peer-to-peer, organization-agnostic** resource-sharing la
 - **Reputation tracking (PPR system)** replaces heavy legal contracts with cryptographic accountability.
 - **Emergent coordination** via stigmergy reduces the need for manual negotiation.
 
-## 3. The ERPLibre Context
+## 3. Agent Model: Organization as Holochain Agent
 
-### 3.1 What is ERPLibre?
+### 3.1 Key Architectural Distinction
+
+In the ERP-Holochain bridge architecture, the **organization is the Holochain agent**, not individual end-users. This differs from typical Holochain applications where each person runs their own node.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        NONDOMINIUM DHT NETWORK                              │
+│                                                                             │
+│    ┌──────────────────────┐              ┌──────────────────────┐           │
+│    │ Organization A       │              │ Organization B       │           │
+│    │ (Holochain Agent)    │◄────────────►│ (Holochain Agent)    │           │
+│    └──────────┬───────────┘              └──────────┬───────────┘           │
+│               │                                     │                       │
+└───────────────┼─────────────────────────────────────┼───────────────────────┘
+                │                                     │
+     ┌──────────▼───────────┐            ┌────────────▼─────────┐
+     │ Org A Server         │            │ Org B Server         │
+     │ ┌─────────────────┐  │            │ ┌─────────────────┐  │
+     │ │ Holochain Node  │  │            │ │ Holochain Node  │  │
+     │ │ (Org A Agent)   │  │            │ │ (Org B Agent)   │  │
+     │ ├─────────────────┤  │            │ ├─────────────────┤  │
+     │ │ Protocol Bridge │  │            │ │ Protocol Bridge │  │
+     │ ├─────────────────┤  │            │ ├─────────────────┤  │
+     │ │ ERP System      │  │            │ │ ERP System      │  │
+     │ └─────────────────┘  │            │ └─────────────────┘  │
+     └──────────┬───────────┘            └───────────┬──────────┘
+                │                                    │
+         ┌──────┴──────┐                     ┌───────┴─────┐
+         │             │                     │             │
+      ┌──▼──┐       ┌──▼──┐               ┌──▼──┐       ┌──▼──┐
+      │User │       │User │               │User │       │User │
+      │ A1  │       │ A2  │               │ B1  │       │ B2  │
+      └─────┘       └─────┘               └─────┘       └─────┘
+
+      End-users (employees)               End-users (employees)
+      Traditional web clients             Traditional web clients
+```
+
+### 3.2 Why Organization-Level Agents
+
+| Aspect | Individual Agents (Typical Holochain) | Organization Agents (ERP Bridge) |
+|--------|---------------------------------------|----------------------------------|
+| **Node operator** | End-user | Organization's IT infrastructure |
+| **Identity** | Personal keypair | Organizational keypair |
+| **End-user access** | Direct to conductor | Mediated via ERP |
+| **Key management** | User responsibility | IT administration |
+| **PPR accountability** | Individual reputation | Organizational reputation |
+
+**Benefits of this model:**
+1. **Organizational sovereignty**: The organization controls its participation in the network
+2. **Existing authentication**: ERP handles employee authentication/authorization
+3. **Single source of truth**: One agent key per organization, not hundreds
+4. **Operational simplicity**: IT manages one node, not per-employee nodes
+5. **PPR accountability**: Reputation tied to organization, matching business relationships
+
+### 3.3 Trust Model
+
+```
+End-user (employee)
+    │
+    │ Trusts organization (employment relationship)
+    ▼
+Organization's ERP System
+    │
+    │ Authenticates & authorizes actions
+    ▼
+Organization's Holochain Agent
+    │
+    │ Cryptographically signs all DHT actions
+    ▼
+Nondominium Network
+    │
+    │ PPR tracks organizational reputation
+    ▼
+Other Organizations
+```
+
+The end-user **delegates** their participation to the organization. The organization is the **accountable party** in the peer-to-peer network.
+
+## 4. The ERPLibre Context
+
+### 4.1 What is ERPLibre?
 
 [ERPLibre](https://github.com/ERPLibre/ERPLibre) is an open-source "soft fork" of **Odoo Community Edition**, released under the AGPLv3 license. It automates deployment, development, and maintenance of Odoo.
 
@@ -37,7 +120,7 @@ Nondominium offers a **peer-to-peer, organization-agnostic** resource-sharing la
 - **API**: XML-RPC and JSON-RPC endpoints
 - **Deployment**: Docker-based, with `docker-compose.yml` for easy setup
 
-### 3.2 ERPLibre Inventory Management
+### 4.2 ERPLibre Inventory Management
 
 ERPLibre (via Odoo) manages inventory through:
 - **Product Templates**: Define product specifications (SKU, name, category, unit of measure)
@@ -52,9 +135,9 @@ ERPLibre (via Odoo) manages inventory through:
 - `stock.move`: Movement history and planned transfers
 - `stock.warehouse`: Physical locations
 
-## 4. The Nondominium Context
+## 5. The Nondominium Context
 
-### 4.1 What Nondominium Offers
+### 5.1 What Nondominium Offers
 
 Nondominium is a **Holochain-based, ValueFlows-compliant** application for distributed resource management:
 - **Agent-centric**: Each organization runs its own node
@@ -62,7 +145,7 @@ Nondominium is a **Holochain-based, ValueFlows-compliant** application for distr
 - **Embedded governance**: Rules are encoded in `ResourceSpecifications`
 - **Reputation layer**: Private Participation Receipts (PPRs) track reliability
 
-### 4.2 Key Data Structures
+### 5.2 Key Data Structures
 
 To bridge ERP inventory to Nondominium, we need to map:
 
@@ -74,9 +157,515 @@ To bridge ERP inventory to Nondominium, we need to map:
 | Available Quantity | `quantity` in `EconomicResource` | How much is available |
 | Stock Move | `EconomicEvent` (Transfer, Use) | History of resource movements |
 
-## 5. Proof of Concept Scope
+## 6. Bridge Architecture
 
-### 5.1 Minimal Viable Demonstration
+### 6.1 Two-Layer Architecture
+
+The bridge architecture separates concerns into two distinct layers:
+
+1. **Protocol Bridge** (Reusable): A thin, ERP-agnostic adapter that translates HTTP to Holochain's WebSocket protocol
+2. **ERP Module** (Per-ERP): Contains business logic, data mapping, and UI integration specific to each ERP
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ERP-SPECIFIC MODULES (BFF-like Layer)               │
+│                                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│  │ ERPLibre Module │  │ Dolibarr Module │  │ ERPNext Module  │              │
+│  │ (Python/Odoo)   │  │ (PHP)           │  │ (Python/Frappe) │              │
+│  │                 │  │                 │  │                 │              │
+│  │ • UI views      │  │ • UI views      │  │ • UI views      │              │
+│  │ • Data mapping  │  │ • Data mapping  │  │ • Data mapping  │              │
+│  │ • BFF logic     │  │ • BFF logic     │  │ • BFF logic     │              │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘              │
+│           │                    │                    │                       │
+│           │ HTTP/JSON          │ HTTP/JSON          │ HTTP/JSON             │
+│           │                    │                    │                       │
+└───────────┼────────────────────┼────────────────────┼───────────────────────┘
+            │                    │                    │
+            └────────────────────┼────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     SHARED PROTOCOL BRIDGE (Node.js)                        │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                    Generic REST API                                 │    │
+│  │                                                                     │    │
+│  │  POST /api/v1/zome/:zome/:fn    → Call any zome function            │    │
+│  │  GET  /api/v1/resources         → List resources                    │    │
+│  │  GET  /api/v1/resources/:hash   → Get specific resource             │    │
+│  │  POST /api/v1/commitments       → Create commitment                 │    │
+│  │  GET  /api/v1/events            → List economic events              │    │
+│  │  POST /api/v1/webhooks          → Register signal callbacks         │    │
+│  │                                                                     │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 │ WebSocket
+                                 ▼
+                    ┌───────────────────────┐
+                    │ Holochain Conductor   │
+                    │ (Nondominium hApp)    │
+                    └───────────────────────┘
+```
+
+### 6.2 Why This Separation?
+
+| Layer | Responsibility | Changes When... |
+|-------|---------------|-----------------|
+| **ERP Module** | Business logic, data aggregation, UI | ERP-specific needs change |
+| **Protocol Bridge** | HTTP ↔ WebSocket translation, signing | Holochain API changes |
+
+**Benefits:**
+- **Reusability**: One bridge serves multiple ERPs
+- **Separation of concerns**: Protocol complexity isolated from business logic
+- **Independent evolution**: Bridge and modules can be updated independently
+- **Testing**: Each layer can be tested in isolation
+
+### 6.3 ERP Module as BFF-like Layer
+
+The ERP module acts as a **Backend for Frontend (BFF)** pattern within the ERP's architecture:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     ERP MODULE (per ERP)                        │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ 1. DATA AGGREGATION                                        │ │
+│  │    Combine ERP inventory data with Nondominium resources   │ │
+│  │    Join local stock with cross-org availability            │ │
+│  │    Merge PPR reputation with supplier/customer records     │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ 2. DATA MAPPING                                            │ │
+│  │    ERP Product → Nondominium ResourceSpecification         │ │
+│  │    ERP Stock   → Nondominium EconomicResource              │ │
+│  │    ERP Order   → Nondominium Commitment                    │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ 3. UI INTEGRATION                                          │ │
+│  │    "Share Resource" button in inventory view               │ │
+│  │    "Discover Resources" menu item                          │ │
+│  │    "Request Resource" workflow                             │ │
+│  │    PPR reputation dashboard                                │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ 4. WEBHOOK HANDLER                                         │ │
+│  │    Receive signals from bridge                             │ │
+│  │    Update ERP records accordingly                          │ │
+│  │    Notify users of resource requests                       │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 6.4 Security Architecture
+
+The Protocol Bridge runs **server-side only**. It must never be exposed to end-users directly.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           PUBLIC INTERNET                               │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ HTTPS (public)
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           SERVER-SIDE (Private Network)                 │
+│                                                                         │
+│   ┌─────────────┐      ┌─────────────────┐      ┌──────────────────┐    │
+│   │ ERP System  │ HTTP │ Protocol Bridge │  WS  │ Holochain        │    │
+│   │ (Python/PHP)│─────▶│ (Node.js)       │─────▶│ Conductor        │    │
+│   └─────────────┘      └─────────────────┘      └──────────────────┘    │
+│         │                      │                         │              │
+│   Public:8069          localhost:3000            localhost:8888         │
+│         │                      │                         │              │
+│   ┌─────▼─────┐                │                  ┌──────▼───────┐      │
+│   │ Database  │                │                  │ Agent Keys   │      │
+│   │           │                │                  │ (Protected)  │      │
+│   └───────────┘                │                  └──────────────┘      │
+│                                │                                        │
+└────────────────────────────────┼────────────────────────────────────────┘
+                                 │
+                         🔒 NEVER EXPOSED
+```
+
+**Security Requirements:**
+
+| Concern | Risk if Violated | Mitigation |
+|---------|------------------|------------|
+| **Agent Private Keys** | Identity theft, impersonation | Keys stay on server, never transmitted |
+| **Conductor WebSocket** | Unauthorized zome calls | Localhost only, firewalled |
+| **Capability Tokens** | Unauthorized actions | Generated and used server-side |
+| **Zome Call Signing** | Forged transactions | Signing happens in bridge |
+
+## 7. Protocol Bridge Options
+
+### 7.1 Option 1: HTTP Gateway (`hc-http-gw`)
+
+**Description**: The [Holochain HTTP Gateway](https://github.com/holochain/hc-http-gw) exposes Holochain zome functions as REST endpoints, allowing traditional HTTP clients to interact with Holochain apps.
+
+**Architecture:**
+```
+ERP Module (Python/PHP) <--HTTP--> hc-http-gw <--WebSocket--> Holochain Conductor <--> Nondominium DHT
+```
+
+**How it works:**
+1. `hc-http-gw` connects to the Holochain conductor via admin WebSocket
+2. Configured to allow specific zome functions (e.g., `create_economic_resource`, `get_all_resources`)
+3. Exposes these functions as HTTP endpoints: `GET /[dna_hash]/[app_id]/[zome]/[function]`
+4. ERP module makes HTTP requests to read/write data
+
+**Pros:**
+- ✅ **Language-agnostic**: Works with any HTTP client (Python, PHP, Ruby, etc.)
+- ✅ **Simple integration**: No need for complex WebSocket management
+- ✅ **RESTful**: Familiar paradigm for web developers
+- ✅ **Zero custom code**: Pre-built solution
+- ✅ **Reusable**: Same gateway serves multiple ERPs
+
+**Cons:**
+- ❌ **No signal support**: HTTP is request-response; no native signal/webhook support
+- ❌ **Extra service**: Requires running and maintaining `hc-http-gw` as a separate process
+- ❌ **Limited zome call signing**: May require pre-authorized capability tokens
+- ❌ **Less flexible**: Cannot add custom caching, batching, or business logic
+
+**Best For:**
+- Proof of concept and rapid prototyping
+- Simple, periodic sync scenarios
+- Organizations wanting minimal custom code
+
+### 7.2 Option 2: Node.js Protocol Bridge (`holochain-client-js`)
+
+**Description**: A custom Node.js service using the official [@holochain/client](https://github.com/holochain/holochain-client-js) library. This is the **recommended production approach**.
+
+**Architecture:**
+```
+ERP Module (Python/PHP) <--HTTP/JSON--> Node.js Bridge <--WebSocket--> Holochain Conductor <--> Nondominium DHT
+```
+
+**How it works:**
+1. Node.js Express/Fastify server wraps `@holochain/client`
+2. Exposes generic REST endpoints for zome function calls
+3. Handles WebSocket connection lifecycle, zome call signing, and signal subscriptions
+4. Forwards Holochain signals to registered webhook endpoints
+
+**Example Bridge Implementation:**
+```javascript
+// bridge/src/server.ts
+import { AppWebsocket } from '@holochain/client';
+import express from 'express';
+
+const app = express();
+const webhooks = new Map();  // URL -> event types
+
+// Initialize Holochain connection
+const appWs = await AppWebsocket.connect({
+  url: 'ws://localhost:8888',
+  token: process.env.HOLOCHAIN_TOKEN
+});
+
+// Generic zome call endpoint - works for ANY ERP
+app.post('/api/v1/zome/:zome/:fn', async (req, res) => {
+  const { zome, fn } = req.params;
+  const result = await appWs.callZome({
+    zome_name: zome,
+    fn_name: fn,
+    payload: req.body
+  });
+  res.json(result);
+});
+
+// Webhook registration for signals
+app.post('/api/v1/webhooks', async (req, res) => {
+  const { url, events } = req.body;
+  webhooks.set(url, events);
+  res.json({ status: 'registered' });
+});
+
+// Subscribe to Holochain signals and forward to webhooks
+appWs.on('signal', async (signal) => {
+  for (const [url, events] of webhooks) {
+    if (events.includes(signal.type)) {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(signal)
+      });
+    }
+  }
+});
+
+app.listen(3000);
+```
+
+**Pros:**
+- ✅ **Full feature support**: Access to all `@holochain/client` features
+- ✅ **Signal support**: Can subscribe to Holochain signals and push via webhooks
+- ✅ **Maintained library**: Official Holochain client with ongoing support
+- ✅ **Flexible**: Can add caching, batching, rate limiting, logging
+- ✅ **Reusable**: Same bridge serves multiple ERPs
+
+**Cons:**
+- ❌ **Extra language**: Requires Node.js runtime
+- ❌ **Custom code**: Need to write and maintain the bridge service
+- ❌ **More moving parts**: Additional service to deploy and monitor
+
+**Best For:**
+- Production deployments
+- Scenarios requiring real-time signal handling
+- When you need full control over the integration
+
+### 7.3 Option 3: Direct Python WebSocket Client (Future)
+
+**Description**: A native Python library that directly communicates with the Holochain conductor using the Conductor API protocol.
+
+**Architecture:**
+```
+ERP Module (Python) <--WebSocket--> Holochain Conductor <--> Nondominium DHT
+```
+
+**Potential for Python Ecosystem Integration:**
+
+A native Python client would unlock significant integrations with Python's rich ecosystem:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     PYTHON ECOSYSTEM + HOLOCHAIN                            │
+│                                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│  │ Machine Learning│  │ Data Science    │  │ AI/LLM          │              │
+│  │ ─────────────── │  │ ─────────────── │  │ ─────────────── │              │
+│  │ • TensorFlow    │  │ • pandas        │  │ • LangChain     │              │
+│  │ • PyTorch       │  │ • NumPy         │  │ • OpenAI SDK    │              │
+│  │ • scikit-learn  │  │ • Jupyter       │  │ • Anthropic SDK │              │
+│  │ • Hugging Face  │  │ • matplotlib    │  │ • AutoGPT       │              │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘              │
+│           │                    │                    │                       │
+│           └────────────────────┼────────────────────┘                       │
+│                                ▼                                            │
+│                 ┌──────────────────────────────┐                            │
+│                 │ Python Holochain Client      │                            │
+│                 │ (holochain-client-py)        │                            │
+│                 └──────────────┬───────────────┘                            │
+│                                │                                            │
+│  ┌─────────────────┐  ┌────────┴──────┐  ┌─────────────────┐                │
+│  │ Big Data        │  │               │  │ Automation      │                │
+│  │ ─────────────── │  │   Holochain   │  │ ─────────────── │                │
+│  │ • PySpark       │  │   Conductor   │  │ • Airflow       │                │
+│  │ • Dask          │  │               │  │ • Celery        │                │
+│  │ • Ray           │  └───────────────┘  │ • Prefect       │                │
+│  └─────────────────┘                     └─────────────────┘                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Use Cases Enabled by Python Client:**
+
+| Use Case | Description |
+|----------|-------------|
+| **ML-Powered PPR Scoring** | Train reputation models on economic event history |
+| **AI Resource Matching** | LangChain agents that discover and request resources |
+| **Predictive Analytics** | Forecast resource demand using time-series analysis |
+| **Federated Learning** | Privacy-preserving ML across organizations |
+| **Jupyter Notebooks** | Interactive data exploration of DHT data |
+| **Data Pipelines** | Airflow/Prefect workflows processing economic events |
+
+**Implementation Requirements:**
+```
+holochain_client_py/
+├── __init__.py
+├── websocket.py      # WebSocket connection management
+├── conductor_api.py  # Conductor protocol implementation
+├── signing.py        # Ed25519 signing (cryptography lib)
+├── types.py          # Holochain data types (ActionHash, AgentPubKey, etc.)
+└── async_client.py   # High-level async/await API
+```
+
+**Pros:**
+- ✅ **Single language**: Pure Python solution for Python-based ERPs
+- ✅ **Ecosystem access**: Direct integration with ML/AI/Data tools
+- ✅ **No bridge overhead**: Direct connection to conductor
+- ✅ **Community value**: Benefits entire Holochain ecosystem
+
+**Cons:**
+- ❌ **Protocol complexity**: Must implement and maintain Conductor API protocol
+- ❌ **Signing complexity**: Ed25519 signing and capability management
+- ❌ **Maintenance burden**: No official support; community-maintained
+- ❌ **Compatibility risk**: Must track Holochain protocol changes
+
+**Best For:**
+- Long-term investment in Python-Holochain integration
+- ML/AI-heavy use cases (PPR scoring, demand forecasting)
+- Organizations committed to maintaining a Python client
+
+## 8. Comparison Matrix
+
+| Criterion | HTTP Gateway | Node.js Bridge | Python Client |
+|-----------|--------------|----------------|---------------|
+| **Ease of Implementation** | ⭐⭐⭐⭐⭐ High | ⭐⭐⭐⭐ Medium-High | ⭐⭐ Low |
+| **Signal Support** | ❌ No | ✅ Yes | ✅ Yes (if implemented) |
+| **Maintenance Burden** | ⭐⭐⭐⭐⭐ Very Low | ⭐⭐⭐⭐ Low | ⭐⭐ High |
+| **Multi-ERP Reusability** | ✅ Yes | ✅ Yes | ⚠️ Python ERPs only |
+| **Real-time Capability** | ❌ No | ✅ Yes | ✅ Yes |
+| **Zome Call Signing** | ⚠️ Limited | ✅ Full support | ✅ Full (if implemented) |
+| **ML/AI Integration** | ❌ No | ❌ No | ✅ Native |
+| **Production Readiness** | ⭐⭐⭐ Good | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐ Experimental |
+
+## 9. Multi-ERP Support
+
+### 9.1 Compatible ERP Systems
+
+The Protocol Bridge architecture supports integration with multiple ERP systems:
+
+| ERP | Language | Module Type | Integration Effort |
+|-----|----------|-------------|-------------------|
+| **ERPLibre/Odoo** | Python | Odoo Module | Medium |
+| **Dolibarr** | PHP | Dolibarr Module | Medium |
+| **ERPNext** | Python/JS | Frappe App | Medium |
+| **Tryton** | Python | Tryton Module | Medium |
+| **Metasfresh** | Java | Plugin | Higher |
+| **Apache OFBiz** | Java | Component | Higher |
+| **Custom ERP** | Any | HTTP client | Low |
+
+### 9.2 What's Reusable vs. ERP-Specific
+
+| Component | Reusable? | Notes |
+|-----------|-----------|-------|
+| **Protocol Bridge** | ✅ 100% | Generic HTTP↔WebSocket adapter |
+| **Zome Function API** | ✅ 100% | Same Nondominium API for all |
+| **Signal/Webhook System** | ✅ 100% | Any HTTP endpoint can receive |
+| **Data Mapping** | ❌ ERP-specific | Each ERP has different data models |
+| **UI Integration** | ❌ ERP-specific | Each ERP has different frontend |
+| **Business Logic** | ❌ ERP-specific | BFF layer per ERP |
+
+### 9.3 Example: Dolibarr Module
+
+```php
+// dolibarr/htdocs/custom/nondominium/class/bridge.class.php
+
+class NondominiumBridge {
+    private $bridge_url = 'http://localhost:3000/api/v1';
+
+    /**
+     * Map Dolibarr product to Nondominium ResourceSpecification
+     */
+    public function mapProductToSpec($product) {
+        return [
+            'name' => $product->label,
+            'description' => $product->description,
+            'default_unit' => $this->mapUnit($product->fk_unit),
+            'governance_rules' => $this->getDefaultGovernance()
+        ];
+    }
+
+    /**
+     * Publish product to Nondominium network
+     */
+    public function publishResource($product, $quantity) {
+        // Create spec first
+        $spec = $this->callBridge('POST', '/zome/zome_resource/create_resource_specification',
+            $this->mapProductToSpec($product)
+        );
+
+        // Then create resource
+        $resource = $this->callBridge('POST', '/zome/zome_resource/create_economic_resource', [
+            'conforms_to' => $spec['hash'],
+            'quantity' => $quantity,
+            'unit' => $this->mapUnit($product->fk_unit)
+        ]);
+
+        return $resource;
+    }
+
+    /**
+     * Discover available resources from network
+     */
+    public function discoverResources() {
+        return $this->callBridge('GET', '/resources');
+    }
+
+    private function callBridge($method, $endpoint, $data = null) {
+        // HTTP client implementation
+    }
+}
+```
+
+### 9.4 ERPLibre Module Structure
+
+```
+nondominium_bridge/
+├── __manifest__.py           # Odoo module manifest
+├── models/
+│   ├── nondominium_resource.py    # Transient model for cross-org resources
+│   ├── nondominium_commitment.py  # Commitment tracking
+│   └── res_partner_ppr.py         # PPR reputation on partners
+├── controllers/
+│   └── webhook_controller.py      # Receive Holochain signals
+├── views/
+│   ├── shareable_resources.xml    # Cross-org resource discovery
+│   ├── resource_requests.xml      # Commitment management UI
+│   └── ppr_dashboard.xml          # Reputation dashboard
+├── wizards/
+│   └── publish_resource_wizard.py # "Share to Nondominium" workflow
+└── static/
+    └── src/js/
+        └── nondominium_widgets.js # Real-time update widgets
+```
+
+## 10. Recommended Approach
+
+### 10.1 For Proof of Concept: HTTP Gateway (`hc-http-gw`)
+
+**Rationale:**
+- **Speed to prototype**: Get a working demo in hours, not days
+- **Simplicity**: Use familiar `requests` library
+- **Zero custom bridge code**: Pre-built solution
+- **Proof, not production**: PoC doesn't need real-time signals
+
+**Implementation Steps:**
+1. Deploy ERPLibre using Docker
+2. Deploy Holochain conductor and Nondominium hApp
+3. Deploy `hc-http-gw` and configure it to expose Nondominium zome functions
+4. Write a simple ERPLibre module that:
+   - Queries ERPLibre inventory via Odoo's ORM
+   - Maps products to Nondominium `ResourceSpecification` format
+   - POSTs to `hc-http-gw` to create `EconomicResource` entries
+5. Demo cross-organizational resource discovery
+
+### 10.2 For Production: Node.js Protocol Bridge
+
+**Rationale:**
+- **Full feature support**: Signals, proper signing, webhooks
+- **Official support**: `@holochain/client` is actively maintained
+- **Multi-ERP ready**: Same bridge serves ERPLibre, Dolibarr, etc.
+- **Scalability**: Can add caching, batching, monitoring
+
+**Migration Path:**
+1. Deploy Node.js bridge alongside `hc-http-gw`
+2. Update ERPLibre module to call bridge instead of gateway
+3. Implement webhook handler for Holochain signals
+4. Add proper zome call signing and capability management
+5. Deprecate `hc-http-gw` once bridge is stable
+
+### 10.3 For Future: Python Client (If ML/AI Becomes Central)
+
+**Rationale:**
+- **PPR Intelligence**: ML-powered reputation scoring
+- **Resource Matching**: AI agents for optimal allocation
+- **Predictive Analytics**: Demand forecasting
+
+**Decision Criteria:**
+- Invest in Python client when ML/analytics becomes core to PPR system
+- Consider as community contribution benefiting entire Holochain ecosystem
+
+## 11. Proof of Concept Scope
+
+### 11.1 Minimal Viable Demonstration
 
 **Objective**: Demonstrate that inventory from two organizations running ERPLibre can be synchronized to Nondominium and made discoverable for sharing.
 
@@ -89,7 +678,7 @@ To bridge ERP inventory to Nondominium, we need to map:
 6. The usage is **recorded** as an `EconomicEvent` in Nondominium
 7. The usage is **reflected back** to Organization A's ERPLibre as a "Loan" or "External Use" stock move
 
-### 5.2 Requirements
+### 11.2 Requirements
 
 **Functional Requirements:**
 - **FR-1**: Read inventory data from ERPLibre via its API
@@ -105,189 +694,15 @@ To bridge ERP inventory to Nondominium, we need to map:
 - **NFR-3**: Real-time synchronization is not required (periodic sync is acceptable)
 - **NFR-4**: Bidirectional sync (changes in Nondominium updating ERP)
 
-### 5.3 Out of Scope (for PoC)
+### 11.3 Out of Scope (for PoC)
 
 - Complex governance rules enforcement
 - Financial transactions or invoicing
 - Multi-warehouse scenarios
 - Full PPR reputation dashboard
+- Multi-ERP support (Dolibarr, ERPNext)
 
-## 6. Bridge Architecture Analysis
-
-### 6.1 Option 1: HTTP Gateway (`hc-http-gw`)
-
-**Description**: The [Holochain HTTP Gateway](https://github.com/holochain/hc-http-gw) exposes Holochain zome functions as REST endpoints, allowing traditional HTTP clients to interact with Holochain apps.
-
-**Architecture:**
-```
-ERPLibre (Python) <--HTTP--> hc-http-gw <--WebSocket--> Holochain Conductor <--> Nondominium DHT
-```
-
-**How it works:**
-1. `hc-http-gw` connects to the Holochain conductor via admin WebSocket
-2. Configured to allow specific zome functions (e.g., `create_economic_resource`, `get_all_resources`)
-3. Exposes these functions as HTTP endpoints: `GET /[dna_hash]/[app_id]/[zome]/[function]`
-4. Python code in ERPLibre (or a bridge service) makes HTTP requests to read/write data
-
-**Example Request:**
-```bash
-curl -X POST http://localhost:8090/[DNA_HASH]/nondominium/zome_resource/create_economic_resource \
-  -H "Content-Type: application/json" \
-  -d '{"spec_hash": "...", "quantity": 1, "unit": "unit"}'
-```
-
-**Pros:**
-- ✅ **Language-agnostic**: Works with any HTTP client (Python, PHP, Ruby, etc.)
-- ✅ **Simple integration**: No need for complex WebSocket management in Python
-- ✅ **RESTful**: Familiar paradigm for web developers
-- ✅ **Stateless**: Each request is independent
-
-**Cons:**
-- ❌ **Read-only signals**: HTTP is request-response; no native signal support
-- ❌ **Extra service**: Requires running and maintaining `hc-http-gw` as a separate process
-- ❌ **Limited zome call signing**: May require pre-authorized capability tokens
-- ❌ **Latency**: Additional HTTP layer adds overhead
-
-**Best For:**
-- Simple, periodic sync scenarios
-- Organizations uncomfortable with WebSocket programming
-- When bidirectional real-time updates are not required
-
-### 6.2 Option 2: JavaScript Client with Node.js Bridge (`holochain-client-js`)
-
-**Description**: The [@holochain/client](https://github.com/holochain/holochain-client-js) library connects to Holochain via WebSocket. While it's JavaScript-based, we can create a Node.js service that acts as a bridge between Python and Holochain.
-
-**Architecture:**
-```
-ERPLibre (Python) <--HTTP/JSON--> Node.js Bridge (holochain-client-js) <--WebSocket--> Holochain Conductor <--> Nondominium DHT
-```
-
-**How it works:**
-1. Create a Node.js Express/Fastify server that wraps `@holochain/client`
-2. Expose REST endpoints that internally call Holochain zome functions
-3. Python code in ERPLibre calls these REST endpoints
-4. Node.js bridge handles WebSocket connection, zome call signing, and signal subscriptions
-
-**Example Node.js Bridge:**
-```javascript
-import { AppWebsocket } from '@holochain/client';
-import express from 'express';
-
-const app = express();
-const appWs = await AppWebsocket.connect({ url: 'ws://localhost:8888', token: '...' });
-
-app.post('/create_resource', async (req, res) => {
-  const result = await appWs.callZome({
-    cell_id: req.body.cell_id,
-    zome_name: 'zome_resource',
-    fn_name: 'create_economic_resource',
-    payload: req.body.payload
-  });
-  res.json(result);
-});
-
-app.listen(3000);
-```
-
-**Pros:**
-- ✅ **Full feature support**: Access to all `@holochain/client` features (signals, zome call signing, etc.)
-- ✅ **Signal support**: Can subscribe to Holochain signals and push to Python via webhooks or SSE
-- ✅ **Maintained library**: Official Holochain client with ongoing support
-- ✅ **Flexible**: Can customize the bridge logic (caching, batching, etc.)
-
-**Cons:**
-- ❌ **Extra language**: Requires Node.js runtime alongside Python
-- ❌ **Custom bridge code**: Need to write and maintain the bridge service
-- ❌ **Complexity**: More moving parts (Python, Node.js, Holochain)
-
-**Best For:**
-- Scenarios requiring real-time signal handling
-- When you need full control over zome call signing and capability management
-- Organizations comfortable with polyglot architectures
-
-### 6.3 Option 3: Direct Python WebSocket Client
-
-**Description**: Implement a Python WebSocket client that directly communicates with the Holochain conductor using the Conductor API protocol.
-
-**Architecture:**
-```
-ERPLibre (Python) <--WebSocket--> Holochain Conductor <--> Nondominium DHT
-```
-
-**How it works:**
-1. Use Python libraries like `websockets` or `aiohttp` to connect to the Holochain conductor
-2. Implement the Conductor API message protocol (JSON-RPC over WebSocket)
-3. Handle zome call signing using Python cryptography libraries (Ed25519)
-4. Integrate directly into ERPLibre or as a Python-based bridge service
-
-**Pros:**
-- ✅ **Single language**: Pure Python solution
-- ✅ **No extra services**: Direct integration
-- ✅ **Full control**: Complete control over the protocol implementation
-
-**Cons:**
-- ❌ **Protocol complexity**: Need to implement and maintain the Conductor API protocol
-- ❌ **Signing complexity**: Ed25519 signing and capability management in Python
-- ❌ **Maintenance burden**: No official Python client; must maintain compatibility with Holochain updates
-- ❌ **Testing overhead**: More code to test and debug
-
-**Best For:**
-- Organizations that want a pure-Python solution
-- Long-term projects willing to invest in maintaining a Python client
-- Scenarios where JavaScript/Node.js is not an option
-
-### 6.4 Option 4: gRPC/Protocol Buffers Bridge (Future)
-
-**Description**: If Holochain were to support gRPC, it could provide language-agnostic, high-performance RPC.
-
-**Status**: Currently not supported by Holochain. Mentioned for completeness.
-
-## 7. Comparison Matrix
-
-| Criterion | HTTP Gateway | JS Client + Node Bridge | Direct Python Client |
-|-----------|--------------|-------------------------|----------------------|
-| **Ease of Implementation** | ⭐⭐⭐⭐⭐ High | ⭐⭐⭐ Medium | ⭐⭐ Low |
-| **Signal Support** | ❌ No | ✅ Yes | ✅ Yes (if implemented) |
-| **Maintenance Burden** | ⭐⭐⭐⭐ Low | ⭐⭐⭐ Medium | ⭐ High |
-| **Language Diversity** | ✅ Any HTTP client | ⚠️ Python + Node.js | ✅ Python only |
-| **Real-time Capability** | ❌ No | ✅ Yes | ✅ Yes |
-| **Zome Call Signing** | ⚠️ Limited | ✅ Full support | ✅ Full (if implemented) |
-| **Latency** | ⭐⭐ Medium | ⭐⭐⭐ Low | ⭐⭐⭐⭐ Very Low |
-| **Deployment Complexity** | ⭐⭐⭐ 2 services | ⭐⭐ 3 services | ⭐⭐⭐⭐ 1 service |
-
-## 8. Recommended Approach
-
-### 8.1 For Proof of Concept: HTTP Gateway (`hc-http-gw`)
-
-**Rationale:**
-- **Speed to prototype**: Get a working demo in hours, not days
-- **Simplicity**: Python developers can use familiar `requests` library
-- **Proof, not production**: PoC doesn't need real-time signals or complex signing
-
-**Implementation Steps:**
-1. Deploy ERPLibre using Docker
-2. Deploy Holochain conductor and Nondominium hApp
-3. Deploy `hc-http-gw` and configure it to expose Nondominium zome functions
-4. Write a Python script (or Odoo module) that:
-   - Queries ERPLibre inventory via Odoo's ORM or XML-RPC API
-   - Maps products to Nondominium `ResourceSpecification` format
-   - POSTs to `hc-http-gw` to create `EconomicResource` entries
-5. Demo cross-organizational resource discovery
-
-### 8.2 For Production: JavaScript Client + Node.js Bridge
-
-**Rationale:**
-- **Full feature support**: Once PoC is validated, production needs signals and proper signing
-- **Official support**: `@holochain/client` is actively maintained
-- **Scalability**: Node.js bridge can handle concurrent requests, caching, batching
-
-**Migration Path:**
-1. Replace direct `hc-http-gw` calls with calls to the Node.js bridge
-2. Add signal subscription to push updates to ERPLibre via webhooks
-3. Implement proper zome call signing and capability management
-4. Add monitoring, logging, and error handling
-
-## 9. Proof of Concept Implementation Plan
+## 12. Implementation Plan
 
 ### Phase 1: Environment Setup (Week 1)
 - ✅ Deploy ERPLibre with Docker
@@ -313,9 +728,9 @@ ERPLibre (Python) <--WebSocket--> Holochain Conductor <--> Nondominium DHT
 - ✅ Document API mappings and data flow diagrams
 - ✅ Identify next steps for production implementation
 
-## 10. Example Code Snippets
+## 13. Example Code Snippets
 
-### 10.1 Reading ERPLibre Inventory (Python)
+### 13.1 Reading ERPLibre Inventory (Python)
 
 ```python
 import xmlrpc.client
@@ -342,7 +757,7 @@ for product in products:
     print(f"Product: {product['name']}, Qty: {product['qty_available']}")
 ```
 
-### 10.2 Posting to Nondominium via HTTP Gateway (Python)
+### 13.2 Posting to Nondominium via HTTP Gateway (Python)
 
 ```python
 import requests
@@ -379,7 +794,7 @@ resource_response = requests.post(
 print(f"Created resource: {resource_response.json()}")
 ```
 
-### 10.3 Discovering Resources (Python)
+### 13.3 Discovering Resources (Python)
 
 ```python
 # Query all available resources
@@ -392,18 +807,104 @@ for resource in resources:
     print(f"Available: {resource['quantity']} {resource['unit']} of {resource['conforms_to']}")
 ```
 
-## 11. Next Steps After PoC
+## 14. Deployment Topology
+
+### Option A: Bridge Per Organization (Recommended)
+
+Each organization runs its own full stack:
+
+```
+┌─────────────────────────┐     ┌─────────────────────────┐
+│ Org A Server            │     │ Org B Server            │
+│ ┌─────────────────────┐ │     │ ┌─────────────────────┐ │
+│ │ ERPLibre + Module   │ │     │ │ Dolibarr + Module   │ │
+│ ├─────────────────────┤ │     │ ├─────────────────────┤ │
+│ │ Protocol Bridge     │ │     │ │ Protocol Bridge     │ │
+│ ├─────────────────────┤ │     │ ├─────────────────────┤ │
+│ │ Holochain Node      │ │     │ │ Holochain Node      │ │
+│ │ (Org A Agent)       │ │     │ │ (Org B Agent)       │ │
+│ └─────────────────────┘ │     │ └─────────────────────┘ │
+└───────────┬─────────────┘     └───────────┬─────────────┘
+            │                               │
+            └───────────────────────────────┘
+                        DHT Network
+```
+
+**Deployment (docker-compose.yml):**
+```yaml
+services:
+  erplibre:
+    image: erplibre/erplibre:latest
+    ports:
+      - "8069:8069"  # Public: ERPLibre web UI
+    networks:
+      - internal
+    depends_on:
+      - protocol-bridge
+
+  protocol-bridge:
+    build: ./bridge
+    # NO public ports - internal only
+    networks:
+      - internal
+    environment:
+      - HOLOCHAIN_URL=ws://holochain:8888
+    depends_on:
+      - holochain
+
+  holochain:
+    image: holochain/holochain:latest
+    # NO public ports - internal only
+    networks:
+      - internal
+    volumes:
+      - ./agent-keys:/keys  # Protected volume
+      - ./happ:/happ
+
+networks:
+  internal:
+    internal: true  # No external access
+```
+
+### Option B: Shared Bridge Service (Managed)
+
+For organizations that prefer managed infrastructure:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ ERPLibre    │     │ Dolibarr    │     │ ERPNext     │
+│ Org A       │     │ Org B       │     │ Org C       │
+└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
+       │                   │                   │
+       └───────────────────┼───────────────────┘
+                           │
+                  ┌────────▼────────┐
+                  │ Managed Bridge  │  ← Multi-tenant
+                  │ Service         │     API key per org
+                  └────────┬────────┘
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+      ┌──────▼──────┐ ┌────▼─────┐ ┌──────▼──────┐
+      │ Org A Node  │ │Org B Node│ │ Org C Node  │
+      └─────────────┘ └──────────┘ └─────────────┘
+```
+
+## 15. Next Steps After PoC
 
 1. **Bidirectional sync**: Reflect Nondominium events back to ERPLibre (e.g., mark equipment as "On Loan")
 2. **Authentication**: Implement proper Holochain agent key management per organization
 3. **UI integration**: Build native ERPLibre module for seamless UX
 4. **Governance**: Allow organizations to set access rules via ERPLibre UI
 5. **PPR dashboard**: Display reputation scores and participation history in ERPLibre
-6. **Production bridge**: Migrate to Node.js bridge for signal support and better performance
+6. **Production bridge**: Deploy Node.js bridge for signal support and better performance
+7. **Multi-ERP**: Develop modules for Dolibarr, ERPNext based on shared bridge
+8. **Python client**: Evaluate investment in native Python client for ML/AI integration
 
-## 12. References
+## 16. References
 
 - [ERPLibre GitHub](https://github.com/ERPLibre/ERPLibre)
+- [Dolibarr GitHub](https://github.com/Dolibarr/dolibarr)
 - [Holochain HTTP Gateway](https://github.com/holochain/hc-http-gw)
 - [Holochain Client JS](https://github.com/holochain/holochain-client-js)
 - [Odoo API Documentation](https://www.odoo.com/documentation/16.0/developer/reference/external_api.html)
