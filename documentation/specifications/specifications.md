@@ -523,3 +523,816 @@ pub struct GovernanceTransitionResult {
   - PPR claim types must correspond to the actual economic action performed
   - End-of-life declarations require multiple validator participation receipts with enhanced security measures
   - Private entry storage ensures receipt privacy while maintaining auditability for the owning agent
+
+## 6. Future Development: Architecture Specifications for P2P and Organizational Contexts
+
+### 6.1 Overview
+
+This section specifies the technical architecture for supporting two distinct deployment contexts:
+
+- **Pure P2P Context**: Individual humans directly using Nondominium
+- **Organizational Context**: Organizations accessing Nondominium through bridge services (ERP, Tiki, etc.)
+
+These specifications correspond to the future development requirements defined in `REQ-FUT-*` series.
+
+### 6.2 Identity & Delegation Architecture
+
+#### 6.2.1 Organizational Agent Identity
+
+**SPEC-FUT-ID-01: Organizational Agent Entry**
+
+New entry type for representing organizational agents:
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrganizationalAgent {
+    /// Unique identifier for the organization
+    pub org_id: AgentPubKey,
+    /// Human-readable organization name
+    pub org_name: String,
+    /// Legal entity information (optional)
+    pub legal_entity_info: Option<LegalEntityInfo>,
+    /// Organization type (e.g., "cooperative", "corporation", "nonprofit")
+    pub org_type: String,
+    /// Root signing authority for the organization
+    pub root_authority: AgentPubKey,
+    /// Active delegation policy
+    pub delegation_policy: DelegationPolicy,
+    /// Created timestamp
+    pub created_at: Timestamp,
+}
+```
+
+**SPEC-FUT-ID-02: Delegation Entry**
+
+Entry type for employee/member delegations:
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Delegation {
+    /// The organizational agent granting delegation
+    pub delegator: AgentPubKey,
+    /// The employee/member receiving delegation
+    pub delegate: AgentPubKey,
+    /// Scoped capabilities (e.g., ["Transport", "Use"])
+    pub capabilities: Vec<String>,
+    /// Monetary or quantity limits (optional)
+    pub limits: Option<DelegationLimits>,
+    /// Expiry timestamp (optional, None = no expiry)
+    pub expires_at: Option<Timestamp>,
+    /// Status: "active", "revoked", "expired"
+    pub status: DelegationStatus,
+    /// Created timestamp
+    pub created_at: Timestamp,
+    /// Revoked timestamp (if applicable)
+    pub revoked_at: Option<Timestamp>,
+}
+```
+
+**SPEC-FUT-ID-03: Delegation Limits**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DelegationLimits {
+    /// Maximum transaction value
+    pub max_value: Option<f64>,
+    /// Maximum resource quantity
+    pub max_quantity: Option<f64>,
+    /// Allowed resource types
+    pub allowed_resource_specs: Option<Vec<ActionHash>>,
+    /// Geographic restrictions
+    pub geographic_limits: Option<Vec<String>>,
+}
+```
+
+**SPEC-FUT-ID-04: Delegation Validation**
+
+```rust
+#[hdk_extern]
+pub fn validate_delegation(delegation_hash: ActionHash, action: VfAction) -> ExternResult<bool> {
+    // Check delegation status (active/revoked/expired)
+    // Verify capability scope includes requested action
+    // Validate limits are not exceeded
+    // Return authorization result
+}
+```
+
+#### 6.2.2 Delegation Zome Functions
+
+**SPEC-FUT-ID-05: Delegation Management Functions**
+
+```rust
+// Create delegation for employee/member
+#[hdk_extern]
+pub fn create_delegation(
+    delegate: AgentPubKey,
+    capabilities: Vec<String>,
+    limits: Option<DelegationLimits>,
+    expires_at: Option<Timestamp>
+) -> ExternResult<ActionHash>;
+
+// Revoke delegation immediately
+#[hdk_extern]
+pub fn revoke_delegation(delegation_hash: ActionHash) -> ExternResult<()>;
+
+// Get all active delegations for an organization
+#[hdk_extern]
+pub fn get_active_delegations(org_agent: AgentPubKey) -> ExternResult<Vec<Delegation>>;
+
+// Check if delegate has specific capability
+#[hdk_extern]
+pub fn check_delegation_capability(
+    delegate: AgentPubKey,
+    capability: String
+) -> ExternResult<bool>;
+```
+
+### 6.3 Organizational Reputation Architecture
+
+#### 6.3.1 Organizational PPR Aggregation
+
+**SPEC-FUT-REP-01: Organizational Participation Claim**
+
+Extended PPR structure for organizational context:
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrganizationalParticipationClaim {
+    /// Standard PPR fields
+    pub base_claim: PrivateParticipationClaim,
+    /// The delegate who performed the action
+    pub performed_by: Option<AgentPubKey>,
+    /// Internal attribution hash (for org audit)
+    pub internal_attribution: Option<Hash>,
+    /// Whether this was an organizational or personal action
+    pub action_context: ActionContext,
+}
+```
+
+**SPEC-FUT-REP-02: Reputation Aggregation**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrganizationalReputationSummary {
+    /// The organizational agent
+    pub org_agent: AgentPubKey,
+    /// Standard reputation metrics (external view)
+    pub external_reputation: ReputationSummary,
+    /// Internal attribution by delegate (private)
+    pub delegate_performance: HashMap<AgentPubKey, ReputationSummary>,
+    /// Aggregate organizational metrics
+    pub org_metrics: OrganizationalMetrics,
+}
+```
+
+**SPEC-FUT-REP-03: Organizational Metrics**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrganizationalMetrics {
+    /// Total active delegates
+    pub active_delegates: u32,
+    /// Organizational transaction volume
+    pub transaction_volume: u32,
+    /// Organizational reliability score
+    pub org_reliability: f64,
+    /// Resource pool size
+    pub resource_pool_size: u32,
+}
+```
+
+#### 6.3.2 Reputation Functions
+
+**SPEC-FUT-REP-04: Organizational Reputation Functions**
+
+```rust
+// Get organizational reputation (external view)
+#[hdk_extern]
+pub fn get_organizational_reputation(org_agent: AgentPubKey) -> ExternResult<OrganizationalReputationSummary>;
+
+// Get delegate performance (organizational admin only)
+#[hdk_extern]
+pub fn get_delegate_performance(
+    org_agent: AgentPubKey,
+    delegate: AgentPubKey
+) -> ExternResult<ReputationSummary>;
+
+// Issue organizational PPR with internal attribution
+#[hdk_extern]
+pub fn issue_organizational_ppr(
+    commitment_hash: ActionHash,
+    event_hash: ActionHash,
+    performed_by: AgentPubKey,
+    performance_metrics: PerformanceMetrics
+) -> ExternResult<ActionHash>;
+```
+
+### 6.4 Bridge Service Architecture
+
+#### 6.4.1 Node.js Bridge Service Specification
+
+**SPEC-FUT-BRG-01: Bridge Service Core Architecture**
+
+The bridge service acts as a RESTful interface between organizational systems (ERP, Tiki) and Holochain:
+
+```
+Organizational System (PHP/Python) <--HTTP/JSON--> Node.js Bridge <--WebSocket--> Holochain Conductor
+```
+
+**Components:**
+- **REST API Layer**: Express.js or Fastify for HTTP endpoints
+- **Holochain Client**: `@holochain/client` for WebSocket communication
+- **Cache Layer**: Redis for frequently accessed data
+- **Queue Layer**: Bull/BullMQ for async operations
+- **Signal Handler**: Real-time event forwarding to organizational systems
+
+**SPEC-FUT-BRG-02: Bridge Service Data Structures**
+
+```typescript
+// Bridge configuration
+interface BridgeConfig {
+  adminWsUrl: string;        // Holochain Admin WebSocket URL
+  appWsUrl: string;          // Holochain App WebSocket URL
+  appId: string;             // Nondominium hApp ID
+  redisUrl: string;          // Redis connection URL
+  orgWebhookUrl: string;     // Organizational system webhook endpoint
+  webhookSecret: string;     // HMAC signature secret
+  cacheEnabled: boolean;     // Enable/disable caching
+  cacheTTL: number;          // Cache time-to-live (seconds)
+}
+
+// Bridge request format
+interface BridgeRequest {
+  dna_hash: string;          // Nondominium DNA hash
+  agent_key: string;         // Organizational agent key
+  zome: string;              // Target zome name
+  function: string;          // Target function name
+  payload: any;              // Function payload
+  delegate?: string;         // Optional delegate agent key
+}
+
+// Bridge response format
+interface BridgeResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+  cached?: boolean;
+  timestamp: number;
+}
+```
+
+**SPEC-FUT-BRG-03: Bridge REST API Endpoints**
+
+Core endpoints that organizational systems interact with:
+
+```typescript
+// Resource management
+POST   /api/resources
+GET    /api/resources/search
+GET    /api/resources/:hash
+POST   /api/resources/:hash/use
+DELETE /api/resources/:hash
+
+// Transaction management
+POST   /api/commitments
+GET    /api/commitments/:hash
+POST   /api/events
+GET    /api/events/by-resource/:resource_hash
+
+// Reputation queries
+GET    /api/reputation/:agent_id/summary
+GET    /api/reputation/:agent_id/receipts
+
+// Batch operations
+POST   /api/batch
+
+// Organizational management
+POST   /api/org/delegations
+DELETE /api/org/delegations/:hash
+GET    /api/org/delegations/active
+GET    /api/org/reputation
+
+// Health and monitoring
+GET    /health
+GET    /metrics
+```
+
+**SPEC-FUT-BRG-04: Signal Forwarding**
+
+Real-time signal forwarding from Holochain to organizational systems:
+
+```typescript
+// Signal handler
+class SignalForwarder {
+  async handleSignal(signal: HolochainSignal): Promise<void> {
+    // Transform Holochain signal to organizational format
+    const orgEvent = this.transformSignal(signal);
+    
+    // POST to organizational webhook
+    await this.postToWebhook(orgEvent);
+  }
+  
+  private transformSignal(signal: HolochainSignal): OrganizationalEvent {
+    return {
+      type: signal.data.type,
+      payload: signal.data.payload,
+      timestamp: Date.now(),
+      signature: this.generateHMAC(signal)
+    };
+  }
+}
+```
+
+#### 6.4.2 Organizational System Integration
+
+**SPEC-FUT-BRG-05: PHP Client Library**
+
+PHP library for Tiki and similar systems:
+
+```php
+class NondominiumClient {
+    private $bridge_url;
+    private $org_agent_key;
+    private $delegate_key;
+    
+    public function __construct($bridge_url, $org_agent_key, $delegate_key = null);
+    
+    // Resource operations
+    public function createResource($spec_hash, $quantity, $unit);
+    public function searchResources($query = null);
+    public function initiateUse($resource_hash, $receiver, $start_time, $end_time);
+    
+    // Batch operations
+    public function batchOperations($operations);
+    
+    // Reputation queries
+    public function getOrganizationalReputation();
+    public function getDelegatePerformance($delegate_agent);
+    
+    // Delegation management
+    public function createDelegation($delegate, $capabilities, $limits = null);
+    public function revokeDelegation($delegation_hash);
+}
+```
+
+**SPEC-FUT-BRG-06: Python Client Library**
+
+Python library for ERPLibre/Odoo:
+
+```python
+class NondominiumBridgeClient:
+    def __init__(self, bridge_url: str, org_agent_key: str, delegate_key: str = None):
+        self.bridge_url = bridge_url
+        self.org_agent_key = org_agent_key
+        self.delegate_key = delegate_key
+    
+    # Resource operations
+    def create_resource(self, spec_hash: str, quantity: float, unit: str) -> dict:
+        pass
+    
+    def search_resources(self, query: str = None) -> list:
+        pass
+    
+    # Batch operations
+    def batch_operations(self, operations: list) -> list:
+        pass
+    
+    # Webhook handling
+    def handle_signal(self, signal: dict) -> None:
+        pass
+```
+
+### 6.5 Organizational Governance Architecture
+
+#### 6.5.1 Policy-Driven Governance
+
+**SPEC-FUT-GOV-01: Organizational Governance Policy**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrganizationalGovernancePolicy {
+    /// Organization this policy applies to
+    pub org_agent: AgentPubKey,
+    /// Automated approval rules
+    pub approval_rules: Vec<ApprovalRule>,
+    /// Multi-signature requirements
+    pub multisig_requirements: Vec<MultiSigRequirement>,
+    /// Policy version
+    pub version: String,
+    /// Policy effective date
+    pub effective_at: Timestamp,
+}
+```
+
+**SPEC-FUT-GOV-02: Approval Rule**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ApprovalRule {
+    /// Rule name
+    pub name: String,
+    /// Conditions for automatic approval
+    pub conditions: Vec<Condition>,
+    /// Actions this rule applies to
+    pub applies_to: Vec<VfAction>,
+    /// Whether approval is automatic or manual
+    pub auto_approve: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Condition {
+    pub field: String,           // e.g., "resource_value", "borrower_reputation"
+    pub operator: Operator,      // e.g., "greater_than", "less_than", "equals"
+    pub value: String,           // Comparison value
+}
+```
+
+**SPEC-FUT-GOV-03: Multi-Signature Requirement**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MultiSigRequirement {
+    /// Transaction types requiring multi-sig
+    pub transaction_types: Vec<String>,
+    /// Minimum number of signatures required
+    pub min_signatures: u32,
+    /// Required roles for signers
+    pub required_roles: Vec<String>,
+    /// Value threshold for triggering multi-sig
+    pub value_threshold: Option<f64>,
+}
+```
+
+#### 6.5.2 Governance Functions
+
+**SPEC-FUT-GOV-04: Organizational Governance Functions**
+
+```rust
+// Set organizational governance policy
+#[hdk_extern]
+pub fn set_governance_policy(policy: OrganizationalGovernancePolicy) -> ExternResult<ActionHash>;
+
+// Evaluate approval request against policy
+#[hdk_extern]
+pub fn evaluate_approval_request(
+    action: VfAction,
+    context: ApprovalContext
+) -> ExternResult<ApprovalDecision>;
+
+// Initiate multi-signature transaction
+#[hdk_extern]
+pub fn initiate_multisig_transaction(
+    action: VfAction,
+    resource_hash: ActionHash,
+    required_signers: Vec<AgentPubKey>
+) -> ExternResult<ActionHash>;
+
+// Sign multi-signature transaction
+#[hdk_extern]
+pub fn sign_multisig_transaction(
+    transaction_hash: ActionHash,
+    signature: CryptographicSignature
+) -> ExternResult<()>;
+
+// Check multi-signature completion
+#[hdk_extern]
+pub fn check_multisig_status(transaction_hash: ActionHash) -> ExternResult<MultiSigStatus>;
+```
+
+### 6.6 Device & Session Management
+
+#### 6.6.1 Session Management Architecture
+
+**SPEC-FUT-DEV-01: Session Entry**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrganizationalSession {
+    /// Session identifier
+    pub session_id: String,
+    /// Organizational agent
+    pub org_agent: AgentPubKey,
+    /// Delegate agent for this session
+    pub delegate: AgentPubKey,
+    /// Device identifier
+    pub device_id: String,
+    /// Session creation time
+    pub created_at: Timestamp,
+    /// Session expiry time
+    pub expires_at: Timestamp,
+    /// Session status
+    pub status: SessionStatus,
+    /// OAuth/SSO token reference (hashed)
+    pub auth_token_hash: Option<Hash>,
+}
+```
+
+**SPEC-FUT-DEV-02: Device Registration**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegisteredDevice {
+    /// Device identifier
+    pub device_id: String,
+    /// Organization this device belongs to
+    pub org_agent: AgentPubKey,
+    /// Device type (e.g., "tablet", "mobile", "workstation")
+    pub device_type: String,
+    /// Whether device is shared or personal
+    pub is_shared: bool,
+    /// Registered delegates for this device
+    pub authorized_delegates: Vec<AgentPubKey>,
+    /// Device registration time
+    pub registered_at: Timestamp,
+    /// Device status
+    pub status: DeviceStatus,
+}
+```
+
+#### 6.6.2 Session Functions
+
+**SPEC-FUT-DEV-03: Session Management Functions**
+
+```rust
+// Create organizational session
+#[hdk_extern]
+pub fn create_session(
+    delegate: AgentPubKey,
+    device_id: String,
+    auth_token_hash: Option<Hash>
+) -> ExternResult<String>; // Returns session_id
+
+// Validate active session
+#[hdk_extern]
+pub fn validate_session(session_id: String) -> ExternResult<bool>;
+
+// Terminate session
+#[hdk_extern]
+pub fn terminate_session(session_id: String) -> ExternResult<()>;
+
+// Map OAuth token to Holochain capability
+#[hdk_extern]
+pub fn map_oauth_to_capability(
+    oauth_token_hash: Hash,
+    delegate: AgentPubKey
+) -> ExternResult<CapabilityGrant>;
+
+// Register organizational device
+#[hdk_extern]
+pub fn register_device(
+    device_id: String,
+    device_type: String,
+    is_shared: bool
+) -> ExternResult<ActionHash>;
+
+// Revoke device access remotely
+#[hdk_extern]
+pub fn revoke_device_access(device_id: String) -> ExternResult<()>;
+```
+
+### 6.7 Custody vs Ownership Architecture
+
+#### 6.7.1 Organizational Resource Ownership
+
+**SPEC-FUT-OWN-01: Extended Resource Entry**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrganizationalEconomicResource {
+    /// Standard resource fields
+    pub base_resource: EconomicResource,
+    /// Owner (may differ from custodian in org context)
+    pub owner: AgentPubKey,
+    /// Current physical location
+    pub location: Option<LocationInfo>,
+    /// Internal organizational tracking ID
+    pub internal_id: Option<String>,
+    /// Legal contract attachment (hashed)
+    pub contract_hash: Option<Hash>,
+}
+```
+
+**SPEC-FUT-OWN-02: Location Tracking**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LocationInfo {
+    /// Location type (e.g., "warehouse", "service_truck", "customer_site")
+    pub location_type: String,
+    /// Location identifier
+    pub location_id: String,
+    /// Geographic coordinates (optional)
+    pub coordinates: Option<(f64, f64)>,
+    /// Updated timestamp
+    pub updated_at: Timestamp,
+}
+```
+
+**SPEC-FUT-OWN-03: Internal Transfer Event**
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InternalTransferEvent {
+    /// Resource being transferred
+    pub resource: ActionHash,
+    /// Organization owning the resource
+    pub organization: AgentPubKey,
+    /// Previous custodian (employee)
+    pub from_custodian: AgentPubKey,
+    /// New custodian (employee)
+    pub to_custodian: AgentPubKey,
+    /// Previous location
+    pub from_location: Option<LocationInfo>,
+    /// New location
+    pub to_location: Option<LocationInfo>,
+    /// Transfer timestamp
+    pub transferred_at: Timestamp,
+    /// Does NOT trigger ownership change
+    pub is_internal: bool,
+}
+```
+
+#### 6.7.2 Ownership Functions
+
+**SPEC-FUT-OWN-04: Organizational Ownership Functions**
+
+```rust
+// Internal custody transfer (within organization)
+#[hdk_extern]
+pub fn internal_custody_transfer(
+    resource_hash: ActionHash,
+    new_custodian: AgentPubKey,
+    new_location: Option<LocationInfo>
+) -> ExternResult<ActionHash>;
+
+// Update resource location without custody change
+#[hdk_extern]
+pub fn update_resource_location(
+    resource_hash: ActionHash,
+    location: LocationInfo
+) -> ExternResult<()>;
+
+// Attach legal contract to commitment
+#[hdk_extern]
+pub fn attach_contract(
+    commitment_hash: ActionHash,
+    contract_hash: Hash
+) -> ExternResult<()>;
+
+// Reconcile organizational inventory
+#[hdk_extern]
+pub fn reconcile_inventory(
+    org_agent: AgentPubKey,
+    inventory_snapshot: Vec<ResourceInventoryItem>
+) -> ExternResult<ReconciliationReport>;
+```
+
+### 6.8 Architecture Modularity Specifications
+
+**SPEC-FUT-ARCH-01: Context Detection**
+
+The system should automatically detect operational context:
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum AgentContext {
+    PureP2P,                              // Individual human agent
+    Organizational(OrganizationalAgent),  // Organizational agent
+    Delegate(AgentPubKey, AgentPubKey),  // Delegate acting for organization
+}
+
+// Determine agent context
+#[hdk_extern]
+pub fn get_agent_context(agent: AgentPubKey) -> ExternResult<AgentContext>;
+```
+
+**SPEC-FUT-ARCH-02: Pluggable Governance**
+
+Governance logic should be modular and swappable:
+
+```rust
+pub trait GovernanceModule {
+    fn evaluate_action(&self, action: VfAction, context: ActionContext) -> Result<ApprovalDecision>;
+    fn get_validation_requirements(&self, action: VfAction) -> ValidationRequirements;
+}
+
+// P2P Governance Module
+pub struct P2PGovernanceModule;
+impl GovernanceModule for P2PGovernanceModule { /* ... */ }
+
+// Organizational Governance Module
+pub struct OrganizationalGovernanceModule;
+impl GovernanceModule for OrganizationalGovernanceModule { /* ... */ }
+```
+
+**SPEC-FUT-ARCH-03: Unified Reputation Framework**
+
+Reputation calculation should work across contexts:
+
+```rust
+pub trait ReputationCalculator {
+    fn calculate_reputation(&self, agent: AgentPubKey) -> Result<ReputationSummary>;
+    fn aggregate_pprs(&self, claims: Vec<PrivateParticipationClaim>) -> PerformanceMetrics;
+}
+
+// Works for both P2P and organizational agents
+#[hdk_extern]
+pub fn calculate_unified_reputation(agent: AgentPubKey) -> ExternResult<ReputationSummary> {
+    let context = get_agent_context(agent)?;
+    let calculator = match context {
+        AgentContext::PureP2P => P2PReputationCalculator::new(),
+        AgentContext::Organizational(_) => OrganizationalReputationCalculator::new(),
+        AgentContext::Delegate(org, _) => OrganizationalReputationCalculator::new(),
+    };
+    calculator.calculate_reputation(agent)
+}
+```
+
+### 6.9 Deployment Specifications
+
+**SPEC-FUT-DEPLOY-01: Docker Compose Architecture**
+
+Standard deployment for organizational integration:
+
+```yaml
+services:
+  holochain:
+    image: holochain/holochain:latest
+    ports:
+      - "8000:8000"  # Admin WebSocket
+      - "8888:8888"  # App WebSocket
+  
+  bridge:
+    build: ./bridge-service
+    environment:
+      - HC_ADMIN_WS_URL=ws://holochain:8000
+      - HC_APP_WS_URL=ws://holochain:8888
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - holochain
+      - redis
+  
+  redis:
+    image: redis:7-alpine
+  
+  organizational_system:
+    # ERP, Tiki, or other organizational platform
+    depends_on:
+      - bridge
+```
+
+**SPEC-FUT-DEPLOY-02: Bridge Service Health Monitoring**
+
+```typescript
+interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  holochain: {
+    connected: boolean;
+    latency: number;
+  };
+  redis: {
+    connected: boolean;
+    memory_usage: number;
+  };
+  queue: {
+    jobs_pending: number;
+    jobs_failed: number;
+  };
+  uptime: number;
+  version: string;
+}
+
+// Health check endpoint
+GET /health -> HealthStatus
+```
+
+### 6.10 Implementation Priorities
+
+**Phase 1 (Current)**: Pure P2P implementation
+- Focus: Individual agents, direct custody, simple governance
+
+**Phase 2 (Near-term Future Development)**:
+- Delegation pattern (SPEC-FUT-ID-01 through SPEC-FUT-ID-05)
+- Organizational reputation (SPEC-FUT-REP-01 through SPEC-FUT-REP-04)
+- Basic bridge service (SPEC-FUT-BRG-01 through SPEC-FUT-BRG-03)
+
+**Phase 3 (Long-term Future Development)**:
+- Multi-signature governance (SPEC-FUT-GOV-01 through SPEC-FUT-GOV-04)
+- Session & device management (SPEC-FUT-DEV-01 through SPEC-FUT-DEV-03)
+- Full organizational features (custody vs ownership, policy automation)
+
+### 6.11 Migration Strategy
+
+**SPEC-FUT-MIGRATE-01: Backward Compatibility**
+
+New organizational features must not break existing P2P functionality:
+- P2P agents can interact with organizational agents seamlessly
+- Core ValueFlows data structures remain unchanged
+- Organizational features are additive, not breaking changes
+
+**SPEC-FUT-MIGRATE-02: Data Migration**
+
+When transitioning from P2P-only to organizational support:
+- Existing PPRs remain valid and portable
+- Existing resources can be claimed by organizations
+- Agent identities can be promoted to organizational agents

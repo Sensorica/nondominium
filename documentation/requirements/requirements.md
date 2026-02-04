@@ -282,7 +282,162 @@ The hApp must be structured with three zomes:
 - Scalable validation schemes for large networks
 - Economic incentive mechanisms and value accounting
 
-## 11. Success Criteria
+## 11. Future Development: Architecture Variants for P2P and Organizational Contexts
+
+### 11.1 Context Overview
+
+As Nondominium evolves beyond proof-of-concept, two distinct deployment contexts emerge:
+
+- **Pure P2P Context**: Individual humans directly using Nondominium for peer-to-peer resource sharing
+- **Organizational Context**: Organizations (using ERPs or web platforms like Tiki) accessing Nondominium through bridge services
+
+While the core ValueFlows logic and resource model remain consistent, the governance, identity, and security layers require significant architectural adaptations to serve both contexts effectively.
+
+### 11.2 Identity & Delegation Requirements
+
+#### Pure P2P Context
+
+- **REQ-FUT-P2P-ID-01**: Support direct 1:1 mapping between human individuals and Holochain agent keys
+- **REQ-FUT-P2P-ID-02**: Enable personal device-based key management with biometric or password protection
+- **REQ-FUT-P2P-ID-03**: Support direct agency where the individual is the sole signer and decision-maker
+
+#### Organizational Context
+
+- **REQ-FUT-ORG-ID-01**: Support organizational agent identities representing legal entities (e.g., "Acme Corp")
+- **REQ-FUT-ORG-ID-02**: Implement delegation pattern where employee keys can sign on behalf of organizational agents
+- **REQ-FUT-ORG-ID-03**: Support scoped delegations with specific capabilities (e.g., "Transport only", "Use up to $1000 value")
+- **REQ-FUT-ORG-ID-04**: Support time-limited delegations with automatic expiry
+- **REQ-FUT-ORG-ID-05**: Enable immediate delegation revocation (e.g., when employee leaves) without changing organizational identity
+- **REQ-FUT-ORG-ID-06**: Track which delegate performed which action for internal organizational audit
+- **REQ-FUT-ORG-ID-07**: Support delegation hierarchies (e.g., manager delegates to team lead, who delegates to employees)
+
+### 11.3 Reputation & Accountability Requirements
+
+#### Pure P2P Context
+
+- **REQ-FUT-P2P-REP-01**: All reputation (PPRs) accrues directly to the individual agent
+- **REQ-FUT-P2P-REP-02**: Support full reputation portability across contexts and networks
+- **REQ-FUT-P2P-REP-03**: New users start with zero reputation and build it through transactions
+
+#### Organizational Context
+
+- **REQ-FUT-ORG-REP-01**: External reputation accrues to the organizational agent, not individual delegates
+- **REQ-FUT-ORG-REP-02**: Support internal attribution linking PPRs to specific delegates (hashed/private)
+- **REQ-FUT-ORG-REP-03**: Enable organizational reputation inheritance for new delegates
+- **REQ-FUT-ORG-REP-04**: Distinguish between organizational performance and individual delegate performance
+- **REQ-FUT-ORG-REP-05**: Support aggregation of delegate performance into organizational reputation metrics
+- **REQ-FUT-ORG-REP-06**: Maintain privacy of internal organizational structure while supporting accountability
+
+### 11.4 Governance & Decision-Making Requirements
+
+#### Pure P2P Context
+
+- **REQ-FUT-P2P-GOV-01**: Support ad-hoc, autonomous decision-making by individuals
+- **REQ-FUT-P2P-GOV-02**: Enable social negotiation of resource access terms
+- **REQ-FUT-P2P-GOV-03**: Support simple template-based governance rules
+
+#### Organizational Context
+
+- **REQ-FUT-ORG-GOV-01**: Support policy-driven, automated decision-making based on organizational rules
+- **REQ-FUT-ORG-GOV-02**: Enable automated approval of resource requests based on criteria (e.g., credit score thresholds)
+- **REQ-FUT-ORG-GOV-03**: Support multi-signature requirements for high-value transactions
+- **REQ-FUT-ORG-GOV-04**: Enable threshold-based governance (e.g., 2-of-3 delegates must approve)
+- **REQ-FUT-ORG-GOV-05**: Support integration with organizational policy engines
+- **REQ-FUT-ORG-GOV-06**: Enable organizational administrators to configure governance rules without code changes
+
+### 11.5 Custody & Ownership Requirements
+
+#### Pure P2P Context
+
+- **REQ-FUT-P2P-OWN-01**: Support convergent custody and ownership (same person)
+- **REQ-FUT-P2P-OWN-02**: Handle temporary custody transfers (lending) and permanent ownership transfers (selling/giving)
+- **REQ-FUT-P2P-OWN-03**: Simple custody validation based on physical possession
+
+#### Organizational Context
+
+- **REQ-FUT-ORG-OWN-01**: Support divergent custody and ownership (organization owns, employee holds custody)
+- **REQ-FUT-ORG-OWN-02**: Track internal organizational custody transfers without triggering ownership change events
+- **REQ-FUT-ORG-OWN-03**: Support location tracking for organizational resources
+- **REQ-FUT-ORG-OWN-04**: Enable attachment of legal contracts (hashed PDFs) to commitments and events
+- **REQ-FUT-ORG-OWN-05**: Distinguish between internal organizational moves and external transfers
+- **REQ-FUT-ORG-OWN-06**: Support organizational inventory reconciliation with Nondominium state
+
+### 11.6 Device & Session Management Requirements
+
+#### Pure P2P Context
+
+- **REQ-FUT-P2P-DEV-01**: Support personal, single-user devices
+- **REQ-FUT-P2P-DEV-02**: Simple biometric or password-based security
+- **REQ-FUT-P2P-DEV-03**: Keys stored securely on personal devices
+- **REQ-FUT-P2P-DEV-04**: Support standard consumer mobile platforms (iOS, Android)
+
+#### Organizational Context
+
+- **REQ-FUT-ORG-DEV-01**: Support shared devices (e.g., warehouse tablets used by multiple employees)
+- **REQ-FUT-ORG-DEV-02**: Enable rapid delegate login/logout on shared devices
+- **REQ-FUT-ORG-DEV-03**: Support BYOD (Bring Your Own Device) with organizational key management
+- **REQ-FUT-ORG-DEV-04**: Integrate with organizational IAM/SSO systems (OAuth, SAML)
+- **REQ-FUT-ORG-DEV-05**: Map organizational authentication tokens to Holochain capability tokens
+- **REQ-FUT-ORG-DEV-06**: Support enterprise device management policies
+- **REQ-FUT-ORG-DEV-07**: Enable remote device key revocation for security
+
+### 11.7 Bridge Integration Requirements
+
+#### Organizational Context (ERP/Web Platform Bridges)
+
+- **REQ-FUT-ORG-BRG-01**: Support RESTful bridge services using Node.js and `@holochain/client`
+- **REQ-FUT-ORG-BRG-02**: Enable bidirectional synchronization between organizational systems and Nondominium
+- **REQ-FUT-ORG-BRG-03**: Support real-time signal forwarding from Holochain to organizational systems
+- **REQ-FUT-ORG-BRG-04**: Enable batch operations for efficiency in organizational contexts
+- **REQ-FUT-ORG-BRG-05**: Support caching strategies for frequently accessed organizational data
+- **REQ-FUT-ORG-BRG-06**: Enable webhook-based event notification to organizational systems
+- **REQ-FUT-ORG-BRG-07**: Support organizational resource publishing from ERP inventory systems
+- **REQ-FUT-ORG-BRG-08**: Enable organizational authentication mapping (OAuth/session tokens to agent keys)
+- **REQ-FUT-ORG-BRG-09**: Support deployment via Docker containerization for organizational IT environments
+- **REQ-FUT-ORG-BRG-10**: Enable organizational administrators to monitor bridge health and performance
+
+### 11.8 Architecture Modularity Requirements
+
+- **REQ-FUT-ARCH-01**: Design modular architecture supporting both P2P and organizational contexts
+- **REQ-FUT-ARCH-02**: Core ValueFlows and resource model must remain context-agnostic
+- **REQ-FUT-ARCH-03**: Governance and identity layers must support pluggable implementations
+- **REQ-FUT-ARCH-04**: Support seamless interoperability between P2P agents and organizational agents
+- **REQ-FUT-ARCH-05**: Enable organizations to act as agents in the P2P network with equal standing
+- **REQ-FUT-ARCH-06**: Support mixed-mode transactions (P2P individual borrowing from organization)
+- **REQ-FUT-ARCH-07**: Maintain unified reputation and trust framework across contexts
+
+### 11.9 Privacy & Compliance Requirements
+
+#### Pure P2P Context
+
+- **REQ-FUT-P2P-PRIV-01**: Minimize data collection to essential transaction information
+- **REQ-FUT-P2P-PRIV-02**: User controls all personal data disclosure
+- **REQ-FUT-P2P-PRIV-03**: Support pseudonymous participation
+
+#### Organizational Context
+
+- **REQ-FUT-ORG-PRIV-01**: Support organizational data retention and audit requirements
+- **REQ-FUT-ORG-PRIV-02**: Enable compliance with organizational security policies
+- **REQ-FUT-ORG-PRIV-03**: Support organizational data export for regulatory compliance
+- **REQ-FUT-ORG-PRIV-04**: Maintain separation between organizational data and public DHT data
+- **REQ-FUT-ORG-PRIV-05**: Support organizational right-to-delete while preserving transaction integrity
+
+### 11.10 Implementation Priority
+
+**Phase 1 (Current)**: Pure P2P implementation with direct agent-person mapping
+
+**Phase 2 (Future Development)**: 
+- Delegation pattern implementation
+- Organizational reputation aggregation
+- Basic bridge service architecture
+
+**Phase 3 (Future Development)**:
+- Advanced multi-signature governance
+- Enterprise device and session management
+- Full IAM/SSO integration
+- Production-ready organizational bridges
+
+## 12. Success Criteria
 
 The nondominium system is successful when:
 
