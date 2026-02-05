@@ -1,16 +1,18 @@
 # Nondominium
 
-![Nondominium logo](nondominium_logo.png)
+<div align="center">
+  <img src="nondominium_logo.png" alt="Nondominium logo" width="200">
+</div>
 
 A **ValueFlows-compliant resource sharing Holochain application** implementing distributed, agent-centric resource management with embedded governance.
 
 ## Executive Summary
-**nondominium** is a foundational infrastructure project aimed at enabling a new class of Resources that are *organization-agnostic*, *uncapturable*, and *natively collaborative*. These Resources are governed not by platforms or centralized authorities, but through embedded rules, transparent peer validation, and a comprehensive reputation system.
 
-The project's central goal is to support a ***peer sharing economy***, overcoming the structural flaws of centralized platforms (centralization of power, censorship, unsuitable regulations).
+**nondominium** is a foundational infrastructure project aimed at enabling a new class of Resources that are _organization-agnostic_, _uncapturable_, and _natively collaborative_. These Resources are governed not by platforms or centralized authorities, but through embedded rules, transparent peer validation, and a comprehensive reputation system.
+
+The project's central goal is to support a **_peer sharing economy_**, overcoming the structural flaws of centralized platforms (centralization of power, censorship, unsuitable regulations).
 
 Built on the Holochain framework and using the ValueFlows standard, nondominium allows any Agent to interact with these Resources in a permissionless but accountable environment, with automatic reputation tracking through Private Participation Receipts (PPRs).
-
 
 ## Overview
 
@@ -32,6 +34,7 @@ nondominium implements a modular governance-as-operator architecture that separa
 - **`zome_gouvernance`**: State transition operator that evaluates governance rules and validates changes
 
 **Key Architecture Benefits:**
+
 - **Modularity**: Governance rules can be modified without changing resource data structures
 - **Swappability**: Different governance schemes can be applied to the same resource types
 - **Testability**: Governance logic can be unit tested independently of data management
@@ -176,12 +179,14 @@ This generates:
 ### Governance & Security
 
 **Governance Architecture:**
+
 - [Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md) - Modular governance design patterns
 - [Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md) - Implementation details with code examples
 - [Cross-Zome API](documentation/specifications/governance/cross-zome-api.md) - API specifications for zome communication
 - [Governance Model](documentation/specifications/governance/governance.md) - Legacy governance model and decision-making processes
 
 **Reputation & Security:**
+
 - [Private Participation Receipts](documentation/specifications/governance/private-participation-receipt.md) - PPR system documentation
 - [PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md) - Security implementation for PPR system
 
