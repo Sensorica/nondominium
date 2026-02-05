@@ -26,5 +26,9 @@ dist/
 .hc
 **.tmp
 
-# local files
-**/*.local.*
+# local files and folders
+**.local
+**.local.*
+
+# Serena memories
+/.serena
