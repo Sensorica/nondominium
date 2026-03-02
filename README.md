@@ -201,7 +201,7 @@ This generates:
 
 - [hREA Integration Strategy](documentation/hREA-integration-strategy.md) - hREA integration planning
 - [Resource Transport Flow Protocol](documentation/specifications/resource-transport-flow-protocol.md) - Resource transport specifications
-- [Tiki Integration Specifications](documentation/specifications/tiki-integration-specifications.md) - Tiki platform integration
+- [Protocol Bridge Specifications](documentation/specifications/protocol-bridge-specifications.md) - Bun Protocol Bridge architecture for platform integration (Tiki, Odoo, etc.)
 
 ## Technology Stack
 
