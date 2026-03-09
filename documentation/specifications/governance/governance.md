@@ -410,6 +410,8 @@ Resolve disputes at the edge of the network, among agents that have interacted i
 
 ### 3. Custody Transfer
 
+![Custodianship Transfer Flow](../../assets/custodianship-transfer-flow.webp)
+
 1. Current Primary Accountable Agent (custodian) initiates transfer
 2. New custodian accepts responsibility
 3. Transfer event is recorded
