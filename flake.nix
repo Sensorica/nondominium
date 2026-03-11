@@ -24,6 +24,7 @@
 
         shellHook = ''
           export PS1='\[\033[1;34m\][holonix:\w]\$\[\033[0m\] '
+          git submodule update --init --recursive 2>/dev/null || true
         '';
       };
     };

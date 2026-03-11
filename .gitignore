@@ -36,3 +36,6 @@ dist/
 # PAI
 Plans/
 MEMORY/
+
+# git worktrees
+.worktrees/
