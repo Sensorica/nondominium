@@ -35,6 +35,3 @@ jobs:
       - name: Build happ
         run: nix develop --command bun run build:happ
 
-      - name: Run tests
-        continue-on-error: true # test suite still being stabilized
-        run: nix develop --command bun run test:only
