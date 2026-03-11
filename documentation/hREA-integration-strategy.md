@@ -10,7 +10,7 @@ privacy, and the Private Participation Receipt (PPR) system.
 integrate hREA directly at the Rust/zome level. This bypasses hREA's GraphQL API entirely —
 integration happens in the backend, not the UI.
 
-**hREA Repository**: https://github.com/h-REA/hREA (branch: `sprout`)
+**hREA Repository**: https://github.com/h-REA/hREA (branch: `main-0.6`)
 **Architecture**: Single DNA (`hrea`) with separate coordinator + integrity zomes
 
 ---
@@ -595,13 +595,13 @@ The role name `"hrea"` in `happ.yaml` is what gets passed to
 ### Git Submodule Setup
 
 ```bash
-# Add hREA as a submodule (pin to stable sprout branch commit)
-git submodule add -b sprout https://github.com/h-REA/hREA.git vendor/hrea
+# Add hREA as a submodule (pin to stable main-0.6 branch commit)
+git submodule add -b main-0.6 https://github.com/h-REA/hREA.git vendor/hrea
 cd vendor/hrea
-git checkout <stable-commit-sha>
+git checkout fc3b5e78e749e84b8738dc4813bba9037afd17bc
 cd ../..
 git add vendor/hrea .gitmodules
-git commit -m "add hREA as submodule (sprout branch)"
+git commit -m "add hREA as submodule (main-0.6 branch)"
 ```
 
 ### Cargo.toml Workspace
@@ -823,7 +823,7 @@ The bridge call overhead (~5-10ms) is acceptable because hREA integration happen
 
 ### Phase 1: Foundation (Person Zome — CURRENT TARGET)
 
-- [ ] Set up hREA git submodule (`vendor/hrea`, `sprout` branch)
+- [x] Set up hREA git submodule (`vendor/hrea`, `main-0.6` branch)
 - [ ] Configure `happ.yaml` with `nondominium` and `hrea` roles
 - [ ] Build hREA DNA and include in `.webhapp` bundle
 - [ ] Add `hrea_agent_hash: Option<ActionHash>` field to `Person` integrity entry
@@ -862,9 +862,9 @@ The bridge call overhead (~5-10ms) is acceptable because hREA integration happen
 
 | Risk                                                  | Likelihood | Impact | Mitigation                                                        |
 | ----------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------- |
-| hREA `sprout` branch API changes                      | Medium     | High   | Pin to a specific commit hash, not a branch pointer               |
+| hREA `main-0.6` branch API changes                    | Medium     | High   | Pin to a specific commit hash, not a branch pointer               |
 | Cross-DNA call capability issues                      | Medium     | High   | Test cap grants early in Phase 1                                  |
-| hREA DNA build incompatibility (HDK version mismatch) | Medium     | High   | Verify HDK versions match between Nondominium and hREA workspaces |
+| hREA DNA build incompatibility (HDK version mismatch) | Low        | High   | Confirmed: both use HDK ^0.6.0 / HDI ^0.7.0 on holonix main-0.6  |
 | Performance degradation from bridge calls             | Low        | Medium | Benchmark early; cache hREA hashes in Nondominium links           |
 | Migration query complexity (dual-read layer)          | Medium     | Low    | Keep migration period short; prioritize hREA-backed data          |
 
@@ -905,4 +905,4 @@ Key outcomes:
 _Document Version: 2.0_
 _Last Updated: 2026-03-02_
 _Status: Implementation Ready_
-_hREA Source: https://github.com/h-REA/hREA (branch: sprout)_
+_hREA Source: https://github.com/h-REA/hREA (branch: main-0.6, commit: fc3b5e78)_
