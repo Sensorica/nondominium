@@ -44,7 +44,7 @@ nondominium implements a modular governance-as-operator architecture that separa
 
 **Technology Stack:**
 
-- Backend: Rust (Holochain HDK/HDI 0.5.x-0.6.x) compiled to WASM
+- Backend: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0) compiled to WASM
 - Frontend: Svelte 5.0 + TypeScript + Vite 6.2.5
 - Testing: Vitest 3.1.3 + @holochain/tryorama 0.18.2
 - Client: @holochain/client 0.19.0

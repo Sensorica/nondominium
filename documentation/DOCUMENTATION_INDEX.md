@@ -62,7 +62,7 @@ bun run package         # Create final .webhapp distribution
 
 nondominium implements a **Governance-as-Operator** architecture that separates data management from business logic enforcement:
 
-- **Framework**: Holochain HDK 0.5.3 / HDI 0.6.3 (Rust + WASM)
+- **Framework**: Holochain HDK ^0.6.0 / HDI ^0.7.0 (Rust + WASM)
 - **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
 - **Testing**: Vitest 3.1.3 + @holochain/tryorama 0.18.2
 - **Client**: @holochain/client 0.19.0

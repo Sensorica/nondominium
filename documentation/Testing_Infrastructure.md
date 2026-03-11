@@ -366,8 +366,8 @@ warn!("Checkpoint reached in function_name");
 | **Tryorama**          | 0.18.2  | ✅ Active |
 | **Holochain Client**  | 0.19.0  | ✅ Active |
 | **TypeScript**        | 5.6.3   | ✅ Active |
-| **HDK**               | 0.5.3   | ✅ Active |
-| **HDI**               | 0.6.3   | ✅ Active |
+| **HDK**               | ^0.6.0  | ✅ Active |
+| **HDI**               | ^0.7.0  | ✅ Active |
 
 ## Development Workflow Integration
 
@@ -392,7 +392,7 @@ Common issues and solutions:
 
 1. **Missing Binaries**: Run tests inside `nix develop` environment
 2. **Bundle Not Found**: Verify automatic packaging creates `workdir/nondominium.happ`
-3. **API Errors**: Check HDK version compatibility (0.5.3/0.6.3)
+3. **API Errors**: Check HDK version compatibility (^0.6.0/^0.7.0)
 4. **Timeout Issues**: Tests have extended 4-minute timeouts for complex operations
 
 ### Continuous Integration
@@ -513,7 +513,7 @@ bun tests person
 
 This testing infrastructure provides a robust foundation for ensuring the reliability and functionality of the nondominium hApp using Tryorama. The pattern-based test execution system enables efficient development workflows while the comprehensive layered approach ensures thorough validation of distributed functionality.
 
-**Current Status**: All foundation, integration, and scenario tests are actively maintained and passing with Tryorama 0.18.2 and Holochain HDK 0.5.3/0.6.3.
+**Current Status**: All foundation, integration, and scenario tests are actively maintained and passing with Tryorama 0.18.2 and Holochain HDK ^0.6.0 / HDI ^0.7.0.
 
 **Key Strengths**:
 - Pattern-based test selection for efficient development
