@@ -1,0 +1,572 @@
+# Governance: Ontology, Implementation, and Forward Map
+
+**Type**: Archive / Knowledge Base Document  
+**Created**: 2026-03-11  
+**Relates to**: `nondominium-prima-materia.md`, `unyt-integration.md`, `resources.md`, `agent.md`  
+**Sources**: MVP code (`zome_gouvernance`, `zome_person`), post-MVP design documents, [OVN wiki — Governance](https://ovn.world/index.php?title=Governance)
+
+---
+
+## Purpose
+
+This document maps the three states of Governance understanding in the Nondominium / NDO project:
+
+1. **Implemented** — what exists today in the MVP `zome_gouvernance` and `zome_person` codebases
+2. **Planned** — what is designed in post-MVP requirements documents
+3. **Remaining** — what the OVN wiki's 15 years of commons-based peer production practice contains that NDO does not yet plan to implement
+
+The goal is to ensure that the generic NDO — built as a standalone hApp — represents a principled, complete governance architecture that can support diverse communities and use cases through configuration, not custom code.
+
+---
+
+## 1. Conceptual Foundation: Governance in P2P Complexity Economics
+
+### 1.1 What Governance Is (and Is Not)
+
+The OVN wiki defines governance as "a means of direct influence for an organization." More structurally, it has three core functions:
+
+- **Selection** — choosing among alternatives; decision-making
+- **Enforcement** — enacting and reinforcing choices
+- **Adaptation** — sensing, feedback, and evolving the rules
+
+In traditional organisations, governance is largely concentrated: a small group selects, enforces, and adapts. In P2P open networks, all three functions must be distributed across a large, permeable, changing set of participants — without centrally controlled bottlenecks. This is not a political preference; it is an information-theoretic necessity. Bar-Yam's complexity matching principle: the governance system's complexity must match the organisational complexity it manages. As the network grows and its challenges diversify, only distributed governance can keep pace.
+
+### 1.2 Embedded Governance and Stigmergy
+
+The most important governance concept for the NDO is **embedded governance**: engineering the environment so that desirable behaviour is facilitated and undesirable behaviour is made impossible or costly, rather than relying on policing.
+
+The OVN wiki describes this precisely: "Embedded governance (or immanent governance) is about engineering the environment in which actions are deployed to direct, channel or shape action, to take away the possibility of undesirable or less desirable action alternatives."
+
+In practice: instead of writing a rule "you must not transfer a resource without a validated custodian," make it technically impossible to record a custody transfer without a prior commitment accepted by an accountable agent. The rule is in the architecture, not in a policy document that humans can ignore.
+
+This is also stigmergy in the complexity economics sense: governance through environmental modification. Ants do not follow written rules — their collective behaviour emerges from pheromone trails (environmental signals) that individual agents respond to locally. The NDO's capability slot surface (Layer 0 stigmergic attachment) is exactly this: governance emerges from what agents choose to attach to resources, without central coordination.
+
+The distinction between soft and hard embedded governance matters:
+- **Hard embedded**: cryptographic impossibility of the prohibited action (Holochain validation rules, capability tokens)
+- **Soft embedded**: social norms encoded as discoverable defaults (GovernanceRules marked as required, reputation consequences)
+
+The NDO primarily uses hard embedded governance (Holochain integrity zomes are cryptographic) with soft embedded governance at the application layer (GovernanceRules are data that agents must choose to enforce in their coordinator logic).
+
+### 1.3 Governance as Signal Processing, Not Rule Enforcement
+
+The OVN wiki makes a critical distinction: OVN governance is not "rules-based, but rather signal-based, as norms emerge in real time from agent preferences, in context." Rules assume a known, closed world. Signals are the governance of complex, open, evolving systems.
+
+In complexity economics terms: the adjacent possible (Kauffman) is never fully knowable. Rules written today cannot anticipate tomorrow's edge cases. The governance architecture must support emergence — agents should be able to propose and enact new norms through their behaviour, not just comply with pre-written rules.
+
+This has direct implications for NDO design: the governance layer should expose proposing, voting, and adapting mechanisms as first-class capabilities, not just enforcement mechanisms. The current MVP focuses almost entirely on enforcement. Adaptation is barely present. Proposal is absent.
+
+### 1.4 The REA Governance Parallel
+
+The OVN wiki makes a structural proposal with deep implications: "Architecture governance in a way that it becomes compatible with the organizational and economic model architecture. REA is used to model the economic reality of the network, use the same structure to describe governance."
+
+This means: governance events are EconomicEvents. Governance policies are Resources. Governance actors are Agents. The Policy/Scheduling/Accountability layers of REA are the governance architecture, not just the economic architecture.
+
+The implication: the NDO's `zome_gouvernance` — which already models EconomicEvents, Commitments, and Claims — should be the natural home for governance events as well. A decision to grant a role is a governance EconomicEvent. A governance proposal is a Commitment. The decision outcome is a Claim. This unification is not complete in the current codebase but is architecturally supported.
+
+### 1.5 Holonic Multi-Scale Governance
+
+The OVN is fractal: ventures nest in networks, networks nest in networks-of-networks. Each level has its own governance concerns, while sharing protocols and standards. The NDO, as a holon (simultaneously whole and part), needs governance that is self-similar across scales — the same primitives should work at the instance level, the network level, and the federation level.
+
+The OVN wiki defines three governance layers:
+- **Network-of-networks** (ecosystem): protocols, standards, interoperability
+- **Network** (commons community): shared resources, roles, benefit distribution
+- **Venture** (project): specific work, specific benefit distribution
+
+Currently the NDO implements only venture-level governance (single resource interactions, agent roles, process validation). Network and federation-level governance are absent.
+
+### 1.6 Ostrom's Principles as NDO Architecture
+
+Elinor Ostrom's 8 principles for governing commons (*Governing the Commons*, 1990) provide a design checklist for the NDO governance architecture:
+
+| Ostrom's Principle | NDO implementation |
+|---|---|
+| 1. Clearly defined boundaries (who is in) | Role system: SimpleAgent / AccountableAgent / PrimaryAccountable + functional roles |
+| 2. Match rules to local conditions | GovernanceRules embedded in ResourceSpecifications (per-resource rules) |
+| 3. Collective choice arrangements | **Gap**: No formal participation in rule-making by affected agents |
+| 4. Monitoring (observation of rules and resources) | EconomicEvents + PPR system provides comprehensive audit trail |
+| 5. Graduated sanctions | **Gap**: PPR system tracks rule compliance, but sanctions are informal |
+| 6. Conflict-resolution mechanisms | **Gap**: Only a PPR category exists; no dispute resolution process |
+| 7. Minimal recognition of rights | **Architectural property**: Holochain permissionless access |
+| 8. Nested enterprises (multi-scale) | **Gap**: Only single-level governance; no nested structure |
+
+---
+
+## 2. Current Implementation (MVP)
+
+### 2.1 Governance-as-Operator Architecture
+
+The most important architectural choice in the MVP is the separation of data from governance logic:
+
+- **`zome_resource`**: pure data model — creates and stores `ResourceSpecification`, `EconomicResource`, `GovernanceRule` entries without enforcing any business logic
+- **`zome_gouvernance`**: state transition operator — the resource zome requests transitions, the governance zome evaluates the applicable rules and approves or rejects them
+
+This is the REQ-ARCH-07 design. It means governance logic can evolve without touching the data model, different governance schemes can be applied to the same resource types, and governance is independently testable.
+
+This architecture is the NDO's most principled contribution to governance design — it directly implements the OVN insight that governance must be compatible with the economic model (REA), because governance and economics are handled by the same zome operating on the same entry types.
+
+### 2.2 VfAction System (17 Actions)
+
+The `VfAction` enum defines all possible economic actions, and by extension, all possible governance-relevant state transitions:
+
+**Standard ValueFlows actions**: `Transfer`, `Move`, `Use`, `Consume`, `Produce`, `Work`, `Modify`, `Combine`, `Separate`, `Raise`, `Lower`, `Cite`, `Accept`
+
+**Nondominium-specific extensions**: `InitialTransfer` (first transaction by a Simple Agent, triggering role promotion), `AccessForUse` (access request triggering governance evaluation), `TransferCustody` (custody-specific transfer preserving nondominium property regime)
+
+Each action has semantic methods: `requires_existing_resource()`, `creates_resource()`, `modifies_quantity()`, `changes_custody()`. This is the deontic layer — actions are typed by their governance implications.
+
+### 2.3 Commitment / EconomicEvent / Claim Cycle
+
+The MVP implements the core ValueFlows observation cycle:
+
+```
+Commitment (intent + obligation)
+  └─ EconomicEvent (what actually happened)
+       └─ Claim (link: this event fulfills that commitment)
+```
+
+This is the **planning → observation** bridge. Commitments are governance artifacts: they are the declared intent of an agent, time-bound, linking provider and receiver for a specific VfAction on a specific resource. The claim verifies fulfillment. The entire chain is auditable on the DHT.
+
+This cycle is both governance and economics — consistent with the OVN wiki's REA governance parallel.
+
+### 2.4 Validation System
+
+**`ValidationReceipt`**: a peer-issued record that a specific item (resource, event, agent identity) was validated by a specific agent, with an approval decision, type, notes, and timestamp.
+
+**`ResourceValidation`**: a multi-agent validation workflow for a specific resource, with configurable schemes (`"2-of-3"`, `"simple_majority"`, `"N-of-M"`). Tracks current vs. required validator counts and aggregate status.
+
+The validation system implements the monitoring and graduated sanction aspects of Ostrom's principles: it is the mechanism by which the community collectively validates that resources, agents, and processes meet the network's standards before they gain access to higher-trust activities.
+
+**Validation functions in the coordinator**:
+- `validate_new_resource`: validates a resource being added to the network
+- `validate_agent_identity`: validates an agent's private identity data for role promotion
+- `validate_specialized_role`: validates a request for Transport, Repair, or Storage roles
+- `create_resource_validation`: creates a multi-agent validation workflow
+- `check_validation_status`: queries whether required validators have approved
+
+### 2.5 The PPR System: 16 Categories, Bilateral Cryptographic Signatures
+
+The Private Participation Receipt (PPR) system is the most complete governance mechanism in the MVP. It generates cryptographically signed, private, bilateral records of every economic interaction.
+
+**`PrivateParticipationClaim` entry structure**:
+```rust
+pub struct PrivateParticipationClaim {
+    pub fulfills: ActionHash,           // References the Commitment
+    pub fulfilled_by: ActionHash,       // References the EconomicEvent
+    pub claimed_at: Timestamp,
+    pub claim_type: ParticipationClaimType,   // One of 16 categories
+    pub performance_metrics: PerformanceMetrics,
+    pub bilateral_signature: CryptographicSignature, // Both parties sign
+    pub counterparty: AgentPubKey,
+    pub resource_hash: Option<ActionHash>,
+    pub notes: Option<String>,
+}
+```
+
+**The 16 `ParticipationClaimType` categories across 5 groups:**
+
+| Group | Categories | Governance role |
+|---|---|---|
+| Genesis | `ResourceCreation`, `ResourceValidation` | Network entry, contribution tracking |
+| Core custody | `CustodyTransfer`, `CustodyAcceptance` | Custody chain accountability |
+| Services | `MaintenanceCommitmentAccepted`, `MaintenanceFulfillmentCompleted`, `StorageCommitmentAccepted`, `StorageFulfillmentCompleted`, `TransportCommitmentAccepted`, `TransportFulfillmentCompleted`, `GoodFaithTransfer` | Service economy accountability |
+| Governance | `DisputeResolutionParticipation`, `ValidationActivity`, `RuleCompliance` | Governance participation tracking |
+| End-of-life | `EndOfLifeDeclaration`, `EndOfLifeValidation` | Lifecycle management accountability |
+
+**`PerformanceMetrics` structure** with weighted components:
+- `timeliness` (weight 0.25)
+- `quality` (weight 0.30)
+- `reliability` (weight 0.25)
+- `communication` (weight 0.20)
+- `overall_satisfaction` (additional signal)
+
+**Bilateral cryptographic signatures**: both the recipient and the counterparty sign the PPR. This is not just authentication — it is **mutual accountability**. Neither party can unilaterally issue a PPR; both must sign. This prevents false claims and creates bilateral commitment to the record.
+
+**`ReputationSummary`**: a derived, privacy-preserving aggregate that agents can selectively share. Counts by category, average performance, time period. The agent controls what they reveal; the summary proves they have a track record without revealing individual interactions.
+
+The PPR system is the NDO's most direct implementation of Ostrom's monitoring principle. It is also the input to the governance equation (access to governance = f(contribution history)).
+
+### 2.6 Role System and Capability-Based Access
+
+**`RoleType` enum**: `SimpleAgent`, `AccountableAgent`, `PrimaryAccountableAgent`, `Transport`, `Repair`, `Storage`
+
+The first three are **governance tiers** (graduated trust levels). The last three are **functional roles** (validated competencies for specific processes).
+
+Role assignment is tracked in `PersonRole` entries (in `zome_person`), created by `assigned_by` agents with appropriate governance tier. Role transitions (SimpleAgent → Accountable, Accountable → Primary) require:
+1. Private identity validation by existing AccountableAgents
+2. Completion of first validated transaction (for Simple → Accountable)
+3. PPR milestones and specialist role validation (for Accountable → Primary)
+
+**Capability-based access** (Holochain native): capability tokens gate cross-zome calls and agent-to-agent requests. The NDO extends this with:
+- `PrivateDataCapabilityMetadata`: tracks field-level access grants with 30-day maximum expiry
+- `RevokedGrantMarker`: explicit revocation record (Holochain capability revocation does not leave a trace by default)
+
+This is the access control layer of the deontic ontology: permissions are cryptographically issued and cryptographically revoked, not relying on runtime checks.
+
+### 2.7 What the MVP Does Well
+
+- **Governance-as-operator** is the correct architectural pattern: clear separation of data model and governance logic, enabling swappable governance
+- **VfAction semantics** — typed actions with governance implications — are a principled approach to deontic governance encoding
+- **Bilateral cryptographic PPRs** are a novel and strong accountability mechanism; stronger than reputation systems that rely on one-sided ratings
+- **Multi-scheme validation** (`"2-of-3"`, `"N-of-M"`) supports configurable collective decisions at the resource validation level
+- **Graduated role tiers** implement Ostrom's "clearly defined boundaries" principle
+- **Private-yet-derivable reputation** (PPR → ReputationSummary) correctly addresses the privacy/accountability tension
+
+### 2.8 Known Gaps in the MVP
+
+| Gap | Impact | Status |
+|---|---|---|
+| No governance proposal mechanism | Agents cannot propose changes to GovernanceRules; changes require developer update | Planned indirectly via GovernanceRule update functions |
+| No collective decision making | Only binary validation schemes; no conviction voting, quadratic voting, etc. | Gap |
+| No dispute resolution process | Only a PPR category for dispute resolution participation; no actual mechanism | Gap |
+| Governance tiers create de facto hierarchy | The Simple/Accountable/Primary tier system, while non-coercive, concentrates governance influence | Structural design tension |
+| No metagovernance | Who can change the governance rules? No formal mechanism | Gap |
+| No temporal governance | Rules don't expire; decisions don't sunset | Gap |
+| No governance layers | Only venture-level governance; no network or federation layer | Gap |
+| No registries | No formal lists of validated agents, active ventures, legitimate proposals | Gap |
+| Governance rules untyped | `rule_type` and `rule_data` are free strings; no schema enforcement | Planned fix in prima-materia |
+| No offchain governance bridge | No mechanism to record offchain decisions as DHT artifacts | Gap |
+| ReputationSummary not used for governance weight | PPRs accumulate but don't mechanically influence governance access | Planned via Unyt credit limit integration |
+
+---
+
+## 3. Post-MVP Roadmap
+
+### 3.1 Governance-as-Operator Extended to LifecycleStage
+
+The prima-materia `LifecycleStage` transitions are all governance-validated: the governance zome acts as state transition operator for the full 12-stage lifecycle. Each transition requires a valid economic event, is authorized by a specific role, and generates a lifecycle history audit trail. This extends the existing governance-as-operator pattern to the full NDO lifecycle.
+
+### 3.2 EconomicAgreement GovernanceRule Type (Unyt Integration)
+
+The `EconomicAgreement` GovernanceRule type (see `unyt-integration.md`) adds programmable economic governance to the existing rule set. Unyt Smart Agreements (RHAI scripts) become governance rules — specifying not just who may act but what economic consequence follows. This is a direct implementation of the OVN's connection between governance and the economic model.
+
+### 3.3 NDO Capability Slot Surface (Stigmergic Governance)
+
+The CapabilitySlot surface (Section 6 of `nondominium-prima-materia.md`) enables stigmergic governance at the NDO level. Any agent can attach governance tools (a GovernanceDAO slot, a dispute resolution hApp, a voting tool) to any NDO's Layer 0 identity hash without modifying the NDO entry. Governance infrastructure attaches to resources, not the other way around.
+
+### 3.4 Many-to-Many Governance Consent
+
+Multi-custodian consent mechanisms (from `many-to-many-flows.md`): when a resource has multiple custodians, governance decisions that affect it require multi-party consent. This brings network-level governance down to the resource level.
+
+### 3.5 Reputation-Weighted Governance (via Unyt)
+
+The PPR → Unyt credit limit feedback loop (`unyt-integration.md` Section 7) is the governance equation in practice: contribution history determines economic access, and economic access determines which governance interactions are available. This is not yet explicit governance weighting, but it creates the data foundation for it.
+
+---
+
+## 4. OVN Governance Ontology: 15 Years of Practice
+
+### 4.1 Governance Layers
+
+The OVN wiki defines three governance layers, each with different concerns:
+
+**Network-of-networks layer** (ecosystem governance):
+- Protocols and standards for cross-network interoperability
+- Role and reputation portability across organisational boundaries
+- Content management standards enabling effective cross-network documentation
+- Custodian agreements, exchange firm mandates
+
+**Network layer** (commons community governance):
+- Resource access governance (tools, spaces, brand, infrastructure)
+- Access to network-level governance participation
+- Benefit distribution algorithm and governance equation
+- Protocols for contribution accounting and transactions within the network
+
+**Venture layer** (project governance):
+- Benefit distribution for specific projects (regulated by benefit redistribution algorithm)
+- Autonomous governance within the network's meta-rules
+
+The NDO currently implements only venture-layer governance. The generic NDO must support all three, using the same primitives at each scale.
+
+**Complexity economics note**: Multi-scale governance that uses self-similar primitives is not just architecturally elegant — it is functionally necessary. A governance system that only works at one scale cannot adapt to the fractal structure of real OVN communities. The holonic NDO structure (each NDO is both a whole and a part) requires holonic governance.
+
+### 4.2 Governance Components
+
+**Governing bodies**: Committees, offices, working groups. The OVN wiki notes that functions like "leadership," "coordination," and "accountability" should be seen as processes that can be distributed or embodied, not as roles necessarily held by specific individuals. The NDO's role system partially addresses this, but does not model governing body structures.
+
+**Registries**: Formal lists used in governance processes — list of affiliates, list of events, list of legitimate funding proposals, list of ventures, list of digital services. Registries enable algorithmic governance: "only those included in the registry of affiliates will be considered for participating" in a decision. The NDO has anchor-based discovery links but no governance-specific registries.
+
+**Decision making**: The OVN wiki lists multiple decision-making mechanisms: `Free initiative`, `Red flag`, `Lazy democracy`, `Advice process`, `Voluntary subordination`. None of these are implemented in the NDO beyond binary approval/rejection in validation schemes.
+
+**Body of agreements**: Smart contracts + paper contracts + hybrid. Currently the NDO has GovernanceRules (programmable, onchain) and Commitments (onchain). Missing: integration with paper/legal agreements (even as hash references), and the hybrid model between onchain enforcement and offchain human processes.
+
+**People, environment, purpose**: The OVN draws on constitutional theory: People (who is in and how they interact), Environment (external pressures on the organisation), Purpose (the attractor that orients governance). In NDO terms: People = agent system; Environment = DHT and surrounding ecosystem; Purpose = the nondominium property regime embedded in the DNA. These are correct architecturally but not explicitly modeled as governance artifacts.
+
+### 4.3 Governance Processes
+
+The OVN wiki lists five governance processes for how decisions get made:
+
+| Process | Description | NDO support |
+|---|---|---|
+| Free initiative | Any agent can act without prior approval within their scope | Partially: permissionless network entry; role-gated process initiation |
+| Red flag | Any agent can signal concern about a proposed action | **Gap**: No signal mechanism for concerns |
+| Lazy democracy | Proposals pass by default unless someone objects | **Gap**: Not implemented |
+| Advice process | Must consult affected parties before acting | **Gap**: Not implemented |
+| Voluntary subordination | Agents voluntarily follow decisions they didn't make | Partially: governance-as-operator (agents accept system rules by participating) |
+
+The processes are not mutually exclusive. Different types of decisions warrant different processes. The generic NDO should support configurable governance process assignment per decision type.
+
+### 4.4 Access to Governance and the Governance Equation
+
+The OVN wiki identifies a key design problem in open systems: the **long tail distribution** of participation. A typical OVN has a 1-9-90 structure: 1% are core participants (entrepreneurial, high commitment), 9% are active contributors, 90% are occasional participants. The governance system must be sensitive to this — it cannot treat all participants equally without producing either governance paralysis (too inclusive) or oligarchy (too exclusive).
+
+**The governance equation** maps contribution history to governance access:
+
+```
+governance_access = f(past_contributions, future_commitments)
+```
+
+Past contributions are measured through contribution accounting (PPRs in NDO). Future commitments are pledges of future work (Commitments in NDO). Access to governance is seen as a **benefit** — one of the outputs of participation in the commons, alongside economic benefits and social benefits.
+
+**Non-binary decision making**: The OVN wiki proposes mechanisms beyond yes/no voting: conviction voting (continuous preference posting, updated over time), quadratic voting (cost of additional votes grows quadratically, preventing concentration), rank choice (preference ordering across alternatives). These are described as composable — basic decision-making patterns that can be combined into more complex governance recipes.
+
+**Complexity economics note**: The governance equation is an application of Benkler's observation that P2P systems can process more granular information than market or hierarchical systems. Instead of binary in/out, the governance system can weight participation based on the richness of contribution history, producing governance decisions that reflect actual contribution patterns rather than crude majority rules.
+
+### 4.5 Embedded Governance — Onchain and Offchain
+
+The OVN wiki's most practically important governance insight for NDO: the distinction between:
+
+- **Governance of the OVN**: meta-rules about how the network behaves; control resides outside/above the automated system
+- **Governance through the OVN**: automated execution through smart contracts, self-enforcing agreements
+
+This maps to:
+- **Offchain governance** (governance of): the community's agreements about rules, maintained in documents and social processes; what the DNA is designed to implement
+- **Onchain governance** (governance through): the actual HDI validation rules, capability tokens, GovernanceRules; what the DNA implements and enforces automatically
+
+The OVN wiki is explicit: "What cannot be automated? Human issues: interpersonal problems, emotions, etc. cannot be automated." Metagovernance — discussions about the rules, proposals for new rules, architectural decisions — requires human process. The NDO should provide hooks for metagovernance without trying to automate it.
+
+Sensorica's current governance is described as "mostly offchain (written in documents), although some governance aspects are embedded within the infrastructure." The NDO project represents the transition toward more onchain governance, with Nondominium as "the resource transfer and flow engine... designed as an organization-agnostic system that embeds governance rules directly within resource definitions."
+
+**Complexity economics note**: The question of how much to automate is itself a governance decision. Full automation produces a rigid, brittle system that cannot adapt to unforeseen situations. Full human process is slow and expensive. The optimal point depends on the community and context — which is why the NDO should support configurable automation depth, not hard-code a single approach.
+
+### 4.6 Stigmergy and Governance
+
+The OVN wiki treats stigmergy as a governance mechanism, not just an implementation pattern. "Stigmergic governance relies on embedded governance, meaning that the effect of these fundamental principles are complemented by the properties of the environment."
+
+The key insight: **governance can be reduced to a small number of principles embedded in the environment, with complex collective behaviour emerging from individual responses to environmental signals**. Ants build nests of extraordinary complexity without written rules — just a few genetic principles and an environment they modify collectively.
+
+For the NDO: the fundamental governance principles should be encoded into the DHT structure (Holochain validation rules, capability tokens, the VfAction semantics). The specific governance recipes for different communities should emerge from how those communities configure and extend the environment (GovernanceRules, CapabilitySlot attachments, role definitions). The system should not need a comprehensive rulebook — it needs a well-designed environment.
+
+The OVN's description of stigmergy as "governance focused on attention — governing our collective attention" is relevant: capability slots and anchor links are both mechanisms for directing agents' attention to what is relevant, allowing them to coordinate without central direction.
+
+### 4.7 Deontic Ontology
+
+The OVN wiki explicitly calls for a deontic ontology integrated with REA: "Fundamental concepts and relations that allow us to speak about decisions, rules, norms, obligation and permission." The core operators are **Obligation** and **Permission**, from which Access (to benefits or resources) can be derived.
+
+In NDO terms:
+- `Permission` → capability tokens + role-gated validation + GovernanceRule `enforced_by`
+- `Obligation` → Commitment entries (a declared obligation to perform a VfAction by a due date)
+- `Access` → derived: agent has capability token AND meets GovernanceRule conditions → access granted
+
+The current NDO implements these concepts but does not name them using deontic vocabulary. The generic NDO should formalise the deontic layer as first-class governance entries, not as implicit properties of other entry types.
+
+A deontic governance entry might look like:
+
+```rust
+pub struct DeonticRule {
+    pub operator: DeonticOperator,  // Obligation | Permission | Prohibition
+    pub applies_to: AgentRole,      // Who this rule applies to
+    pub regarding: ActionOrResource, // What action or resource it concerns
+    pub conditions: Vec<Condition>, // Preconditions for the rule to apply
+    pub enforced_by: GovernanceLayer, // Venture | Network | Federation
+    pub expires_at: Option<Timestamp>,
+}
+```
+
+This would replace the current untyped `GovernanceRule` with a formally typed deontic structure.
+
+### 4.8 Temporal Governance
+
+The OVN wiki identifies several temporal dimensions of governance:
+
+- **Decision expiry**: decisions can have expiration dates, not just single-moment validity
+- **Evaluation triggers**: decisions can include evaluation conditions that, if triggered, initiate review or revision
+- **Past-looking and forward-looking governance access**: both contribution history and future commitments count
+- **Preference voting as continuous process**: agents update preferences over time, building an ongoing governance profile
+
+The NDO currently has only one temporal governance mechanism: capability grant expiry (30-day maximum for private data access grants). This is correct but minimal. The generic NDO should support temporal governance more broadly.
+
+### 4.9 Constitution and the Governance of Governance
+
+The OVN wiki discusses whether OVNs should have constitutions. Its conclusion: traditional constitutions (for closed, bounded organisations) don't map well to open, fractal networks. But the concept of a **constitutive infrastructure** — "all of that organization's implementations of the constitutive function" — is useful.
+
+The constitutive infrastructure of an NDO community is:
+- The DNA validation rules (hard-coded, very difficult to change)
+- The global GovernanceRules (encoded in the DHT, updatable through governance)
+- The community agreements (offchain, referenced but not enforced by the DNA)
+
+The **governance surface** — the mechanisms through which the constitutive infrastructure can be modified — is a critical design element. In the OVN model, this includes: who can propose a rule change, what deliberation process applies, how changes are ratified, and how they are recorded.
+
+The NDO has no formal governance surface. Rule changes require developer intervention (DNA upgrades) or are limited to per-resource GovernanceRule updates (controlled by role-gated validation). This is a fundamental gap for any community that needs to evolve its own rules.
+
+---
+
+## 5. Gap Analysis
+
+### 5.1 Mapped — OVN concepts implemented or planned in NDO
+
+| OVN concept | NDO implementation | Status |
+|---|---|---|
+| Governance-as-operator (embedded rules) | `zome_gouvernance` as state transition operator | ✅ Implemented |
+| Deontic permission system | Capability tokens + role-gated validation | ✅ Implemented |
+| Deontic obligation system | `Commitment` entries with due dates | ✅ Implemented |
+| Access from Permission | Role-gated VfAction execution | ✅ Implemented |
+| Monitoring and accountability | PPR system (16 categories, bilateral signatures) | ✅ Implemented |
+| Graduated trust / bounded membership | SimpleAgent → Accountable → Primary tiers | ✅ Implemented |
+| Multi-scheme collective validation | ResourceValidation with `"2-of-3"`, `"N-of-M"` | ✅ Implemented |
+| Governance equation (contribution → access) | PPR → role promotion; Unyt credit limit feedback | ✅ Partial (promotion path); 🔄 Planned (credit/weight) |
+| Embedded governance in resources | GovernanceRule entries in ResourceSpecifications | ✅ Implemented (weakly typed) |
+| Typed governance rules | `GovernanceRuleType` enum (incl. EconomicAgreement) | 🔄 Planned (prima-materia + unyt-integration) |
+| Stigmergic governance surface | CapabilitySlot surface (Layer 0) | 🔄 Planned (prima-materia) |
+| Economic governance (Smart Agreements) | Unyt EconomicAgreement GovernanceRule | 🔄 Planned (unyt-integration) |
+| End-of-life governance (challenge period) | REQ-GOV-11 through REQ-GOV-13 | 🔄 Planned (requirements.md) |
+| Privacy-preserving accountability | Private PPRs + derivable ReputationSummary | ✅ Implemented |
+
+### 5.2 Partial — concepts present in OVN and partially covered in NDO
+
+| OVN concept | NDO partial coverage | Gap |
+|---|---|---|
+| Openness / equipotentiality | Permissionless network entry + role-gated governance | No formal mechanism to EARN governance access beyond role promotion |
+| Transparency | All rules and events are public DHT entries | PPRs are private; no holoptism mechanism for governance state |
+| Decentralisation | Agent-centric Holochain validation | Role tiers create de facto power concentration |
+| Emergent governance | Holochain peer validation is emergent | Rules are still designed; no mechanism for rules to emerge from agent behaviour |
+| Free initiative | Within role scope, agents can act unilaterally | No explicit free initiative declaration or scope definition |
+| Voluntary subordination | Agents accept system rules by joining | No mechanism to formally express "I subordinate to this decision I opposed" |
+| Body of agreements | GovernanceRules (onchain) | No paper/legal agreement model; no hybrid onchain/offchain agreements |
+| Temporal governance | Capability grant expiry (30 days max) | No expiry on GovernanceRules; no evaluation triggers on decisions |
+| Metagovernance | GovernanceRule update with role validation | No proposal mechanism; no formal deliberation; no ratification process |
+
+### 5.3 Missing — OVN concepts not yet planned in NDO
+
+| OVN concept | Gap description | Proposed resolution |
+|---|---|---|
+| **Governance layers** (venture / network / federation) | Only venture-level governance exists | Model governance scope as a property of GovernanceRules and registries; use NDO's holonic composition to nest governance |
+| **Decision-making processes** (free initiative, red flag, lazy democracy, advice process) | No process models beyond binary validation | Add `GovernanceProcess` as a configurable entry type; composable decision patterns |
+| **Governing bodies** (committees, working groups) | Not modeled | Model as a specialised NDO (a governing body is itself an NDO with its own governance and membership) |
+| **Registries** (affiliate lists, venture lists, legitimate proposal lists) | Only anchor-based discovery links | Add `Registry` entry type: a governance-managed list of validated entries |
+| **Non-binary decision making** (conviction voting, quadratic voting, rank choice) | Only binary approve/reject | Modular vote aggregation patterns in a `GovernanceProcess` framework |
+| **Red flag / concern signaling** | No mechanism for agents to raise concerns about proposed actions | Add `GovernanceConcern` entry: a signal from any agent about a resource action or governance decision |
+| **Governance of governance** (metagovernance surface) | Rule changes require developer intervention or role-gated updates only | Define a formal governance amendment process as a `GovernanceProcess` type |
+| **Long tail awareness** (1-9-90 structure) | All validated agents treated equivalently in governance | Participation-weighted governance access (governance equation formally implemented) |
+| **Holonic multi-scale governance** | Only single-level governance | Governance primitives should work at venture, network, and federation scales using the same structures |
+| **Temporal governance** (rule expiry, decision evaluation triggers) | Only capability grant expiry | Add `expires_at` and `evaluation_trigger` to GovernanceRules and governance decisions |
+| **Offchain governance bridge** | No way to record offchain decisions as DHT artifacts | Add `GovernanceRecord` entry: a hash of an offchain document/decision with metadata, linking offchain and onchain governance |
+| **Constitution / Governance surface** | No formal description of who can change what rules | Implement a `GovernanceConstitution` entry at the DNA level: a hash-referenced document + amendment process |
+
+---
+
+## 6. Forward Map: Generic NDO Governance Architecture
+
+### 6.1 Governance as REA — The Unified Model
+
+The most important design principle for the generic NDO: governance events are EconomicEvents. The unified model:
+
+```
+GovernanceRule  (knowledge layer)    → ResourceSpecification analog
+GovernanceRecord (planning layer)    → Commitment analog  
+GovernanceDecision (observation layer) → EconomicEvent analog
+```
+
+This means:
+- Proposing a rule change = creating a `GovernanceRecord` (a Commitment-like intent)
+- Deliberation = Commitments from affected agents (support/oppose)
+- Decision = `GovernanceDecision` (EconomicEvent-like outcome)
+- Implementation = updated `GovernanceRule` entries
+- Accountability = `ValidationReceipt` on the implementation + PPR for governance participants
+
+This is not a new subsystem — it is the existing ValueFlows cycle applied to the governance domain. The governance zome already handles this cycle for resource governance. Extending it to meta-governance is architecturally natural.
+
+### 6.2 Governance Process as Configurable Entry
+
+```rust
+pub struct GovernanceProcess {
+    pub name: String,                   // "lazy_democracy", "advice_process", etc.
+    pub applies_to: GovernanceScope,    // Venture | Network | Federation
+    pub decision_type: DecisionType,    // RuleAmendment | RoleGrant | ResourceAccess | ...
+    pub participation_required: Vec<ParticipantSpec>, // Who must participate
+    pub quorum: QuorumSpec,             // Minimum participation threshold
+    pub threshold: ThresholdSpec,       // What counts as a decision (majority, supermajority, etc.)
+    pub timeline: GovernanceTimeline,   // Deliberation + decision + implementation windows
+    pub veto_period: Option<Duration>,  // Optional lazy democracy reversal window
+    pub expires_at: Option<Timestamp>,  // Sunset clause
+}
+```
+
+Communities configure which governance process applies to which decision type. The generic NDO provides a library of composable process patterns (from the OVN vocabulary); each NDO instantiation selects and configures its governance recipe.
+
+### 6.3 Registry Model
+
+Registries are governance-managed lists. They are themselves NDO resources (a registry is a resource with its own governance rules):
+
+```rust
+pub struct Registry {
+    pub name: String,               // "ValidatedAgents", "ActiveVentures", "LegitimateProposals"
+    pub scope: GovernanceScope,     // Which governance layer manages this registry
+    pub entry_type: RegistryEntryType, // What kind of entries it contains
+    pub admission_process: GovernanceProcess, // How entries are added
+    pub removal_process: GovernanceProcess,  // How entries are removed
+    pub is_public: bool,            // Whether the registry is publicly readable
+}
+```
+
+The registry mechanism enables algorithmic governance: "only agents in the ValidatedAgents registry may participate in the next decision." This moves governance from relying on per-decision ad hoc membership determination to managed, auditable lists.
+
+### 6.4 Participation-Weighted Governance (The Governance Equation)
+
+The OVN governance equation implemented as a cross-zome computation:
+
+```
+governance_weight = f(
+    reputation_summary.average_performance,      // quality of past contributions
+    reputation_summary.governance_claims,         // governance participation depth
+    reputation_summary.custody_claims,            // resource stewardship depth
+    unyt_credit_capacity,                         // economic standing in commons
+    active_commitments_count                      // forward-looking engagement
+)
+```
+
+This weight determines:
+- Vote weight in non-binary decision mechanisms
+- Thresholds for initiating certain governance processes
+- Access to higher-trust governance functions (dispute resolution, rule amendment)
+
+Critically: the weight function is itself a GovernanceRule, configurable by communities. Different communities weight contribution dimensions differently.
+
+### 6.5 Offchain Governance Bridge
+
+A minimal mechanism for linking offchain human decisions to the onchain governance record:
+
+```rust
+pub struct GovernanceRecord {
+    pub document_hash: String,           // Hash of the offchain document (PDF, markdown, etc.)
+    pub document_uri: Option<String>,    // Where to find the document
+    pub record_type: OffchainRecordType, // Agreement | Policy | Decision | Constitution
+    pub ratified_by: Vec<AgentPubKey>,   // Agents who have ratified this record
+    pub effective_at: Timestamp,
+    pub supersedes: Option<ActionHash>,  // Previous version of this record
+    pub scope: GovernanceScope,
+}
+```
+
+This is the bridge between the OVN's offchain governance reality (most governance today is documents and social processes) and the onchain aspiration. Agents ratify offchain documents by signing `GovernanceRecord` entries — creating a cryptographic commitment to the offchain text without requiring full onchain implementation of its processes.
+
+---
+
+## 7. Complexity Economics Justification: Why Each Governance Concept Matters
+
+**Governance layers** matter because the OVN is fractal. A governance architecture that only works at one scale (venture) cannot coordinate the network-level and federation-level decisions that determine the ecosystem's evolution. Governance without scale awareness will centralise at whichever scale is most powerful, undermining the decentralisation that makes peer production competitive with capitalist alternatives.
+
+**Decision processes (advice process, lazy democracy, etc.)** matter because different types of decisions have different optimal deliberation speeds. Time-sensitive operational decisions need fast, local authority (free initiative). Rule-changing decisions need wide deliberation and consent. Treating all decisions equally produces either paralysis (everything goes through full deliberation) or autocracy (important decisions get made without consultation). The composable governance process library is the infrastructure for decision-appropriate governance.
+
+**Non-binary decision making** matters because voting aggregates preferences by throwing away information. A community where 60% support a proposal and 40% strongly oppose it is very different from one where 60% support and 40% mildly prefer an alternative. Binary voting cannot distinguish these — it just says "60% win." Conviction voting (continuous preference updating), quadratic voting (cost-weighted expression), and rank choice (preference ordering) all recover more information from the deliberation process. In complexity economics terms: higher-resolution preference aggregation produces better decisions because it uses more of the information that participants possess.
+
+**Registries** matter for the same reason that formal membership distinctions matter in Ostrom's commons governance: without a clear definition of who is in the community, governance processes cannot be bounded, quorums cannot be calculated, and the accountability chain cannot be closed. The OVN's long tail distribution means that simple "everyone who has ever participated" definitions produce governance bodies so large and diffuse that decisions become impossible. Algorithmically managed registries — updated by governance, not by developer deployment — solve this.
+
+**The governance equation** matters because access to governance should not be arbitrary (cooptation, seniority, formal appointment) in a P2P system. Benkler's observation about peer production's information advantage is applicable: distributed contribution data is richer than any centralised assessment of "who is a responsible governance participant." The PPR system generates this data as a byproduct of ordinary participation. Using it to weight governance access converts participation history into governance standing automatically — without administrative overhead.
+
+**The offchain bridge** matters because full onchain governance is a fiction. Human communities have always and will always need spaces for informal conversation, emotional resolution, and contextual judgment that no smart contract can replicate. The OVN wiki is explicit: "Human issues: interpersonal problems, emotions, etc. cannot be automated." A governance architecture that ignores its own offchain complement will be gamed by agents who understand that the informal layer always overrides the formal. Acknowledging and linking the offchain layer makes the full governance stack legible, auditable, and improvable.
+
+**Temporal governance** matters because all rules become outdated. A GovernanceRule written for a community of 10 becomes inappropriate for a community of 1000. A decision made under one set of conditions may be harmful under new conditions. Sunset clauses and evaluation triggers are the governance equivalent of software unit tests: they force the community to consciously re-evaluate whether rules still serve their purpose, rather than allowing dead rules to accumulate and complicate the governance landscape.
+
+---
+
+*This is a living document. The gap analysis in Section 5.3 should be converted into formal requirements as the generic NDO project begins. The forward map in Section 6 describes design directions, not final specifications. The OVN wiki at [ovn.world](https://ovn.world/index.php?title=Governance) remains the authoritative reference for peer production governance practice.*

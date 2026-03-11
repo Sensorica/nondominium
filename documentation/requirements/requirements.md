@@ -1,4 +1,4 @@
-# nondominium - Product Requirements Document
+# nondominium - Requirements Document
 
 ## 1. Executive Summary
 
