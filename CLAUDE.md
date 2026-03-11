@@ -74,7 +74,7 @@ nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant res
 
 ### Technology Stack
 
-- **Backend**: Rust (Holochain HDK 0.5.3 / HDI 0.6.3), WASM compilation target
+- **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), WASM compilation target
 - **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
 - **Testing**: Vitest 3.1.3 + @holochain/tryorama 0.18.2
 - **Client**: @holochain/client 0.19.0 for DHT interaction

@@ -2,7 +2,7 @@
 
 **Version**: 0.1
 **Date**: 2025-11-07
-**Framework**: Holochain HDK 0.5.3 / hREA ValueFlows
+**Framework**: Holochain HDK ^0.6.0 / hREA ValueFlows
 **License**: [Specify License]
 
 ## Abstract

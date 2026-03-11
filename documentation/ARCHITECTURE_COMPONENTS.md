@@ -83,7 +83,7 @@ sequenceDiagram
 ┌─────────────────────────────────────────────────────────────┐
 │                 HOLOCHAIN RUNTIME                           │
 ├─────────────────────────────────────────────────────────────┤
-│ Rust (HDK/HDI 0.5.x-0.6.x) → WASM Compilation               │
+│ Rust (HDK ^0.6.0 / HDI ^0.7.0) → WASM Compilation            │
 │ DHT-based peer-to-peer network                              │
 │ Capability-based security & gossip                          │
 └─────────────────────────────────────────────────────────────┘
