@@ -3,7 +3,7 @@
 **Status**: Post-MVP Design Document  
 **Created**: 2026-03-10  
 **Authors**: Nondominium project  
-**Relates to**: `many-to-many-flows.md`, `versioning.md`, `digital-resource-integrity.md`
+**Relates to**: `many-to-many-flows.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`
 
 ---
 
@@ -445,6 +445,7 @@ NDO_identity_hash →[LinkType: CapabilitySlot, tag: { slot_type, author, attach
 | `VersionGraph` | Version history and forks | Versioned entity hash (see `versioning.md`) |
 | `DigitalAsset` | Files, 3D models, code, manifests | Asset manifest hash |
 | `WeaveWAL` | Moss/Weave Asset Link | WAL (Weave Asset Locator) |
+| `UnytAgreement` | Programmable economic terms governing value flows triggered by resource interactions | Unyt Smart Agreement entry hash (cross-cell reference) |
 | `CustomApp` | Any other hApp integration | Any hash, labelled by consumer |
 
 ### 6.3 MOSS / Weave Integration
@@ -465,6 +466,157 @@ The stigmergic surface is permissionless at the DHT level — any agent can crea
 - The governance zome can validate capability attachments using the same `validate_new_resource` pattern already in place
 
 This mirrors the approach taken in the wider complex systems literature: edge-based sensing and attachment is permissionless (lower information opportunity costs), while trust propagation and filtering happens through distributed consensus rather than centralized gatekeeping.
+
+### 6.5 Economic Agreement Slots — Unyt Integration
+
+*A detailed analysis of the `UnytAgreement` slot type, its relationship to the governance layer, and the three-phase integration path.*
+
+#### Why Unyt Is a Capability, Not a Layer
+
+The prima materia model has three structural layers. It might seem natural to propose a fourth — an "Economic Layer" — for payment and value-flow infrastructure. This would be the wrong architecture.
+
+The COP principle of pay-as-you-grow is explicit: impose only the coordination overhead that the resource's current social complexity demands. Not all resources need payment infrastructure. A bicycle lent between neighbours does not need a Unyt Smart Agreement. A shared CNC machine used by fifty contributors under a usage-fee model does. Imposing economic infrastructure at NDO creation — making it structural — would repeat the reductive paradigm mistake that the three-layer model was designed to avoid. It would be a fixed classification at t=0 of a future that no agent can know.
+
+Unyt belongs in the capability surface for the same reason that governance DAOs, fabrication queues, and issue trackers do: it is an economic operator that some resources need and others do not, and its attachment should emerge from the network's actual practice rather than be prescribed by the programmer.
+
+The `UnytAgreement` slot type has one property that other slot types do not: it is **governance-enforceable**. A `Documentation` link is informational — the governance zome does not condition state transitions on it. A `UnytAgreement` link, when endorsed through a `GovernanceRule` of type `EconomicAgreement`, becomes a precondition for transition approval. This makes it a hybrid: permissionless at the attachment surface, authoritative at the governance layer.
+
+#### Two-Tier Economic Authority
+
+The `UnytAgreement` capability slot operates at two tiers.
+
+**Tier 1 — Permissionless Proposal (CapabilitySlot)**
+
+Any Accountable Agent can attach a Unyt Smart Agreement to any NDO by creating a `CapabilitySlot` link of type `UnytAgreement`. This is an assertion: "I believe this agreement should govern interactions with this resource." The governance zome does not enforce it. Other agents can read it as a proposal, a community suggestion, or a pricing signal. Multiple competing proposals may coexist.
+
+This tier respects the stigmergic principle: lower information opportunity costs, permissionless economic expression, no gatekeeping on proposals.
+
+**Tier 2 — Governance Endorsement (GovernanceRule)**
+
+When the NDO's custodian — or a community governance process — formally endorses a Unyt Smart Agreement by creating a `GovernanceRule` entry of type `EconomicAgreement`, the agreement becomes enforceable. State transitions that trigger it (Access, CustodyTransfer, service processes) require the requesting agent to provide a valid Unyt RAVE as proof of economic settlement before the governance zome approves the transition.
+
+The capability slot (Tier 1) and the governance rule (Tier 2) are independent but complementary: the slot makes the agreement **discoverable**; the rule makes it **mandatory**.
+
+```mermaid
+graph TD
+    Agent["Any Accountable Agent"]
+    Custodian["Custodian / Governance Process"]
+    NDO["NDO Identity Hash (Layer 0)"]
+    Unyt["Unyt Smart Agreement\n(on Unyt DHT)"]
+    GovRule["GovernanceRule\n(EconomicAgreement type)\n— Layer 1 asset —"]
+    Transition["State Transition Request\n(AccessForUse, CustodyTransfer, etc.)"]
+    GovZome["Governance Zome\n(state transition operator)"]
+    RAVE["Unyt RAVE\n(proof of settlement)"]
+    PPR["PrivateParticipationClaim (PPR)\n+ settlement_rave_hash"]
+
+    Agent -->|"CapabilitySlot link\n(Tier 1: permissionless proposal)"| NDO
+    NDO -.->|"links to"| Unyt
+    Custodian -->|"GovernanceRule\n(Tier 2: endorsed terms)"| GovRule
+    GovRule -->|"linked from ResourceSpecification\n(Layer 1)"| NDO
+
+    Transition -->|"includes rave_hash"| GovZome
+    GovZome -->|"validates EconomicAgreement rule"| GovRule
+    GovZome -->|"validates RAVE against Unyt DHT"| RAVE
+    GovZome -->|"on approval, issues"| PPR
+    PPR -->|"settlement_rave_hash"| RAVE
+```
+
+#### Unyt Smart Agreement as Economic GovernanceRule
+
+The current `GovernanceRule` entry in `zome_resource` carries `rule_type`, `rule_data` (JSON-encoded), and an optional `enforced_by` role requirement. The Unyt integration adds a new `rule_type` variant and a corresponding structured `rule_data` schema:
+
+```rust
+// New variant in GovernanceRuleType enum (zome_resource integrity)
+pub enum GovernanceRuleType {
+    // ... existing rule types ...
+    EconomicAgreement, // rule_data: JSON-serialized EconomicAgreementRuleData
+}
+
+// rule_data schema for EconomicAgreement rules
+#[derive(Serialize, Deserialize)]
+pub struct EconomicAgreementRuleData {
+    pub unyt_alliance_id: String,          // Network seed of the Unyt Alliance
+    pub smart_agreement_hash: String,       // Entry hash of the Unyt Smart Agreement
+    pub trigger_actions: Vec<VfAction>,     // Which VfActions trigger this agreement
+    pub settlement_window_secs: u64,        // Max time between RAVE execution and transition request
+    pub note: Option<String>,               // Human-readable description of the economic terms
+}
+```
+
+When the governance zome encounters an `EconomicAgreement` rule during a state transition evaluation, it executes the following validation sequence:
+
+1. Confirms that the transition's `VfAction` is in the rule's `trigger_actions` list
+2. Requires a `rave_hash` field in the transition request payload
+3. Queries the Unyt DHT (via cross-DNA `call()`) to retrieve and validate the RAVE
+4. Confirms the RAVE was executed within the declared `settlement_window_secs`
+5. Confirms the RAVE's inputs match the transition context (resource identity, provider, receiver, quantity or duration)
+6. Only then approves the state transition and issues the PPR
+
+This makes the governance zome's approval conditional on cryptographic proof of economic settlement — the resource does not move (physically, digitally, or in custody) until the agreed value has flowed.
+
+#### Value Flow Patterns
+
+Four standard patterns map the most common resource-interaction economics onto Unyt's Smart Agreement library:
+
+| Pattern | Trigger VfAction | Unyt Agreement Template | Economic logic |
+|---|---|---|---|
+| **Access Fee** | `AccessForUse` | Conditional Forward | User pre-pays; access granted on RAVE |
+| **Service Billing** | `Work` (fulfilled Claim) | Proof-of-Service | Provider paid on validated Claim |
+| **Revenue Sharing** | `Transfer` | Aggregate Payment | Proceeds split: custodian / protocol / creator |
+| **Custody Bond** | `TransferCustody` | Conditional Forward (escrowed) | Bond held; returned on clean handoff with PPR |
+
+These map directly to the Smart Agreement templates in the [Unyt Smart Agreement Library](https://github.com/unytco/smart_agreement_library). The `Conditional Forward` template is the workhorse for access and custody patterns; `Aggregate Payment` and `Proof of Service` serve billing and revenue distribution.
+
+The templates use RHAI scripting — the same logic that currently drives Unyt's DePIN billing (Log → Invoice → Agreement → Settlement). For Nondominium, the "log" is the Nondominium `Commitment + Claim + ValidationReceipt` chain; the invoice is implicit in the `EconomicAgreementRuleData`; the settlement is the RAVE.
+
+#### PPR and RAVE: A Complete Provenance Chain
+
+When a state transition is approved with a valid RAVE, the `PrivateParticipationClaim` generated for the interaction carries the RAVE hash as an optional field:
+
+```rust
+pub struct PrivateParticipationClaim {
+    // ... existing fields ...
+    pub settlement_rave_hash: Option<String>, // Unyt RAVE hash, if economic settlement occurred
+}
+```
+
+This creates a complete, cross-verifiable provenance chain:
+
+```
+Commitment
+  └─ (fulfilled by) EconomicEvent
+       └─ (generates) PrivateParticipationClaim (PPR)
+            └─ settlement_rave_hash → Unyt RAVE
+                 └─ (verifiable on Unyt DHT: inputs, outputs, agreement, executor)
+```
+
+The PPR is the **participation proof**: who did what, at what quality, in which role. The RAVE is the **economic proof**: what value flowed, to whom, under what rules, verified by Unyt peers. Together, they constitute a full, mutually-reinforcing record of a resource interaction that neither system alone can provide.
+
+This linkage also feeds back into the credit system: agents whose PPRs consistently carry RAVEs (meaning they reliably execute their economic obligations) earn higher reputation scores, which in turn increases their Unyt credit limits (see `unyt-integration.md`). Reputation and credit become two readings of the same underlying participation data.
+
+#### The Resource as Economic Actor
+
+When an NDO has an endorsed `EconomicAgreement` governance rule, it becomes a **self-pricing, self-settling economic actor**. No platform intermediary determines what the resource costs, no rent is extracted by infrastructure owners, and no contract enforcement requires a legal system. The community that embedded the rule in the resource's Layer 1 specification determines the economic terms, and Unyt enforces them cryptographically among peers.
+
+This is the nondominium model's deepest departure from platform economics. Platform platforms capture value by positioning themselves between resource and user — Airbnb between host and guest, Uber between driver and passenger. In the NDO model, the "platform" is the DHT itself: owned by no one, accessible to everyone, governed by the rules the community wrote into the resource. The resource is simultaneously a physical or digital artifact, a governance system, and an economic agent.
+
+In complexity economics terms: the resource has become a **holon with economic agency**. Not only does it exist within the economic web (participating in ValueFlows events), it actively shapes the economic flows that run through it — enforcing its own terms, rewarding its stewards, and settling its debts, all without human intermediation.
+
+#### Integration Path
+
+The Unyt integration is structured as three independent phases, each delivering immediate value and requiring no rollback of prior work.
+
+**Phase 1 — Capability Surface Extension** *(no zome structural changes required)*
+
+Add `UnytAgreement(String)` to the `SlotType` enum. Any Accountable Agent can now attach a proposed Unyt Smart Agreement to any NDO. The governance zome does not enforce these links — they are informational, discoverable proposals. This phase delivers: economic expression in the network (market pricing signals without enforcement), tooling foundations (UIs can surface proposed payment terms), and community standard-setting (the network can develop shared pricing conventions before enforcement is added).
+
+**Phase 2 — Governance Rule Extension** *(zome_resource changes only)*
+
+Add `EconomicAgreement` to the `GovernanceRuleType` enum and define the `EconomicAgreementRuleData` schema. Custodians can now formally endorse a Unyt Smart Agreement by creating a `GovernanceRule` entry. The governance zome reads these rules but does not yet enforce them at transition time — Phase 2 makes the endorsement discoverable and legible to the network without yet conditioning transitions on RAVEs. This phase delivers: governance-layer economic declarations, tooling for custodians to set and communicate official payment terms, and the data structure foundation for Phase 3.
+
+**Phase 3 — Governance Zome Integration** *(zome_gouvernance changes)*
+
+The governance zome's `evaluate_transition_request` function is extended to: (a) check for `EconomicAgreement` governance rules when processing relevant `VfAction` events; (b) require a `rave_hash` in transition requests when such a rule exists; (c) validate the RAVE via cross-DNA call to the Unyt cell; (d) link the RAVE hash into the generated PPR via `settlement_rave_hash`. This phase delivers: full enforcement, automatic settlement, and the complete PPR↔RAVE provenance chain. The NDO becomes a fully self-pricing economic actor.
 
 ---
 
@@ -684,7 +836,8 @@ pub enum SlotType {
     VersionGraph,
     DigitalAsset,
     WeaveWAL,
-    CustomApp(String), // Extensible: custom slot type identified by string
+    UnytAgreement(String), // Unyt Alliance network seed identifier (empty string = sandbox default)
+    CustomApp(String),     // Extensible: custom slot type identified by string
 }
 ```
 
@@ -793,6 +946,11 @@ graph TB
 - **REQ-NDO-CS-04**: The system shall support all `SlotType` variants defined in Section 8.3, including `CustomApp(String)` for extensibility.
 - **REQ-NDO-CS-05**: The `WeaveWAL` slot type shall be supported as the integration point for MOSS/Weave tools, enabling NDOs to appear as Weave Assets.
 - **REQ-NDO-CS-06**: The capability surface shall remain open across all lifecycle stages, including `Hibernating` and `EndOfLife`. Historical attachments on archived NDOs shall remain readable.
+- **REQ-NDO-CS-07**: The system shall support a `UnytAgreement(String)` slot type in the `SlotType` enum, where the String carries the Unyt Alliance network seed. The target of a `UnytAgreement` capability slot link shall be a Unyt Smart Agreement entry hash (cross-cell reference).
+- **REQ-NDO-CS-08**: Any Accountable Agent shall be able to create a `UnytAgreement` capability slot on any NDO (Tier 1: permissionless proposal). The governance zome shall not require validation of Tier 1 `UnytAgreement` slots beyond the standard capability surface governance defined in REQ-NDO-CS-03.
+- **REQ-NDO-CS-09**: The `GovernanceRuleType` enum in `zome_resource` integrity shall support an `EconomicAgreement` variant. A `GovernanceRule` entry of this type shall carry `EconomicAgreementRuleData` as its `rule_data`, including: `unyt_alliance_id`, `smart_agreement_hash`, `trigger_actions` (list of `VfAction` values), `settlement_window_secs`, and an optional `note`.
+- **REQ-NDO-CS-10**: When the governance zome processes a state transition whose `VfAction` matches a `trigger_actions` entry in an endorsed `EconomicAgreement` governance rule, the transition request shall be required to include a `rave_hash`. The governance zome shall validate the RAVE against the Unyt DHT (via cross-DNA call) before approving the transition.
+- **REQ-NDO-CS-11**: When a state transition is approved in the presence of a valid `EconomicAgreement` rule, the `PrivateParticipationClaim` generated for all participating agents shall include the `settlement_rave_hash` field referencing the validated Unyt RAVE. This field shall be `None` for all transitions where no economic agreement was triggered.
 
 ### 9.6 Migration Requirements
 
@@ -945,6 +1103,18 @@ The Weave Interaction Pattern defines how hApps create, search, link, and organi
 - Layer 0 identity hash → declared as a Weave Asset via `WeaveWAL` capability slot
 - MOSS tools (governance DAOs, fabrication queues, issue trackers) attach via the stigmergic capability surface without requiring NDO entry modifications
 - Lifecycle stage transitions can be signaled to MOSS via Holochain signals, allowing MOSS tools to respond dynamically to NDO state changes
+
+### 11.5 Unyt Integration
+
+`unyt-integration.md` defines Unyt as the transactional layer for Nondominium — peer-to-peer accounting infrastructure built on Holochain, providing currencies, Smart Agreements, and agent-centric value flows. In the NDO model, Unyt integrates at three points:
+
+- **Capability surface**: `UnytAgreement` slot type (Section 6.5) is the permissionless attachment point — any agent can propose economic terms for any NDO
+- **Layer 1**: `GovernanceRule` entries of type `EconomicAgreement` carry endorsed Unyt Smart Agreement references as Layer 1 assets, sitting alongside other governance rules in the resource's specification
+- **Layer 2**: RAVE hashes (Recorded Agreement Verifiably Executed) link into `PrivateParticipationClaim` entries via `settlement_rave_hash`, binding economic settlement records to participation records in the Layer 2 process
+
+The NDO three-layer model and Unyt are architecturally complementary: the NDO tracks *what* happens (resource events, custody, quality, lifecycle); Unyt tracks *who owes what to whom* (credits, debits, settlement). The governance zome is the bridge that conditions resource state transitions on proof of economic settlement, making the resource itself the enforcement mechanism for its own economic terms.
+
+The PPR system and Unyt credit limits form a feedback loop: agents' `ReputationSummary` (derived from their accumulated PPRs) feeds into the Unyt `Compute Credit Limit Agreement`, making participation history the collateral for economic access in the commons network. This is the primary mechanism by which the Nondominium commons becomes self-sustaining without platform intermediaries or administrative overhead.
 
 ---
 
