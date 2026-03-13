@@ -283,7 +283,10 @@ get_my_economic_processes() -> Vec<Link>
 create_economic_resource(EconomicResourceInput) -> CreateEconomicResourceOutput
 update_economic_resource(UpdateEconomicResourceInput) -> Record
 transfer_custody(TransferCustodyInput) -> TransferCustodyOutput
-update_resource_state(UpdateResourceStateInput) -> Record
+// TODO: split into two calls per REQ-NDO-OS-01:
+//   update_lifecycle_stage(UpdateLifecycleStageInput) -> Record   // advances LifecycleStage on NondominiumIdentity
+//   update_operational_state(UpdateOperationalStateInput) -> Record // sets OperationalState on EconomicResource
+update_resource_state(UpdateResourceStateInput) -> Record  // pending split
 request_coordination_info(RequestCoordinationInfoInput) -> ()
 get_economic_resource_profile(ActionHash) -> EconomicResourceProfileOutput
 
@@ -428,6 +431,7 @@ get_all_claims() -> Vec<Claim>
 - `ResourceLifecycle` - Complete resource lifecycle management
 - `CustodyTransferInterface` - Custody transfer workflows with coordination
 - `ResourceStateManager` - Resource state transitions with validation
+  - TODO: split into `LifecycleStageManager` (maturity transitions, rare) and `OperationalStateManager` (process-driven transitions, frequent) per mdo_prima_materia.md Section 5
 - `ResourceProcessHistory` - Audit trail of all processes affecting resource
 
 **Reputation & PPR Components (NEW):**

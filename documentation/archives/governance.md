@@ -233,7 +233,12 @@ This is the access control layer of the deontic ontology: permissions are crypto
 
 ### 3.1 Governance-as-Operator Extended to LifecycleStage
 
-The prima-materia `LifecycleStage` transitions are all governance-validated: the governance zome acts as state transition operator for the full 12-stage lifecycle. Each transition requires a valid economic event, is authorized by a specific role, and generates a lifecycle history audit trail. This extends the existing governance-as-operator pattern to the full NDO lifecycle.
+The prima-materia model introduces two orthogonal state dimensions, both governed by the governance zome acting as state transition operator:
+
+- **`LifecycleStage`** (10 stages on `NondominiumIdentity`): the maturity/evolutionary phase of the resource. Each transition requires a valid economic event and a role-authorized request. Examples: `Prototype → Stable` (peer validation), `Active → EndOfLife` (challenge period).
+- **`OperationalState`** (7 states on `EconomicResource`): the current process acting on a resource instance. Transitions are triggered by process events: a transport `Move` event sets `InTransit`; its completion clears it back to `Available`. Transport, storage, and maintenance are processes — they do not advance `LifecycleStage`.
+
+Both dimensions generate auditable lifecycle history via `EconomicEvent` entries, extending the governance-as-operator pattern to cover the complete resource state model.
 
 ### 3.2 EconomicAgreement GovernanceRule Type (Unyt Integration)
 

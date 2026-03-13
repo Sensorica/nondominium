@@ -35,7 +35,10 @@ pub struct EconomicResource {
     pub created_by: AgentPubKey,   // Resource creator
     pub created_at: Timestamp,     // Creation timestamp
     pub current_location: Option<String>, // Physical/virtual location
-    pub state: ResourceState,      // Current resource state
+    // TODO: split into two fields:
+    //   pub lifecycle_stage: LifecycleStage,    // lives on NondominiumIdentity (Layer 0)
+    //   pub operational_state: OperationalState, // lives on EconomicResource (Layer 2)
+    pub state: ResourceState,      // Current resource state (pending split — see mdo_prima_materia.md Section 5)
 }
 ```
 
@@ -43,21 +46,38 @@ pub struct EconomicResource {
 **Custody**: Clear custodianship with Primary Accountable Agent pattern
 **State Management**: Comprehensive resource lifecycle tracking
 
-### ResourceState Enum
+### ResourceState Enum (pending replacement)
+
+> **TODO**: Split `ResourceState` into two orthogonal enums per `mdo_prima_materia.md` Section 5 and `REQ-NDO-OS-01` through `REQ-NDO-OS-06`.
 
 ```rust
+// CURRENT (conflated — to be replaced):
 pub enum ResourceState {
-    PendingValidation,  // Awaiting community validation (initial state for new resources)
-    Active,            // Available for use/transfer
-    Maintenance,       // Under maintenance
-    Retired,          // No longer active (end-of-life state)
-    Reserved,         // Reserved for specific use
+    PendingValidation,  // → OperationalState::PendingValidation
+    Active,            // → LifecycleStage::Active + OperationalState::Available
+    Maintenance,       // → OperationalState::InMaintenance (LifecycleStage unchanged)
+    Retired,          // → LifecycleStage::Deprecated or EndOfLife
+    Reserved,         // → OperationalState::Reserved (LifecycleStage unchanged)
+}
+
+// TARGET — LifecycleStage (on NondominiumIdentity, Layer 0):
+pub enum LifecycleStage {
+    Ideation, Specification, Development, Prototype,
+    Stable, Distributed, Active, Hibernating, Deprecated, EndOfLife,
+}
+
+// TARGET — OperationalState (on EconomicResource, Layer 2):
+pub enum OperationalState {
+    PendingValidation, Available, Reserved,
+    InTransit, InStorage, InMaintenance, InUse,
 }
 ```
 
-**Lifecycle**: Complete resource state management
-**Validation**: Initial validation required before becoming active
-**Transitions**: State changes tracked through economic events
+**Key principle**: Transport, storage, and maintenance are *processes* that act on a resource at *any* lifecycle stage. A `Prototype` can be `InTransit` between R&D labs. An `Active` resource can be `InMaintenance`. These are operational conditions, not lifecycle milestones.
+
+**Lifecycle**: `LifecycleStage` tracks maturity/evolution (advances rarely, almost irreversibly)
+**Operational**: `OperationalState` tracks active processes (cycles frequently, reset to `Available` when process ends)
+**Transitions**: All state changes governed by the governance zome; each transition references a valid `EconomicEvent`
 
 ### GovernanceRule Entry
 
@@ -262,20 +282,25 @@ pub struct TransferCustodyInput {
 
 #### `update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Record>`
 
+> **TODO**: Replace with two separate functions per `REQ-NDO-OS-01`:
+> - `update_lifecycle_stage(input: UpdateLifecycleStageInput)` — transitions on `NondominiumIdentity`; requires an `EconomicEvent` hash as proof of triggering action
+> - `update_operational_state(input: UpdateOperationalStateInput)` — transitions on `EconomicResource`; called by governance zome when processes begin/end
+
 Updates the state of an economic resource.
 
 **Input**:
 
 ```rust
+// CURRENT (pending split):
 pub struct UpdateResourceStateInput {
     pub resource_hash: ActionHash,
-    pub new_state: ResourceState,
+    pub new_state: ResourceState,  // TODO: split into lifecycle_stage / operational_state
     pub reason: Option<String>,
 }
 ```
 
-**Authorization**: Resource custodian only
-**Validation**: Certain state transitions may require governance validation
+**Authorization**: Governance zome only (via governance-as-operator pattern)
+**Validation**: All transitions require a corresponding `EconomicEvent` reference
 **Integration**: Creates economic events for PPR generation
 
 ### Governance Rule Management

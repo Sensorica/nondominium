@@ -45,7 +45,7 @@ There is no structure in the current model for a resource that is:
 - an artifact entering hibernation, not end-of-life
 - a project record that persists as institutional memory after activity has ceased
 
-The current `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`) describes operational states of an existing resource. It does not describe the emergence of a resource from nothing, nor its graceful retirement into archival memory.
+The current `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`) conflates two orthogonal dimensions: the maturity/evolutionary phase of the resource (`LifecycleStage`) and the transient operational condition imposed by active processes (`OperationalState`). It also does not describe the emergence of a resource from nothing, nor its graceful retirement into archival memory.
 
 ### 1.2 The Intent of the Prima Materia
 
@@ -325,11 +325,18 @@ graph TD
 
 ---
 
-## 5. Lifecycle State Machine
+## 5. Resource State Model: Two Orthogonal Dimensions
 
-The current `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`) describes operational states but does not capture the full lifecycle from emergence to archival. The NDO requires a richer vocabulary.
+The current `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`) conflates two independent dimensions of a resource's state. The NDO requires their explicit separation:
+
+- **`LifecycleStage`** — the maturity or evolutionary phase of the resource as an artefact. Advances rarely and (mostly) irreversibly, driven by significant events (design completion, peer validation, fabrication, end-of-life declaration). Lives on the `NondominiumIdentity` (Layer 0).
+- **`OperationalState`** — what process is currently acting on a specific resource instance. Cycles frequently as processes begin and end. Managed by the governance zome. Lives on the `EconomicResource` instance (Layer 2).
+
+**The key distinction**: transport, storage, and maintenance are *processes* that can apply to a resource at *any* lifecycle stage. A `Prototype` can be `InTransit` (moved between R&D labs). An `Active` resource can be `InStorage`, `InTransit`, or `InMaintenance` simultaneously with its lifecycle stage. These are not lifecycle milestones — they are transient operational conditions.
 
 ### 5.1 LifecycleStage Enum
+
+Lives on `NondominiumIdentity`. Describes *what the resource has become*, not *what is happening to it right now*.
 
 ```rust
 pub enum LifecycleStage {
@@ -345,8 +352,6 @@ pub enum LifecycleStage {
 
     // --- Operation Phase ---
     Active,         // In normal use. All layers active.
-    Maintenance,    // Under repair or servicing. All layers active.
-    Reserved,       // Allocated but not yet in active use.
 
     // --- Suspension ---
     Hibernating,    // Not end-of-life — dormant. Layers 1+2 dormant, L0 active.
@@ -356,6 +361,8 @@ pub enum LifecycleStage {
     EndOfLife,      // Concluded. L0 tombstone, L1 archived, L2 concluded.
 }
 ```
+
+> **Note**: `Maintenance` and `Reserved` are **not** lifecycle stages — they describe transient operational conditions and belong in `OperationalState` (Section 5.4).
 
 ### 5.2 Lifecycle → Layer Activation Table
 
@@ -367,12 +374,12 @@ pub enum LifecycleStage {
 | `Prototype` | Active | Active | Active | PoC exists, process ongoing |
 | `Stable` | Active | Active | Active | Spec is production-ready |
 | `Distributed` | Active | Active | Active | Use events flowing |
-| `Active` | Active | Active | Active | Normal operational state |
-| `Maintenance` | Active | Active | Active | Repair process underway |
-| `Reserved` | Active | Active | Active | Custody pre-allocated |
+| `Active` | Active | Active | Active | Normal operation; OperationalState cycles independently |
 | `Hibernating` | Active | Dormant | Dormant | Identity preserved; no new events |
 | `Deprecated` | Active | Archived | Concluded | Successor NDO linked |
 | `EndOfLife` | Active (tombstone) | Archived | Concluded | Permanent record only |
+
+> At any stage from `Development` onward, the `OperationalState` (Section 5.4) may be any value independently of the lifecycle stage.
 
 ### 5.3 Lifecycle Transitions and Governing Events
 
@@ -387,10 +394,6 @@ stateDiagram-v2
     Prototype --> Stable : "Accept (peer validated)"
     Stable --> Distributed : "Transfer (first fabrication)"
     Distributed --> Active : "Use (operational)"
-    Active --> Maintenance : "Modify (repair initiated)"
-    Maintenance --> Active : "Accept (repair complete)"
-    Active --> Reserved : "Commit (pre-allocated)"
-    Reserved --> Active : "Transfer (custody complete)"
     Active --> Hibernating : "Lower (activity paused)"
     Hibernating --> Active : "Raise (reactivated)"
     Hibernating --> Deprecated : "Cite (successor declared)"
@@ -413,6 +416,59 @@ stateDiagram-v2
 | Hibernating → Active | Current custodian(s) |
 | Any → Deprecated | Custodian + declaration of successor NDO |
 | Any → EndOfLife | Custodian + challenge period (see REQ-GOV-11 to REQ-GOV-13) |
+
+### 5.4 OperationalState Enum
+
+Lives on `EconomicResource` (Layer 2). Describes *what process is currently acting on a specific resource instance*. Set and cleared by the governance zome when processes begin and end.
+
+```rust
+pub enum OperationalState {
+    // Default — no active process.
+    Available,
+
+    // A Commitment exists for a future process; no active Event yet.
+    // Cleared when the Event is created or the Commitment is cancelled.
+    Reserved,
+
+    // A transport process is active (a TransferCustody or Move Event is open).
+    // Valid at any LifecycleStage (a Prototype may be InTransit between labs).
+    InTransit,
+
+    // A storage service commitment is active.
+    // Valid at any LifecycleStage.
+    InStorage,
+
+    // A repair or maintenance process is active (a Modify Event is open).
+    // Valid at any LifecycleStage; does NOT advance the lifecycle.
+    InMaintenance,
+
+    // Actively being used (a Use Event is open).
+    InUse,
+
+    // Awaiting peer validation before becoming Available.
+    // Initial state for newly created EconomicResource instances.
+    PendingValidation,
+}
+```
+
+**OperationalState transitions** (governed by the governance zome, triggered by EconomicEvents):
+
+| Trigger | From | To |
+|---|---|---|
+| `EconomicResource` created | — | `PendingValidation` |
+| Peer validation approved | `PendingValidation` | `Available` |
+| Commitment accepted | `Available` | `Reserved` |
+| Commitment cancelled | `Reserved` | `Available` |
+| Transport process begins (`Move` / `TransferCustody` event) | `Available` or `Reserved` | `InTransit` |
+| Transport process completes (`Accept` event) | `InTransit` | `Available` |
+| Storage process begins | `Available` or `Reserved` | `InStorage` |
+| Storage process completes | `InStorage` | `Available` |
+| Maintenance process begins (`Modify` event) | `Available` | `InMaintenance` |
+| Maintenance process completes (`Accept` event) | `InMaintenance` | `Available` |
+| Use begins (`Use` event opened) | `Available` | `InUse` |
+| Use ends | `InUse` | `Available` |
+
+> `OperationalState` transitions do **not** advance `LifecycleStage`. A resource that completes a repair cycle returns to `OperationalState::Available` at the same `LifecycleStage` it had before.
 
 ---
 
@@ -928,15 +984,28 @@ graph TB
 - **REQ-NDO-L2-05**: A new Layer 2 process may be activated for the same NDO after a previous process has concluded (e.g., a second development cycle after hibernation).
 - **REQ-NDO-L2-06**: `EconomicResource` entries (physical instances of the resource) shall be linked to the NDO via the Layer 2 process, not directly to the Layer 0 identity.
 
-### 9.4 Lifecycle Requirements
+### 9.4 Lifecycle and Operational State Requirements
 
-- **REQ-NDO-LC-01**: The system shall implement the `LifecycleStage` enum as defined in Section 5.1, replacing the current `ResourceState` enum. The migration mapping in Section 10 shall be used for backward compatibility.
+#### LifecycleStage Requirements
+
+- **REQ-NDO-LC-01**: The system shall implement the `LifecycleStage` enum as defined in Section 5.1 on the `NondominiumIdentity` entry, replacing the lifecycle dimension of the current `ResourceState` enum. The migration mapping in Section 10 shall be used for backward compatibility.
 - **REQ-NDO-LC-02**: Lifecycle stage transitions shall be validated by the governance zome acting as state transition operator, consistent with `REQ-ARCH-07` (governance-as-operator).
 - **REQ-NDO-LC-03**: Each lifecycle transition shall generate a corresponding `EconomicEvent` with the triggering `VfAction`, creating an auditable lifecycle history.
 - **REQ-NDO-LC-04**: The `Hibernating` stage shall be clearly distinguished from `Deprecated` and `EndOfLife`. A hibernating resource may be reactivated; deprecated and end-of-life resources may not be reactivated.
 - **REQ-NDO-LC-05**: Transition to `EndOfLife` shall respect the challenge period defined in `REQ-GOV-13`.
 - **REQ-NDO-LC-06**: The `Deprecated` stage shall require a link to a successor NDO identity hash. Deprecation without a declared successor is not permitted.
 - **REQ-NDO-LC-07**: The governance zome shall enforce the authorized role for each lifecycle transition as defined in Section 5.3.
+
+#### OperationalState Requirements
+
+- **REQ-NDO-OS-01**: The system shall implement the `OperationalState` enum as defined in Section 5.4 on the `EconomicResource` entry, replacing the process-related dimension of the current `ResourceState` enum.
+- **REQ-NDO-OS-02**: `OperationalState` transitions shall be managed exclusively by the governance zome. The resource zome stores the field; only the governance zome may initiate valid transitions.
+- **REQ-NDO-OS-03**: Each `OperationalState` transition shall correspond to an open or completed `EconomicEvent`. The governance zome shall reject state transitions for which no corresponding event exists.
+- **REQ-NDO-OS-04**: `OperationalState` and `LifecycleStage` are orthogonal. An `OperationalState` transition shall never cause a `LifecycleStage` transition, and vice versa.
+- **REQ-NDO-OS-05**: The `InTransit`, `InStorage`, and `InMaintenance` states may occur at any `LifecycleStage` at or after `Development`. The system shall not restrict these states to any specific lifecycle stage.
+- **REQ-NDO-OS-06**: The `ResourcesByState` link type shall be split into `ResourcesByLifecycleStage` and `ResourcesByOperationalState` to enable independent faceted queries on each dimension.
+
+> **TODO (code)**: Split the current `ResourceState` enum in `zome_resource` integrity into `LifecycleStage` (on `NondominiumIdentity`) and `OperationalState` (on `EconomicResource`). Update `EconomicResource` struct, governance zome state transition logic, `ResourcesByState` link type, and all coordinator functions. See Section 10.3 for the migration map.
 
 ### 9.5 Capability Surface Requirements
 
@@ -974,6 +1043,7 @@ ResourceSpecification  (zome_resource)
 EconomicResource       (zome_resource)
   - custodian: AgentPubKey
   - state: ResourceState  { PendingValidation, Active, Maintenance, Retired, Reserved }
+    ↑ TODO: split into LifecycleStage (on NondominiumIdentity) + OperationalState (on EconomicResource)
 
 GovernanceRule         (zome_resource)
   (linked from ResourceSpecification via SpecificationToGovernanceRule)
@@ -1019,7 +1089,7 @@ graph LR
 |---|---|---|---|
 | `ResourceSpecification` | Layer 1 (`ResourceSpecification`) | No structural change | Gains `NDOToSpecification` link from Layer 0 |
 | `EconomicResource` | Layer 2 artifact (resource instance) | No structural change | Linked via Process, not directly to NDO |
-| `ResourceState` enum | `LifecycleStage` enum | Extended replacement | See migration map below |
+| `ResourceState` enum | `LifecycleStage` + `OperationalState` enums | Split replacement | See migration map below — each variant maps to one of the two new enums |
 | `GovernanceRule` | Layer 1 asset | No structural change | Still linked from `ResourceSpecification` |
 | `EconomicEvent` | Layer 2 component | No structural change | Now linked through Process entry |
 | `Commitment` / `Claim` | Layer 2 components | No structural change | Now linked through Process entry |
@@ -1028,17 +1098,20 @@ graph LR
 | *(none)* | `NDOToProcess` link | **New** | Layer 2 activation link |
 | *(none)* | `NDOToComponent` link | **New** | Holonic composition |
 | *(none)* | `CapabilitySlot` link | **New** | Stigmergic capability attachment |
-| *(none)* | `LifecycleStage` transitions | **New** | Governed by zome_gouvernance |
+| *(none)* | `LifecycleStage` transitions | **New** | Governed by zome_gouvernance (maturity dimension) |
+| *(none)* | `OperationalState` transitions | **New** | Governed by zome_gouvernance (process dimension) |
 
-### 10.3 ResourceState → LifecycleStage Migration Map
+### 10.3 ResourceState Migration Map
 
-| Current `ResourceState` | Mapped `LifecycleStage` | Notes |
-|---|---|---|
-| `PendingValidation` | `Prototype` | Was first operational state; now maps to pre-validation maturity stage |
-| `Active` | `Active` | Direct mapping |
-| `Maintenance` | `Maintenance` | Direct mapping |
-| `Retired` | `Deprecated` or `EndOfLife` | Determine by whether a successor exists |
-| `Reserved` | `Reserved` | Direct mapping |
+The current `ResourceState` enum is split across the two new orthogonal dimensions. Each existing variant maps to a `(LifecycleStage, OperationalState)` pair:
+
+| Current `ResourceState` | → `LifecycleStage` | → `OperationalState` | Migration notes |
+|---|---|---|---|
+| `PendingValidation` | `Prototype` | `PendingValidation` | Resource not yet peer-validated; both dimensions set simultaneously |
+| `Active` | `Active` | `Available` | The common case; lifecycle is `Active`, no process currently running |
+| `Maintenance` | *(unchanged — keep existing stage)* | `InMaintenance` | Maintenance is a process, not a lifecycle milestone; LifecycleStage is preserved |
+| `Retired` | `Deprecated` or `EndOfLife` | `Available` | Determine lifecycle by whether a successor NDO exists; operational state is `Available` (no active process) |
+| `Reserved` | *(unchanged — keep existing stage)* | `Reserved` | Pre-allocation is an operational condition; LifecycleStage is preserved |
 
 The pre-operational stages (`Ideation`, `Specification`, `Development`) have no equivalent in the current model and will apply only to newly created NDOs.
 
@@ -1049,17 +1122,18 @@ The migration is **strictly additive** — no existing entries are modified or d
 **Phase 1 — Forward compatibility (immediate):**
 - All new resources created after the NDO model lands must begin with `NondominiumIdentity` creation
 - New `NDOToSpecification` and `NDOToProcess` link types are added to the integrity zome
-- `LifecycleStage` replaces `ResourceState` for new resources
+- `LifecycleStage` (on `NondominiumIdentity`) and `OperationalState` (on `EconomicResource`) replace `ResourceState` for new resources
+- `ResourcesByState` link type is split into `ResourcesByLifecycleStage` and `ResourcesByOperationalState`
 
 **Phase 2 — Retroactive anchoring (migration coordinator):**
 - For each existing `ResourceSpecification` entry, create a `NondominiumIdentity` entry and the corresponding `NDOToSpecification` link
 - The `NondominiumIdentity` is created by the original author of the `ResourceSpecification` (or by a designated migration agent)
-- Map the existing `ResourceState` to the corresponding `LifecycleStage`
+- Map the existing `ResourceState` to `(LifecycleStage, OperationalState)` pairs using the migration table in Section 10.3
 - Link existing `EconomicResource` instances to the new NDO via a retroactive Process entry
 
 **Phase 3 — Cleanup (optional, post-migration):**
-- Deprecate the `ResourceState` enum in code (keep for deserialization compatibility)
-- Update the UI to show `LifecycleStage` vocabulary
+- Deprecate the `ResourceState` enum in code (keep for deserialization compatibility of existing DHT entries)
+- Update the UI to show `LifecycleStage` and `OperationalState` vocabulary separately
 - Activate capability slots for resources that have associated external assets
 
 **What is not required:**

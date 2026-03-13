@@ -210,7 +210,7 @@ graph TB
 
         subgraph "Economic Resource"
             EconRes[EconomicResource<br/>Resource Instance]
-            ResState[ResourceState<br/>State Tracking]
+            ResState[LifecycleStage + OperationalState<br/>State Tracking (TODO: split ResourceState)]
             ResHistory[ResourceHistory<br/>Audit Trail]
             ResCustody[ResourceCustody<br/>Custody Tracking]
         end
@@ -258,7 +258,8 @@ graph TB
 │                                                             │
 │ 2.2 ECONOMIC RESOURCE                                       │
 │ ├── EconomicResource Entry (resource instance)              │
-│ ├── ResourceState Entry (current state tracking)            │
+│ ├── LifecycleStage (on NondominiumIdentity) + OperationalState (on EconomicResource) │
+│ │   TODO: split current ResourceState into these two enums  │
 │ ├── ResourceHistory Entry (audit trail)                     │
 │ └── ResourceCustody Entry (custody tracking)                │
 │                                                             │

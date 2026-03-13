@@ -80,7 +80,12 @@ _Extending existing resource management with process-aware workflows_
 - [ ] **Economic Process Data Structures** (NEW):
   - [ ] `EconomicProcess` entry type with status tracking and role requirements
   - [ ] `ProcessStatus` enum (Planned, InProgress, Completed, Suspended, Cancelled, Failed)
-  - [ ] Enhanced `ResourceState` transitions aligned with process outcomes
+  - [ ] **Split `ResourceState` into `LifecycleStage` + `OperationalState`** (see mdo_prima_materia.md Section 5):
+    - [ ] `LifecycleStage` enum on `NondominiumIdentity` (Layer 0) — maturity/evolutionary phase
+    - [ ] `OperationalState` enum on `EconomicResource` (Layer 2) — current process condition (`Available`, `Reserved`, `InTransit`, `InStorage`, `InMaintenance`, `InUse`, `PendingValidation`)
+    - [ ] Update governance zome state transition logic to manage both enums independently
+    - [ ] Split `ResourcesByState` link type into `ResourcesByLifecycleStage` and `ResourcesByOperationalState`
+  - [ ] `OperationalState` transitions aligned with process outcomes (begin/end of transport, storage, maintenance processes)
 - [ ] **Process Management Functions** (NEW):
   - [ ] `initiate_economic_process()` with role-based access control
   - [ ] `complete_economic_process()` with state change validation
