@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   build:
@@ -34,4 +34,3 @@ jobs:
 
       - name: Build happ
         run: nix develop --command bun run build:happ
-
