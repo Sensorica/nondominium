@@ -11,7 +11,10 @@ pub struct Person {
   pub avatar_url: Option<String>,
   /// Optional short biography or description
   pub bio: Option<String>,
-  /// ActionHash of the corresponding ReaAgent entry in the hREA DNA (Phase 1 bridge)
+  /// ActionHash of the corresponding ReaAgent entry in the hREA DNA (Phase 1 bridge).
+  /// `#[serde(default)]` is required for schema evolution: existing Person entries
+  /// serialized before this field was added will deserialize to None instead of failing.
+  #[serde(default)]
   pub hrea_agent_hash: Option<ActionHash>,
 }
 
