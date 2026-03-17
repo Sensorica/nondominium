@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a Holochain application requiring a Nix development environment:
 
 ```bash
+git submodule update --init --recursive  # Initialize hREA submodule (REQUIRED)
 nix develop              # Enter reproducible environment (REQUIRED)
 bun install              # Install all dependencies
 ```
