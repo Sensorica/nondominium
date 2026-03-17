@@ -14,3 +14,14 @@ roles:
         properties: ~
         origin_time: 1716323893645
       clone_limit: 0
+  - name: hrea
+    provisioning:
+      strategy: create
+      deferred: false
+    dna:
+      path: "../vendor/hrea/dnas/hrea/workdir/hrea.dna"
+      modifiers:
+        network_seed: ~
+        properties: ~
+        origin_time: 1716323893645
+      clone_limit: 0
