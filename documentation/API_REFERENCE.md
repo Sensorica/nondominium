@@ -152,6 +152,13 @@ pub struct PersonProfileOutput {
 **Returns**: Boolean indicating association status
 **Use Case**: Authorization checks and validation
 
+#### `get_hrea_agents(hashes: Vec<ActionHash>) -> ExternResult<Vec<Option<Record>>>`
+**Purpose**: Retrieve ReaAgent records from the hREA DNA by action hashes
+**Authorization**: Public access
+**Input**: Vector of ActionHash values (typically from `Person.hrea_agent_hash`)
+**Returns**: Vector of optional Records (None if a hash is not found in hREA)
+**Use Case**: Resolve agent names and avatars from hREA without duplicating data in the Nondominium DNA. Part of the Phase 1 hREA bridge — see `hREA-integration-strategy.md` Pattern 5.
+
 #### `promote_agent_to_accountable(input: PromoteAgentInput) -> ExternResult<String>`
 **Purpose**: Promote an agent to accountable status with validation
 **Authorization**: Governance role required

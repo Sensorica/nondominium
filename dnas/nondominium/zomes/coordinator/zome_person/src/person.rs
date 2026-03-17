@@ -35,8 +35,15 @@ pub fn create_person(input: PersonInput) -> ExternResult<Record> {
   }
 
   // Create ReaAgent in hREA DNA first (best-effort: None if hREA unavailable)
-  let hrea_agent_hash =
-    create_rea_agent_bridge(&input.name, input.avatar_url.as_deref()).ok();
+  let hrea_agent_hash = create_rea_agent_bridge(&input.name, input.avatar_url.as_deref())
+    .map_err(|e| {
+      warn!(
+        "hREA bridge: create_rea_agent failed, person will have no hrea_agent_hash: {:?}",
+        e
+      );
+      e
+    })
+    .ok();
 
   let person = Person {
     name: input.name,

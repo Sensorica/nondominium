@@ -373,6 +373,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 }
 
 pub fn validate_person(person: Person) -> ExternResult<ValidateCallbackResult> {
+  // hrea_agent_hash is intentionally not validated here — it is set by the coordinator
+  // via cross-DNA call, not by user input, and is Option to support environments
+  // where the hREA DNA role is absent.
   if person.name.trim().is_empty() {
     return Ok(ValidateCallbackResult::Invalid(String::from(
       "Person name cannot be empty",

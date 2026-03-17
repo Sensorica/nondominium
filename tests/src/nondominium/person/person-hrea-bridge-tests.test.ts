@@ -105,37 +105,10 @@ test(
   240000,
 );
 
-test(
-  "create_person succeeds even when hREA bridge call fails gracefully",
-  async () => {
-    // This test validates the best-effort design: Person creation must not
-    // fail if the hREA DNA is unavailable. When running with a single-DNA
-    // .happ (without hREA role), hrea_agent_hash should be null but the
-    // Person record should still be created successfully.
-    //
-    // In the full dual-DNA test environment this path is not exercised, so
-    // we verify the positive case: Person is always returned.
-    await runScenarioWithTwoAgents(
-      async (_scenario, lynn: PlayerApp, _bob: PlayerApp) => {
-        const personInput = samplePerson({ name: "Bob" });
-        const personRecord: HolochainRecord = await createPerson(
-          lynn.cells[0],
-          personInput,
-        );
-
-        assert.ok(
-          personRecord,
-          "create_person should succeed regardless of hREA availability",
-        );
-
-        const person = decodeRecord<Person>(personRecord);
-        assert.equal(
-          person.name,
-          "Bob",
-          "Person name should be stored correctly",
-        );
-      },
-    );
-  },
-  240000,
+// Requires a single-DNA .happ fixture where the hREA role is absent.
+// The dual-DNA environment always has hREA available, so this path cannot
+// be exercised here. Implement once a dedicated single-DNA test bundle exists.
+test.todo(
+  "create_person succeeds even when hREA bridge call fails gracefully " +
+    "(requires single-DNA fixture — hrea role absent from .happ)",
 );
