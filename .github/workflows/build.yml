@@ -29,6 +29,9 @@ jobs:
             . -> target
             vendor/hrea -> vendor/hrea/target
 
+      - name: Install dependencies
+        run: nix develop --command bun install
+
       - name: Build happ
         run: nix develop --command bun run build:happ
 
