@@ -1,4 +1,4 @@
-use crate::PersonError;
+use crate::{create_rea_agent_bridge, PersonError};
 use hdk::prelude::*;
 use zome_person_integrity::*;
 
@@ -34,10 +34,22 @@ pub fn create_person(input: PersonInput) -> ExternResult<Record> {
     return Err(PersonError::PersonAlreadyExists.into());
   }
 
+  // Create ReaAgent in hREA DNA first (best-effort: None if hREA unavailable)
+  let hrea_agent_hash = create_rea_agent_bridge(&input.name, input.avatar_url.as_deref())
+    .map_err(|e| {
+      warn!(
+        "hREA bridge: create_rea_agent failed, person will have no hrea_agent_hash: {:?}",
+        e
+      );
+      e
+    })
+    .ok();
+
   let person = Person {
     name: input.name,
     avatar_url: input.avatar_url,
     bio: input.bio,
+    hrea_agent_hash,
   };
 
   let person_hash = create_entry(&EntryTypes::Person(person.clone()))?;
@@ -111,10 +123,19 @@ pub fn update_person(input: UpdatePersonInput) -> ExternResult<Record> {
     return Err(PersonError::NotAuthor.into());
   }
 
+  // Preserve the hrea_agent_hash from the original entry — it is set once at
+  // creation and must not be overwritten by profile edits.
+  let existing_person: Person = original_record
+    .entry()
+    .to_app_option()
+    .map_err(|e| PersonError::SerializationError(format!("Failed to decode original person: {:?}", e)))?
+    .ok_or(PersonError::PersonNotFound("Original person entry not found".to_string()))?;
+
   let updated_person = Person {
     name: input.updated_person.name,
     avatar_url: input.updated_person.avatar_url,
     bio: input.updated_person.bio,
+    hrea_agent_hash: existing_person.hrea_agent_hash,
   };
 
   let updated_person_hash = update_entry(input.previous_action_hash, &updated_person)?;
