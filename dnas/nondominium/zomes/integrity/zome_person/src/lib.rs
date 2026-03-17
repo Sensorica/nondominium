@@ -11,6 +11,8 @@ pub struct Person {
   pub avatar_url: Option<String>,
   /// Optional short biography or description
   pub bio: Option<String>,
+  /// ActionHash of the corresponding ReaAgent entry in the hREA DNA (Phase 1 bridge)
+  pub hrea_agent_hash: Option<ActionHash>,
 }
 
 /// Private data for a person, only accessible by the owner

@@ -8,6 +8,8 @@ export interface Person {
   bio?: string;
   agent_pub_key: AgentPubKey;
   created_at: Timestamp;
+  /** ActionHash of the corresponding ReaAgent in the hREA DNA (Phase 1 bridge) */
+  hrea_agent_hash?: ActionHash;
 }
 
 export interface EncryptedProfile {
