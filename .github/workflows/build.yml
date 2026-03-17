@@ -16,15 +16,21 @@ jobs:
 
       - uses: cachix/install-nix-action@v26
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: cachix/cachix-action@v14
         with:
           name: holochain-ci
           skipPush: true
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            vendor/hrea -> vendor/hrea/target
+
       - name: Build happ
         run: nix develop --command bun run build:happ
 
       - name: Run tests
-        run: nix develop --command bun run tests
+        run: nix develop --command bun run test:only

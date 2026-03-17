@@ -10,6 +10,7 @@
     "start": "AGENTS=${AGENTS:-2} BOOTSTRAP_PORT=$(get-port) npm run network",
     "network": "hc sandbox clean && npm run build:happ && UI_PORT=$(get-port) concurrently \"npm run --filter ui start\" \"npm run launch:happ\" \"hc playground\"",
     "tests": "npm run build:happ && npm t -w tests -- ",
+    "test:only": "npm t -w tests -- ",
     "launch:happ": "hc-spin -n $AGENTS --ui-port $UI_PORT workdir/nondominium.happ",
     "package": "npm run build:happ && npm run --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "npm run build:zomes && npm run build:zomes:hrea && hc dna pack vendor/hrea/dnas/hrea/workdir && hc app pack workdir --recursive",
