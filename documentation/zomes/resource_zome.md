@@ -377,6 +377,8 @@ pub enum Signal {
 
 ### ResourceError Types
 
+`ResourceError` is defined in `crates/utils/src/errors.rs` and imported by `zome_resource`.
+
 ```rust
 pub enum ResourceError {
     ResourceSpecNotFound(String),      // Specification lookup failures

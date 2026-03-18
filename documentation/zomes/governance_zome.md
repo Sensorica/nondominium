@@ -686,6 +686,8 @@ pub enum Signal {
 
 ### GovernanceError Types
 
+`GovernanceError` is defined in `crates/utils/src/errors.rs` and imported by `zome_gouvernance`.
+
 ```rust
 pub enum GovernanceError {
     ValidationReceiptNotFound(String),     // Validation lookup failures
