@@ -1,0 +1,41 @@
+[package]
+name = "nondominium_sweettest"
+version = "0.1.0"
+edition = "2021"
+
+# This crate is NOT compiled to WASM. It uses the holochain test_utils feature
+# to run Sweettest in-process against the compiled .dna bundles.
+#
+# IMPORTANT: Run with CARGO_TARGET_DIR=target/native-tests to avoid
+# artifact conflicts with the wasm32-unknown-unknown build directory.
+#
+# Prerequisites: `bun run build:happ` must be run before `cargo test`
+
+[dependencies]
+holochain  = { workspace = true }
+tokio      = { workspace = true }
+serde      = { workspace = true }
+serde_json = "1"
+rmp-serde  = "1"
+# Integrity crates compile as rlib (not just cdylib) so they work on host target.
+# These MUST be [dependencies] (not [dev-dependencies]) because lib.rs exports
+# the common module which references their types.
+zome_person_integrity      = { path = "../zomes/integrity/zome_person" }
+zome_resource_integrity    = { path = "../zomes/integrity/zome_resource" }
+zome_gouvernance_integrity = { path = "../zomes/integrity/zome_gouvernance" }
+
+[[test]]
+name = "misc"
+path = "src/misc/mod.rs"
+
+[[test]]
+name = "person"
+path = "src/person/mod.rs"
+
+[[test]]
+name = "resource"
+path = "src/resource/mod.rs"
+
+[[test]]
+name = "governance"
+path = "src/governance/mod.rs"
