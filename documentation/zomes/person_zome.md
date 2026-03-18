@@ -24,6 +24,10 @@ pub struct Person {
 }
 ```
 
+> **TODO (G1 — AgentEntityType)**: Add an `agent_entity_type: AgentEntityType` field to this struct (or to a companion `AgentContext` entry). This field distinguishes Individual, Collective, Project, Network, Bot, and ExternalOrganisation agents. Currently all agents are implicitly modelled as individual humans. See `agent.md` §6.1 and `REQ-AGENT-01`.
+>
+> **TODO (G15 — CapabilitySlot on Agent)**: The `Person` entry hash should serve as a stigmergic attachment surface — analogous to the `NondominiumIdentity` CapabilitySlot in `ndo_prima_materia.md` §6. External credential wallets, DID documents, and reputation oracles should be attachable via typed DHT links from the `Person` hash without modifying this entry. See `agent.md` §3.2 and `REQ-AGENT-11`.
+
 **Privacy**: Public entry, discoverable by all agents
 **Validation**: Name required (1-100 chars), avatar URL format validation
 
@@ -121,6 +125,8 @@ pub enum RoleType {
     Storage,                 // Storage process access
 }
 ```
+
+> **TODO (G14 — Configurable Role Taxonomy)**: This enum is currently closed — only these six role types exist and communities cannot define their own. The OVN model requires that roles emerge from community needs, not from infrastructure decisions. Post-MVP, `RoleType` should become either an open string-tagged enum or a configurable registry of role entries defined per network. These six roles become sensible defaults, not constraints. See `agent.md` §5.3 and `REQ-AGENT-06`.
 
 **Agent Capability Progression**:
 
@@ -711,14 +717,45 @@ if let Some(person) = person_hash {
 - **No Role Delegation**: Temporary role assignments and delegation workflows not implemented
 - **Limited Audit Features**: Capability grant tracking exists but comprehensive audit trails need enhancement
 
+**Agent Ontology Gaps** (identified against OVN wiki — see `documentation/archives/agent.md` §2.6):
+
+| Gap | Gap ID | OVN Relevance | Impact |
+|---|---|---|---|
+| Only individual agents modelled | G1 | OVN: groups, projects, networks, bots are also agents | Cannot model collective agency, AI participants, or network-level actors |
+| Binary in/out membership | G2 | OVN: UnaffiliatedStranger/Close/Active/Core/Inactive affiliation spectrum | Cannot determine governance eligibility algorithmically; 1-9-90 engagement reality is invisible |
+| No composable AgentProfile | G3 | OVN: profile aggregates roles, contributions, relations, credentials | Person, ReputationSummary, and Roles are separate and unconnected |
+| No social graph | G4 | OVN: social relations are part of profile and social capital | Cannot surface network wealth or organisational reach |
+| No network affiliations | G5 | OVN: agents participate simultaneously in multiple networks | Single-network only; agents cannot be bridge nodes |
+| No AffiliationRecord | G6 | OVN: formal ToP ceremony creates accountability for active affiliates | No formal onboarding; no machine-readable agreement to Terms of Participation |
+| `request_role_promotion` stubbed | G13 | Promotion requests cannot be queried or tracked | Approvers cannot discover pending requests; workflow is broken |
+| Roles are predefined/closed | G14 | OVN: roles emerge from community needs | Communities cannot extend the role taxonomy |
+
 ### 📋 **Future Enhancement Opportunities**
 
-- **Economic Process Integration**: Full integration with structured process workflows
-- **Enhanced PPR Features**: Direct PPR storage and reputation calculation in person zome
-- **Advanced Delegation**: Temporary role assignments with time-based expiration
-- **Smart Grant Management**: AI-assisted private data sharing recommendations
-- **Cross-Network Identity**: Federated identity management across multiple networks
-- **Device Trust Scoring**: Reputation-based device security policies
-- **Advanced Session Management**: Multi-device session coordination and security
+The following items map directly to the gap IDs in `documentation/archives/agent.md` and the `REQ-AGENT-*` requirements in `documentation/requirements/requirements.md`:
+
+**Phase 2 (Near-term):**
+- **[G13] Fix `request_role_promotion` stub**: Create a real queryable `RolePromotionRequest` entry with bidirectional discovery links so approvers can find and act on pending requests (see `REQ-AGENT-16`).
+- **[G6] `AffiliationRecord` entry**: Implement formal Terms of Participation ceremony — agent cryptographically signs acknowledgement of ToP, Nondominium & Custodian agreement, and Benefit Redistribution Algorithm (see `REQ-AGENT-05`).
+- **[G2] Derived affiliation state**: Implement `get_affiliation_state(agent)` as a computed query over existing PPR + contribution data — `f(person_exists, contributions_count, last_contribution_ts, reputation_summary, affiliation_record_exists)` → `UnaffiliatedStranger | CloseAffiliate | ActiveAffiliate | CoreAffiliate | InactiveAffiliate` (see `REQ-AGENT-04`).
+
+**Phase 3 (Medium-term):**
+- **[G1] `AgentEntityType` field**: Add `agent_entity_type: AgentEntityType` to agent context (Individual, Collective, Project, Network, Bot, ExternalOrganisation). Collective agents reference an NDO hash rather than a Person entry (see `REQ-AGENT-01`, `REQ-AGENT-02`).
+- **[G15] CapabilitySlot on Person**: Implement typed DHT links from `Person` hash to external capabilities — DID documents, credential wallets, reputation oracles — without modifying the `Person` entry (see `REQ-AGENT-11`).
+- **[G3] Composable `AgentProfile` view**: Implement `get_agent_profile(agent)` that assembles Person + ReputationSummary + PersonRole list + active commitment count + economic event counts + CapabilitySlot attachments + network affiliations into one queryable output (see `REQ-AGENT-07`).
+- **[G4] `AgentRelationship` link type**: Bidirectional, typed (colleague, collaborator, trusted, voucher), private peer relationship links. Social capital must be legible to governance (see `REQ-AGENT-08`).
+- **[G5] Network affiliation links**: Typed links from `Person` hash to NDO instance hashes, modelling cross-network membership (see `REQ-AGENT-09`).
+- **[G14] Configurable role taxonomy**: Replace closed `RoleType` enum with a configurable role registry defined per network; predefined roles become defaults (see `REQ-AGENT-06`).
+
+**Phase 4 (Long-term):**
+- **[G8] `PortableCredential` structure**: Bilaterally signed credential export (issuer + agent signatures) verifiable by other Holochain networks. Types: `RoleCredential`, `ReputationCredential`, `CompetencyCredential`, `AffiliationCredential` (see `REQ-AGENT-12`).
+- **[G7] ZKP capability proofs**: Integration of ZKP library or ZKP-compatible VC layer; `prove_capability(condition)` without raw data disclosure — e.g., "I have ≥10 completed maintenance commitments" without revealing counterparties or timestamps (see `REQ-AGENT-13`).
+- **[G9] Sybil resistance**: Social vouching (existing agents vouch for new agents), biometric opt-in, or Proof-of-Personhood integration as configurable membrane proof (see `REQ-AGENT-15`).
+- **[G10] Pseudonymous participation mode**: Allow contribution under a temporary ephemeral key without linking to `Person`. Contribution is recorded but unlinkable to physical identity (see `REQ-AGENT-14`).
+- **[G11] AI/bot delegation**: `DelegatedAgent` relationship allowing a Person to authorise an AI or bot to act within defined scope and duration (see `REQ-AGENT-03`).
+- **[G12] `AgentNeedsWants` profile extension**: Optional profile extension declaring what resources the agent needs and what they can offer, enabling network-level matching (see `REQ-AGENT-10`).
+- **Cross-Network Identity**: Federated identity management using PortableCredential + Holochain membrane proofs.
+- **Device Trust Scoring**: Reputation-based device security policies.
+- **Advanced Session Management**: Multi-device session coordination and security.
 
 The Person zome provides the foundational identity and privacy infrastructure for the nondominium ecosystem, enabling secure agent interactions with comprehensive role-based governance and sophisticated private data sharing capabilities.

@@ -354,7 +354,7 @@ Accountable Agent (stewardship)
 Primary Accountable Agent (coordination/governance)
 ├── Full capability token
 ├── Can hold custody & validate specialized roles
-├── PPR eligibility: All 14 categories
+├── PPR eligibility: All 16 categories
 └── Advanced: Dispute resolution & end-of-life validation
 ```
 

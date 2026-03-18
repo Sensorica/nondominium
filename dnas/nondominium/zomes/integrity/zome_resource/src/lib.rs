@@ -23,8 +23,15 @@ use hdi::prelude::*;
 // A Prototype can be InTransit (moved between labs). An Active resource can be InStorage.
 // These are NOT lifecycle stages.
 //
-// See: documentation/requirements/mdo_prima_materia.md — Section 5 (LifecycleStage + OperationalState)
+// See: documentation/requirements/ndo_prima_materia.md — Section 5 (LifecycleStage + OperationalState)
 // See: documentation/archives/resources.md — Section 2.4 (known gaps)
+//
+// TODO: Implement PropertyRegime enum when NondominiumIdentity (Layer 0) is introduced.
+// Canonical 6-variant enum: Private, Commons, Collective, Pool, CommonPool, Nondominium.
+// Each variant implies default governance templates via GovernanceDefaultsEngine.
+// See: documentation/requirements/ndo_prima_materia.md — Section 8.2
+// See: documentation/archives/resources.md — Section 6.3 (canonical definition)
+// See: documentation/archives/resources.md — Section 6.6 (PropertyRegime → governance defaults)
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
 pub enum ResourceState {
   #[default]
@@ -107,6 +114,10 @@ pub enum LinkTypes {
   SpecsByCategory,     // Category -> ResourceSpecs
   ResourcesByLocation, // Location -> EconomicResources
   ResourcesByState,    // ResourceState -> EconomicResources
+  // TODO (REQ-NDO-OS-06): Split ResourcesByState into two independent link types:
+  //   ResourcesByLifecycleStage  — NondominiumIdentity lifecycle facet queries
+  //   ResourcesByOperationalState — EconomicResource operational facet queries
+  // See: documentation/requirements/ndo_prima_materia.md — Section 9.4 (REQ-NDO-OS-06)
 
   // Governance patterns
   RulesByType,          // RuleType -> GovernanceRules

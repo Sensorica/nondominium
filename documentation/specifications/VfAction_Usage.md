@@ -222,7 +222,7 @@ pub fn transport_resource_with_governance(
 ```rust
 // Repair process with state transition validation
 // TODO: update new_operational_state parameter type from ResourceState to OperationalState
-// once the ResourceState split is implemented (see mdo_prima_materia.md Section 5, REQ-NDO-OS-01).
+// once the ResourceState split is implemented (see ndo_prima_materia.md Section 5, REQ-NDO-OS-01).
 // The repair process sets OperationalState::InMaintenance on the EconomicResource instance,
 // while LifecycleStage on NondominiumIdentity remains unchanged.
 pub fn repair_resource_with_governance(

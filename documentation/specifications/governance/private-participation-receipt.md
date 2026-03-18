@@ -26,6 +26,11 @@ Private Participation Receipts are cryptographically signed, cumulative records 
 - **Implicit Resource Validation**: Resource validation is implicit through agent validation (except for creation events)
 - **Agent-Focused**: Receipts track agent behavior and reliability, not resource state changes
 
+> **TODO (G1, REQ-GOV-16 — post-MVP)**: The `counterparty` field in `PrivateParticipationClaim`
+> currently assumes an individual agent (`AgentPubKey`). Post-MVP, custody transfer to a collective
+> agent (e.g., a project NDO) will require `counterparty: AgentContext`. Bot agents generate PPRs
+> with their operator's `AgentPubKey` as the accountable counterparty.
+
 ## PPR Issuance Categories
 
 ### 1. Genesis Role - Network Entry
@@ -295,3 +300,32 @@ flowchart TB
 - **Past Custodian Notification**: Historical custodians informed of end-of-life events
 - **Evidence Documentation**: Physical evidence requirements for validation
 - **Reputation Impact**: False declarations severely impact agent reputation
+
+---
+
+## Post-MVP: Governance Ceremony PPRs
+
+> **TODO (G6, REQ-GOV-15 — post-MVP)**: The `AffiliationRecord` signing ceremony generates a new
+> PPR category. When an agent signs an `AffiliationRecord` (Terms of Participation, Nondominium &
+> Custodian agreement, Benefit Redistribution Algorithm), the `Commitment`/`EconomicEvent`/`Claim`
+> cycle in `zome_governance` produces an `AffiliationRecordSigned` PPR.
+
+### AffiliationRecordSigned PPR Properties
+
+- **Bilateral**: The witness `AgentPubKey` countersigns if present at the ceremony
+- **Non-transferable and private**: Stored as a private entry; cannot be reassigned to another agent
+- **Affiliation trigger**: The presence of this PPR is the evidence that `AffiliationState`
+  derivation returns `ActiveAffiliate` for the signing agent
+- **New `ParticipationClaimType` variant**: `AffiliationRecordSigned` (see `governance_zome.md`
+  `ParticipationClaimType` for the full TODO)
+
+### Governance Ceremony Flow (Post-MVP)
+
+1. Agent calls `create_affiliation_record()` in `zome_governance`
+2. A `Commitment` is created: agent commits to Terms of Participation
+3. An `EconomicEvent` records the signing as a completed governance action
+4. A `Claim` fulfils the Commitment, producing the `AffiliationRecordSigned` PPR
+5. `AffiliationState` derivation in `zome_person` reads DHT for `AffiliationRecord` entry
+   → returns `ActiveAffiliate` for this agent
+6. Agent can now participate in governance processes gated by `min_affiliation: ActiveAffiliate`
+   (see `REQ-GOV-14` and `governance.md §3.6.2`)

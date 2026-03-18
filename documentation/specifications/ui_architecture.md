@@ -105,7 +105,7 @@ Multi-Layer Structure with Economic Processes & PPR:
 
 - **zome_person**: Enhanced agent identity, profiles, roles, private data sharing (request/grant workflows), capability progression, PPR integration
 - **zome_resource**: Resource specifications, Economic Resources, Economic Processes (Use, Transport, Storage, Repair), lifecycle management, custody transfers
-- **zome_gouvernance**: Commitments, claims, economic events, PPR system (14 categories), validation workflows, agent progression, VfAction enum
+- **zome_gouvernance**: Commitments, claims, economic events, PPR system (16 categories), validation workflows, agent progression, VfAction enum
 
 ### Enhanced Data Model
 
@@ -431,7 +431,7 @@ get_all_claims() -> Vec<Claim>
 - `ResourceLifecycle` - Complete resource lifecycle management
 - `CustodyTransferInterface` - Custody transfer workflows with coordination
 - `ResourceStateManager` - Resource state transitions with validation
-  - TODO: split into `LifecycleStageManager` (maturity transitions, rare) and `OperationalStateManager` (process-driven transitions, frequent) per mdo_prima_materia.md Section 5
+  - TODO: split into `LifecycleStageManager` (maturity transitions, rare) and `OperationalStateManager` (process-driven transitions, frequent) per ndo_prima_materia.md Section 5
 - `ResourceProcessHistory` - Audit trail of all processes affecting resource
 
 **Reputation & PPR Components (NEW):**
@@ -603,7 +603,7 @@ export const createPersonStore = (): E.Effect<
 - Agent capability progression (Simple → Accountable → Primary Accountable Agent)
 - Economic Process management (Use, Transport, Storage, Repair) with specialized role access
 - Private data sharing with request/grant workflows and Economic Process coordination
-- Comprehensive reputation system with 14 PPR categories and selective disclosure
+- Comprehensive reputation system with 16 PPR categories and selective disclosure
 - Multi-reviewer validation schemes with role-based access control
 - Cross-zome coordination ensuring atomic transactions and consistency
 - Advanced error handling and rollback mechanisms across all workflows

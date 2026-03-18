@@ -2,6 +2,22 @@
 
 The Resource zome implements the core resource management infrastructure for the nondominium ecosystem, providing ValueFlows-compliant resource specification management, Economic Resource lifecycle tracking, governance rule enforcement, and custody transfer workflows. It serves as the foundation for all resource-related activities and supports the Private Participation Receipt (PPR) reputation system through comprehensive audit trails.
 
+> **TODO (post-MVP — NDO Three-Layer Model, ndo_prima_materia.md §4)**: Introduce
+> `NondominiumIdentity` as the Layer 0 permanent identity anchor for all resources. This entry
+> carries `name`, `description`, `initiator`, `property_regime` (6-variant `PropertyRegime` enum),
+> `resource_nature`, `lifecycle_stage` (10-stage `LifecycleStage` enum), and `created_at`. Its
+> action hash becomes the stable identity for the NDO.
+>
+> New link types required:
+> - `NDOToSpecification` — Layer 0 identity hash to `ResourceSpecification` (Layer 1 activation)
+> - `NDOToProcess` — Layer 0 identity hash to `Process` (Layer 2 activation)
+> - `NDOToComponent` — Layer 0 identity hash to child NDO identity hash (holonic composition)
+> - `CapabilitySlot` — Layer 0 identity hash to capability targets (stigmergic attachment surface)
+> - `NDOsByLifecycleStage`, `NDOsByNature`, `NDOsByRegime` — discovery anchors
+>
+> See `ndo_prima_materia.md` §§4, 8, and 10 for entry structures, link types, and migration
+> strategy. See `resources.md` §3 for the canonical three-layer model.
+
 ## Core Data Structures
 
 ### ResourceSpecification Entry
@@ -32,13 +48,18 @@ pub struct EconomicResource {
     pub quantity: f64,              // Resource quantity
     pub unit: String,              // Unit of measurement
     pub custodian: AgentPubKey,    // Primary Accountable Agent
+    // TODO (G1, REQ-AGENT-02): replace custodian: AgentPubKey with custodian: AgentContext
+    // post-MVP to support Collective, Project, Network, and Bot agents as Primary Accountable
+    // Agents. AgentContext = union of AgentPubKey | CollectiveAgentHash. The same change is
+    // needed in TransitionContext.target_custodian (governance-operator-architecture.md) and
+    // NondominiumIdentity.initiator (ndo_prima_materia.md Section 8.1).
     pub created_by: AgentPubKey,   // Resource creator
     pub created_at: Timestamp,     // Creation timestamp
     pub current_location: Option<String>, // Physical/virtual location
     // TODO: split into two fields:
     //   pub lifecycle_stage: LifecycleStage,    // lives on NondominiumIdentity (Layer 0)
     //   pub operational_state: OperationalState, // lives on EconomicResource (Layer 2)
-    pub state: ResourceState,      // Current resource state (pending split — see mdo_prima_materia.md Section 5)
+    pub state: ResourceState,      // Current resource state (pending split — see ndo_prima_materia.md Section 5)
 }
 ```
 
@@ -48,7 +69,7 @@ pub struct EconomicResource {
 
 ### ResourceState Enum (pending replacement)
 
-> **TODO**: Split `ResourceState` into two orthogonal enums per `mdo_prima_materia.md` Section 5 and `REQ-NDO-OS-01` through `REQ-NDO-OS-06`.
+> **TODO**: Split `ResourceState` into two orthogonal enums per `ndo_prima_materia.md` Section 5 and `REQ-NDO-OS-01` through `REQ-NDO-OS-06`.
 
 ```rust
 // CURRENT (conflated — to be replaced):
@@ -88,6 +109,11 @@ pub struct GovernanceRule {
     pub enforced_by: Option<String>, // Role required for enforcement
     pub created_by: AgentPubKey,    // Rule creator
     pub created_at: Timestamp,      // Creation timestamp
+    // TODO (post-MVP, governance.md §4.8): add `expires_at: Option<Timestamp>` for temporal
+    // governance. Rules with an expiry become inactive after the deadline without requiring a
+    // manual update. Enables sunset clauses and time-limited access grants.
+    // TODO (post-MVP, resources.md §6.6): add `EconomicAgreement` variant to `rule_type` for
+    // Unyt Smart Agreement integration. See ndo_prima_materia.md §6.5 and REQ-NDO-CS-09.
 }
 ```
 
@@ -528,5 +554,13 @@ for rule in rules {
 - **Spatial Features**: Location-based resource discovery and services
 - **Resource Analytics**: Usage statistics and availability optimization
 - **Automated Governance**: AI-assisted rule creation and enforcement
+
+> **TODO (post-MVP — PropertyRegime-driven governance defaults, resources.md §6.6)**:
+> Implement a `GovernanceDefaultsEngine` that derives default governance rule templates from
+> `PropertyRegime + ResourceNature` classification. For example, a `Nondominium` physical
+> resource gets default rules for custody rotation, maintenance obligations, and access-for-use;
+> a `Commons` digital resource gets default rules for attribution and remix licensing. The
+> defaults are suggestions populated into `ResourceSpecification.governance_rules` at creation
+> time; custodians can override them. See `resources.md §6.6`.
 
 The Resource zome provides the foundational resource management infrastructure for the nondominium ecosystem, enabling ValueFlows-compliant resource sharing with embedded governance and comprehensive lifecycle tracking.

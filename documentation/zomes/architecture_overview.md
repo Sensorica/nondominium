@@ -19,7 +19,7 @@ Nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant res
 - **Governance**: Embedded rules, multi-reviewer validation (2-of-3, N-of-M, simple_majority), cryptographically-signed reputation tracking through PPRs
 - **Economic Processes**: Four structured workflows (Use, Transport, Storage, Repair) with role-based access control and specialized validation requirements
 - **Private Data Sharing**: Request/grant workflows with 7-day expiration, field-specific control, and Economic Process coordination integration
-- **Reputation System**: 14 PPR categories, bi-directional receipt issuance, cryptographic signatures, privacy-preserving reputation derivation
+- **Reputation System**: 16 PPR categories, bi-directional receipt issuance, cryptographic signatures, privacy-preserving reputation derivation
 
 ## Cross-Zome Integration Patterns
 
@@ -46,7 +46,7 @@ match agent_capability.as_str() {
     "coordination" | "governance" => {
         // Primary Accountable Agent: full capability token
         // Can hold custody, validate specialized roles, initiate all processes (Transport, Storage, Repair)
-        // PPR eligibility: All 14 categories, including custodianship and governance participation
+        // PPR eligibility: All 16 categories, including custodianship and governance participation
         // Advanced capabilities: Dispute resolution, end-of-life validation
     }
 }
@@ -193,7 +193,7 @@ pub fn auto_approve_process_coordination(
 ### Enhanced PPR Integration Pattern
 
 ```rust
-// Comprehensive PPR generation with 14 categories and bilateral signatures
+// Comprehensive PPR generation with 16 categories and bilateral signatures
 let ppr_result = call(
     CallTargetCell::Local,
     "zome_gouvernance",
@@ -729,7 +729,7 @@ pub struct EconomicResource {
     pub custodian: AgentPubKey,         // Primary Accountable Agent
     pub current_location: Option<String>, // Resource location tracking
     // TODO: split into LifecycleStage (NondominiumIdentity Layer 0) + OperationalState (EconomicResource Layer 2)
-    pub state: ResourceState,           // Currently conflated; pending split per mdo_prima_materia.md Section 5
+    pub state: ResourceState,           // Currently conflated; pending split per ndo_prima_materia.md Section 5
     pub governance_rules: Vec<GovernanceRule>, // Embedded governance
     pub validation_status: String,      // Peer validation status
     pub process_history: Vec<ActionHash>, // Economic Process audit trail
@@ -818,6 +818,23 @@ pub enum OntologyLayer {
 - 📋 **Advanced Validation Schemes**: PPR-weighted validator selection and reputation-based consensus
 - 📋 **Dispute Resolution**: Edge-based conflict resolution with PPR context and private data coordination
 
+### Phase 3 — Agent Ontology Expansion 📋 **PLANNED** (see `documentation/archives/agent.md`)
+
+> **TODO**: The following agent-layer gaps were identified against the OVN wiki ontology (15 years of commons-based peer production practice). The current implementation models only individual agents. The items below must be incorporated into Phase 3 planning. See `documentation/zomes/person_zome.md` Future Enhancements section and `documentation/archives/implementation_plan.md` Phase 3 for detailed task breakdowns.
+
+**Phase 3 Agent Items:**
+- 📋 **[G1] `AgentEntityType` field**: Distinguish Individual, Collective, Project, Network, Bot, ExternalOrganisation agents (`REQ-AGENT-01`)
+- 📋 **[G15] CapabilitySlot on Person**: Stigmergic attachment surface for DID documents, credential wallets, reputation oracles (`REQ-AGENT-11`)
+- 📋 **[G3] Composable `AgentProfile` view**: Assembled from Person + ReputationSummary + Roles + CapabilitySlots + affiliations (`REQ-AGENT-07`)
+- 📋 **[G4] `AgentRelationship` link type**: Bidirectional typed private peer relationships (`REQ-AGENT-08`)
+- 📋 **[G5] Network affiliation links**: Cross-NDO membership from Person hash to NDO instance hashes (`REQ-AGENT-09`)
+- 📋 **[G14] Configurable role taxonomy**: Replace closed `RoleType` enum with a community-configurable role registry (`REQ-AGENT-06`)
+
+**Phase 2 Agent Items (earlier priority):**
+- 📋 **[G13] Fix `request_role_promotion` stub**: Real queryable `RolePromotionRequest` entry with discovery links (`REQ-AGENT-16`)
+- 📋 **[G6] `AffiliationRecord` entry**: Formal Terms of Participation ceremony (`REQ-AGENT-05`)
+- 📋 **[G2] Derived affiliation state**: Computed from PPR activity — UnaffiliatedStranger → CloseAffiliate → ActiveAffiliate → CoreAffiliate → InactiveAffiliate (`REQ-AGENT-04`)
+
 ### Phase 4: Network Maturity & Advanced Features 📋 **PLANNED**
 
 - 📋 **Advanced Process Workflows**: Multi-step process chaining with automated agent selection based on PPR reputation
@@ -825,6 +842,14 @@ pub enum OntologyLayer {
 - 📋 **Cross-Network Integration**: PPR portability and federated identity management across multiple nondominium networks
 - 📋 **Performance Optimization**: Large-scale network operation with predictive scaling and efficiency optimization
 - 📋 **Community Governance**: Reputation-weighted validation and automated role progression based on performance metrics
+
+**Phase 4 Agent Items (see `documentation/archives/implementation_plan.md` Phase 4):**
+- 📋 **[G8] `PortableCredential`**: Bilaterally-signed, cross-network verifiable credential export (`REQ-AGENT-12`)
+- 📋 **[G7] ZKP capability proofs**: Prove eligibility without raw data disclosure (`REQ-AGENT-13`)
+- 📋 **[G9] Sybil resistance**: Social vouching / Proof-of-Personhood configurable membrane proof (`REQ-AGENT-15`)
+- 📋 **[G10] Pseudonymous participation mode**: Ephemeral key contribution, unlinkable to Person (`REQ-AGENT-14`)
+- 📋 **[G11] AI/bot delegation**: `DelegatedAgent` relationship for scoped AI/bot acting on behalf of Person (`REQ-AGENT-03`)
+- 📋 **[G12] `AgentNeedsWants`**: Optional profile extension for resource matching (`REQ-AGENT-10`)
 
 ## Performance Considerations
 

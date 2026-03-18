@@ -333,6 +333,39 @@ pub fn promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<R
   assign_person_role(role_input)
 }
 
+// TODO (G13 — Queryable Promotion Requests): This function currently validates the request and
+// then returns a placeholder hash (the hash of the ValidationReceipt). The actual
+// `RolePromotionRequest` is never written to the DHT as a queryable entry, which means
+// authorised approvers have no way to discover pending requests without out-of-band
+// communication.
+//
+// Required changes (see `documentation/archives/implementation_plan.md` Phase 2.4):
+//
+// 1. Define a `RolePromotionRequest` entry type in `zome_person_integrity/src/lib.rs`:
+//    ```rust
+//    pub struct RolePromotionRequest {
+//        pub requesting_agent: AgentPubKey,
+//        pub target_role: String,
+//        pub justification: String,
+//        pub created_at: Timestamp,
+//        pub status: PromotionRequestStatus, // Pending, Approved, Rejected
+//    }
+//    pub enum PromotionRequestStatus { Pending, Approved, Rejected }
+//    ```
+//
+// 2. Store the request as a real DHT entry with these links:
+//    - `AllPendingPromotions` anchor → `request_hash` (so approvers can discover all requests)
+//    - `agent_pubkey` → `request_hash` (so the requesting agent can track their request)
+//    - `request_hash` → `agent_pubkey` (reverse lookup)
+//
+// 3. Implement `get_pending_promotion_requests() -> ExternResult<Vec<RolePromotionRequest>>`
+//    for authorised approvers to query (filtered by their capability level).
+//
+// 4. Update `approve_role_promotion` to change the `PromotionRequestStatus` to `Approved` via
+//    an `update_entry` call, rather than acting on an out-of-band hash.
+//
+// See `REQ-AGENT-16` in `documentation/requirements/requirements.md` and
+// `agent.md` §2.6 (Known Gaps, G13).
 /// Request promotion to a higher role
 /// This creates a request that can be approved by authorized agents
 #[hdk_extern]

@@ -58,6 +58,10 @@ impl VfAction {
 ```rust
 pub struct ValidationReceipt {
     pub validator: AgentPubKey,           // Agent providing validation
+                                          // TODO (G1, REQ-GOV-16): replace AgentPubKey with AgentContext post-MVP.
+                                          // For collective/bot validators, the signing authority is the designated
+                                          // operator key. The governance evaluation must resolve AgentContext →
+                                          // effective AgentPubKey before capability token validation.
     pub validated_item: ActionHash,       // Item being validated (Resource, Event, etc.)
     pub validation_type: String,          // Type: "resource_approval", "agent_promotion", "role_validation"
     pub approved: bool,                   // Validation result
@@ -76,7 +80,9 @@ pub struct ValidationReceipt {
 pub struct EconomicEvent {
     pub action: VfAction,                 // Economic action performed
     pub provider: AgentPubKey,            // Agent providing the resource/service
+                                          // TODO (G1, REQ-GOV-16): replace AgentPubKey with AgentContext post-MVP.
     pub receiver: AgentPubKey,            // Agent receiving the resource/service
+                                          // TODO (G1, REQ-GOV-16): replace AgentPubKey with AgentContext post-MVP.
     pub resource_inventoried_as: ActionHash, // Link to the EconomicResource
     pub affects: ActionHash,              // Link to the affected EconomicResource
     pub resource_quantity: f64,           // Quantity involved in the event
@@ -95,7 +101,9 @@ pub struct EconomicEvent {
 pub struct Commitment {
     pub action: VfAction,                 // Economic action committed to
     pub provider: AgentPubKey,            // Provider of the commitment
+                                          // TODO (G1, REQ-GOV-16): replace AgentPubKey with AgentContext post-MVP.
     pub receiver: AgentPubKey,            // Receiver of the commitment
+                                          // TODO (G1, REQ-GOV-16): replace AgentPubKey with AgentContext post-MVP.
     pub resource_inventoried_as: Option<ActionHash>, // Specific resource if applicable
     pub resource_conforms_to: Option<ActionHash>,    // Resource specification if general
     pub input_of: Option<ActionHash>,     // Optional link to a Process
@@ -173,10 +181,15 @@ pub enum ParticipationClaimType {
     // Resource End-of-Life Management
     EndOfLifeDeclaration,         // Declaring agent receives this for end-of-life declaration
     EndOfLifeValidation,          // Expert validator receives this for end-of-life validation
+
+    // TODO (G6, REQ-GOV-15 — post-MVP): add new claim types for governance ceremonies:
+    //   AffiliationRecordSigned,   // Issued when agent signs AffiliationRecord (ToP ceremony)
+    //   GovernanceRoleGranted,     // Issued when collective agent is granted a governance role
+    // These extend PPR tracking to cover formal governance participation beyond economic events.
 }
 ```
 
-**Comprehensive Coverage**: 14 claim types covering all economic interactions
+**Comprehensive Coverage**: 16 claim types covering all economic interactions
 **Role-Based Categories**: Claims organized by agent roles and interaction types
 **Reputation Foundation**: Each claim type contributes to reputation calculation
 
@@ -228,6 +241,9 @@ pub struct PrivateParticipationClaim {
 
     // Additional context
     pub counterparty: AgentPubKey,      // The other agent involved in the interaction
+                                        // TODO (G1, REQ-GOV-16): replace AgentPubKey with AgentContext post-MVP.
+                                        // Bot agents generate PPRs with their operator's AgentPubKey as the
+                                        // accountable counterparty.
     pub resource_hash: Option<ActionHash>, // Optional link to the resource involved
     pub notes: Option<String>,          // Optional contextual notes
 }
@@ -777,7 +793,7 @@ let validation_result = call(
 - **Economic Event Logging**: Complete ValueFlows-compliant economic event system
 - **Commitment Management**: Full commitment lifecycle with claim tracking
 - **Validation System**: Comprehensive validation workflows with receipt tracking
-- **PPR System**: Complete Private Participation Receipt system with 14 claim types
+- **PPR System**: Complete Private Participation Receipt system with 16 claim types
 - **Reputation Management**: Privacy-preserving reputation calculation and sharing
 - **Agent Validation**: Comprehensive agent promotion and capability validation
 - **Cryptographic Security**: Bilateral signatures and tamper-evident claims
@@ -800,4 +816,41 @@ let validation_result = call(
 - **Reputation Analytics**: Advanced reputation analysis and prediction
 - **Multi-Network Reputation**: Cross-network reputation portability and validation
 
+> **TODO (post-MVP — configurable GovernanceProcess, governance.md §6.2)**: Economic Process
+> types (Use, Transport, Storage, Repair) are currently hardcoded strings. Post-MVP, introduce
+> a `GovernanceProcess` entry type so communities can define custom process types with their own
+> role requirements, validation schemes, and operational state transitions. The current four
+> process types become default instances, not compile-time constants.
+>
+> **TODO (post-MVP — temporal governance, governance.md §4.8)**: Extend `GovernanceRule` with
+> an optional `expires_at: Timestamp` field. The governance evaluation engine must skip expired
+> rules during `evaluate_transition`. Enables sunset clauses, seasonal access, and time-limited
+> governance experiments.
+>
+> **TODO (post-MVP — governance weight dampening, governance.md §6.4)**: When
+> `governance_weight(agent)` incorporates `unyt_credit_capacity`, apply logarithmic dampening
+> (e.g., `log(1 + credit_capacity)`) to prevent a feedback loop where high reputation → high
+> credit → higher governance weight → even higher reputation.
+
 The Governance zome provides the foundational economic coordination infrastructure for the nondominium ecosystem, enabling ValueFlows-compliant resource sharing with comprehensive validation, cryptographically-secured reputation tracking, and sophisticated governance workflows.
+
+---
+
+## Post-MVP Governance Architecture Gaps
+
+The following TODOs summarise all governance-related post-MVP structural changes identified across
+`governance.md`, `agent.md`, and the requirements suite. Use these as the canonical cross-reference
+index when implementing each phase.
+
+| Gap ID | Description | Affected Field(s) | Requirement(s) | governance.md ref |
+|--------|-------------|-------------------|----------------|-------------------|
+| G1 | Collective/Bot agent governance | `ValidationReceipt.validator`, `EconomicEvent.provider/receiver`, `Commitment.provider/receiver`, `PrivateParticipationClaim.counterparty`, `GovernanceTransitionRequest.requesting_agent`, `ResourceStateChange.initiated_by` | REQ-GOV-16 | §3.6.1, §6.6 |
+| G2 | AffiliationState governance gate | `GovernanceRule.rule_data["min_affiliation"]`; governance `evaluate_transition` | REQ-GOV-14 | §3.6.2, §6.4 |
+| G6 | AffiliationRecord ceremony | New `create_affiliation_record()` + `AffiliationRecordSigned` PPR claim type | REQ-GOV-15 | §3.6.3, §4.4 |
+| G9 | Sybil resistance for governance | Role promotion: N-of-M vouching or proof-of-personhood | REQ-GOV-17 | §5.3 |
+| G10 | Pseudonymous governance participation | Pseudonymous path to `ActiveAffiliate`; block from legal-accountability roles | REQ-GOV-18 | §5.3 |
+| G11 | Bot governance scope | Bot participation limited to declared `capabilities`; `operator` is accountable | — | §6.6 |
+
+> All fields marked with `TODO (G1, REQ-GOV-16)` inline above must be migrated to `AgentContext`
+> in Phase 3 of the implementation plan. See `implementation_plan.md §Phase 3 — Governance Agent
+> Ontology Integration` for detailed checklists.

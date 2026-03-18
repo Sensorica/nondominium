@@ -523,6 +523,20 @@ The stigmergic surface is permissionless at the DHT level — any agent can crea
 
 This mirrors the approach taken in the wider complex systems literature: edge-based sensing and attachment is permissionless (lower information opportunity costs), while trust propagation and filtering happens through distributed consensus rather than centralized gatekeeping.
 
+### 6.5 CapabilitySlot on Agent Identity (Post-MVP)
+
+> **TODO (G15 — Agent CapabilitySlot)**: The stigmergic attachment pattern described in this section applies equally to **agent identities**. The `Person` entry hash is itself a stable, permanent identity anchor — analogous to the `NondominiumIdentity` Layer 0 hash — and should serve as a surface of attachment for external capabilities:
+>
+> - DID documents (W3C Decentralised Identifiers)
+> - Verifiable Credential wallets
+> - Reputation oracles from other networks
+> - Professional credential registries
+> - Social graph exports
+>
+> An agent's `Person` entry hash → `CapabilitySlot` → external capability target, using the same `CapabilitySlotTag` / `SlotType` pattern defined in Section 8.3. This enables credential portability and DID interoperability without modifying the core `Person` entry schema.
+>
+> See `documentation/archives/agent.md` §3.2 and `REQ-AGENT-11`.
+
 ### 6.5 Economic Agreement Slots — Unyt Integration
 
 *A detailed analysis of the `UnytAgreement` slot type, its relationship to the governance layer, and the three-phase integration path.*
@@ -814,7 +828,10 @@ pub struct NondominiumIdentity {
     // Core identity fields
     pub name: String,
     pub description: Option<String>,
-    pub initiator: AgentPubKey,
+    pub initiator: AgentPubKey, // TODO (G1, REQ-AGENT-02): replace with AgentContext post-MVP
+                                // to support Collective, Project, Network, and Bot agents as
+                                // initiators. Currently assumes individual agent. Aligns with
+                                // the same change needed for EconomicResource.custodian.
 
     // Classification
     pub property_regime: PropertyRegime,
@@ -833,11 +850,14 @@ pub struct NondominiumIdentity {
 ```rust
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum PropertyRegime {
-    Commons,      // Governed as a commons (no individual ownership)
-    Individual,   // Individual stewardship/ownership
-    Collective,   // Collective/cooperative ownership
-    Mixed,        // Hybrid regime (defined in governance rules)
+    Private,        // Full rights bundle; individual ownership
+    Commons,        // Non-rivalrous shared resource; governance via licensing/attribution
+    Collective,     // Cooperative/collective ownership
+    Pool,           // Pool of shareables: rivalrous shared resources; custody/scheduling/maintenance
+    CommonPool,     // Rivalrous consumable resource; governance via quota/depletion rules
+    Nondominium,    // Uncapturable by design; contribution-based access; no alienation permitted
 }
+// Canonical definition: documentation/archives/resources.md Section 6.3
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
@@ -861,8 +881,6 @@ pub enum LifecycleStage {
 
     // Operation
     Active,
-    Maintenance,
-    Reserved,
 
     // Suspension
     Hibernating,
@@ -952,13 +970,61 @@ graph TB
     ComponentNDO -->|"CapabilitySlot\n(DigitalAsset)"| AssetNDO
 ```
 
+### 8.7 Agent Context Entry (Post-MVP)
+
+> **TODO (G1 — AgentEntityType)**: The NDO three-layer model currently focuses on resource representation. For the generic NDO to support commons-based peer production as practised in OVNs (where ventures, networks, and partner organisations are also economic agents), the agent layer needs an equivalent minimal identity structure. The following is a forward-design proposal, not yet implemented. See `documentation/archives/agent.md` §6.1 and `REQ-AGENT-01`.
+
+```rust
+// Post-MVP: AgentContext entry type (companion to Person, or standalone for non-human agents)
+#[hdk_entry_helper]
+pub struct AgentContext {
+    pub agent_type: AgentEntityType,
+    pub person_hash: Option<ActionHash>,  // None for bots and external organisations
+    pub created_at: Timestamp,
+    pub network_seed: String,             // Which NDO network this context belongs to
+}
+
+pub enum AgentEntityType {
+    Individual,                           // Human participant with a Person entry
+    Collective(String),                   // Working group / committee (name/description)
+    Project(ActionHash),                  // Project NDO this agent entity represents
+    Network(ActionHash),                  // Network NDO this agent entity represents
+    Bot {                                 // AI agent or IoT device
+        capabilities: Vec<String>,
+        operator: AgentPubKey,            // Responsible human operator
+    },
+    ExternalOrganisation(String),         // Traditional org (for partner modelling)
+}
+```
+
+**Design principles:**
+- `Individual` agents have `AgentEntityType::Individual` with a linked `Person` entry
+- `Collective`, `Project`, and `Network` agents reference an `NondominiumIdentity` hash — they ARE NDOs, not separate agent entries
+- `Bot` agents have no `Person` but have declared capabilities and a responsible human operator; their actions are attributed to the operator for PPR purposes
+- `ExternalOrganisation` agents model traditional partners/suppliers without requiring them to run a Holochain node
+
+**Derived affiliation state** (computed from existing DHT data, not stored):
+
+```
+affiliation_state(agent) = f(
+    person_exists(agent),               // Boolean
+    affiliation_record_exists(agent),   // Has agent signed ToP?
+    contributions_count(agent),         // From economic events
+    last_contribution_timestamp(agent), // Recency
+    reputation_summary.total_claims,    // From PPRs
+    governance_claims_count(agent)      // From PPRs
+)
+
+→ UnaffiliatedStranger | CloseAffiliate | ActiveAffiliate | CoreAffiliate | InactiveAffiliate
+```
+
 ---
 
 ## 9. Requirements
 
 ### 9.1 Layer 0 — Identity Requirements
 
-- **REQ-NDO-L0-01**: The system shall support the creation of a `NondominiumIdentity` entry as the minimal representation of any Nondominium Object, requiring only `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, and `created_at`.
+- **REQ-NDO-L0-01**: The system shall support the creation of a `NondominiumIdentity` entry as the minimal representation of any Nondominium Object, requiring only `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, and an optional `description`.
 - **REQ-NDO-L0-02**: The action hash of the `NondominiumIdentity` genesis entry shall be the stable, permanent identity of the NDO for its entire existence and shall never be voided or replaced.
 - **REQ-NDO-L0-03**: A `NondominiumIdentity` entry shall never be deletable by any agent or governance action. Its permanent presence in the DHT is a design guarantee, not a policy choice.
 - **REQ-NDO-L0-04**: Only the `lifecycle_stage` field of a `NondominiumIdentity` entry may be updated after creation. All other fields are immutable.
@@ -1028,6 +1094,19 @@ graph TB
 - **REQ-NDO-MIG-03**: The `ResourceState` enum shall be deprecated and replaced by `LifecycleStage`. Existing records using `ResourceState` values shall be mapped using the migration table in Section 10.2 without data loss.
 - **REQ-NDO-MIG-04**: Existing `EconomicResource` entries shall not require migration. They shall be linked to the new NDO model via Layer 2 process links when the NDO is retroactively created.
 - **REQ-NDO-MIG-05**: The migration shall be implemented as a one-time migration coordinator function, not as a permanent API change, to avoid polluting the steady-state code with migration logic.
+
+### 9.7 Agent Architecture Requirements (Post-MVP)
+
+> **Status**: Post-MVP. Gaps identified against the OVN wiki ontology (15 years of commons-based peer production practice). See `documentation/archives/agent.md` for the full analysis. The current MVP implements individual agents only. Requirements below are design targets for the generic NDO.
+
+- **REQ-NDO-AGENT-01: Agent Type Taxonomy**: The system shall support an `AgentEntityType` discriminant on every agent context, distinguishing at minimum: `Individual`, `Collective`, `Project`, `Network`, `Bot`, and `ExternalOrganisation` (see Section 8.7 for the proposed data structure). The MVP's implicit individual-only model is insufficient for commons-based peer production where ventures and networks are first-class economic actors.
+- **REQ-NDO-AGENT-02: Collective Agents as NDOs**: Groups, working groups, projects, and network-level entities shall be modelled as NDOs (with their own `NondominiumIdentity`) rather than as a parallel agent entry type. Individual agents hold roles in both their own profile and in organisational NDOs. No separate "organisation agent" entry type is required.
+- **REQ-NDO-AGENT-03: Affiliation Spectrum**: The system shall derive the OVN affiliation state (UnaffiliatedStranger, CloseAffiliate, ActiveAffiliate, CoreAffiliate, InactiveAffiliate) algorithmically from existing DHT data — PPR contribution history, recency, and `AffiliationRecord` existence. Affiliation state shall not be stored as a separate entry (which would require maintenance and risk inconsistency). The derivation function is defined in Section 8.7.
+- **REQ-NDO-AGENT-04: AffiliationRecord**: The system shall support an `AffiliationRecord` entry for formal network onboarding: the agent cryptographically signs acknowledgement of the network's Terms of Participation, Nondominium & Custodian agreement, and Benefit Redistribution Algorithm. The `AffiliationRecord` is the machine-readable prerequisite for `ActiveAffiliate` status.
+- **REQ-NDO-AGENT-05: Composable AgentProfile View**: The system shall expose a composable `AgentProfile` query assembling identity, capability, reputation, participation, social, and temporal data into a single queryable output. This view shall be computed from existing DHT data — it is not a new stored entry type. Agents control which sections are exposed by granting access to constituent entries.
+- **REQ-NDO-AGENT-06: Social Graph**: The system shall model peer relationships via an `AgentRelationship` bidirectional link type (typed: colleague, collaborator, trusted, voucher), stored as private links. Social relations are part of agent wealth in the OVN model and must be accessible to governance without being publicly discoverable.
+- **REQ-NDO-AGENT-07: CapabilitySlot on Agent Identity**: The `Person` entry hash shall serve as a stigmergic attachment surface for external credential wallets, DID documents, and reputation oracles, using the same `CapabilitySlot` link pattern defined in Section 6 for NDO resources. See Section 6.5 for the forward design.
+- **REQ-NDO-AGENT-08: Portable Credentials**: The system shall support a `PortableCredential` structure — bilaterally signed by an issuer (PrimaryAccountableAgent) and the credential owner — verifiable by other Holochain networks. Types: `RoleCredential`, `ReputationCredential`, `CompetencyCredential`, `AffiliationCredential`. This is the technical mechanism for cross-network identity portability required by the OVN model.
 
 ---
 
