@@ -265,7 +265,7 @@ async fn device_deactivation_security() {
     assert!(
         all_devices
             .iter()
-            .all(|d| d.status == zome_person_integrity::DeviceStatus::Active),
+            .all(|d| d.status == DeviceStatus::Active),
         "All devices should be initially active"
     );
 
@@ -283,12 +283,12 @@ async fn device_deactivation_security() {
         .iter()
         .find(|d| d.device_id == "alice_device_1")
         .unwrap();
-    assert_eq!(deactivated.status, zome_person_integrity::DeviceStatus::Revoked);
+    assert_eq!(deactivated.status, DeviceStatus::Revoked);
 
     // Other devices remain active
     let active_count = updated_devices
         .iter()
-        .filter(|d| d.status == zome_person_integrity::DeviceStatus::Active)
+        .filter(|d| d.status == DeviceStatus::Active)
         .count();
     assert_eq!(active_count, 2, "Two devices should remain active");
 
@@ -308,7 +308,7 @@ async fn device_deactivation_security() {
         .iter()
         .find(|d| d.device_id == "alice_device_3")
         .unwrap();
-    assert_eq!(carol_device.status, zome_person_integrity::DeviceStatus::Revoked);
+    assert_eq!(carol_device.status, DeviceStatus::Revoked);
 
     // Bob can also deactivate his own device
     let bob_deactivate_own = deactivate_device(&conductors[1], &bob, "alice_device_2".to_string()).await;
@@ -599,7 +599,7 @@ async fn device_tampering_resistance() {
     let device_info = get_device_info(&conductors[0], &alice, "tamper_test_device".to_string())
         .await
         .expect("Device should exist");
-    assert_eq!(device_info.status, zome_person_integrity::DeviceStatus::Active);
+    assert_eq!(device_info.status, DeviceStatus::Active);
 
     // Attempt to call a non-existent internal function (tampering attempt)
     // In sweettest, calling a non-existent function will panic, so we use catch_unwind.
@@ -623,7 +623,7 @@ async fn device_tampering_resistance() {
         .await
         .expect("Device should still exist after tampering attempt");
     assert_eq!(device_after.device_name, "Tamper Test Device");
-    assert_eq!(device_after.status, zome_person_integrity::DeviceStatus::Active);
+    assert_eq!(device_after.status, DeviceStatus::Active);
 
     // Suppress unused variable warning for the catch result
     let _ = tamper_result;

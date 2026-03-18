@@ -134,7 +134,7 @@ async fn create_and_manage_economic_resources() {
     // Initial state should be PendingValidation.
     assert_eq!(
         resource_result.resource.state,
-        zome_resource_integrity::ResourceState::PendingValidation,
+        ResourceState::PendingValidation,
         "Expected PendingValidation state"
     );
 
@@ -340,12 +340,12 @@ async fn cross_agent_visibility_resources_visible_to_other_agents() {
 /// what the tests need to assert.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GetResourceSpecWithRulesOutputMirror {
-    pub specification: zome_resource_integrity::ResourceSpecification,
-    pub governance_rules: Vec<zome_resource_integrity::GovernanceRule>,
+    pub specification: ResourceSpecificationMirror,
+    pub governance_rules: Vec<GovernanceRuleMirror>,
 }
 
 /// Mirror for `GetAllGovernanceRulesOutput`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GetAllGovernanceRulesOutputMirror {
-    pub rules: Vec<zome_resource_integrity::GovernanceRule>,
+    pub rules: Vec<GovernanceRuleMirror>,
 }

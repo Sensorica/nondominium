@@ -64,7 +64,7 @@ async fn ppr_scenario_complete_resource_exchange_workflow() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -78,7 +78,7 @@ async fn ppr_scenario_complete_resource_exchange_workflow() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -100,8 +100,8 @@ async fn ppr_scenario_complete_resource_exchange_workflow() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::MaintenanceFulfillmentCompleted,
-                zome_gouvernance_integrity::ParticipationClaimType::GoodFaithTransfer,
+                ParticipationClaimType::MaintenanceFulfillmentCompleted,
+                ParticipationClaimType::GoodFaithTransfer,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 0.95,
@@ -131,11 +131,11 @@ async fn ppr_scenario_complete_resource_exchange_workflow() {
 
     assert_eq!(
         web_dev_pprs.provider_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::MaintenanceFulfillmentCompleted,
+        ParticipationClaimType::MaintenanceFulfillmentCompleted,
     );
     assert_eq!(
         web_dev_pprs.receiver_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::GoodFaithTransfer,
+        ParticipationClaimType::GoodFaithTransfer,
     );
 
     // Step 3 — Bob signs acknowledgment of service reception.
@@ -173,7 +173,7 @@ async fn ppr_scenario_complete_resource_exchange_workflow() {
         &alice,
         GetMyParticipationClaimsInput {
             claim_type_filter: Some(
-                zome_gouvernance_integrity::ParticipationClaimType::MaintenanceFulfillmentCompleted,
+                ParticipationClaimType::MaintenanceFulfillmentCompleted,
             ),
             from_time: None,
             to_time: None,
@@ -189,7 +189,7 @@ async fn ppr_scenario_complete_resource_exchange_workflow() {
 
     let provision_claim = alice_claims.claims.iter().find(|(_h, c)| {
         c.claim_type
-            == zome_gouvernance_integrity::ParticipationClaimType::MaintenanceFulfillmentCompleted
+            == ParticipationClaimType::MaintenanceFulfillmentCompleted
     });
     assert!(provision_claim.is_some());
     assert_eq!(
@@ -211,7 +211,7 @@ async fn ppr_scenario_knowledge_sharing_and_community_impact() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -225,7 +225,7 @@ async fn ppr_scenario_knowledge_sharing_and_community_impact() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -247,8 +247,8 @@ async fn ppr_scenario_knowledge_sharing_and_community_impact() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::ValidationActivity,
-                zome_gouvernance_integrity::ParticipationClaimType::RuleCompliance,
+                ParticipationClaimType::ValidationActivity,
+                ParticipationClaimType::RuleCompliance,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 1.0,
@@ -278,11 +278,11 @@ async fn ppr_scenario_knowledge_sharing_and_community_impact() {
 
     assert_eq!(
         workshop_pprs.provider_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::ValidationActivity,
+        ParticipationClaimType::ValidationActivity,
     );
     assert_eq!(
         workshop_pprs.receiver_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::RuleCompliance,
+        ParticipationClaimType::RuleCompliance,
     );
 
     // Verify knowledge sharing impact on reputation.
@@ -318,7 +318,7 @@ async fn ppr_scenario_governance_participation_and_decision_making() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -332,7 +332,7 @@ async fn ppr_scenario_governance_participation_and_decision_making() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -356,8 +356,8 @@ async fn ppr_scenario_governance_participation_and_decision_making() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::DisputeResolutionParticipation,
-                zome_gouvernance_integrity::ParticipationClaimType::ValidationActivity,
+                ParticipationClaimType::DisputeResolutionParticipation,
+                ParticipationClaimType::ValidationActivity,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 0.95,
@@ -387,11 +387,11 @@ async fn ppr_scenario_governance_participation_and_decision_making() {
 
     assert_eq!(
         gov_pprs.provider_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::DisputeResolutionParticipation,
+        ParticipationClaimType::DisputeResolutionParticipation,
     );
     assert_eq!(
         gov_pprs.receiver_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::ValidationActivity,
+        ParticipationClaimType::ValidationActivity,
     );
 
     // Bob signs governance validation.
@@ -440,7 +440,7 @@ async fn ppr_scenario_quality_service_exchange_with_validation() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -454,7 +454,7 @@ async fn ppr_scenario_quality_service_exchange_with_validation() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -478,8 +478,8 @@ async fn ppr_scenario_quality_service_exchange_with_validation() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::MaintenanceFulfillmentCompleted,
-                zome_gouvernance_integrity::ParticipationClaimType::GoodFaithTransfer,
+                ParticipationClaimType::MaintenanceFulfillmentCompleted,
+                ParticipationClaimType::GoodFaithTransfer,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 0.98,
@@ -509,11 +509,11 @@ async fn ppr_scenario_quality_service_exchange_with_validation() {
 
     assert_eq!(
         service_pprs.provider_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::MaintenanceFulfillmentCompleted,
+        ParticipationClaimType::MaintenanceFulfillmentCompleted,
     );
     assert_eq!(
         service_pprs.receiver_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::GoodFaithTransfer,
+        ParticipationClaimType::GoodFaithTransfer,
     );
 
     // Quality validation signature from bob.
@@ -554,7 +554,7 @@ async fn ppr_scenario_quality_service_exchange_with_validation() {
         &alice,
         GetMyParticipationClaimsInput {
             claim_type_filter: Some(
-                zome_gouvernance_integrity::ParticipationClaimType::MaintenanceFulfillmentCompleted,
+                ParticipationClaimType::MaintenanceFulfillmentCompleted,
             ),
             from_time: None,
             to_time: None,
@@ -570,7 +570,7 @@ async fn ppr_scenario_quality_service_exchange_with_validation() {
 
     let service_claim = alice_claims.claims.iter().find(|(_h, c)| {
         c.claim_type
-            == zome_gouvernance_integrity::ParticipationClaimType::MaintenanceFulfillmentCompleted
+            == ParticipationClaimType::MaintenanceFulfillmentCompleted
     });
     assert!(service_claim.is_some());
 }

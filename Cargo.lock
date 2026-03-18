@@ -3952,13 +3952,11 @@ name = "nondominium_sweettest"
 version = "0.1.0"
 dependencies = [
  "holochain",
+ "holochain_serialized_bytes",
  "rmp-serde",
  "serde",
  "serde_json",
  "tokio",
- "zome_gouvernance_integrity",
- "zome_person_integrity",
- "zome_resource_integrity",
 ]
 
 [[package]]

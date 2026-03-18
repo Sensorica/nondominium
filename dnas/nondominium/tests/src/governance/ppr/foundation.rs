@@ -24,7 +24,7 @@ async fn ppr_foundation_issue_bi_directional_participation_receipts() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: bob.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -45,7 +45,7 @@ async fn ppr_foundation_issue_bi_directional_participation_receipts() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -67,8 +67,8 @@ async fn ppr_foundation_issue_bi_directional_participation_receipts() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+                ParticipationClaimType::CustodyTransfer,
+                ParticipationClaimType::CustodyAcceptance,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 0.9,
@@ -95,7 +95,7 @@ async fn ppr_foundation_issue_bi_directional_participation_receipts() {
     // Verify provider claim.
     assert_eq!(
         ppr_result.provider_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
+        ParticipationClaimType::CustodyTransfer,
     );
     assert_eq!(
         ppr_result.provider_claim.counterparty,
@@ -108,7 +108,7 @@ async fn ppr_foundation_issue_bi_directional_participation_receipts() {
     // Verify receiver claim.
     assert_eq!(
         ppr_result.receiver_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+        ParticipationClaimType::CustodyAcceptance,
     );
     assert_eq!(
         ppr_result.receiver_claim.counterparty,
@@ -138,7 +138,7 @@ async fn ppr_foundation_retrieve_private_participation_claims() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Use,
+            action: "Use".to_string(),
             provider: bob.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -164,8 +164,8 @@ async fn ppr_foundation_retrieve_private_participation_claims() {
             provider: bob.agent_pubkey().clone(),
             receiver: alice.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::MaintenanceCommitmentAccepted,
-                zome_gouvernance_integrity::ParticipationClaimType::GoodFaithTransfer,
+                ParticipationClaimType::MaintenanceCommitmentAccepted,
+                ParticipationClaimType::GoodFaithTransfer,
             ],
             provider_metrics: sample_metrics(),
             receiver_metrics: sample_metrics(),
@@ -219,7 +219,7 @@ async fn ppr_foundation_retrieve_private_participation_claims() {
             .iter()
             .find(|(_hash, claim)| {
                 claim.claim_type
-                    == zome_gouvernance_integrity::ParticipationClaimType::MaintenanceCommitmentAccepted
+                    == ParticipationClaimType::MaintenanceCommitmentAccepted
             });
         assert!(bob_claim.is_some(), "Bob should have a MaintenanceCommitmentAccepted claim");
         assert_eq!(
@@ -234,7 +234,7 @@ async fn ppr_foundation_retrieve_private_participation_claims() {
         &bob,
         GetMyParticipationClaimsInput {
             claim_type_filter: Some(
-                zome_gouvernance_integrity::ParticipationClaimType::MaintenanceCommitmentAccepted,
+                ParticipationClaimType::MaintenanceCommitmentAccepted,
             ),
             from_time: None,
             to_time: None,
@@ -272,7 +272,7 @@ async fn ppr_foundation_derive_reputation_summary() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -291,8 +291,8 @@ async fn ppr_foundation_derive_reputation_summary() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+                ParticipationClaimType::CustodyTransfer,
+                ParticipationClaimType::CustodyAcceptance,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 0.8,
@@ -325,7 +325,7 @@ async fn ppr_foundation_derive_reputation_summary() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Work,
+            action: "Work".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -344,8 +344,8 @@ async fn ppr_foundation_derive_reputation_summary() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::ValidationActivity,
-                zome_gouvernance_integrity::ParticipationClaimType::RuleCompliance,
+                ParticipationClaimType::ValidationActivity,
+                ParticipationClaimType::RuleCompliance,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 0.95,
@@ -430,8 +430,8 @@ async fn ppr_foundation_performance_metrics_validation() {
                 provider: alice.agent_pubkey().clone(),
                 receiver: bob.agent_pubkey().clone(),
                 claim_types: vec![
-                    zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
-                    zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+                    ParticipationClaimType::CustodyTransfer,
+                    ParticipationClaimType::CustodyAcceptance,
                 ],
                 provider_metrics: PerformanceMetricsInput {
                     timeliness: 1.5, // Invalid: > 1.0
@@ -463,8 +463,8 @@ async fn ppr_foundation_performance_metrics_validation() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+                ParticipationClaimType::CustodyTransfer,
+                ParticipationClaimType::CustodyAcceptance,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 1.0,
@@ -483,10 +483,10 @@ async fn ppr_foundation_performance_metrics_validation() {
 
     assert_eq!(
         valid_result.provider_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
+        ParticipationClaimType::CustodyTransfer,
     );
     assert_eq!(
         valid_result.receiver_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+        ParticipationClaimType::CustodyAcceptance,
     );
 }

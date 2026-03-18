@@ -12,7 +12,7 @@ use std::time::Duration;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct UpdateResourceStateInput {
     pub resource_hash: ActionHash,
-    pub new_state: zome_resource_integrity::ResourceState,
+    pub new_state: ResourceState,
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -54,7 +54,7 @@ async fn basic_resource_state_update() {
     // Verify initial state is PendingValidation.
     assert_eq!(
         resource.resource.state,
-        zome_resource_integrity::ResourceState::PendingValidation,
+        ResourceState::PendingValidation,
         "Initial state should be PendingValidation"
     );
 
@@ -76,7 +76,7 @@ async fn basic_resource_state_update() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -96,7 +96,7 @@ async fn basic_resource_state_update() {
 
     assert_eq!(
         all_resources.resources[0].state,
-        zome_resource_integrity::ResourceState::Active,
+        ResourceState::Active,
         "Resource state should be Active after update"
     );
 }

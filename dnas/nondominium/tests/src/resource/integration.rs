@@ -15,7 +15,7 @@ use std::time::Duration;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct UpdateResourceStateInput {
     pub resource_hash: ActionHash,
-    pub new_state: zome_resource_integrity::ResourceState,
+    pub new_state: ResourceState,
 }
 
 /// Input for the `transfer_custody` zome call.
@@ -36,14 +36,14 @@ struct TransferCustodyOutputMirror {
 /// Mirror for `GetResourceSpecWithRulesOutput`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GetResourceSpecWithRulesOutputMirror {
-    pub specification: zome_resource_integrity::ResourceSpecification,
-    pub governance_rules: Vec<zome_resource_integrity::GovernanceRule>,
+    pub specification: ResourceSpecificationMirror,
+    pub governance_rules: Vec<GovernanceRuleMirror>,
 }
 
 /// Mirror for `GetAllGovernanceRulesOutput`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GetAllGovernanceRulesOutputMirror {
-    pub rules: Vec<zome_resource_integrity::GovernanceRule>,
+    pub rules: Vec<GovernanceRuleMirror>,
 }
 
 // ---------------------------------------------------------------------------
@@ -367,7 +367,7 @@ async fn resource_state_management_across_agents() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: ctx.alice_resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -383,11 +383,11 @@ async fn resource_state_management_across_agents() {
     let active_from_alice = all_from_alice
         .resources
         .iter()
-        .find(|r| r.state == zome_resource_integrity::ResourceState::Active);
+        .find(|r| r.state == ResourceState::Active);
     let active_from_bob = all_from_bob
         .resources
         .iter()
-        .find(|r| r.state == zome_resource_integrity::ResourceState::Active);
+        .find(|r| r.state == ResourceState::Active);
 
     assert!(active_from_alice.is_some(), "Alice should see an Active resource");
     assert!(active_from_bob.is_some(), "Bob should see an Active resource");
@@ -399,7 +399,7 @@ async fn resource_state_management_across_agents() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: ctx.alice_resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Maintenance,
+                new_state: ResourceState::Maintenance,
             },
         )
         .await;
@@ -413,7 +413,7 @@ async fn resource_state_management_across_agents() {
     let maintenance_resource = updated_from_bob
         .resources
         .iter()
-        .find(|r| r.state == zome_resource_integrity::ResourceState::Maintenance);
+        .find(|r| r.state == ResourceState::Maintenance);
 
     assert!(
         maintenance_resource.is_some(),

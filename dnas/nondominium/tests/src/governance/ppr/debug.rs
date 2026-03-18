@@ -30,7 +30,7 @@ async fn ppr_debug_simple_zome_call() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -73,7 +73,7 @@ async fn ppr_debug_economic_event_creation() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -112,7 +112,7 @@ async fn ppr_debug_ppr_creation() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -134,8 +134,8 @@ async fn ppr_debug_ppr_creation() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+                ParticipationClaimType::CustodyTransfer,
+                ParticipationClaimType::CustodyAcceptance,
             ],
             provider_metrics: sample_metrics(),
             receiver_metrics: sample_metrics(),
@@ -147,11 +147,11 @@ async fn ppr_debug_ppr_creation() {
 
     assert_eq!(
         ppr_result.provider_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
+        ParticipationClaimType::CustodyTransfer,
     );
     assert_eq!(
         ppr_result.receiver_claim.claim_type,
-        zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+        ParticipationClaimType::CustodyAcceptance,
     );
 
     // Wait for DHT sync, then verify claim retrieval.

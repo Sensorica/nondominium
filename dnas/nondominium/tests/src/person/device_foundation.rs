@@ -56,7 +56,7 @@ async fn register_device_with_valid_data() {
     assert_eq!(devices[0].device_id, "device-001");
     assert_eq!(devices[0].device_name, "Lynn's iPhone");
     assert_eq!(devices[0].device_type, "mobile");
-    assert_eq!(devices[0].status, zome_person_integrity::DeviceStatus::Active);
+    assert_eq!(devices[0].status, DeviceStatus::Active);
 }
 
 // ---------------------------------------------------------------------------
@@ -367,7 +367,7 @@ async fn get_device_info_by_id() {
     assert_eq!(info.device_id, "test_device_info");
     assert_eq!(info.device_name, "Test Device Info");
     assert_eq!(info.device_type, "tablet");
-    assert_eq!(info.status, zome_person_integrity::DeviceStatus::Active);
+    assert_eq!(info.status, DeviceStatus::Active);
 
     // Non-existent device should return None
     let missing = get_device_info(&conductors[0], &alice, "non_existent_device".to_string()).await;
@@ -471,7 +471,7 @@ async fn deactivate_device_changes_status() {
     let initial = get_device_info(&conductors[0], &alice, "deactivate_test_device".to_string())
         .await
         .expect("Device should exist");
-    assert_eq!(initial.status, zome_person_integrity::DeviceStatus::Active);
+    assert_eq!(initial.status, DeviceStatus::Active);
 
     // Deactivate the device
     let result = deactivate_device(&conductors[0], &alice, "deactivate_test_device".to_string()).await;
@@ -485,7 +485,7 @@ async fn deactivate_device_changes_status() {
     let after = get_device_info(&conductors[0], &alice, "deactivate_test_device".to_string())
         .await
         .expect("Device should still exist after deactivation");
-    assert_eq!(after.status, zome_person_integrity::DeviceStatus::Revoked);
+    assert_eq!(after.status, DeviceStatus::Revoked);
 
     // Non-existent device should return false
     let non_existent = deactivate_device(&conductors[0], &alice, "non_existent_device".to_string()).await;

@@ -414,7 +414,7 @@ pub async fn propose_commitment(
 pub async fn get_all_commitments(
     conductor: &SweetConductor,
     cell: &SweetCell,
-) -> Vec<zome_gouvernance_integrity::Commitment> {
+) -> Vec<serde_json::Value> {
     conductor
         .call(&cell.zome("zome_gouvernance"), "get_all_commitments", ())
         .await
@@ -449,7 +449,7 @@ pub async fn log_economic_event(
 pub async fn get_all_economic_events(
     conductor: &SweetConductor,
     cell: &SweetCell,
-) -> Vec<zome_gouvernance_integrity::EconomicEvent> {
+) -> Vec<serde_json::Value> {
     conductor
         .call(
             &cell.zome("zome_gouvernance"),

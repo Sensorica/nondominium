@@ -95,7 +95,7 @@ async fn ppr_crypto_bi_directional_signature_validation() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -115,7 +115,7 @@ async fn ppr_crypto_bi_directional_signature_validation() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -137,8 +137,8 @@ async fn ppr_crypto_bi_directional_signature_validation() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+                ParticipationClaimType::CustodyTransfer,
+                ParticipationClaimType::CustodyAcceptance,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 0.9,
@@ -241,7 +241,7 @@ async fn ppr_crypto_signature_tampering_detection() {
         &conductors[0],
         &alice,
         ProposeCommitmentInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             resource_hash: None,
             resource_spec_hash: None,
@@ -261,7 +261,7 @@ async fn ppr_crypto_signature_tampering_detection() {
         &conductors[0],
         &alice,
         LogEconomicEventInput {
-            action: zome_gouvernance_integrity::VfAction::Transfer,
+            action: "Transfer".to_string(),
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             resource_inventoried_as: commitment.commitment_hash.clone(),
@@ -282,8 +282,8 @@ async fn ppr_crypto_signature_tampering_detection() {
             provider: alice.agent_pubkey().clone(),
             receiver: bob.agent_pubkey().clone(),
             claim_types: vec![
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyTransfer,
-                zome_gouvernance_integrity::ParticipationClaimType::CustodyAcceptance,
+                ParticipationClaimType::CustodyTransfer,
+                ParticipationClaimType::CustodyAcceptance,
             ],
             provider_metrics: PerformanceMetricsInput {
                 timeliness: 0.9,

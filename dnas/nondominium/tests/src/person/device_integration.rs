@@ -296,7 +296,7 @@ async fn device_activity_tracking_across_agents() {
         .expect("Deactivated device should still be visible");
     assert_eq!(
         deactivated.status,
-        zome_person_integrity::DeviceStatus::Revoked,
+        DeviceStatus::Revoked,
         "Device should be revoked after deactivation"
     );
 }

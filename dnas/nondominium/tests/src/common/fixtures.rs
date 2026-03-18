@@ -2,9 +2,16 @@
 //!
 //! These mirror the TS `samplePerson`, `samplePrivateData`, etc. helpers
 //! from `tests/src/nondominium/person/common.ts`.
+//!
+//! All governance enums (VfAction, ParticipationClaimType) are represented as
+//! `String` to avoid importing integrity crates.  The serde serialisation of
+//! Rust enums defaults to the variant name, so `"Transfer"`, `"CustodyTransfer"`,
+//! etc. round-trip correctly.
 
 use holochain::prelude::*;
 use serde::{Deserialize, Serialize};
+
+use super::mirrors::ParticipationClaimType;
 
 // ── Role name constants ──────────────────────────────────────
 // These MUST match the exact strings the `RoleType::from_str` validation accepts.
@@ -175,10 +182,11 @@ pub fn sample_device(person_hash: ActionHash, device_id: impl Into<String>) -> D
 // ── Governance / Commitment fixtures ─────────────────────────
 
 /// Input for `propose_commitment` zome call.
-/// The `action` field uses the `VfAction` enum from governance integrity.
+/// The `action` field is a `String` matching the `VfAction` enum variant name
+/// (e.g. `"Transfer"`, `"Work"`, `"Use"`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProposeCommitmentInput {
-    pub action: zome_gouvernance_integrity::VfAction,
+    pub action: String,
     pub provider: AgentPubKey,
     pub resource_hash: Option<ActionHash>,
     pub resource_spec_hash: Option<ActionHash>,
@@ -195,7 +203,7 @@ pub fn sample_commitment(provider: AgentPubKey) -> ProposeCommitmentInput {
         + 24 * 60 * 60 * 1_000_000;
 
     ProposeCommitmentInput {
-        action: zome_gouvernance_integrity::VfAction::Transfer,
+        action: "Transfer".to_string(),
         provider,
         resource_hash: None,
         resource_spec_hash: None,
@@ -205,9 +213,10 @@ pub fn sample_commitment(provider: AgentPubKey) -> ProposeCommitmentInput {
 }
 
 /// Input for `log_economic_event` zome call.
+/// The `action` field is a `String` matching the `VfAction` enum variant name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEconomicEventInput {
-    pub action: zome_gouvernance_integrity::VfAction,
+    pub action: String,
     pub provider: AgentPubKey,
     pub receiver: AgentPubKey,
     pub resource_inventoried_as: ActionHash,
@@ -250,13 +259,15 @@ pub fn sample_metrics() -> PerformanceMetricsInput {
 }
 
 /// Input for `issue_participation_receipts` zome call.
+/// The `claim_types` field uses `Vec<ParticipationClaimType>` (local mirror enum)
+/// which serializes identically to the integrity crate's enum.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueParticipationReceiptsInput {
     pub fulfills: ActionHash,
     pub fulfilled_by: ActionHash,
     pub provider: AgentPubKey,
     pub receiver: AgentPubKey,
-    pub claim_types: Vec<zome_gouvernance_integrity::ParticipationClaimType>,
+    pub claim_types: Vec<ParticipationClaimType>,
     pub provider_metrics: PerformanceMetricsInput,
     pub receiver_metrics: PerformanceMetricsInput,
     pub resource_hash: Option<ActionHash>,
@@ -266,7 +277,7 @@ pub struct IssueParticipationReceiptsInput {
 /// Input for `get_my_participation_claims` zome call.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetMyParticipationClaimsInput {
-    pub claim_type_filter: Option<zome_gouvernance_integrity::ParticipationClaimType>,
+    pub claim_type_filter: Option<ParticipationClaimType>,
     pub from_time: Option<Timestamp>,
     pub to_time: Option<Timestamp>,
     pub limit: Option<u32>,
@@ -277,7 +288,7 @@ pub struct GetMyParticipationClaimsInput {
 pub struct DeriveReputationSummaryInput {
     pub period_start: Timestamp,
     pub period_end: Timestamp,
-    pub claim_type_filter: Option<Vec<zome_gouvernance_integrity::ParticipationClaimType>>,
+    pub claim_type_filter: Option<Vec<ParticipationClaimType>>,
 }
 
 // ── Capability-based sharing fixtures ────────────────────────

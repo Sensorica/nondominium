@@ -26,10 +26,10 @@ async fn create_person_stores_hrea_agent_hash() {
         "create_person should return a valid record"
     );
 
-    // Decode using the integrity crate type (has #[hdk_entry_helper] = TryFrom<SerializedBytes>)
-    let person: zome_person_integrity::Person = record
+    // Decode using PersonMirror (derives SerializedBytes so to_app_option works)
+    let person: PersonMirror = record
         .entry
-        .to_app_option::<zome_person_integrity::Person>()
+        .to_app_option::<PersonMirror>()
         .unwrap()
         .unwrap();
     assert!(
@@ -50,10 +50,10 @@ async fn get_hrea_agents_retrieves_rea_agent_created_by_create_person() {
     let person_input = sample_person("Lynn");
     let record = create_person(&conductors[0], &nd_alice, person_input.clone()).await;
 
-    // Decode using integrity type which has TryFrom<SerializedBytes>
-    let person: zome_person_integrity::Person = record
+    // Decode using PersonMirror (derives SerializedBytes so to_app_option works)
+    let person: PersonMirror = record
         .entry
-        .to_app_option::<zome_person_integrity::Person>()
+        .to_app_option::<PersonMirror>()
         .unwrap()
         .unwrap();
     assert!(

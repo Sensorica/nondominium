@@ -16,7 +16,7 @@ use std::time::Duration;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct UpdateResourceStateInput {
     pub resource_hash: ActionHash,
-    pub new_state: zome_resource_integrity::ResourceState,
+    pub new_state: ResourceState,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -34,13 +34,13 @@ struct TransferCustodyOutputMirror {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GetResourceSpecWithRulesOutputMirror {
-    pub specification: zome_resource_integrity::ResourceSpecification,
-    pub governance_rules: Vec<zome_resource_integrity::GovernanceRule>,
+    pub specification: ResourceSpecificationMirror,
+    pub governance_rules: Vec<GovernanceRuleMirror>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GetAllGovernanceRulesOutputMirror {
-    pub rules: Vec<zome_resource_integrity::GovernanceRule>,
+    pub rules: Vec<GovernanceRuleMirror>,
 }
 
 // ---------------------------------------------------------------------------
@@ -131,7 +131,7 @@ async fn complete_resource_lifecycle_workflow() {
 
     assert_eq!(
         printer_resource.resource.state,
-        zome_resource_integrity::ResourceState::PendingValidation
+        ResourceState::PendingValidation
     );
     assert_eq!(
         printer_resource.resource.custodian,
@@ -149,7 +149,7 @@ async fn complete_resource_lifecycle_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: printer_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -164,7 +164,7 @@ async fn complete_resource_lifecycle_workflow() {
         .resources
         .iter()
         .find(|r| {
-            r.state == zome_resource_integrity::ResourceState::Active
+            r.state == ResourceState::Active
                 && r.current_location.as_deref() == Some("Community Workshop - Station 1")
         });
     assert!(active_printer.is_some(), "Active printer should be visible to Bob");
@@ -217,7 +217,7 @@ async fn complete_resource_lifecycle_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: custody_transfer.updated_resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Maintenance,
+                new_state: ResourceState::Maintenance,
             },
         )
         .await;
@@ -231,7 +231,7 @@ async fn complete_resource_lifecycle_workflow() {
     let maintenance_printer = resources_in_maintenance
         .resources
         .iter()
-        .find(|r| r.state == zome_resource_integrity::ResourceState::Maintenance);
+        .find(|r| r.state == ResourceState::Maintenance);
     assert!(
         maintenance_printer.is_some(),
         "Maintenance resource should be visible to Alice"
@@ -244,7 +244,7 @@ async fn complete_resource_lifecycle_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: custody_transfer.updated_resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -470,7 +470,7 @@ async fn community_resource_sharing_and_governance_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: space_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -482,7 +482,7 @@ async fn community_resource_sharing_and_governance_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: tools_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -494,7 +494,7 @@ async fn community_resource_sharing_and_governance_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: printing_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -506,7 +506,7 @@ async fn community_resource_sharing_and_governance_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: electronics_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -619,7 +619,7 @@ async fn community_resource_sharing_and_governance_workflow() {
     let active_count = all_resources_alice
         .resources
         .iter()
-        .filter(|r| r.state == zome_resource_integrity::ResourceState::Active)
+        .filter(|r| r.state == ResourceState::Active)
         .count();
     assert_eq!(active_count, 4, "All 4 resources should be active");
 }
@@ -730,7 +730,7 @@ async fn resource_custody_and_stewardship_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: initial_transfer.updated_resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -746,7 +746,7 @@ async fn resource_custody_and_stewardship_workflow() {
         .iter()
         .find(|r| {
             r.custodian == bob.agent_pubkey().clone()
-                && r.state == zome_resource_integrity::ResourceState::Active
+                && r.state == ResourceState::Active
         });
     assert!(active_cnc.is_some(), "Active CNC should be visible to community");
 
@@ -757,7 +757,7 @@ async fn resource_custody_and_stewardship_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: activation_record.signed_action.hashed.hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Maintenance,
+                new_state: ResourceState::Maintenance,
             },
         )
         .await;
@@ -773,7 +773,7 @@ async fn resource_custody_and_stewardship_workflow() {
         .iter()
         .find(|r| {
             r.custodian == bob.agent_pubkey().clone()
-                && r.state == zome_resource_integrity::ResourceState::Maintenance
+                && r.state == ResourceState::Maintenance
         });
     assert!(maintenance_cnc.is_some(), "Maintenance CNC should be visible");
 
@@ -784,7 +784,7 @@ async fn resource_custody_and_stewardship_workflow() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: maintenance_start.signed_action.hashed.hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -1043,7 +1043,7 @@ async fn multi_agent_resource_ecosystem_and_discovery() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: course_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -1057,7 +1057,7 @@ async fn multi_agent_resource_ecosystem_and_discovery() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: kitchen_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Maintenance,
+                new_state: ResourceState::Maintenance,
             },
         )
         .await;
@@ -1070,7 +1070,7 @@ async fn multi_agent_resource_ecosystem_and_discovery() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: web_dev_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Active,
+                new_state: ResourceState::Active,
             },
         )
         .await;
@@ -1084,7 +1084,7 @@ async fn multi_agent_resource_ecosystem_and_discovery() {
             "update_resource_state",
             UpdateResourceStateInput {
                 resource_hash: van_resource.resource_hash.clone(),
-                new_state: zome_resource_integrity::ResourceState::Reserved,
+                new_state: ResourceState::Reserved,
             },
         )
         .await;
