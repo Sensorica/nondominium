@@ -2,6 +2,34 @@
 
 Quick reference for running tests from the project root.
 
+## 🦀 **Sweettest (Rust) — New Primary**
+
+Runs Holochain in-process. Faster, no WebSocket round-trip, direct Rust types.
+
+```bash
+# Build .dna bundle then run all Rust tests
+bun run sweettest
+
+# Same with --nocapture (see test output in real time)
+bun run sweettest:verbose
+
+# Skip build:happ if .dna is already built
+bun run sweettest:only
+```
+
+Cargo commands directly (inside `nix develop`):
+```bash
+# Requires LIBCLANG_PATH and BINDGEN_EXTRA_CLANG_ARGS to be set (exported by nix develop)
+CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest
+CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest -- --nocapture
+CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest person::foundation
+```
+
+## 📋 **Tryorama (TypeScript) — Transitioning Out**
+
+Active during migration. Will be removed after all Rust tests pass.
+
+
 ## 🚀 **Basic Test Commands**
 
 All commands automatically build zomes and package the hApp before running tests.

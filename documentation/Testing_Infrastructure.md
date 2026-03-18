@@ -2,7 +2,53 @@
 
 ## Overview
 
-The nondominium hApp employs a comprehensive, multi-layered testing strategy designed specifically for Holochain applications using Tryorama. This testing infrastructure ensures robust validation of distributed functionality, proper DHT synchronization, and real-world usage patterns while providing clear debugging pathways for development.
+The nondominium hApp employs a comprehensive, multi-layered testing strategy covering all three zomes across two parallel test suites that are active simultaneously during migration.
+
+**Current status**: Sweettest (Rust) is the new primary test suite; Tryorama (TypeScript) remains active until all Rust tests pass and Holochain 0.7 upgrade is complete.
+
+## Sweettest (Rust) — Primary
+
+Sweettest runs Holochain in-process, providing faster feedback and direct access to Holochain types without the WebSocket/msgpack round-trip.
+
+### Running Sweettest
+
+```bash
+nix develop  # Required: provides Rust toolchain + Holochain binaries
+
+# Build the .dna bundle first, then run Rust tests
+bun run sweettest             # build:happ + cargo test -p nondominium_sweettest
+bun run sweettest:verbose     # same + --nocapture for test output
+bun run sweettest:only        # skip build:happ (use when .dna is already built)
+```
+
+### Test crate location
+
+```
+dnas/nondominium/tests/
+├── Cargo.toml               # 4 [[test]] targets: misc, person, resource, governance
+└── src/
+    ├── common/              # Shared infrastructure
+    │   ├── conductors.rs    # setup_two_agents(), setup_three_agents(), setup_dual_dna_two_agents()
+    │   ├── fixtures.rs      # sample_person(), sample_role(), sample_resource_spec(), ...
+    │   ├── mirrors.rs       # Coordinator output type mirrors (PersonProfileOutput, etc.)
+    │   └── zome_calls.rs    # Typed async wrappers for all 3 zomes
+    ├── misc/                # ping test (validates build plumbing)
+    ├── person/              # 71 tests: foundation, integration, hrea_bridge,
+    │                        # device (4 variants), capability_sharing, scenarios
+    ├── resource/            # 16 tests: foundation, update, integration, scenarios
+    └── governance/          # 18 tests: foundation + ppr/{foundation, cryptography,
+                             #                             debug, integration, scenarios}
+```
+
+### Environment requirement for Sweettest
+
+The holonix shell (GCC-based) needs `LIBCLANG_PATH` and `BINDGEN_EXTRA_CLANG_ARGS` set
+for the `datachannel-sys` bindgen step. These are exported automatically when using
+`nix develop` after `flake.nix` adds `llvmPackages_19.libclang`.
+
+Use `CARGO_TARGET_DIR=target/native-tests` to isolate from the WASM build artifacts.
+
+---
 
 ## Testing Philosophy
 
@@ -29,12 +75,17 @@ Our testing approach follows **Holochain community best practices** with emphasi
 
 ### Technology Stack
 
-- **Framework**: [Vitest](https://vitest.dev/) v3.2.4 - Fast, modern test runner
-- **Holochain Testing**: [@holochain/tryorama](https://github.com/holochain/tryorama) v0.18.2 - Official Holochain testing framework
+**Sweettest (Rust — new primary):**
+- **Framework**: `holochain = "=0.6.0"` with `test_utils` feature
+- **Runtime**: `tokio` multi-thread executor
+- **Language**: Rust, in-process Holochain
+- **CARGO_TARGET_DIR**: `target/native-tests` (isolated from WASM artifacts)
+
+**Tryorama (TypeScript — transitioning out):**
+- **Framework**: [Vitest](https://vitest.dev/) v3.2.4
+- **Holochain Testing**: [@holochain/tryorama](https://github.com/holochain/tryorama) v0.18.2
 - **Language**: TypeScript with full type safety
-- **Assertion Library**: Built-in Vitest expect API
 - **Environment**: Nix development shell for consistent Holochain binaries
-- **Build System**: Automatic WASM compilation and hApp packaging
 
 ## Test Structure
 
@@ -362,8 +413,9 @@ warn!("Checkpoint reached in function_name");
 
 | Component             | Version | Status |
 | --------------------- | ------- | ------ |
-| **Vitest**            | 3.2.4   | ✅ Active |
-| **Tryorama**          | 0.18.2  | ✅ Active |
+| **Sweettest (Rust)**  | holochain 0.6.0 | ✅ Active — new primary |
+| **Vitest**            | 3.2.4   | ✅ Active — transitioning out |
+| **Tryorama**          | 0.18.2  | ✅ Active — transitioning out (last supported pair with HDK 0.6) |
 | **Holochain Client**  | 0.19.0  | ✅ Active |
 | **TypeScript**        | 5.6.3   | ✅ Active |
 | **HDK**               | ^0.6.0  | ✅ Active |
