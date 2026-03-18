@@ -104,7 +104,7 @@ This is the REQ-ARCH-07 design. It means governance logic can evolve without tou
 
 This architecture is the NDO's most principled contribution to governance design — it directly implements the OVN insight that governance must be compatible with the economic model (REA), because governance and economics are handled by the same zome operating on the same entry types.
 
-### 2.2 VfAction System (17 Actions)
+### 2.2 VfAction System (16 Actions)
 
 The `VfAction` enum defines all possible economic actions, and by extension, all possible governance-relevant state transitions:
 
@@ -202,6 +202,8 @@ Role assignment is tracked in `PersonRole` entries (in `zome_person`), created b
 
 This is the access control layer of the deontic ontology: permissions are cryptographically issued and cryptographically revoked, not relying on runtime checks.
 
+> **TODO (G1, REQ-AGENT-01, REQ-AGENT-02 — post-MVP)**: The role system and all governance workflows assume `AgentPubKey` as the requestor. Specifically: `RoleType` is assigned to individual agents only; `ValidationReceipt.validated_by` is a single `AgentPubKey`; PPR `counterparty` is an `AgentPubKey`; and `GovernanceTransitionRequest.requesting_agent` is an `AgentPubKey`. Collective, Project, Network, and Bot agents (`AgentEntityType` from `agent.md §6.1`) cannot currently hold roles, participate in validation schemes, sign PPRs, or act as governance requestors. Post-MVP, role assignment must accept `AgentContext` (a union of individual and collective agent references). Delegation rules for collective signing authority must be defined — e.g., a designated `PrimaryAccountableAgent` representative key for the collective NDO, or an N-of-M multi-sig from its member agents. See `implementation_plan.md §3 [G1+Resource]` and `agent.md §3.1`.
+
 ### 2.7 What the MVP Does Well
 
 - **Governance-as-operator** is the correct architectural pattern: clear separation of data model and governance logic, enabling swappable governance
@@ -226,6 +228,10 @@ This is the access control layer of the deontic ontology: permissions are crypto
 | Governance rules untyped | `rule_type` and `rule_data` are free strings; no schema enforcement | Planned fix in prima-materia |
 | No offchain governance bridge | No mechanism to record offchain decisions as DHT artifacts | Gap |
 | ReputationSummary not used for governance weight | PPRs accumulate but don't mechanically influence governance access | Planned via Unyt credit limit integration |
+| No affiliation spectrum in governance access | All validated agents treated equivalently; governance cannot enforce "active affiliates only" conditions; the 1-9-90 participation distribution is acknowledged conceptually but not implemented | Gap — requires `AffiliationState` (G2) cross-zome query from the governance operator; see `agent.md §4.2`, `resources.md §4.5` |
+| No collective agent governance participation | Collective, Project, Network, and Bot agents (G1) cannot hold roles, sign PPRs, or act as validators; economic events between a project and an organisation cannot be correctly modelled | Gap — requires `AgentContext` extension across role assignment, PPR issuance, and validation receipt; see `agent.md §4.1` |
+| No sybil resistance for governance | Multiple source chains controlled by one physical person can dilute validation quorums, game role promotion, or accumulate disproportionate PPR counts | Gap — requires social vouching (N existing active affiliates vouch for a new agent) or optional proof-of-personhood (G9); see `agent.md §5.3` |
+| No pseudonymous governance participation | Pseudonymous or anonymous agents cannot accumulate PPRs or earn governance access without linking contributions to a persistent identity | Gap — by current design; pseudonymous participation mode (G10) is a post-MVP option with a defined affiliation path; see `agent.md §4.5` |
 
 ---
 
@@ -233,7 +239,12 @@ This is the access control layer of the deontic ontology: permissions are crypto
 
 ### 3.1 Governance-as-Operator Extended to LifecycleStage
 
-The prima-materia `LifecycleStage` transitions are all governance-validated: the governance zome acts as state transition operator for the full 12-stage lifecycle. Each transition requires a valid economic event, is authorized by a specific role, and generates a lifecycle history audit trail. This extends the existing governance-as-operator pattern to the full NDO lifecycle.
+The prima-materia model introduces two orthogonal state dimensions, both governed by the governance zome acting as state transition operator:
+
+- **`LifecycleStage`** (10 stages on `NondominiumIdentity`): the maturity/evolutionary phase of the resource. Each transition requires a valid economic event and a role-authorized request. Examples: `Prototype → Stable` (peer validation), `Active → EndOfLife` (challenge period).
+- **`OperationalState`** (7 states on `EconomicResource`): the current process acting on a resource instance. Transitions are triggered by process events: a transport `Move` event sets `InTransit`; its completion clears it back to `Available`. Transport, storage, and maintenance are processes — they do not advance `LifecycleStage`.
+
+Both dimensions generate auditable lifecycle history via `EconomicEvent` entries, extending the governance-as-operator pattern to cover the complete resource state model.
 
 ### 3.2 EconomicAgreement GovernanceRule Type (Unyt Integration)
 
@@ -250,6 +261,32 @@ Multi-custodian consent mechanisms (from `many-to-many-flows.md`): when a resour
 ### 3.5 Reputation-Weighted Governance (via Unyt)
 
 The PPR → Unyt credit limit feedback loop (`unyt-integration.md` Section 7) is the governance equation in practice: contribution history determines economic access, and economic access determines which governance interactions are available. This is not yet explicit governance weighting, but it creates the data foundation for it.
+
+### 3.6 Agent Ontology Impacts on Governance-as-Operator (Post-MVP)
+
+The expanded agent ontology from `agent.md` introduces three structural changes to the governance-as-operator architecture that must be addressed in the post-MVP generic NDO:
+
+**3.6.1 AgentContext as Requestor (TODO G1, REQ-AGENT-02)**
+
+The `GovernanceTransitionRequest.requesting_agent: AgentPubKey` field (see `governance-operator-architecture.md §2.1`) must be extended to `requesting_agent: AgentContext` post-MVP. `AgentContext` is a union that accommodates `Individual`, `Collective`, `Project`, `Network`, `Bot`, and `ExternalOrganisation` agent types (see `agent.md §6.1`). The governance evaluation functions `validate_agent_permissions` and `validate_agent_for_promotion` must be extended to handle each type. For `Bot` and collective agents, the signing authority is the `operator: AgentPubKey` declared in `AgentEntityType::Bot`, or the designated `PrimaryAccountableAgent` representative of the collective NDO. Multi-sig patterns (N-of-M from collective NDO members) are an alternative for high-stakes governance actions. See Section 6.6 of this document for the full collective agent governance pattern.
+
+**3.6.2 AffiliationState as Governance Condition (TODO G2, REQ-AGENT-03, REQ-AGENT-05)**
+
+The governance operator must support `min_affiliation` conditions in `GovernanceRule.rule_data`. When a GovernanceRule contains a `min_affiliation` field (e.g. `"min_affiliation": "ActiveAffiliate"`), the operator must:
+1. Cross-zome call `zome_person` to retrieve the requesting agent's `AffiliationRecord` entries
+2. Derive the agent's current `AffiliationState` (`UnaffiliatedStranger | CloseAffiliate | ActiveAffiliate | CoreAffiliate | InactiveAffiliate`)
+3. Compare the state against the `min_affiliation` threshold and block the transition if the agent does not meet it
+
+This is the mechanism by which the governance equation (Section 4.4, Section 6.4) becomes operationally enforceable — not merely a conceptual aspiration. Without this cross-zome query, the governance equation has no runtime implementation. See `resources.md §5.3 (Affiliation-gated resource access)` and `implementation_plan.md §3 [G2+Resource]`.
+
+**3.6.3 AffiliationRecord as Governance Ceremony (TODO G6, REQ-AGENT-05)**
+
+Signing an `AffiliationRecord` — the formal Terms of Participation ceremony — is itself a governance event in the ValueFlows sense. Using the existing Commitment/EconomicEvent cycle:
+- The agent creates a `Commitment` entry: "I commit to the Terms of Participation, Nondominium & Custodian agreement, and Benefit Redistribution Algorithm"
+- The act of signing the `AffiliationRecord` entry with the agent's key constitutes the fulfilling `EconomicEvent`
+- A `Claim` links the two, creating an auditable on-chain record of the affiliation ceremony
+
+The `AffiliationRecord` entry hash then becomes the evidence that the agent's `AffiliationState` function returns `ActiveAffiliate`. This is what transitions the agent from `CloseAffiliate` (knows the network, not yet committed) to `ActiveAffiliate` (has formally committed, gains governance access). No separate "activation" function is needed — the `AffiliationState` derivation reads the presence or absence of the `AffiliationRecord` directly from the DHT.
 
 ---
 
@@ -316,6 +353,17 @@ governance_access = f(past_contributions, future_commitments)
 ```
 
 Past contributions are measured through contribution accounting (PPRs in NDO). Future commitments are pledges of future work (Commitments in NDO). Access to governance is seen as a **benefit** — one of the outputs of participation in the commons, alongside economic benefits and social benefits.
+
+The OVN affiliation spectrum (`agent.md §4.2`) is the operational definition of this equation — the concrete mechanism by which participation depth maps to governance tier:
+
+- `UnaffiliatedStranger` / `CloseAffiliate` → individual-level access only: permissionless DHT reads, basic VfActions; no governance participation
+- `ActiveAffiliate` → governance participation unlocked: validation, proposal submission, dispute resolution
+- `CoreAffiliate` → elevated governance weight: rule amendment, role promotion, registry management; algorithmically determined from PPR contribution rate above a configurable threshold
+- `InactiveAffiliate` → reduced access: prior contributions preserved and visible; governance weight suspended until re-engagement
+
+The **`AffiliationRecord`** entry (G6) is the formal on-ramp that transitions an agent from `CloseAffiliate` to `ActiveAffiliate`. It is a governance event in the ValueFlows sense: the agent creates a `Commitment` (I commit to the Terms of Participation, the Nondominium & Custodian agreement, and the Benefit Redistribution Algorithm), fulfils it by signing the `AffiliationRecord` entry on-chain, and a `Claim` links the two. From that moment, the agent's `AffiliationState` derivation function (which reads DHT data, not a stored field) returns `ActiveAffiliate`, and the governance gate opens.
+
+Post-MVP, **ZKP proofs** (G7) enable agents to prove their affiliation tier to other governance participants without revealing which network they are affiliated with, their full contribution history, or the identity of their counterparties. An agent can prove "I am at least an ActiveAffiliate with ≥ N governance claims" without disclosing the raw PPR data. This is the privacy-preserving meritocracy design: governance access based on contribution without requiring surveillance of the agent's full history.
 
 **Non-binary decision making**: The OVN wiki proposes mechanisms beyond yes/no voting: conviction voting (continuous preference posting, updated over time), quadratic voting (cost of additional votes grows quadratically, preventing concentration), rank choice (preference ordering across alternatives). These are described as composable — basic decision-making patterns that can be combined into more complex governance recipes.
 
@@ -420,6 +468,8 @@ The NDO has no formal governance surface. Rule changes require developer interve
 | Economic governance (Smart Agreements) | Unyt EconomicAgreement GovernanceRule | 🔄 Planned (unyt-integration) |
 | End-of-life governance (challenge period) | REQ-GOV-11 through REQ-GOV-13 | 🔄 Planned (requirements.md) |
 | Privacy-preserving accountability | Private PPRs + derivable ReputationSummary | ✅ Implemented |
+| `AffiliationRecord` entry (formal ToP ceremony) | `agent.md §6.4` forward design; uses the existing Commitment/EconomicEvent cycle for the signing ceremony; `AffiliationState` is derived from its presence on the DHT | 🔄 Planned (post-MVP, G6, REQ-AGENT-05) |
+| Affiliation-gated resource governance | `GovernanceRule.rule_data["min_affiliation"]` condition evaluated by the governance operator; cross-zome `AffiliationState` query from `zome_person`; blocks state transitions for agents below the threshold | 🔄 Planned (post-MVP, G2 — see `resources.md §5.3`, `implementation_plan.md §3 [G2+Resource]`) |
 
 ### 5.2 Partial — concepts present in OVN and partially covered in NDO
 
@@ -451,6 +501,10 @@ The NDO has no formal governance surface. Rule changes require developer interve
 | **Temporal governance** (rule expiry, decision evaluation triggers) | Only capability grant expiry | Add `expires_at` and `evaluation_trigger` to GovernanceRules and governance decisions |
 | **Offchain governance bridge** | No way to record offchain decisions as DHT artifacts | Add `GovernanceRecord` entry: a hash of an offchain document/decision with metadata, linking offchain and onchain governance |
 | **Constitution / Governance surface** | No formal description of who can change what rules | Implement a `GovernanceConstitution` entry at the DNA level: a hash-referenced document + amendment process |
+| **Affiliation-based governance access gating** | Governance processes cannot enforce "active affiliates only" conditions; all agents with any role receive the same governance access regardless of participation depth | Extend `GovernanceRule.rule_data` schema with `min_affiliation` field; extend governance operator `evaluate_transition` to cross-zome query `AffiliationState` from `zome_person`; block transitions below threshold (refs G2, G6, `agent.md §4.2`, `resources.md §5.3`) |
+| **Collective agent governance participation** | Validation schemes, PPR issuance, and role assignment all require `AgentPubKey`; collective, network, and bot agents cannot act as governance participants; economic events between organisations cannot be correctly modelled | Extend `GovernanceTransitionRequest.requesting_agent` and `ValidationReceipt.validated_by` to accept `AgentContext`; define delegation rules for collective signing authority — designated operator key or N-of-M from collective NDO members (ref G1, `agent.md §4.1`, Section 6.6 of this document) |
+| **Sybil resistance in governance** | Multiple source chains controlled by one physical person can dilute validation quorums, inflate role promotion counts, or accumulate disproportionate PPR governance_claims | Integrate social vouching — N existing active affiliates must cryptographically vouch for a new agent's identity before their first governance-tier role promotion; or integrate optional proof-of-personhood as a membrane proof condition for governance-tier roles (ref G9, `agent.md §5.3`) |
+| **Pseudonymous governance participation** | Pseudonymous or anonymous agents cannot accumulate PPRs or earn governance access without linking contributions to a persistent `Person` identity; the privacy/efficiency trade-off has no intermediate option | Design a pseudonymous affiliation path: PPRs issued to a persistent pseudonymous `AgentPubKey` (no `Person` entry required); pseudonymous agents can reach `ActiveAffiliate` status through contribution; blocked from governance roles that require legal accountability (e.g. dispute resolution involving off-chain agreements); see `agent.md §4.5` (ref G10) |
 
 ---
 
@@ -516,7 +570,12 @@ The OVN governance equation implemented as a cross-zome computation:
 
 ```
 governance_weight = f(
-    reputation_summary.average_performance,      // quality of past contributions
+    affiliation_state,                            // PREREQUISITE GATE (from agent.md §6.2)
+                                                  //   < ActiveAffiliate  → weight = 0 (blocked)
+                                                  //   = ActiveAffiliate  → weight computed normally
+                                                  //   = CoreAffiliate    → weight × core_multiplier
+                                                  //   = InactiveAffiliate → weight = 0 (suspended)
+    reputation_summary.average_performance,       // quality of past contributions
     reputation_summary.governance_claims,         // governance participation depth
     reputation_summary.custody_claims,            // resource stewardship depth
     unyt_credit_capacity,                         // economic standing in commons
@@ -524,12 +583,28 @@ governance_weight = f(
 )
 ```
 
+The `affiliation_state` input is derived (not stored) from existing DHT data by `zome_person` using the formula in `agent.md §6.2`:
+```
+affiliation_state(agent) = f(
+    person_exists(agent),
+    affiliation_record_exists(agent),   // AffiliationRecord (G6) signed on-chain?
+    contributions_count(agent),         // from EconomicEvents
+    last_contribution_timestamp(agent), // recency window check
+    reputation_summary.total_claims,
+    governance_claims_count(agent)
+)
+```
+
+The `affiliation_state` gate ensures that the governance equation's contribution data is only evaluated after the formal affiliation ceremony (`AffiliationRecord`, G6) is complete. An agent with high PPR scores but no signed `AffiliationRecord` remains at `CloseAffiliate` and cannot participate in governance — they must formally commit to the network's terms before their contributions are recognised as governance standing. This prevents incidental interactions (browsing the DHT, casual transactions) from accumulating governance weight without commitment.
+
 This weight determines:
 - Vote weight in non-binary decision mechanisms
 - Thresholds for initiating certain governance processes
 - Access to higher-trust governance functions (dispute resolution, rule amendment)
 
-Critically: the weight function is itself a GovernanceRule, configurable by communities. Different communities weight contribution dimensions differently.
+Critically: the weight function is itself a GovernanceRule, configurable by communities. Different communities weight contribution dimensions differently. The `core_multiplier` and the recency window for `InactiveAffiliate` detection are also governance-configurable parameters.
+
+Note: the inclusion of `unyt_credit_capacity` as an input creates a feedback loop (PPR → reputation → Unyt credit → governance weight → more governance participation → more PPRs). To prevent runaway accumulation, the weight function should apply dampening — e.g., logarithmic scaling of the credit capacity input — so that marginal increases in credit produce diminishing governance weight returns.
 
 ### 6.5 Offchain Governance Bridge
 
@@ -548,6 +623,34 @@ pub struct GovernanceRecord {
 ```
 
 This is the bridge between the OVN's offchain governance reality (most governance today is documents and social processes) and the onchain aspiration. Agents ratify offchain documents by signing `GovernanceRecord` entries — creating a cryptographic commitment to the offchain text without requiring full onchain implementation of its processes.
+
+### 6.6 Collective Agent Governance Patterns (Post-MVP)
+
+The expanded agent ontology (`agent.md §3.1`, §4.1`) enables working groups, projects, networks, and bots to act as governance participants. Three structural patterns cover the main cases:
+
+**Pattern 1 — Collective agents as NDOs**
+
+A working group, project, or network is itself an NDO with its own governance layer (Identity + Specification + Process). When a collective NDO participates in external governance — signing a `ValidationReceipt`, acting as a `GovernanceTransitionRequest.requesting_agent`, or being a PPR `counterparty` — it does so through a designated representative: the `PrimaryAccountableAgent` of the collective NDO, whose `AgentPubKey` acts on the collective's behalf. Governance decisions affecting the collective (e.g., approving a resource access request it submitted) require internal governance within that collective NDO before the external signature is issued. This nests governance holonically: venture → network → federation, all using the same VfAction/Commitment/EconomicEvent primitives.
+
+**Pattern 2 — Multi-sig validation for collective actors**
+
+When a governance process requires approval from a collective agent (e.g., a working group must validate a new resource), the `ResourceValidation` scheme must support `AgentContext` references in its `required_validators` field. Two implementation options:
+
+- **Designated operator**: the collective NDO has nominated a single `PrimaryAccountableAgent` whose signature counts as the collective's approval. Simple but creates a governance bottleneck at the operator.
+- **Member threshold**: the governance scheme accepts approval from N-of-M individual agents who are current active members of the collective NDO. More resilient but requires the validator set to be dynamically resolved from the collective NDO's membership links at validation time.
+
+Both options require the `GovernanceProcess` entry (Section 6.2) to declare which pattern applies per `decision_type`. The `ResourceValidation.required_validators` field transitions from `Vec<AgentPubKey>` to `Vec<AgentContext>` post-MVP.
+
+**Pattern 3 — Bot / AI agent governance scope**
+
+`Bot` agents (`AgentEntityType::Bot { capabilities, operator }`) can participate in governance only within the scope declared in their `capabilities` vector. Examples:
+
+- A bot may be authorised to sign `ValidationReceipt` entries for automated integrity checks (e.g., a digital resource hash validation bot) — but not for role promotions or rule amendments, which require human judgment.
+- A bot may be authorised to issue `EconomicEvent` entries for automated processes (e.g., a scheduler bot recording that a storage commitment has been fulfilled on time) — but not for dispute resolution.
+
+The `operator: AgentPubKey` in the `Bot` type is the governance-responsible party: all bot actions are attributed to the operator for accountability purposes, and any PPRs generated by bot interactions list the operator as the accountable counterparty. Bot `governance_claims` in the `ReputationSummary` do not contribute to the operator's `affiliation_state` — they are tracked separately under the bot's own `AgentContext` with a `governance_weight = 0` gate (bots cannot accumulate governance standing independent of their human operator).
+
+> **TODO (G1, G11 — post-MVP)**: Implement `AgentContext` type, extend `GovernanceTransitionRequest`, `ValidationReceipt`, and PPR `counterparty` fields to accept `AgentContext`. Define `Bot` delegation scope enforcement in the governance operator's `validate_agent_permissions` function. See `implementation_plan.md §3 [G1+Resource]` and `agent.md §5.3 (DelegatedAgent)`.
 
 ---
 

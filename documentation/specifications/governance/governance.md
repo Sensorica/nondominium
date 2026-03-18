@@ -33,6 +33,13 @@ The governance system implements a progressive trust model through three agent t
 - **Accountable Agent**: Validated agent with restricted capability token, can access Resources, validate others, and participate in specialized Economic Processes
 - **Primary Accountable Agent (Custodian)**: Advanced agent with full capability token, holds physical custody of Resources, can validate role requests, and participate in dispute resolution
 
+> **TODO (G1, REQ-GOV-16 — post-MVP)**: Agent capability progression currently models only
+> individual human agents. Post-MVP: Collective, Project, Network, and Bot agents must be
+> supported as governance actors. For Collective/Project/Network agents, governance actions are
+> signed by the designated `PrimaryAccountableAgent` representative of the collective NDO.
+> For Bot agents, governance actions are limited to declared `capabilities` in
+> `AgentEntityType::Bot { capabilities }`. See `governance.md §3.6` and `§6.6`.
+
 ## Governance Structures
 
 ### 1. Validation System
@@ -43,7 +50,9 @@ The validation system implements comprehensive peer review and verification acro
 
 ```rust
 pub struct ValidationReceipt {
-    pub validator: AgentPubKey,
+    pub validator: AgentPubKey,  // TODO (G1, REQ-GOV-16 — post-MVP): replace with AgentContext.
+                                 // Post-MVP, collective agent and bot validators must be supported
+                                 // within their declared scope.
     pub validated_item: ActionHash,
     pub validation_type: String,
     pub approved: bool,
@@ -325,6 +334,21 @@ pub struct PrivateParticipationClaim {
 - **Usage Limits**: Restrictions on how resources can be used
 - **Transfer Conditions**: Rules for transferring resources between agents
 - **Maintenance Obligations**: Requirements for resource maintenance and care
+
+> **TODO (post-MVP — temporal governance, governance.md §4.8)**: GovernanceRule entries must support
+> an optional `expires_at: Timestamp` field for time-limited rules. Rules with an expiry become
+> inactive after the deadline without requiring a manual update. The governance evaluation engine
+> must skip expired rules during `evaluate_transition`.
+>
+> **TODO (post-MVP — configurable processes, governance.md §6.2)**: Economic Process types (Use,
+> Transport, Storage, Repair) are currently hardcoded. Post-MVP, they must become configurable
+> `GovernanceProcess` entries that communities can extend with custom process types, role
+> requirements, and validation schemes. See `governance.md §6.2`.
+>
+> **TODO (post-MVP — EconomicAgreement rule type, resources.md §6.6)**: Add `EconomicAgreement`
+> to the `GovernanceRuleType` enum for Unyt Smart Agreement integration. When present, the
+> governance zome requires a valid Unyt RAVE before approving state transitions for the configured
+> `trigger_actions`. See `ndo_prima_materia.md §6.5` and `REQ-NDO-CS-09`.
 
 ### 4. Role-Specific Validation Rules
 

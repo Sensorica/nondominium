@@ -221,10 +221,14 @@ pub fn transport_resource_with_governance(
 
 ```rust
 // Repair process with state transition validation
+// TODO: update new_operational_state parameter type from ResourceState to OperationalState
+// once the ResourceState split is implemented (see ndo_prima_materia.md Section 5, REQ-NDO-OS-01).
+// The repair process sets OperationalState::InMaintenance on the EconomicResource instance,
+// while LifecycleStage on NondominiumIdentity remains unchanged.
 pub fn repair_resource_with_governance(
     resource_hash: ActionHash,
     repair_details: String,
-    new_state: Option<ResourceState>,
+    new_operational_state: Option<ResourceState>, // TODO: → Option<OperationalState>
 ) -> ExternResult<GovernanceTransitionResult> {
 
     let resource = get_economic_resource(resource_hash)?;
@@ -236,9 +240,9 @@ pub fn repair_resource_with_governance(
         requesting_agent: agent_info.agent_initial_pubkey,
         context: TransitionContext {
             process_notes: Some(repair_details),
-            metadata: new_state.map(|state| {
+            metadata: new_operational_state.map(|state| {
                 let mut metadata = HashMap::new();
-                metadata.insert("target_state".to_string(), state.to_string());
+                metadata.insert("target_operational_state".to_string(), state.to_string());
                 metadata
             }).unwrap_or_default(),
             ..Default::default()

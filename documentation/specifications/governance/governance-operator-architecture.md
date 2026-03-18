@@ -32,6 +32,10 @@ pub struct GovernanceTransitionRequest {
     /// Current state of the resource being modified
     pub resource: EconomicResource,
     /// Agent requesting the state change
+    /// TODO (G1, REQ-GOV-16): replace AgentPubKey with AgentContext post-MVP.
+    /// For collective/bot agents, the signing authority is the designated operator key.
+    /// The governance evaluation must resolve AgentContext → effective AgentPubKey
+    /// before capability token validation.
     pub requesting_agent: AgentPubKey,
     /// Additional context for the transition
     pub context: TransitionContext,
@@ -44,12 +48,22 @@ pub struct TransitionContext {
     /// Quantity change for produce/consume actions
     pub quantity_change: Option<f64>,
     /// Target custodian for transfer actions
+    /// TODO (G1, REQ-AGENT-02): replace Option<AgentPubKey> with Option<AgentContext> post-MVP
+    /// to support custody transfer to Collective, Project, Network, and Bot agents.
+    /// AgentContext = union of AgentPubKey | CollectiveAgentHash.
     pub target_custodian: Option<AgentPubKey>,
     /// Process notes and observations
     pub process_notes: Option<String>,
     /// Associated economic process if applicable
     pub process_context: Option<ActionHash>,
 }
+// TODO (G2, REQ-AGENT-03, REQ-AGENT-05): extend governance evaluation to query AffiliationState.
+// The validate_agent_permissions function in GovernanceEngine must be extended post-MVP to:
+//   1. Cross-zome call zome_person to retrieve the requesting agent's AffiliationRecord entries
+//   2. Derive the agent's current AffiliationState (UnaffiliatedStranger | CloseAffiliate |
+//      ActiveAffiliate | CoreAffiliate | InactiveAffiliate)
+//   3. Compare AffiliationState against GovernanceRule.rule_data["min_affiliation"] condition
+// This enables affiliation-gated resource access without storing affiliation as a declared field.
 ```
 
 ### 2.2 State Transition Result
@@ -88,6 +102,7 @@ pub struct ResourceStateChange {
     /// Action that triggered the state change
     pub triggering_action: VfAction,
     /// Agent who initiated the change
+    /// TODO (G1, REQ-GOV-16): replace with AgentContext post-MVP.
     pub initiated_by: AgentPubKey,
     /// Governance decision that authorized the change
     pub governance_decision: GovernanceDecision,
@@ -111,6 +126,12 @@ pub struct GovernanceDecision {
     pub rationale: String,
 }
 ```
+
+> **TODO (post-MVP — governance weight dampening, governance.md §6.4)**: When
+> `governance_weight(agent)` incorporates `unyt_credit_capacity` from the Unyt credit system,
+> apply logarithmic dampening (e.g., `log(1 + credit_capacity)`) to prevent a feedback loop
+> where high reputation → high credit → higher governance weight → even higher reputation.
+> Without dampening, early participants accumulate runaway influence. See `governance.md §6.4`.
 
 ## 3. Modular Design Patterns
 

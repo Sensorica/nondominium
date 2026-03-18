@@ -1,6 +1,37 @@
 use hdi::prelude::*;
 
-// TODO: Add transport state
+// TODO: Split ResourceState into two orthogonal enums:
+//
+// 1. LifecycleStage — the maturity/evolutionary phase of the resource (advances rarely, usually
+//    irreversibly). Maps to NondominiumIdentity.lifecycle_stage in the NDO three-layer model.
+//    Values: Ideation, Specification, Development, Prototype, Stable, Distributed,
+//            Active, Hibernating, Deprecated, EndOfLife
+//
+// 2. OperationalState — the current process acting on this specific resource instance (cycles
+//    frequently as processes begin and end). Governance-zome controlled.
+//    Values: Available, Reserved, InTransit, InStorage, InMaintenance, InUse, PendingValidation
+//
+// The current enum CONFLATES both dimensions:
+//   PendingValidation  → OperationalState::PendingValidation (pre-activation gate)
+//   Active             → LifecycleStage::Active + OperationalState::Available
+//   Maintenance        → OperationalState::InMaintenance (repair process active; LifecycleStage
+//                        remains whatever it was before, typically Active)
+//   Retired            → LifecycleStage::Deprecated or EndOfLife
+//   Reserved           → OperationalState::Reserved (pre-allocation; LifecycleStage unchanged)
+//
+// Transport, Storage, and Maintenance are PROCESSES that act on a resource at any lifecycle stage.
+// A Prototype can be InTransit (moved between labs). An Active resource can be InStorage.
+// These are NOT lifecycle stages.
+//
+// See: documentation/requirements/ndo_prima_materia.md — Section 5 (LifecycleStage + OperationalState)
+// See: documentation/archives/resources.md — Section 2.4 (known gaps)
+//
+// TODO: Implement PropertyRegime enum when NondominiumIdentity (Layer 0) is introduced.
+// Canonical 6-variant enum: Private, Commons, Collective, Pool, CommonPool, Nondominium.
+// Each variant implies default governance templates via GovernanceDefaultsEngine.
+// See: documentation/requirements/ndo_prima_materia.md — Section 8.2
+// See: documentation/archives/resources.md — Section 6.3 (canonical definition)
+// See: documentation/archives/resources.md — Section 6.6 (PropertyRegime → governance defaults)
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
 pub enum ResourceState {
   #[default]
@@ -83,6 +114,10 @@ pub enum LinkTypes {
   SpecsByCategory,     // Category -> ResourceSpecs
   ResourcesByLocation, // Location -> EconomicResources
   ResourcesByState,    // ResourceState -> EconomicResources
+  // TODO (REQ-NDO-OS-06): Split ResourcesByState into two independent link types:
+  //   ResourcesByLifecycleStage  — NondominiumIdentity lifecycle facet queries
+  //   ResourcesByOperationalState — EconomicResource operational facet queries
+  // See: documentation/requirements/ndo_prima_materia.md — Section 9.4 (REQ-NDO-OS-06)
 
   // Governance patterns
   RulesByType,          // RuleType -> GovernanceRules

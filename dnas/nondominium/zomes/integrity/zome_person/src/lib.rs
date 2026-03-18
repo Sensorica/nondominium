@@ -1,6 +1,38 @@
 use hdi::prelude::*;
 use std::{fmt::Display, str::FromStr};
 
+// TODO (G1 — AgentEntityType): Add an `agent_entity_type` field (or a companion `AgentContext`
+// entry) to distinguish Individual, Collective, Project, Network, Bot, and ExternalOrganisation
+// agents. Currently all agents are implicitly modelled as individual humans. The post-MVP
+// design proposes:
+//
+//   pub enum AgentEntityType {
+//       Individual,
+//       Collective(String),
+//       Project(ActionHash),    // references an organisational NondominiumIdentity hash
+//       Network(ActionHash),    // references a network NondominiumIdentity hash
+//       Bot { capabilities: Vec<String>, operator: AgentPubKey },
+//       ExternalOrganisation(String),
+//   }
+//
+//   pub struct AgentContext {
+//       pub agent_type: AgentEntityType,
+//       pub person_hash: Option<ActionHash>, // None for bots / external orgs
+//       pub created_at: Timestamp,
+//       pub network_seed: String,
+//   }
+//
+// See `documentation/archives/agent.md` §6.1, `REQ-AGENT-01` in requirements.md, and
+// `documentation/requirements/ndo_prima_materia.md` §8.7.
+//
+// TODO (G15 — CapabilitySlot on Agent): The `Person` entry hash should serve as a stigmergic
+// attachment surface for external capabilities — analogous to the NondominiumIdentity
+// CapabilitySlot in ndo_prima_materia.md §6. Add a `PersonCapabilitySlot` link type:
+//   PersonCapabilitySlot: Person hash → capability target (DID document, credential wallet,
+//                                                           reputation oracle, external registry)
+// Implement `attach_agent_capability_slot` and `get_agent_capability_slots` coordinator
+// functions. See `REQ-AGENT-11` and `ndo_prima_materia.md` §6.5.
+
 /// Represents a person's public profile with basic information
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -54,7 +86,31 @@ pub struct PersonRole {
   pub assigned_at: Timestamp,
 }
 
+// TODO (G14 — Configurable Role Taxonomy): This enum is closed — communities cannot define
+// their own role types. The OVN model requires roles to emerge from community needs, not
+// from infrastructure decisions. Post-MVP, this should become a configurable role registry:
+//
+//   // In integrity: remove `RoleType` enum entirely, or keep as default-role constants.
+//   // Add a `RoleDefinition` entry type:
+//   pub struct RoleDefinition {
+//       pub role_name: String,
+//       pub capability_level: String, // "member" | "stewardship" | "coordination" | "governance"
+//       pub description: Option<String>,
+//       pub validation_requirements: Option<String>,
+//       pub network_id: String,       // Which network defined this role
+//       pub created_at: Timestamp,
+//   }
+//
+//   // In coordinator: `assign_person_role` accepts any role name present in the network's
+//   // RoleDefinition registry. The six predefined roles below become genesis entries.
+//   // The validate_person_role function must stop hard-rejecting unknown role names and
+//   // instead look up the RoleDefinition registry.
+//
+// See `documentation/archives/agent.md` §5.3 (G14), `REQ-AGENT-06` in requirements.md, and
+// `documentation/zomes/person_zome.md` Future Enhancements.
+
 /// Allowed role types in the system
+// NOTE: These are the MVP defaults. Post-MVP they become configurable registry entries.
 #[derive(Debug, Clone, PartialEq)]
 pub enum RoleType {
   SimpleAgent,             // Simple Agent capabilities

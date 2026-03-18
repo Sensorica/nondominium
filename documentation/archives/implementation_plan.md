@@ -80,7 +80,12 @@ _Extending existing resource management with process-aware workflows_
 - [ ] **Economic Process Data Structures** (NEW):
   - [ ] `EconomicProcess` entry type with status tracking and role requirements
   - [ ] `ProcessStatus` enum (Planned, InProgress, Completed, Suspended, Cancelled, Failed)
-  - [ ] Enhanced `ResourceState` transitions aligned with process outcomes
+  - [ ] **Split `ResourceState` into `LifecycleStage` + `OperationalState`** (see ndo_prima_materia.md Section 5):
+    - [ ] `LifecycleStage` enum on `NondominiumIdentity` (Layer 0) — maturity/evolutionary phase
+    - [ ] `OperationalState` enum on `EconomicResource` (Layer 2) — current process condition (`Available`, `Reserved`, `InTransit`, `InStorage`, `InMaintenance`, `InUse`, `PendingValidation`)
+    - [ ] Update governance zome state transition logic to manage both enums independently
+    - [ ] Split `ResourcesByState` link type into `ResourcesByLifecycleStage` and `ResourcesByOperationalState`
+  - [ ] `OperationalState` transitions aligned with process outcomes (begin/end of transport, storage, maintenance processes)
 - [ ] **Process Management Functions** (NEW):
   - [ ] `initiate_economic_process()` with role-based access control
   - [ ] `complete_economic_process()` with state change validation
@@ -97,7 +102,7 @@ _Adding comprehensive reputation system on top of existing governance infrastruc
 
 - [ ] **PPR Data Structures** (NEW):
   - [ ] `PrivateParticipationClaim` entry type (private entry)
-  - [ ] `ParticipationClaimType` enum with 14 claim categories
+  - [ ] `ParticipationClaimType` enum with 16 claim categories
   - [ ] `PerformanceMetrics` structure for quantitative assessment
   - [ ] `CryptographicSignature` structure for bilateral authentication
 - [ ] **PPR Management Functions** (NEW):
@@ -129,6 +134,32 @@ _Implementing the full Simple → Accountable → Primary Accountable Agent prog
   - [ ] Agent identity validation with private data verification
   - [ ] Specialized role validation with existing role holder approval
 
+**Agent Ontology Items (Post-MVP, Phase 2 — see `agent.md` §5.3 and `REQ-AGENT-*`):**
+
+- [ ] **[G13] Fix `request_role_promotion` stub** (HIGH PRIORITY — broken workflow):
+  - [ ] Create a real `RolePromotionRequest` entry type in `zome_person` integrity, replacing the current placeholder hash return
+  - [ ] Add `AllPromotionRequests` anchor link for approver discovery
+  - [ ] Add `AgentToPromotionRequest` and `PromotionRequestToAgent` bidirectional links
+  - [ ] Implement `get_pending_promotion_requests()` query function for authorised approvers
+  - [ ] See `REQ-AGENT-16` and code TODO in `role.rs`
+- [ ] **[G6] `AffiliationRecord` entry type** (NEW):
+  - [ ] Define `AffiliationRecord` struct: `agent`, `network_id`, `documents_acknowledged: Vec<DocumentAck>`, `signed_at`, `signature`, `witness: Option<AgentPubKey>`
+  - [ ] Define `DocumentAck` struct: `document_hash`, `document_title`, `document_version`
+  - [ ] Implement `create_affiliation_record(input)` — agent cryptographically signs ToP, Nondominium & Custodian agreement, Benefit Redistribution Algorithm
+  - [ ] Link: `agent_pubkey → affiliation_record_hash` (`AgentToAffiliation`)
+  - [ ] UI: prompt agent to create `AffiliationRecord` during `Person` creation flow
+  - [ ] See `REQ-AGENT-05`
+- [ ] **[G2] Derived affiliation state** (NEW — computed, not stored):
+  - [ ] Implement `get_affiliation_state(agent_pubkey) -> AffiliationState` as a composed query:
+    - `UnaffiliatedStranger`: no `Person` entry
+    - `CloseAffiliate`: `Person` exists but no `AffiliationRecord` and zero contributions
+    - `ActiveAffiliate`: `AffiliationRecord` exists + tracked contributions (economic events) within configurable recency window
+    - `CoreAffiliate`: `ActiveAffiliate` whose PPR-derived contribution rate exceeds configurable threshold
+    - `InactiveAffiliate`: `AffiliationRecord` exists, previously active, but no contributions within recency window
+  - [ ] Expose affiliation state as part of `get_person_profile()` response
+  - [ ] Use affiliation state in governance access decisions (Active/Core affiliates for governance participation)
+  - [ ] See `REQ-AGENT-04`
+
 ---
 
 ### Phase 3: Advanced Security & Cross-Zome Coordination 🔒 **PRODUCTION READINESS**
@@ -150,6 +181,84 @@ _Building on existing capability infrastructure with Economic Process integratio
   - [ ] Apply capability requirements to all new Economic Process functions
   - [ ] Enhanced private data access control with granular field permissions
   - [ ] Cross-zome capability validation for complex workflows
+
+**Agent Ontology Items (Post-MVP, Phase 3 — see `agent.md` §5.3 and `REQ-AGENT-*`):**
+
+- [ ] **[G1] `AgentEntityType` configuration** (NEW):
+  - [ ] Define `AgentEntityType` enum in `zome_person` integrity: `Individual`, `Collective(String)`, `Project(ActionHash)`, `Network(ActionHash)`, `Bot { capabilities: Vec<String>, operator: AgentPubKey }`, `ExternalOrganisation(String)`
+  - [ ] Define `AgentContext` entry: `agent_type: AgentEntityType`, `person_hash: Option<ActionHash>`, `created_at`, `network_seed`
+  - [ ] Collective, Project, and Network types reference an NDO hash — no separate `Person` entry required
+  - [ ] Update governance role-gating logic to account for non-individual agent types
+  - [ ] See `REQ-AGENT-01`, `REQ-AGENT-02`
+- [ ] **[G15] CapabilitySlot on Person** (NEW):
+  - [ ] Implement `CapabilitySlot` link type from `Person` entry hash to external capability targets (DID documents, credential wallets, reputation oracles)
+  - [ ] Reuse `CapabilitySlotTag` / `SlotType` pattern from `ndo_prima_materia.md` §8.3 — same pattern applied at agent identity level
+  - [ ] Implement `attach_agent_capability_slot(person_hash, slot_type, target_hash)` and `get_agent_capability_slots(person_hash)`
+  - [ ] See `REQ-AGENT-11`
+- [ ] **[G3] Composable `AgentProfile` view** (NEW):
+  - [ ] Implement `get_agent_profile(agent_pubkey) -> AgentProfile` as a composed query — NOT a new stored entry:
+    - Identity: `AgentPubKey`, `Person`, `AffiliationState`, `AgentEntityType`
+    - Capability: `roles: Vec<PersonRole>`, `capability_level`, `capability_slots: Vec<CapabilitySlotInfo>`
+    - Reputation: `reputation_summary: Option<ReputationSummary>`, `economic_reliability_score: Option<f64>`
+    - Participation: `active_commitments_count`, `economic_events_count`, `resource_custodianships_count`
+    - Social: `network_affiliations: Vec<NetworkAffiliation>`, `peer_vouches: Option<u32>`
+    - Temporal: `joined_at`, `last_active_at`
+  - [ ] Agent controls which sections are exposed by granting access to constituent entries
+  - [ ] See `REQ-AGENT-07`
+- [ ] **[G4] `AgentRelationship` link type** (NEW):
+  - [ ] Define bidirectional `AgentRelationship` link type with typed tags: `Colleague`, `Collaborator`, `Trusted`, `Voucher`
+  - [ ] Store as private links (agent-to-agent, not publicly discoverable)
+  - [ ] Implement `create_agent_relationship(target, relationship_type)` and `get_my_relationships()`
+  - [ ] See `REQ-AGENT-08`
+- [ ] **[G5] Network affiliation links** (NEW):
+  - [ ] Define `NetworkAffiliation` link type from `Person` hash to NDO instance hashes
+  - [ ] Implement `add_network_affiliation(person_hash, ndo_hash, affiliation_type)` and `get_network_affiliations(person_hash)`
+  - [ ] An agent's multi-network membership is visible as part of the composable `AgentProfile`
+  - [ ] See `REQ-AGENT-09`
+- [ ] **[G14] Configurable role taxonomy** (NEW):
+  - [ ] Define `RoleDefinition` entry type: `role_name`, `capability_level`, `description`, `validation_requirements`, `network_id`
+  - [ ] Replace hard-coded `RoleType` enum with `RoleDefinition` registry; predefined six roles created as default entries at network genesis
+  - [ ] Update `assign_person_role` to accept any role name present in the network's `RoleDefinition` registry
+  - [ ] See `REQ-AGENT-06`
+- [ ] **[G1+Resource] Collective agent custodianship** (NEW — resource-agent integration):
+  - [ ] Define `AgentContext` union type usable wherever `AgentPubKey` currently identifies a custodian or initiator
+  - [ ] Update `EconomicResource.custodian` from `AgentPubKey` to `AgentContext`
+  - [ ] Update `TransitionContext.target_custodian` from `Option<AgentPubKey>` to `Option<AgentContext>`
+  - [ ] Update `NondominiumIdentity.initiator` from `AgentPubKey` to `AgentContext`
+  - [ ] Update custody transfer validation to handle collective agent auth (no single private key — requires collective signature or designated operator key)
+  - [ ] See `REQ-AGENT-02`, `resources.md §5.3`, `governance-operator-architecture.md §2.1`
+- [ ] **[G2+Resource] Affiliation-gated resource access** (NEW — resource-agent integration):
+  - [ ] Extend `GovernanceRule.rule_data` JSON schema to support `min_affiliation` condition: `"min_affiliation": "ActiveAffiliate" | "CoreAffiliate"`
+  - [ ] Extend governance zome `evaluate_transition` to cross-zome query `zome_person` for requesting agent's `AffiliationState` when `min_affiliation` is present in an applicable GovernanceRule
+  - [ ] Surface affiliation state as an enumerated result field in `GovernanceDecision.role_permissions` entries
+  - [ ] Add `affiliation_gated_access: bool` flag to governance defaults engine output so UIs can surface relevant access requirements
+  - [ ] Write integration tests: agent with `UnaffiliatedStranger` state rejected for `min_affiliation: ActiveAffiliate` governed resource; `ActiveAffiliate` agent accepted
+  - [ ] See `REQ-AGENT-03`, `REQ-AGENT-05`, `resources.md §5.3 (Affiliation-gated resource access row)`, `governance-operator-architecture.md §2.1 TODO G2`
+
+**Governance Agent Ontology Integration (Post-MVP, Phase 3 — see `governance.md §3.6`, `§6.4`, `§6.6`):**
+
+- [ ] **[G1+Governance] Extend core governance entry types to AgentContext**:
+  - [ ] `GovernanceTransitionRequest.requesting_agent`: `AgentPubKey` → `AgentContext`
+  - [ ] `ResourceStateChange.initiated_by`: `AgentPubKey` → `AgentContext`
+  - [ ] `ValidationReceipt.validator`: `AgentPubKey` → `AgentContext`
+  - [ ] `EconomicEvent.provider` and `.receiver`: `AgentPubKey` → `AgentContext`
+  - [ ] `Commitment.provider` and `.receiver`: `AgentPubKey` → `AgentContext`
+  - [ ] `PrivateParticipationClaim.counterparty`: `AgentPubKey` → `AgentContext`
+  - [ ] Implement `AgentContext` → `signing_key` resolution: for `Individual` = the key itself;
+        for `Collective` = designated `PrimaryAccountableAgent` key from collective NDO;
+        for `Bot` = operator `AgentPubKey`
+  - [ ] See `REQ-GOV-16`, `governance.md §3.6.1`, `§6.6`
+- [ ] **[G6+Governance] AffiliationRecord governance ceremony**:
+  - [ ] Implement `create_affiliation_record()` in governance zome using `Commitment`/`EconomicEvent` cycle
+  - [ ] Create `AffiliationRecordSigned` PPR (bilateral, private) on ceremony completion
+  - [ ] Ensure `AffiliationState` derivation in `zome_person` reads `AffiliationRecord` presence from DHT
+  - [ ] See `REQ-GOV-15`, `governance.md §3.6.3`, `§4.4`
+- [ ] **[G2+Governance] Affiliation-gated governance access**:
+  - [ ] Extend governance `evaluate_transition` to check `GovernanceRule.rule_data["min_affiliation"]`
+        specifically for GOVERNANCE PARTICIPATION (distinct from resource access gating)
+  - [ ] Implement governance_weight formula from `governance.md §6.4`:
+        `affiliation_state` gate → 0 if `< ActiveAffiliate`; `core_multiplier` if `CoreAffiliate`
+  - [ ] See `REQ-GOV-14`, `governance.md §6.4`
 
 #### 3.2 Comprehensive Cross-Zome Coordination
 
@@ -205,6 +314,40 @@ _Building sophisticated process chaining and automation on established foundatio
   - [ ] Economic Process performance tracking and optimization recommendations
   - [ ] Resource utilization analytics and efficiency metrics
   - [ ] Agent performance trends and specialization insights
+
+**Agent Ontology Items (Post-MVP, Phase 4 — see `agent.md` §5.3 and `REQ-AGENT-*`):**
+
+- [ ] **[G8] `PortableCredential` structure and export** (NEW):
+  - [ ] Define `PortableCredential` struct: `issuing_network` (DNA hash), `agent`, `credential_type: PortableCredentialType`, `claims`, `issued_at`, `valid_until`, `issuer_signature`, `agent_signature`
+  - [ ] `PortableCredentialType` variants: `RoleCredential(String)`, `ReputationCredential`, `CompetencyCredential(String)`, `AffiliationCredential`
+  - [ ] Implement `issue_portable_credential(agent, credential_type)` — requires `PrimaryAccountableAgent` issuer + agent countersign
+  - [ ] Implement `verify_portable_credential(credential)` — validates both signatures against issuing network DNA hash
+  - [ ] See `REQ-AGENT-12` and `REQ-PPR-15`
+- [ ] **[G7] ZKP capability proofs** (NEW — requires external ZKP library integration):
+  - [ ] Research and select ZKP library compatible with Holochain WASM compilation target (e.g., `bellman`, `arkworks`, or ZKP-compatible VC layer)
+  - [ ] Define `prove_capability(condition: CapabilityCondition) -> ZKProof` — e.g., "I have ≥ N claims of type T" without revealing counterparties or timestamps
+  - [ ] Allow governance functions to accept ZKProof in lieu of raw `ReputationSummary` for access decisions
+  - [ ] See `REQ-AGENT-13` and `REQ-PPR-14`
+- [ ] **[G9] Sybil resistance mechanism** (NEW — configurable per network):
+  - [ ] Option A — Social vouching: N existing `ActiveAffiliate` agents must co-sign a new agent's `AffiliationRecord`
+  - [ ] Option B — Biometric opt-in: integrate with external biometric verification service; store proof hash in `AffiliationRecord`
+  - [ ] Option C — Proof-of-Personhood: integrate with existing PoP protocols (e.g., Proof of Humanity, Worldcoin) as membrane proof
+  - [ ] Network genesis configuration selects which option(s) apply
+  - [ ] See `REQ-AGENT-15`
+- [ ] **[G10] Pseudonymous participation mode** (NEW):
+  - [ ] Allow ephemeral `AgentPubKey` to contribute without creating a `Person` entry or `AffiliationRecord`
+  - [ ] PPRs are issued to the ephemeral key; reputation accumulates but is unlinkable to physical identity
+  - [ ] Agent can optionally link an ephemeral key to their main `Person` entry later (explicit opt-in de-anonymisation)
+  - [ ] See `REQ-AGENT-14`
+- [ ] **[G11] AI/bot delegation (`DelegatedAgent`)** (NEW):
+  - [ ] Define `DelegatedAgent` entry: `delegating_person: AgentPubKey`, `delegate_key: AgentPubKey`, `scope: Vec<String>`, `valid_until: Timestamp`, `signature`
+  - [ ] Bot/AI keys act within declared scope; their actions are attributed to the delegating person for PPR purposes
+  - [ ] See `REQ-AGENT-03`
+- [ ] **[G12] `AgentNeedsWants` profile extension** (NEW):
+  - [ ] Define optional `AgentNeedsWants` entry: `needs: Vec<ResourceNeed>`, `offers: Vec<ResourceOffer>`, `updated_at`
+  - [ ] Link from `Person` hash; update via `update_agent_needs_wants(input)`
+  - [ ] Enable network-level matching: `find_matching_agents(resource_type, quantity)` queries NeedsWants entries
+  - [ ] See `REQ-AGENT-10`
 
 #### 4.2 Advanced PPR & Reputation Systems
 

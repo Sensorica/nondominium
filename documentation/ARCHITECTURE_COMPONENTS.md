@@ -210,7 +210,7 @@ graph TB
 
         subgraph "Economic Resource"
             EconRes[EconomicResource<br/>Resource Instance]
-            ResState[ResourceState<br/>State Tracking]
+            ResState[LifecycleStage + OperationalState<br/>State Tracking (TODO: split ResourceState)]
             ResHistory[ResourceHistory<br/>Audit Trail]
             ResCustody[ResourceCustody<br/>Custody Tracking]
         end
@@ -258,7 +258,8 @@ graph TB
 │                                                             │
 │ 2.2 ECONOMIC RESOURCE                                       │
 │ ├── EconomicResource Entry (resource instance)              │
-│ ├── ResourceState Entry (current state tracking)            │
+│ ├── LifecycleStage (on NondominiumIdentity) + OperationalState (on EconomicResource) │
+│ │   TODO: split current ResourceState into these two enums  │
 │ ├── ResourceHistory Entry (audit trail)                     │
 │ └── ResourceCustody Entry (custody tracking)                │
 │                                                             │
@@ -630,7 +631,7 @@ graph TD
         P2[Hold Custody]
         P3[Validate Specialized Roles]
         P4[Initiate All Processes]
-        P5[All 14 PPR Categories<br/>Including Custodianship]
+        P5[All 16 PPR Categories<br/>Including Custodianship]
     end
 
     subgraph "Advanced Agent Capabilities"
@@ -665,7 +666,7 @@ Accountable Agent (stewardship)
 Primary Accountable Agent (coordination/governance)
 ├── Full Capability Token (comprehensive access)
 ├── Can: Hold custody, validate specialized roles, initiate all processes
-├── PPR Eligibility: All 14 categories including custodianship
+├── PPR Eligibility: All 16 categories including custodianship
 └── Advanced: Dispute resolution, end-of-life validation
 ```
 

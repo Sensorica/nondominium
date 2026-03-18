@@ -43,8 +43,8 @@ Develop a new class of Resources that are:
 
 nondominium Resources must exhibit the following characteristics:
 
-- **REQ-RES-01: Permissionless Access**: Anyone can access nondominium Resources under defined governance rules
-- **REQ-RES-02: Organization Agnostic**: Resources exist independently of any single organization and are associated with Agents according to their Roles
+- **REQ-RES-01: Permissionless Access**: Anyone can access nondominium Resources under defined governance rules. *Post-MVP note*: "defined governance rules" must be extensible to include `AffiliationState`-based conditions (e.g. `min_affiliation: ActiveAffiliate`) in addition to role-based conditions; see `REQ-AGENT-03`, `REQ-AGENT-05`, and `REQ-GOV-09` annotation below.
+- **REQ-RES-02: Organization Agnostic**: Resources exist independently of any single organization and are associated with Agents according to their Roles. *Post-MVP note*: "Agents" must encompass all `AgentEntityType` variants (Individual, Collective, Project, Network, Bot) — see `REQ-AGENT-01` and `REQ-AGENT-02`; `EconomicResource.custodian` will expand from `AgentPubKey` to `AgentContext`.
 - **REQ-RES-03: Capture Resistant**: No Agent or group can control, delete, or monopolize nondominium Resources
 - **REQ-RES-04: Self-governed**: Governance rules are embedded within ResourceSpecifications and enforced programmatically
 - **REQ-RES-05: Fully Specified**: Resources are machine-readable in terms of function, design, standards, and governance rules
@@ -124,6 +124,41 @@ The agent with physical possession (custodianship) of a material nondominium Res
 - **REQ-USER-P-05**: As a Primary Accountable Agent, I want to participate in dispute resolution processes
 - **REQ-USER-P-06**: As a Primary Accountable Agent, I want to initiate Resource end-of-life processes with proper validation
 
+## 4.4 Agent Ontology Requirements (Post-MVP)
+
+> **Status**: Post-MVP. Gaps identified against the OVN wiki ontology (15 years of commons-based peer production practice). See `documentation/archives/agent.md` for the full analysis. Requirements below are design targets for the generic NDO; the current MVP implements individual agents only.
+
+### Agent Type Taxonomy
+
+- **REQ-AGENT-01: Agent Type Field**: Every agent context must carry an `AgentEntityType` discriminant: `Individual`, `Collective(String)`, `Project(ActionHash)`, `Network(ActionHash)`, `Bot { capabilities, operator }`, `ExternalOrganisation(String)`. The MVP supports `Individual` only; all other variants require post-MVP implementation.
+- **REQ-AGENT-02: Collective Agents as NDOs**: Groups, working groups, projects, and network-level entities must be modelled as organisational NDOs (with their own `NondominiumIdentity`) rather than as a parallel agent type requiring new entry schemas. Individual agents hold roles in both their own profile and in organisational NDOs.
+- **REQ-AGENT-03: Bot/AI Delegation**: A `DelegatedAgent` relationship must allow a `Person` to authorise an AI agent or bot to act on their behalf within a defined scope of capabilities and for a defined duration.
+
+### Affiliation Spectrum
+
+- **REQ-AGENT-04: Five-State Affiliation**: The system must model the OVN affiliation spectrum — UnaffiliatedStranger, CloseAffiliate, ActiveAffiliate, CoreAffiliate, InactiveAffiliate — as a *derived* (not stored) property computed algorithmically from PPR activity, recency, and contribution history. Binary "in/out" membership is insufficient for governance decisions.
+- **REQ-AGENT-05: Affiliation Record**: Formal network entry must be formalised as an `AffiliationRecord` entry: the agent cryptographically signs acknowledgement of the Terms of Participation (ToP), the Nondominium & Custodian agreement, and the Benefit Redistribution Algorithm. This record is the prerequisite for `ActiveAffiliate` status.
+- **REQ-AGENT-06: Configurable Role Taxonomy**: The `RoleType` enum must become configurable at the network level. Communities must be able to define their own role taxonomies rather than relying on the six predefined types (`SimpleAgent`, `AccountableAgent`, `PrimaryAccountableAgent`, `Transport`, `Repair`, `Storage`). Predefined roles become defaults, not constraints.
+
+### Composable Profile
+
+- **REQ-AGENT-07: AgentProfile View**: The system must expose a composable `AgentProfile` query that aggregates `Person`, `ReputationSummary`, `PersonRole` list, active commitment count, economic event counts, `CapabilitySlot` attachments, and network affiliations into a single queryable view. This view is computed from existing DHT data — it is not a new stored entry type.
+- **REQ-AGENT-08: Social Graph**: The system must model peer relationships via an `AgentRelationship` bidirectional link type (typed: colleague, collaborator, trusted, voucher), stored privately. Social relations are part of agent wealth in the OVN model and must be legible to governance without being publicly exposed.
+- **REQ-AGENT-09: Network Affiliations**: Agents must be able to hold membership in multiple NDO networks simultaneously. Cross-network affiliations must be modelled as typed links from `Person` to other NDO instance hashes, enabling agents to be bridge nodes between communities.
+- **REQ-AGENT-10: Needs and Wants**: An optional `AgentNeedsWants` profile extension must allow agents to declare what resources they need and what they can offer, enabling matching at the network level.
+
+### Identity, Privacy, and Portability
+
+- **REQ-AGENT-11: CapabilitySlot on Agent**: The `Person` entry hash must serve as a stigmergic attachment surface (analogous to the resource-level CapabilitySlot) for external credential wallets, DID documents, reputation oracles, and professional networks. Agents can attach capabilities to their identity without modifying the core `Person` entry.
+- **REQ-AGENT-12: Portable Credentials**: The system must support a `PortableCredential` structure — a cryptographically signed summary of an agent's roles and `ReputationSummary` — that can be verified by other Holochain networks. This implements the OVN requirement for cross-network identity portability.
+- **REQ-AGENT-13: Zero-Knowledge Capability Proofs**: Agents must be able to prove capability eligibility (`I have at least N completed maintenance commitments`) without revealing the underlying PPR data. ZKP proofs break the false binary between full data disclosure (low privacy) and no disclosure (no accountability).
+- **REQ-AGENT-14: Pseudonymous Participation Mode**: The system must support ephemeral participation: an agent contributes under a temporary key without linking to their `Person` entry. Contribution is recorded but unlinkable to physical identity. This is the individual-level participation tier in the OVN individual/person model.
+- **REQ-AGENT-15: Sybil Resistance**: Network membership must support optional sybil-resistance mechanisms: social vouching (existing agents vouch for new agents), biometric opt-in, or integration with an external Proof-of-Personhood system, configurable per network as a membrane proof.
+
+### Promotion Workflow Integrity
+
+- **REQ-AGENT-16: Queryable Promotion Requests**: The `request_role_promotion` function must create a real, queryable `RolePromotionRequest` entry linked to both the requesting agent and an anchor for pending requests — not return a placeholder hash. Promotion requests must be discoverable by authorised approvers.
+
 ## 5. Economic Process Requirements
 
 ### 5.1 Core Process Types
@@ -147,19 +182,19 @@ The agent with physical possession (custodianship) of a material nondominium Res
 
 - **REQ-GOV-01: First Resource Requirement**: Simple Agents must create at least one Resource before accessing others
 - **REQ-GOV-02: Resource Validation**: New Resources must be validated by Accountable Agents through peer review during first access
-- **REQ-GOV-03: Agent Validation**: Simple Agents must be validated by Accountable Agents during their first transaction to become Accountable Agents
+- **REQ-GOV-03: Agent Validation**: Simple Agents must be validated by Accountable Agents during their first transaction to become Accountable Agents. *Post-MVP note*: this workflow currently assumes individual agents only; post-MVP must support collective agent promotion workflows where the promotee is a Collective/Project/Network NDO and the promoter is its designated `PrimaryAccountableAgent` representative (ref G1, `REQ-GOV-16`).
 - **REQ-GOV-04: Specialized Role Validation**: Transport, Repair, and Storage roles require validation by existing role holders
 
 ### 6.2 Validation Schemes
 
-- **REQ-GOV-05: Role-Gated Validation**: Certain validations are restricted to Agents with specific roles
+- **REQ-GOV-05: Role-Gated Validation**: Certain validations are restricted to Agents with specific roles. *Post-MVP note*: `ValidationReceipt.validator` is currently `AgentPubKey`; post-MVP must accept `AgentContext` to allow collective agent and bot validators within their declared scope (ref G1, `REQ-GOV-16`).
 - **REQ-GOV-06: Multi-Reviewer Validation**: Support configurable validation schemes (2-of-3, N-of-M reviewers)
 - **REQ-GOV-07: Process Validation**: Economic Process completions must be validated according to process-specific criteria
 
 ### 6.3 Governance Rules
 
 - **REQ-GOV-08: Embedded Rules**: ResourceSpecifications must contain embedded governance rules for access and process management
-- **REQ-GOV-09: Rule Enforcement**: Governance rules must be enforced programmatically across all interactions
+- **REQ-GOV-09: Rule Enforcement**: Governance rules must be enforced programmatically across all interactions. *Post-MVP note*: the governance evaluation engine (`evaluate_transition`) must be extended to support `AffiliationState`-based rule conditions in addition to the current role-membership check. This requires a cross-zome query from `zome_governance` to `zome_person` to derive the requesting agent's `AffiliationState` before evaluating `GovernanceRule.rule_data["min_affiliation"]`. See `REQ-AGENT-03`, `REQ-AGENT-05`, `implementation_plan.md §3 [G2+Resource]`, and `governance-operator-architecture.md §2.1 TODO G2`.
 - **REQ-GOV-10: Rule Transparency**: All governance rules must be publicly visible and machine-readable
 
 ### 6.4 End-of-Life Management
@@ -167,6 +202,36 @@ The agent with physical possession (custodianship) of a material nondominium Res
 - **REQ-GOV-11: End-of-Life Declaration**: Resources reaching end-of-life must go through formal decommissioning process
 - **REQ-GOV-12: End-of-Life Validation**: Multiple validators required for end-of-life declarations to prevent abuse
 - **REQ-GOV-13: Challenge Period**: Time-delayed finalization with challenge period for end-of-life declarations
+
+### 6.5 Affiliation and Collective Governance (Post-MVP)
+
+> These requirements depend on post-MVP agent architecture (`REQ-AGENT-01` through `REQ-AGENT-07`)
+> and the `AffiliationState`/`AffiliationRecord` system from `agent.md §4.2` and `§6.4`.
+
+- **REQ-GOV-14: Affiliation-Based Governance Access** — governance processes gated by
+  `AffiliationState` must be enforceable via `GovernanceRule.rule_data["min_affiliation"]`;
+  the governance operator must cross-zome query `AffiliationState` from `zome_person`
+  (refs G2, G6, `governance.md §3.6.2`)
+
+- **REQ-GOV-15: AffiliationRecord Governance Ceremony** — signing an `AffiliationRecord`
+  must generate a `Commitment`/`EconomicEvent`/`Claim` cycle in `zome_governance`, creating
+  an auditable on-chain record of the Terms of Participation (ToP) signing event; this event
+  triggers `AffiliationState → ActiveAffiliate` (refs G6, `governance.md §3.6.3`)
+
+- **REQ-GOV-16: Collective Agent Governance Participation** — `ValidationReceipt`, PPR
+  `counterparty`, `EconomicEvent.provider/receiver`, and `GovernanceTransitionRequest.requesting_agent`
+  must accept `AgentContext` post-MVP; collective NDO governance requires designated-operator
+  or N-of-M multi-sig patterns (refs G1, `governance.md §6.6`)
+
+- **REQ-GOV-17: Sybil Resistance for Governance** — governance-tier role promotion
+  (`AccountableAgent → PrimaryAccountableAgent`) must require either N-of-M active
+  affiliate vouching or optional proof-of-personhood membrane proof (refs G9,
+  `governance.md §5.3`)
+
+- **REQ-GOV-18: Pseudonymous Governance Participation** — agents must be able to reach
+  `ActiveAffiliate` status via pseudonymous `AgentPubKey` (no `Person` entry required);
+  pseudonymous agents are blocked from governance roles requiring legal accountability
+  (refs G10, `governance.md §5.3`)
 
 ## 7. Private Participation Receipt (PPR) Requirements
 
@@ -190,6 +255,14 @@ The agent with physical possession (custodianship) of a material nondominium Res
 - **REQ-PPR-10: Private Storage**: PPRs stored as Holochain private entries accessible only to owning Agent
 - **REQ-PPR-11: Reputation Derivation**: Agents can derive and selectively share reputation summaries from their PPRs
 - **REQ-PPR-12: Signature Validation**: System must validate cryptographic signatures of participation claims
+
+### 7.4 Privacy Tiers and Cross-Network Portability (Post-MVP)
+
+> **TODO**: The following requirements depend on post-MVP agent architecture (see `REQ-AGENT-12` through `REQ-AGENT-15` and `documentation/archives/agent.md` Sections 4.4–4.5).
+
+- **REQ-PPR-13: Per-Interaction Privacy Level**: Agents must be able to choose their privacy level per interaction type: fully anonymous (no PPRs, no reputation accumulation), pseudonymous (PPRs linked to persistent pseudonym, not physical identity), or named (PPRs linked to public `Person` entry). The current model only supports named participation.
+- **REQ-PPR-14: ZKP-Compatible Reputation Sharing**: The reputation summary derived from PPRs must be ZKP-compatible, allowing agents to produce proofs of the form "I have at least N claims of type T" without revealing the counterparties, timestamps, or raw scores. This is a prerequisite for privacy-preserving meritocracy — governance access based on contribution without requiring surveillance.
+- **REQ-PPR-15: Cross-Network Reputation Export**: The `ReputationSummary` must be exportable as a `PortableCredential` (see `REQ-AGENT-12`), signed by a Primary Accountable Agent and countersigned by the claim owner, verifiable by receiving networks. Without portability, contribution history cannot flow across organisational boundaries, blocking growth of the P2P ecosystem.
 
 ## 8. Security & Access Control
 

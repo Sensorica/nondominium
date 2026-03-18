@@ -216,6 +216,8 @@ An individual agent can hold a `PersonRole` in both their own profile and in an 
 
 This means the generic NDO's agent model does not need a separate "organisation agent" type — it needs organisational NDOs and a clear mapping between individual agents and the NDOs they participate in.
 
+Agent-NDOs use the same three-layer structure as resource-NDOs (see `resources.md §3.1`) but may use a subset of `LifecycleStage` values — a working group does not go through `Prototype` or `Distributed`, for example. The `PropertyRegime` and `ResourceNature` fields on `NondominiumIdentity` remain applicable: a working group's shared knowledge base is a `Commons`/`Digital` NDO; a collectively owned workshop is a `Collective`/`Physical` NDO.
+
 ### 3.2 CapabilitySlot on Agent Identity
 
 The NDO CapabilitySlot surface (from `nondominium-prima-materia.md`) can be extended to agent identities: an agent's `Person` entry hash becomes a stigmergic attachment point for external applications — credential wallets, reputation oracles, DID documents, professional networks — without modifying the core Person entry. This is the agent-level equivalent of the resource-level CapabilitySlot.
@@ -429,8 +431,8 @@ affiliation_state(agent) = f(
     governance_claims_count(agent)          // From PPRs
 )
 
-→ Unaffiliated | CloseAffiliate | ActiveAffiliate(contribution_count) | 
-  CoreAffiliate(governance_weight) | InactiveAffiliate
+→ UnaffiliatedStranger | CloseAffiliate | ActiveAffiliate | 
+  CoreAffiliate | InactiveAffiliate
 ```
 
 `CoreAffiliate` is algorithmically determined: an active affiliate whose PPR contribution rate in the past N days exceeds a configurable threshold becomes a core affiliate. This implements the OVN governance equation: governance access as benefit derived from contribution activity.
