@@ -1,21 +1,10 @@
 use hdk::prelude::*;
 use serde::{Deserialize, Serialize};
 
+pub mod errors;
 pub mod paths;
 
-#[derive(Debug, thiserror::Error)]
-pub enum CommonError {
-  #[error("Serialization error: {0}")]
-  Serialize(String),
-  #[error("External call failed: {0}")]
-  External(String),
-}
-
-impl From<CommonError> for WasmError {
-  fn from(err: CommonError) -> Self {
-    wasm_error!(WasmErrorInner::Guest(err.to_string()))
-  }
-}
+pub use errors::{CommonError, GovernanceError, PersonError, ResourceError};
 
 /// Utility function for making external local calls to other zomes
 /// This follows the pattern established in the Requests & Offers project
@@ -70,6 +59,40 @@ where
   T: std::fmt::Debug + for<'de> Deserialize<'de>,
 {
   external_local_call(fn_name, "zome_gouvernance", payload)
+}
+
+/// Generic bridge helper for calling functions in the hREA DNA (cross-DNA call).
+/// Uses `CallTargetCell::OtherRole("hrea")` — the role name defined in happ.yaml.
+/// Any coordinator zome that needs to call hREA should use this function.
+pub fn call_hrea_zome<I, O>(fn_name: &str, payload: I) -> ExternResult<O>
+where
+  I: Serialize + std::fmt::Debug,
+  O: std::fmt::Debug + for<'de> Deserialize<'de>,
+{
+  let response = call(
+    CallTargetCell::OtherRole("hrea".into()),
+    ZomeName("hrea".into()),
+    FunctionName(fn_name.into()),
+    None,
+    payload,
+  )?;
+  match response {
+    ZomeCallResponse::Ok(output) => output.decode().map_err(|e| {
+      wasm_error!(WasmErrorInner::Guest(format!("hREA response decode error: {}", e)))
+    }),
+    ZomeCallResponse::Unauthorized(_, _, _, _) => {
+      Err(wasm_error!(WasmErrorInner::Guest("hREA call unauthorized".into())))
+    }
+    ZomeCallResponse::AuthenticationFailed(_, _) => {
+      Err(wasm_error!(WasmErrorInner::Guest("hREA call authentication failed".into())))
+    }
+    ZomeCallResponse::NetworkError(e) => {
+      Err(wasm_error!(WasmErrorInner::Guest(format!("hREA network error: {}", e))))
+    }
+    ZomeCallResponse::CountersigningSession(e) => {
+      Err(wasm_error!(WasmErrorInner::Guest(format!("hREA countersigning error: {}", e))))
+    }
+  }
 }
 
 /// Common validation helpers inspired by Requests & Offers patterns

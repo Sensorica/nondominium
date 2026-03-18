@@ -1,4 +1,5 @@
 use hdk::prelude::*;
+pub use nondominium_utils::errors::GovernanceError;
 use zome_gouvernance_integrity::*;
 
 pub mod commitment;
@@ -12,54 +13,6 @@ pub use economic_event::*;
 pub use ppr::*;
 pub use private_data_validation::*;
 pub use validation::*;
-
-#[derive(Debug, thiserror::Error)]
-pub enum GovernanceError {
-  #[error("Validation receipt not found: {0}")]
-  ValidationReceiptNotFound(String),
-
-  #[error("Economic event not found: {0}")]
-  EconomicEventNotFound(String),
-
-  #[error("Resource validation not found: {0}")]
-  ResourceValidationNotFound(String),
-
-  #[error("Commitment not found: {0}")]
-  CommitmentNotFound(String),
-
-  #[error("Not authorized for this validation")]
-  NotAuthorizedValidator,
-
-  #[error("Insufficient capability level: {0}")]
-  InsufficientCapability(String),
-
-  #[error("Validation already exists for this item: {0}")]
-  ValidationAlreadyExists(String),
-
-  #[error("Invalid validation scheme: {0}")]
-  InvalidValidationScheme(String),
-
-  #[error("Serialization error: {0}")]
-  SerializationError(String),
-
-  #[error("Entry operation failed: {0}")]
-  EntryOperationFailed(String),
-
-  #[error("Link operation failed: {0}")]
-  LinkOperationFailed(String),
-
-  #[error("Invalid input: {0}")]
-  InvalidInput(String),
-
-  #[error("Cross-zome call failed: {0}")]
-  CrossZomeCallFailed(String),
-}
-
-impl From<GovernanceError> for WasmError {
-  fn from(err: GovernanceError) -> Self {
-    wasm_error!(WasmErrorInner::Guest(err.to_string()))
-  }
-}
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Debug)]

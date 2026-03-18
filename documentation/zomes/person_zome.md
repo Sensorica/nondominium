@@ -551,6 +551,8 @@ if let Some(person) = person_hash {
 
 ### PersonError Types
 
+`PersonError` is defined in `crates/utils/src/errors.rs` and imported by `zome_person`.
+
 ```rust
 pub enum PersonError {
     PersonAlreadyExists,           // One person per agent restriction
@@ -567,7 +569,7 @@ pub enum PersonError {
 ```
 
 **Pattern**: Comprehensive error coverage with descriptive messages
-**Integration**: Converts to `WasmError` for Holochain compatibility
+**Integration**: Converts to `WasmError` for Holochain compatibility via `From<PersonError> for WasmError` in `nondominium_utils::errors`
 
 ## Privacy Model
 

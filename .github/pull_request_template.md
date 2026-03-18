@@ -23,6 +23,9 @@
 
 ## Related
 
-- Closes: #
+Related issues:
+- Closes #[issue]
+- Closes #[issue]
+
 - Depends on: #
 - Follow-up: #
