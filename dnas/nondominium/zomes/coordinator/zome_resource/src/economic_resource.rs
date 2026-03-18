@@ -268,15 +268,12 @@ pub fn get_resources_by_specification(spec_hash: ActionHash) -> ExternResult<Vec
 
   let get_input: Vec<GetInput> = links
     .into_iter()
-    .map(|link| {
-      GetInput::new(
-        link
-          .target
-          .clone()
-          .into_any_dht_hash()
-          .expect("Failed to convert link target"),
-        GetOptions::default(),
-      )
+    .filter_map(|link| {
+      link
+        .target
+        .clone()
+        .into_any_dht_hash()
+        .map(|hash| GetInput::new(hash, GetOptions::default()))
     })
     .collect();
   let records = HDK.with(|hdk| hdk.borrow().get(get_input))?;

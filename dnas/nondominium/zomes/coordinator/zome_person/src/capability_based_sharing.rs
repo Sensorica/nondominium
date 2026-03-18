@@ -3,6 +3,8 @@ use std::collections::BTreeSet;
 use std::str::FromStr;
 use zome_person_integrity::*;
 
+use crate::PersonError;
+
 // ============================================================================
 // CAPABILITY-BASED PRIVATE DATA SHARING
 // ============================================================================
@@ -333,7 +335,8 @@ pub fn get_private_data_with_capability(
   }
 
   // Get the grantor's private data
-  let grantor_pubkey = grantor_pubkey.expect("Grantor pubkey should be set after validation");
+  let grantor_pubkey = grantor_pubkey
+    .ok_or(PersonError::InvalidInput("Grantor pubkey not set after validation".to_string()))?;
   let private_data =
     crate::private_data::get_agent_private_data(grantor_pubkey)?.ok_or(wasm_error!(
       WasmErrorInner::Guest("Grantor's private data not found".to_string())

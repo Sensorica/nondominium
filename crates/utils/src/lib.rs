@@ -1,21 +1,10 @@
 use hdk::prelude::*;
 use serde::{Deserialize, Serialize};
 
+pub mod errors;
 pub mod paths;
 
-#[derive(Debug, thiserror::Error)]
-pub enum CommonError {
-  #[error("Serialization error: {0}")]
-  Serialize(String),
-  #[error("External call failed: {0}")]
-  External(String),
-}
-
-impl From<CommonError> for WasmError {
-  fn from(err: CommonError) -> Self {
-    wasm_error!(WasmErrorInner::Guest(err.to_string()))
-  }
-}
+pub use errors::{CommonError, GovernanceError, PersonError, ResourceError};
 
 /// Utility function for making external local calls to other zomes
 /// This follows the pattern established in the Requests & Offers project

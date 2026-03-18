@@ -1,4 +1,5 @@
 use hdk::prelude::*;
+pub use nondominium_utils::errors::ResourceError;
 
 pub mod economic_resource;
 pub mod governance_rule;
@@ -7,45 +8,6 @@ pub mod resource_specification;
 pub use economic_resource::*;
 pub use governance_rule::*;
 pub use resource_specification::*;
-
-#[derive(Debug, thiserror::Error)]
-pub enum ResourceError {
-  #[error("Resource specification not found: {0}")]
-  ResourceSpecNotFound(String),
-
-  #[error("Economic resource not found: {0}")]
-  EconomicResourceNotFound(String),
-
-  #[error("Governance rule not found: {0}")]
-  GovernanceRuleNotFound(String),
-
-  #[error("Not the author of this entry")]
-  NotAuthor,
-
-  #[error("Not the custodian of this resource")]
-  NotCustodian,
-
-  #[error("Serialization error: {0}")]
-  SerializationError(String),
-
-  #[error("Entry operation failed: {0}")]
-  EntryOperationFailed(String),
-
-  #[error("Link operation failed: {0}")]
-  LinkOperationFailed(String),
-
-  #[error("Invalid input: {0}")]
-  InvalidInput(String),
-
-  #[error("Governance rule violation: {0}")]
-  GovernanceViolation(String),
-}
-
-impl From<ResourceError> for WasmError {
-  fn from(err: ResourceError) -> Self {
-    wasm_error!(WasmErrorInner::Guest(err.to_string()))
-  }
-}
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Debug)]
