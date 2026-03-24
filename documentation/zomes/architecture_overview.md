@@ -18,7 +18,7 @@ Nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant res
 - **Compliance**: ValueFlows standard for economic resource management with nondominium extensions (VfAction enum, Economic Processes)
 - **Governance**: Embedded rules, multi-reviewer validation (2-of-3, N-of-M, simple_majority), cryptographically-signed reputation tracking through PPRs
 - **Economic Processes**: Four structured workflows (Use, Transport, Storage, Repair) with role-based access control and specialized validation requirements
-- **Private Data Sharing**: Request/grant workflows with 7-day expiration, field-specific control, and Economic Process coordination integration
+- **Private Data Sharing**: Request/grant workflows with time-limited grants (30-day maximum per capability metadata; shorter UI defaults possible), field-specific control, and Economic Process coordination integration
 - **Reputation System**: 16 PPR categories, bi-directional receipt issuance, cryptographic signatures, privacy-preserving reputation derivation
 
 ## Cross-Zome Integration Patterns
@@ -797,7 +797,7 @@ pub enum OntologyLayer {
 
 ### Phase 2: Enhanced Governance & Process Integration ✅ **COMPLETED**
 
-- ✅ **Enhanced Private Data Sharing**: Complete DataAccessRequest/Grant workflows with 7-day expiration and field-specific control
+- ✅ **Enhanced Private Data Sharing**: Complete DataAccessRequest/Grant workflows with time-limited grants (30-day cap) and field-specific control
 - ✅ **Economic Process Infrastructure**: Four structured processes (Use, Transport, Storage, Repair) with role-based access control
 - ✅ **Private Participation Receipt (PPR) System**: Complete 14-category PPR system with bi-directional receipt issuance
 - ✅ **Agent Capability Progression**: Complete Simple → Accountable → Primary Accountable Agent advancement with PPR integration
@@ -937,7 +937,7 @@ This comprehensive architecture provides a production-ready, sophisticated found
 - **Progressive Trust Model**: Three-tier agent capability system (Simple → Accountable → Primary Accountable Agent) with automatic PPR-based advancement
 - **Economic Process Management**: Four structured workflows (Use, Transport, Storage, Repair) with role-based access control and specialized validation requirements
 - **Privacy-Preserving Reputation**: 14-category PPR system with cryptographically-signed bilateral receipts enabling trust without compromising privacy
-- **Enhanced Private Data Sharing**: Request/grant workflows with 7-day expiration, field-specific control, and Economic Process coordination integration
+- **Enhanced Private Data Sharing**: Request/grant workflows with time-limited grants (30-day cap), field-specific control, and Economic Process coordination integration
 - **Embedded Governance**: Community-defined rules enforced programmatically across all interactions with multi-reviewer validation schemes
 - **Cross-Zome Integration**: Seamless coordination between identity, resource, and governance systems with atomic transaction support
 

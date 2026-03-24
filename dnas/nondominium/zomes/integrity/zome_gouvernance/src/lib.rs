@@ -14,7 +14,8 @@ pub enum VfAction {
   // Standard ValueFlows production/consumption actions
   Use, // Use a resource without consuming it
 
-  // TODO: No consumable in the PoC, but we have to think about hte end of life of a resource.
+  // TODO: No consumable in the PoC, but end-of-life / Consume flows need design alignment with
+  // lifecycle stages — see `documentation/requirements/ndo_prima_materia.md` §5.3, REQ-GOV-11–13.
   Consume, // Consume/destroy a resource
   Produce, // Create/produce a new resource
   Work,    // Apply work/labor to a resource

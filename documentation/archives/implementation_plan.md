@@ -416,7 +416,7 @@ _Optimizing the system for large-scale network operation_
 
 ### Phase 2 Targets 🎯 **GOVERNANCE & PROCESSES**
 
-- [ ] **Enhanced Private Data Sharing**: Request/grant workflows with 7-day expiration and field-specific control
+- [ ] **Enhanced Private Data Sharing**: Request/grant workflows with time-limited grants (30-day maximum per capability metadata) and field-specific control
 - [ ] **Economic Process Infrastructure**: Four structured processes (Use, Transport, Storage, Repair) with role-based access
 - [ ] **PPR Reputation System**: Bi-directional Private Participation Receipts with cryptographic signatures
 - [ ] **Agent Capability Progression**: Complete Simple → Accountable → Primary Accountable Agent advancement
@@ -562,3 +562,36 @@ This enhanced implementation plan transforms the nondominium hApp from a foundat
 - Advanced validation schemes with reputation-weighted consensus and dispute resolution
 
 This plan ensures the nondominium hApp will fulfill its vision of decentralized, commons-based resource management with sophisticated governance, Economic Process management, privacy-preserving reputation tracking, and embedded accountability at every layer, in strict alignment with the enhanced requirements and technical specifications.
+
+---
+
+## 10. Post-MVP design track: NDO model, Unyt, Flowsta
+
+**Status:** specified in documentation; **not** part of the MVP WASM deliverable until explicitly scheduled. Normative requirements: `documentation/requirements/ndo_prima_materia.md` (§9 REQ-NDO-*, §10 migration). Stubs: `documentation/requirements/post-mvp/unyt-integration.md`, `documentation/requirements/post-mvp/flowsta-integration.md`. Archives: `documentation/archives/resources.md`, `agent.md`, `governance.md`.
+
+### 10.1 Generic NDO (three-layer model, lifecycle split)
+
+- [ ] Introduce `NondominiumIdentity` (Layer 0), `NDOToSpecification` / `NDOToProcess` / holonic links, capability slot surface — see `ndo_prima_materia.md` §§4, 8, 10.
+- [ ] Split `ResourceState` into `LifecycleStage` + `OperationalState`; split discovery links (`REQ-NDO-OS-06`) — already listed in Phase 2.2 of this plan; align with prima materia §5 / §9.4.
+
+### 10.2 Unyt integration (three phases, parallel to prima materia §6.6)
+
+- [ ] **Phase 1 — Capability surface:** `UnytAgreement` `SlotType`; Tier 1 proposals on NDO identity hashes (`REQ-NDO-CS-07`, `REQ-NDO-CS-08`).
+- [ ] **Phase 2 — Governance rules:** typed `EconomicAgreement` on `GovernanceRule` / `GovernanceRuleType` (`REQ-NDO-CS-09`); zome_resource / integrity changes only.
+- [ ] **Phase 3 — Governance zome:** `evaluate_transition_request` requires valid `rave_hash` when rules trigger; cross-cell RAVE validation; PPR `settlement_rave_hash` (`REQ-NDO-CS-10`, `REQ-NDO-CS-11`).
+
+### 10.3 Flowsta integration (three phases, parallel to prima materia §6.7)
+
+- [ ] **Phase 1 — DNA + slots:** `FlowstaIdentity` in `SlotType`; bundle `flowsta-agent-linking` integrity + coordinator zomes; Tier 1 linking only (`REQ-NDO-CS-12`, `REQ-NDO-CS-13`).
+- [ ] **Phase 2 — UI / Vault UX:** link flows, DID display, Vault backup APIs — see `flowsta-integration.md` §6.
+- [ ] **Phase 3 — Governance enforcement:** `IdentityVerification` (or equivalent) + REQ-NDO-CS-15 checks in transition evaluation (`REQ-NDO-CS-14`); fold into same operator story as Unyt Phase 3.
+
+### 10.4 Agent capability surface (G15)
+
+- [ ] `Person` entry hash as stigmergic attachment point for `FlowstaIdentity` and future slots (`REQ-NDO-AGENT-07`, `REQ-AGENT-11`) — see `agent.md` §3.2, `person_zome.md` Person TODO.
+
+---
+
+# Some new ideas parked here for later consideration
+
+How does NDO and Nondiminium hApp mitigates coordination costs, communication overhead, and the free-rider problem?

@@ -87,6 +87,13 @@ nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant res
 - **ValueFlows Compliance**: EconomicResource, EconomicEvent, Commitment data structures
 - **Embedded Governance**: Resources contain governance rules for access/transfer
 
+### Documentation (NDO & post-MVP integrations)
+
+- **Normative NDO / capability requirements:** `documentation/requirements/ndo_prima_materia.md` (REQ-NDO-*, §6.6 Unyt, §6.7 Flowsta)
+- **Master index:** `documentation/DOCUMENTATION_INDEX.md`
+- **Integration stubs:** `documentation/requirements/post-mvp/unyt-integration.md`, `documentation/requirements/post-mvp/flowsta-integration.md`
+- **Ontology archives:** `documentation/archives/resources.md`, `agent.md`, `governance.md`
+
 ## Key Development Patterns
 
 ### Entry Creation Pattern

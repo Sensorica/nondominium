@@ -3,7 +3,7 @@
 **Status**: Post-MVP Design Document  
 **Created**: 2026-03-11  
 **Authors**: Nondominium project  
-**Relates to**: `nondominium-prima-materia.md`, `many-to-many-flows.md`, `versioning.md`
+**Relates to**: `ndo_prima_materia.md`, `many-to-many-flows.md`, `versioning.md`
 
 ---
 
@@ -25,7 +25,7 @@
 
 ## 1. Framing: The Generic NDO and Nondominium as Instantiation
 
-This document is written in the context of a conceptual shift in the Nondominium project's post-MVP trajectory. The Nondominium Object (NDO) — the three-layer DHT primitive described in `nondominium-prima-materia.md` — is being recognised as generic infrastructure that should exist independently of any specific application domain.
+This document is written in the context of a conceptual shift in the Nondominium project's post-MVP trajectory. The Nondominium Object (NDO) — the three-layer DHT primitive described in `ndo_prima_materia.md` — is being recognised as generic infrastructure that should exist independently of any specific application domain.
 
 The plan:
 
@@ -36,7 +36,7 @@ The plan:
 This document specifies how Unyt integrates with the **generic NDO**. The Unyt integration is designed to be:
 
 - **Optional** — the NDO functions without it; economic settlement is a capability communities activate when they need it, not a structural requirement
-- **Modular** — it connects to the NDO via the capability slot mechanism (Section 6 of `nondominium-prima-materia.md`) and a standard GovernanceRule type, requiring no modifications to the NDO's core data model
+- **Modular** — it connects to the NDO via the capability slot mechanism (Section 6 of `ndo_prima_materia.md`) and a standard GovernanceRule type, requiring no modifications to the NDO's core data model
 - **Alliance-configurable** — each NDO community defines its own Unyt Alliance: its unit of account, its credit limit algorithm, its Smart Agreement templates, its fee policy
 - **Lifecycle-aware** — economic terms can differ across NDO lifecycle stages; a resource under development may be accessed freely while the same resource in `Active` state requires economic settlement
 
@@ -168,7 +168,7 @@ The NDO-Unyt integration uses four coupling points, designed to be independently
 
 ### 5.1 Capability Slot (Layer 0 — discovery surface)
 
-The `UnytAgreement(String)` slot type in the `SlotType` enum (defined in `nondominium-prima-materia.md` Section 8.3) is the permissionless discovery surface. Any Accountable Agent can attach a proposed Unyt Smart Agreement to any NDO's Layer 0 identity hash. This is informational — a proposal, a market signal, a community suggestion. Multiple competing proposals may coexist. The governance zome does not enforce Tier 1 slots.
+The `UnytAgreement(String)` slot type in the `SlotType` enum (defined in `ndo_prima_materia.md` Section 8.3) is the permissionless discovery surface. Any Accountable Agent can attach a proposed Unyt Smart Agreement to any NDO's Layer 0 identity hash. This is informational — a proposal, a market signal, a community suggestion. Multiple competing proposals may coexist. The governance zome does not enforce Tier 1 slots.
 
 The `String` parameter carries the Unyt Alliance network seed, allowing a single NDO to be referenced by agreements on different Alliance instances (for inter-community bridging or migration scenarios).
 
@@ -423,7 +423,7 @@ A resource's complete governance constitution therefore has three layers:
 
 Together, these three layers constitute a complete, peer-enforced, cryptographically-guaranteed economic constitution for the resource. No legal system, no platform, no administrator required. The rules are in the DHT; the enforcement is in the validation logic; the settlement is in Unyt. The "governance engine" is the network of peers running the same code.
 
-This is the fullest expression of what `nondominium-prima-materia.md` calls the **governance-as-operator architecture**: not just governance deciding who can act, but governance specifying the complete economic context of action — including consequences, settlement flows, and redistribution rules.
+This is the fullest expression of what `ndo_prima_materia.md` calls the **governance-as-operator architecture**: not just governance deciding who can act, but governance specifying the complete economic context of action — including consequences, settlement flows, and redistribution rules.
 
 ### 8.2 Economic Standing as Governance Weight
 
@@ -490,7 +490,7 @@ Nondominium (this project), built on the generic NDO, adds:
 - **Resource domain types**: the specific VfActions (`AccessForUse`, `TransferCustody`, etc.) and four economic processes (Transport, Storage, Repair, Use)
 - **PPR category domain**: the 16 `ParticipationClaimType` variants specific to physical resource sharing (see governance zome documentation)
 - **Default Alliance configuration**: Commons Alliance archetype, tuned for physical resource sharing economies
-- **Standard Smart Agreement templates**: the four value flow patterns defined in `nondominium-prima-materia.md` Section 6.5 (Access Fee, Service Billing, Revenue Sharing, Custody Bond)
+- **Standard Smart Agreement templates**: the four value flow patterns defined in `ndo_prima_materia.md` Section 6.6 (Access Fee, Service Billing, Revenue Sharing, Custody Bond)
 - **Credit limit algorithm**: the RHAI script from Section 7.2, with parameter defaults tuned for physical resource stewardship economies
 - **Role-based credit tiers**: mapping SimpleAgent / AccountableAgent / PrimaryAccountableAgent role promotions onto credit gradient thresholds
 
@@ -499,7 +499,7 @@ Nondominium (this project), built on the generic NDO, adds:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                  GENERIC NDO INFRASTRUCTURE                      │
-│  (implements prima-materia + this document's integration layer) │
+│  (implements ndo_prima_materia.md + this document's integration layer) │
 │                                                                  │
 │  • Three-layer model (L0, L1, L2)                               │
 │  • Lifecycle state machine                                       │
@@ -625,4 +625,4 @@ Implement in the NDO governance zome:
 
 ---
 
-*This document is post-MVP. It describes the integration of Unyt as the economic settlement layer for the generic NDO primitive. The generic NDO project (implementing `nondominium-prima-materia.md` as a standalone hApp) has not yet begun. When it is created, Nondominium (this project) will migrate to it as one instantiation, inheriting the Unyt integration layer described here. The integration path in Section 10 applies to the generic NDO project first, and to Nondominium thereafter.*
+*This document is post-MVP. It describes the integration of Unyt as the economic settlement layer for the generic NDO primitive. The generic NDO project (implementing `ndo_prima_materia.md` as a standalone hApp) has not yet begun. When it is created, Nondominium (this project) will migrate to it as one instantiation, inheriting the Unyt integration layer described here. The integration path in Section 10 applies to the generic NDO project first, and to Nondominium thereafter.*

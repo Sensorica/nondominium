@@ -1,5 +1,7 @@
 # Cross-Zome API Specification
 
+Cross-zome contracts described here reflect the **MVP** split: `zome_resource` holds data; `zome_gouvernance` evaluates transitions. **Post-MVP**, typed rules for **Unyt** (`EconomicAgreement`, RAVE) and **Flowsta** (`IdentityVerification`) are specified in `documentation/requirements/ndo_prima_materia.md` §§6.6–6.7 and the integration stubs under `documentation/requirements/post-mvp/` — see also `governance-operator-architecture.md` §1.3.
+
 ## 1. Resource Zome API
 
 ### 1.1 Data Access Functions

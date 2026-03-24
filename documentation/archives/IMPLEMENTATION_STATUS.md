@@ -425,6 +425,22 @@ bun run package          # Final .webhapp distribution
 
 ---
 
+## Post-MVP design specifications (not in shipped DNA yet)
+
+The following are **documented and traceable** to REQ-NDO-* in `documentation/requirements/ndo_prima_materia.md` but **not implemented** in the current MVP codebase unless noted otherwise:
+
+| Track | Design sources | Implementation status |
+| ----- | -------------- | ---------------------- |
+| **NDO three-layer model** | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3 | Not started — MVP uses flat `ResourceSpecification` + `EconomicResource` |
+| **Lifecycle vs operational state split** | `ndo_prima_materia.md` §5, §9.4 (`REQ-NDO-OS-01`–`06`) | Not started — `ResourceState` still conflated (see zome_resource TODOs) |
+| **Unyt (EconomicAgreement, RAVE)** | `ndo_prima_materia.md` §6.6, §11.5; `unyt-integration.md`; REQ-NDO-CS-07–CS-11 | Not started — no Unyt cell / RAVE validation in governance zome |
+| **Flowsta (agent linking, IdentityVerification)** | `ndo_prima_materia.md` §6.7, §11.6; `flowsta-integration.md`; REQ-NDO-CS-12–CS-15 | Not started — `flowsta-agent-linking` zomes not bundled; `GovernanceRule` remains untyped strings |
+| **Person capability slot (G15)** | `agent.md` §3.2; `person_zome.md`; REQ-AGENT-11, REQ-NDO-AGENT-07 | Not started — no `FlowstaIdentity` links on `Person` hash |
+
+See `documentation/archives/implementation_plan.md` §10 for a phased checklist aligned with prima materia.
+
+---
+
 ## Conclusion
 
 The nondominium hApp represents a **complete, production-ready implementation** of a sophisticated ValueFlows-compliant resource sharing ecosystem with advanced privacy controls and revolutionary reputation mechanics. All major components are fully implemented, thoroughly tested, and ready for deployment.
