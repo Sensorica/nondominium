@@ -3,6 +3,7 @@
 ## Overview
 
 This document outlines the cryptographic security enhancements implemented in the Private Participation Receipt (PPR) system to address the security recommendations from the analysis of GitHub issue #30.
+Note that the PPR system was inspired by Mark Lizar's work on Digital Notice Consent at the OPN lab https://github.com/0PN-lab 
 
 ## Security Improvements Implemented
 
