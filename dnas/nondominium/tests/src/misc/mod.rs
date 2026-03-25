@@ -1,7 +1,6 @@
 //! Misc zome tests — translated from `misc/misc.test.ts`.
 
 use nondominium_sweettest::common::*;
-use holochain::prelude::*;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn ping() {
