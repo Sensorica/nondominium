@@ -394,25 +394,29 @@ pub enum LinkTypes {
 
 ```mermaid
 flowchart TD
-    subgraph L0["Layer 0 — IDENTITY (always active)"]
+    subgraph L0["NDO Layer 0 — IDENTITY · NDO-specific (no VF equivalent)"]
         NDO["NondominiumIdentity\nname · regime · nature · lifecycle_stage"]
     end
 
-    subgraph L1["Layer 1 — SPECIFICATION (activated on demand)"]
+    subgraph L1["NDO Layer 1 — SPECIFICATION · VF: Knowledge Layer"]
         SPEC["ResourceSpecification\nname · description · category\ndefault_unit · substitutable · medium_of_exchange"]
-        GRULE["GovernanceRule\nrule_type · rule_data · enforced_by"]
+        GRULE["GovernanceRule\nrule_type(enum) · rule_data · enforced_by"]
     end
 
-    subgraph L2["Layer 2 — PROCESS (activated on demand)"]
-        PROC["Process\nname · in_scope_of · finished"]
-        ERES["EconomicResource\naccounting_qty · onhand_qty\nprimary_accountable · state"]
-        EEVENT["EconomicEvent\naction · provider · receiver\nresource_quantity · fulfills"]
-        COMMIT["Commitment\naction · provider · receiver\ndue_date · clause_of"]
-        AGREE["Agreement\nname · parties"]
-        PPR["PrivateParticipationClaim\nbilateral signature · 16 categories"]
+    subgraph L2["NDO Layer 2 — PROCESS · VF: Plan + Observation Layers"]
+        subgraph VFP["VF Plan Layer"]
+            PROC["Process\nname · in_scope_of · finished"]
+            COMMIT["Commitment\naction · provider · receiver\ndue_date · clause_of"]
+            AGREE["Agreement\nname · parties"]
+        end
+        subgraph VFO["VF Observation Layer"]
+            ERES["EconomicResource\naccounting_qty · onhand_qty\nprimary_accountable · conforms_to"]
+            EEVENT["EconomicEvent\naction · provider · receiver\nresource_quantity · fulfills"]
+            PPR["PrivateParticipationClaim\n(NDO extension of vf:Claim)\nbilateral signature · 16 categories"]
+        end
     end
 
-    Agent(["Agent\nAgentPubKey + Person"])
+    Agent(["Agent · VF Observation Layer\nAgentPubKey + Person entry"])
 
     Agent -->|"create_ndo()"| NDO
     NDO -->|"NDOToSpecification\nactivate_layer1()"| SPEC
@@ -428,6 +432,12 @@ flowchart TD
     EEVENT -->|"triggers"| PPR
 
     NDO -->|"NDOToComponent\n(holonic composition)"| NDO
+
+    style L0  fill:#1e3a5f,color:#fff,stroke:#3b82f6
+    style L1  fill:#1a3a2a,color:#fff,stroke:#22c55e
+    style L2  fill:#2a1a3a,color:#fff,stroke:#a855f7
+    style VFP fill:#2a2a1a,color:#fff,stroke:#eab308
+    style VFO fill:#3a1a1a,color:#fff,stroke:#ef4444
 ```
 
 **Activation rules:**
@@ -439,6 +449,8 @@ flowchart TD
 - An NDO can contain other NDOs via `NDOToComponent` (holonic composition)
 
 ### Lifecycle Transition State Machine
+
+// TODO: Hibernation can go back to all previous states including active.
 
 ```mermaid
 stateDiagram-v2
@@ -474,14 +486,14 @@ stateDiagram-v2
 ### Transition Authorization Table
 
 | Transition                    | Authorized by                        | VfAction trigger |
-| ----------------------------- | ------------------------------------ | ---------------- |
+| ----------------------------- | ------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Ideation → Specification      | Initiator                            | Work             |
 | Specification → Development   | Initiator or any Accountable Agent   | Work             |
 | Development → Prototype       | Custodian + governance validation    | Modify           |
 | Prototype → Stable            | N-of-M peer validation               | Accept           |
 | Stable / Active → Distributed | Primary Accountable Agent            | Transfer         |
-| Any → Hibernating             | Current custodian(s)                 | Lower            |
-| Hibernating → Active          | Current custodian(s)                 | Raise            |
+| Any → Hibernating             | Current custodian(s)                 | Lower            | // TODO: If some criterias are met (e.g.: being innactive since more than x times)                                    |
+| Hibernating → Active          | Current custodian(s)                 | Raise            | // TODO: If some criterias are met (e.g.: like being hiberning since more than x times, a new custodian can claim it) |
 | Any → Deprecated              | Custodian + successor NDO declared   | Cite             |
 | Any → EndOfLife               | Custodian + challenge period elapsed | Consume          |
 
