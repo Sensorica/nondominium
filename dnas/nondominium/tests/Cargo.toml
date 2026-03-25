@@ -10,29 +10,14 @@ edition = "2021"
 # artifact conflicts with the wasm32-unknown-unknown build directory.
 #
 # Prerequisites: `bun run build:happ` must be run before `cargo test`
+#
+# Test cases for each zome will be added alongside the NDO refactor
+# (see documentation/requirements/ndo_prima_materia.md §10 migration phases).
 
 [dependencies]
-holochain  = { workspace = true }
-tokio      = { workspace = true }
-serde      = { workspace = true }
-serde_json = "1"
-rmp-serde  = "1"
-# holochain_serialized_bytes provides the SerializedBytes derive macro needed
-# for mirror structs to work with Record::entry().to_app_option().
-holochain_serialized_bytes = { workspace = true }
+holochain = { workspace = true }
+tokio     = { workspace = true }
 
 [[test]]
 name = "misc"
 path = "src/misc/mod.rs"
-
-[[test]]
-name = "person"
-path = "src/person/mod.rs"
-
-[[test]]
-name = "resource"
-path = "src/resource/mod.rs"
-
-[[test]]
-name = "governance"
-path = "src/governance/mod.rs"

@@ -4,7 +4,7 @@
 
 The nondominium hApp employs a comprehensive, multi-layered testing strategy covering all three zomes across two parallel test suites that are active simultaneously during migration.
 
-**Current status**: Sweettest (Rust) is the new primary test suite; Tryorama (TypeScript) remains active until all Rust tests pass and Holochain 0.7 upgrade is complete.
+**Current status**: Sweettest scaffold is in place (workspace config, conductor helpers, `misc` ping test). Per-zome tests will be co-evolved alongside the NDO refactor (see `documentation/requirements/ndo_prima_materia.md` §10). Tryorama (TypeScript) remains the active test suite in the meantime.
 
 ## Sweettest (Rust) — Primary
 
@@ -25,20 +25,14 @@ bun run sweettest:only        # skip build:happ (use when .dna is already built)
 
 ```
 dnas/nondominium/tests/
-├── Cargo.toml               # 4 [[test]] targets: misc, person, resource, governance
+├── Cargo.toml               # [[test]] target: misc (per-zome targets added with NDO refactor)
 └── src/
-    ├── common/              # Shared infrastructure
-    │   ├── conductors.rs    # setup_two_agents(), setup_three_agents(), setup_dual_dna_two_agents()
-    │   ├── fixtures.rs      # sample_person(), sample_role(), sample_resource_spec(), ...
-    │   ├── mirrors.rs       # Coordinator output type mirrors (PersonProfileOutput, etc.)
-    │   └── zome_calls.rs    # Typed async wrappers for all 3 zomes
-    ├── misc/                # ping test (validates build plumbing)
-    ├── person/              # 71 tests: foundation, integration, hrea_bridge,
-    │                        # device (4 variants), capability_sharing, scenarios
-    ├── resource/            # 16 tests: foundation, update, integration, scenarios
-    └── governance/          # 18 tests: foundation + ppr/{foundation, cryptography,
-                             #                             debug, integration, scenarios}
+    ├── common/
+    │   └── conductors.rs    # setup_two_agents(), setup_three_agents(), setup_dual_dna_two_agents()
+    └── misc/                # ping test — validates full build chain end-to-end
 ```
+
+Per-zome test modules (`person/`, `resource/`, `governance/`) are written alongside the NDO refactor. Each implementation PR for the NDO three-layer model adds tests for the new API it introduces.
 
 ### Environment requirement for Sweettest
 
