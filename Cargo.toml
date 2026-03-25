@@ -41,4 +41,4 @@ serde = "1.0"
 thiserror = "2.0"
 # Test-only deps (NOT compiled to WASM — only used by nondominium_sweettest)
 holochain = { version = "=0.6.0", features = ["test_utils"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "macros"] }

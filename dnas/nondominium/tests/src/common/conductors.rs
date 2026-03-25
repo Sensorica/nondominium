@@ -8,6 +8,11 @@ pub const NONDOMINIUM_DNA_PATH: &str = concat!(
 );
 
 /// Path to the compiled hREA DNA bundle (from the vendored submodule).
+///
+/// Only used by [`setup_dual_dna_two_agents`]. Requires the hREA submodule to be
+/// initialized (`git submodule update --init --recursive`) and the hREA DNA to be
+/// built (`bun run build:happ`). Accessing this path without those prerequisites
+/// will cause a runtime panic in the conductor setup, not a compile error.
 pub const HREA_DNA_PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../../vendor/hrea/dnas/hrea/workdir/hrea.dna"
