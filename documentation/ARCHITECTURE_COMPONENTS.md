@@ -121,7 +121,7 @@ graph TB
         end
 
         subgraph "Private Data Sharing"
-            DataReq["DataAccessRequest<br/>7-day Expiration"]
+            DataReq["DataAccessRequest<br/>time-limited (max 30d)"]
             DataGrant["DataAccessGrant<br/>Field-specific Control"]
             PrivateData["PrivateDataEntry<br/>Encrypted Info"]
         end
@@ -157,7 +157,7 @@ graph TB
 │ └── Access Control Lists (resource permissions)             │
 │                                                             │
 │ 1.3 PRIVATE DATA SHARING                                    │
-│ ├── DataAccessRequest Entry (7-day expiration)              │
+│ ├── DataAccessRequest Entry (time-limited; max 30-day grants) │
 │ ├── DataAccessGrant Entry (field-specific control)          │
 │ └── PrivateDataEntry (encrypted personal information)       │
 │                                                             │
@@ -582,12 +582,12 @@ fn authorize_process_data_access(
         .find(|r| r.matches_process_requirements(&process))
         .ok_or(DataAccessError::InsufficientRole)?;
 
-    // Create time-limited grant (7-day expiration)
+    // Illustrative pseudocode — align grant duration with zome_person capability rules (30-day max).
     let grant = DataAccessGrant {
         requesting_agent,
         granting_agent: process.resource_owner,
         accessible_fields: required_fields,
-        expires_at: sys_time()? + Duration::from_secs(7 * 24 * 60 * 60), // 7 days
+        expires_at: sys_time()? + Duration::from_secs(7 * 24 * 60 * 60), // example: 7 days; cap 30 days in MVP metadata
         purpose: format!("Data access for {} process", process.process_type),
         process_context: process.hash,
     };
@@ -694,7 +694,7 @@ Reputation Derivation:
 ```
 Data Access Control:
 ├── Field-Level Granularity (specific data elements)
-├── Time-Limited Grants (7-day maximum)
+├── Time-Limited Grants (30-day maximum per capability metadata)
 ├── Purpose Binding (process-specific usage)
 ├── Automatic Expiration (system-enforced)
 ├── Audit Trail (access logging)

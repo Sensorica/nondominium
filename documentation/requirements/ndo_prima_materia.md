@@ -3,7 +3,7 @@
 **Status**: Post-MVP Design Document  
 **Created**: 2026-03-10  
 **Authors**: Nondominium project  
-**Relates to**: `many-to-many-flows.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`
+**Relates to**: `many-to-many-flows.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`, `flowsta-integration.md`
 
 ---
 
@@ -501,6 +501,7 @@ NDO_identity_hash →[LinkType: CapabilitySlot, tag: { slot_type, author, attach
 | `VersionGraph` | Version history and forks | Versioned entity hash (see `versioning.md`) |
 | `DigitalAsset` | Files, 3D models, code, manifests | Asset manifest hash |
 | `WeaveWAL` | Moss/Weave Asset Link | WAL (Weave Asset Locator) |
+| `FlowstaIdentity` | Cross-app identity attestation | `IsSamePersonEntry` action hash |
 | `UnytAgreement` | Programmable economic terms governing value flows triggered by resource interactions | Unyt Smart Agreement entry hash (cross-cell reference) |
 | `CustomApp` | Any other hApp integration | Any hash, labelled by consumer |
 
@@ -536,8 +537,10 @@ This mirrors the approach taken in the wider complex systems literature: edge-ba
 > An agent's `Person` entry hash → `CapabilitySlot` → external capability target, using the same `CapabilitySlotTag` / `SlotType` pattern defined in Section 8.3. This enables credential portability and DID interoperability without modifying the core `Person` entry schema.
 >
 > See `documentation/archives/agent.md` §3.2 and `REQ-AGENT-11`.
+>
+> Flowsta Auth (Section 6.7) provides the first concrete implementation of this pattern: a `FlowstaIdentity` capability slot linking the `Person` hash to an `IsSamePersonEntry` — a dual-signed cryptographic attestation that the agent's NDO key and their Flowsta Vault key belong to the same person. This gives every agent a W3C DID (`did:flowsta:uhCAk...`) without modifying the `Person` entry schema.
 
-### 6.5 Economic Agreement Slots — Unyt Integration
+### 6.6 Economic Agreement Slots — Unyt Integration
 
 *A detailed analysis of the `UnytAgreement` slot type, its relationship to the governance layer, and the three-phase integration path.*
 
@@ -687,6 +690,141 @@ Add `EconomicAgreement` to the `GovernanceRuleType` enum and define the `Economi
 **Phase 3 — Governance Zome Integration** *(zome_gouvernance changes)*
 
 The governance zome's `evaluate_transition_request` function is extended to: (a) check for `EconomicAgreement` governance rules when processing relevant `VfAction` events; (b) require a `rave_hash` in transition requests when such a rule exists; (c) validate the RAVE via cross-DNA call to the Unyt cell; (d) link the RAVE hash into the generated PPR via `settlement_rave_hash`. This phase delivers: full enforcement, automatic settlement, and the complete PPR↔RAVE provenance chain. The NDO becomes a fully self-pricing economic actor.
+
+### 6.7 Identity and Authentication Slots — Flowsta Integration
+
+*A detailed analysis of the `FlowstaIdentity` slot type, its relationship to the agent identity surface (Section 6.5), and the three-phase integration path.*
+
+#### Why Flowsta Is a Capability, Not a Layer
+
+The prima materia model has three structural layers. It might seem natural to propose cross-app identity as a mandatory component of Layer 0 — to require every agent to complete Flowsta Vault linking before they can participate. This would be the wrong architecture.
+
+The COP principle of pay-as-you-grow is explicit: impose only the coordination overhead that the resource's current social complexity demands. Not all communities need cross-app identity. A neighbourhood tool-sharing network may operate perfectly well with Holochain-native `AgentPubKey` identifiers and locally-earned PPR reputation. A multi-network fabrication coalition spanning multiple Holochain apps — where contributors participate in design, fabrication, logistics, and economic settlement across separate DHTs — needs verifiable cross-app identity to prevent sybil fragmentation and enable reputation portability.
+
+Imposing Flowsta at agent registration — making it structural — would repeat the reductive paradigm mistake that the three-layer model was designed to avoid. It would be a fixed classification at t=0 of a future that no agent can know: whether this particular agent will ever need cross-app identity, whether this particular community will ever span multiple networks.
+
+Flowsta belongs in the capability surface for the same reason that Unyt does: it is an identity operator that some communities need and others do not, and its attachment should emerge from the network's actual practice rather than be prescribed by the programmer.
+
+#### IsSamePersonEntry: The Cross-App Attestation
+
+Flowsta's agent linking mechanism creates a cryptographic attestation — `IsSamePersonEntry` — on the NDO's DHT that proves two Holochain agent keys belong to the same person. The attestation is committed via the `flowsta-agent-linking` zomes (`flowsta-agent-linking-integrity` and `flowsta-agent-linking-coordinator`), which are added to the NDO's DNA manifest.
+
+**The 78-byte signing payload:**
+- Bytes 0–38: First agent public key (39 bytes: 3-byte prefix + 32-byte Ed25519 key + 4-byte checksum)
+- Bytes 39–77: Second agent public key (same format)
+- Both keys are sorted lexicographically for canonical ordering
+- Both agents sign this payload: the NDO agent key signs via the local conductor, and the Flowsta Vault agent key signs via the Vault's lair keystore
+
+**Verification properties:**
+- Purely cryptographic: Ed25519 signature verification on the dual-signed payload — no shared DNA, no API dependency, no central authority needed for verification
+- Any agent on the NDO DHT can verify the attestation by checking both signatures against the embedded public keys
+- Purpose-specific: Flowsta Vault computes the signing payload itself and displays it to the user for approval — apps cannot trick the Vault into signing arbitrary data
+- Revocable: either party can revoke the link via the `revoke_link` zome function
+- Each Flowsta user carries a W3C DID: `did:flowsta:uhCAk...` (or `did:key:z6Mk...`), providing a standards-compliant cross-app identifier
+
+#### Two-Tier Identity Authority
+
+The `FlowstaIdentity` capability slot operates at two tiers, paralleling the Unyt two-tier model (Section 6.6).
+
+**Tier 1 — Permissionless Attestation (CapabilitySlot)**
+
+Any agent can link a Flowsta identity to their `Person` entry by creating a `CapabilitySlot` link of type `FlowstaIdentity`, pointing to the `IsSamePersonEntry` action hash. This is an assertion: "I have completed Vault agent linking (dual-signed attestation)." The governance zome does not enforce it at Tier 1. Other agents can read it as a trust signal — a voluntarily disclosed cross-app identity. Multiple agents may have Flowsta links; some may not.
+
+This tier respects the stigmergic principle: lower information opportunity costs, permissionless identity expression, no gatekeeping on attestation.
+
+**Tier 2 — Governance Requirement (GovernanceRule / Role Promotion)**
+
+When a community's governance rules require verified cross-app identity — for example, as a precondition for `PrimaryAccountableAgent` role promotion, or for custody transfer of high-value resources — the governance zome can condition role transitions on the presence of a verified `FlowstaIdentity` capability slot on the agent's `Person` hash. The verification checks:
+
+1. A `FlowstaIdentity` CapabilitySlot link exists from the agent's `Person` hash
+2. The target `IsSamePersonEntry` contains the agent's `AgentPubKey` as one of the two signing parties
+3. The attestation has not been revoked
+
+The capability slot (Tier 1) makes the identity **discoverable**; the governance rule (Tier 2) makes it **mandatory** for specific actions.
+
+```mermaid
+graph TD
+    Agent["Agent on NDO DHT"]
+    Vault["Flowsta Vault\n(local Holochain conductor + lair)"]
+    PersonHash["Person Entry Hash\n(agent identity anchor)"]
+    FlowstaSlot["FlowstaIdentity\nCapabilitySlot link"]
+    ISP["IsSamePersonEntry\n(dual-signed 78-byte attestation)\non NDO DHT"]
+    DID["W3C DID\ndid:flowsta:uhCAk..."]
+    OtherApp["Other Flowsta-Linked\nHolochain App"]
+    PPR["PrivateParticipationClaim"]
+    RepSummary["ReputationSummary\n(cross-app attributable)"]
+    GovRule["GovernanceRule\n(IdentityVerification type)"]
+    RolePromotion["Role Promotion\n(PrimaryAccountableAgent)"]
+
+    Agent -->|"has"| PersonHash
+    Agent -->|"runs"| Vault
+    PersonHash -->|"CapabilitySlot link\n(Tier 1: permissionless)"| FlowstaSlot
+    FlowstaSlot -->|"points to"| ISP
+    ISP -->|"dual-signed by"| Vault
+    ISP -->|"carries"| DID
+    DID -.->|"verifiable by"| OtherApp
+    PPR -->|"attributed to"| DID
+    PPR -->|"aggregated into"| RepSummary
+    RepSummary -.->|"portable via DID"| OtherApp
+    GovRule -->|"Tier 2: requires\nFlowstaIdentity slot"| RolePromotion
+    RolePromotion -->|"checks"| FlowstaSlot
+```
+
+#### PPR Cross-App Attribution
+
+When an agent has **linked a Tier 1** `FlowstaIdentity` slot to a **valid, non-revoked** `IsSamePersonEntry`, their PPR `ReputationSummary` becomes **attributable to a cross-app DID**. (This is cryptographic attestation via Vault dual-signing — not the same as Tier 2 governance enforcement in Phase 3.) This creates the foundation for portable reputation without requiring full Verifiable Credential infrastructure:
+
+- Other Flowsta-integrated apps can query whether an agent has a linked NDO identity by checking their own DHT for an `IsSamePersonEntry` containing the same Flowsta Vault key
+- The DID serves as the stable key for reputation aggregation across apps — a single DID may accumulate PPR histories from multiple independent Holochain networks
+- Agents control disclosure: the `FlowstaIdentity` slot is voluntary (Tier 1), and PPR summaries are already selectively shared via existing capability grants
+- This is the practical path toward `REQ-NDO-AGENT-08` (Portable Credentials): the DID provides the identity anchor; the PPR provides the participation record; selective disclosure provides the privacy control
+
+The cross-app attribution chain is:
+
+```
+Person entry (NDO DHT)
+  └─ FlowstaIdentity CapabilitySlot → IsSamePersonEntry
+       └─ carries DID: did:flowsta:uhCAk...
+            └─ same DID resolvable on other Flowsta-linked apps
+                 └─ PPR ReputationSummary attributable to DID across apps
+```
+
+#### Recovery and Backup via Vault
+
+Flowsta Vault provides recovery infrastructure that the NDO currently lacks:
+
+- **BIP39 recovery phrases**: Deterministic Ed25519 keypair regeneration from a 24-word mnemonic. If an agent loses their device, they can regenerate the same key pair on a new device using their recovery phrase.
+- **Auto-backups**: Encrypted snapshots every 60 minutes (up to 10 timestamped snapshots per app), working while the Vault is locked (after first unlock in a session). Oldest snapshots are auto-rotated.
+- **Full data export**: Decrypted private entries and cryptographic keys can be exported, compliant with the Cryptographic Autonomy License (CAL).
+
+This aligns with the NDO's design principle that identity must persist through all transformations. The non-deletable, append-only nature of `Person` entries and PPRs assumes the agent retains access to their signing key — a guarantee the current NDO architecture cannot make. Vault's deterministic key regeneration ensures that the permanent records the NDO creates remain accessible to their authors across device loss and hardware failure.
+
+**CAL alignment**: The Cryptographic Autonomy License requires that users can always get a copy of their own data plus the cryptographic keys needed for independence from any particular service provider. Vault's full data export — including decrypted private entries and cryptographic keys — satisfies this requirement directly, and positions NDO communities for CAL-compliant distribution.
+
+#### Flowsta and Unyt: Complementary Capabilities
+
+Flowsta and Unyt are the two external capability integrations defined for the NDO. They are complementary and independent:
+
+- **Flowsta** answers *who is who* — cross-app identity, DID, recovery, authentication
+- **Unyt** answers *who owes what to whom* — credits, debits, settlement, economic closure
+
+An NDO community may adopt one, both, or neither. When both are active, they reinforce each other: an agent's Flowsta DID provides the stable identity across Unyt Alliances, and their Unyt credit limit (derived from PPR reputation) is attributable to that **DID** (via Tier 1 link / `IsSamePersonEntry`, and optionally Tier 2–gated processes). The agent is simultaneously identifiable, accountable, and economically active — without any platform intermediary.
+
+#### Integration Path
+
+The Flowsta integration is structured as three independent phases, each delivering immediate value and requiring no rollback of prior work.
+
+**Phase 1 — Capability Surface Extension** *(no core zome structural changes required)*
+
+Add `FlowstaIdentity` to the `SlotType` enum. Add `flowsta-agent-linking-integrity` and `flowsta-agent-linking-coordinator` zomes to the DNA manifest (`dna.yaml`). Install `@flowsta/holochain` SDK in the frontend. Any agent can now link their Flowsta identity to their `Person` entry via a `FlowstaIdentity` capability slot. This phase delivers: cross-app identity expression in the network (trust signals without enforcement), DID attachment to agent profiles, and the foundation for Vault-backed key recovery.
+
+**Phase 2 — Frontend and UX Integration** *(UI changes only)*
+
+Add a "Link Flowsta Identity" flow in the person/profile management UI. Display linked Flowsta DIDs on agent profiles. Show Flowsta verification badges on agents in search results and governance views. Integrate Vault backup API for agent data resilience (`@flowsta/holochain` backup functions: `startAutoBackup`, `backupToVault`, `retrieveFromVault`, `listVaultBackups`). This phase delivers: user-facing identity management, visible trust indicators, and data resilience.
+
+**Phase 3 — Governance-Enforced Identity Verification** *(zome_gouvernance changes)*
+
+Add `IdentityVerification` variant to `GovernanceRuleType` (or use existing rule mechanisms). Governance rules can now require a `FlowstaIdentity` slot as a precondition for role promotions (e.g., `PrimaryAccountableAgent`) or for high-value custody transfers. The governance zome validates the `IsSamePersonEntry` signature chain — checking that the `FlowstaIdentity` slot exists, that the target `IsSamePersonEntry` contains the agent's `AgentPubKey`, and that the attestation has not been revoked — before approving the conditioned transition. This phase delivers: governance-enforced identity verification, sybil resistance for high-trust roles, and the bridge between permissionless participation and accountable governance.
 
 ---
 
@@ -910,6 +1048,7 @@ pub enum SlotType {
     VersionGraph,
     DigitalAsset,
     WeaveWAL,
+    FlowstaIdentity,       // Flowsta agent-linking attestation (IsSamePersonEntry action hash)
     UnytAgreement(String), // Unyt Alliance network seed identifier (empty string = sandbox default)
     CustomApp(String),     // Extensible: custom slot type identified by string
 }
@@ -1086,6 +1225,10 @@ affiliation_state(agent) = f(
 - **REQ-NDO-CS-09**: The `GovernanceRuleType` enum in `zome_resource` integrity shall support an `EconomicAgreement` variant. A `GovernanceRule` entry of this type shall carry `EconomicAgreementRuleData` as its `rule_data`, including: `unyt_alliance_id`, `smart_agreement_hash`, `trigger_actions` (list of `VfAction` values), `settlement_window_secs`, and an optional `note`.
 - **REQ-NDO-CS-10**: When the governance zome processes a state transition whose `VfAction` matches a `trigger_actions` entry in an endorsed `EconomicAgreement` governance rule, the transition request shall be required to include a `rave_hash`. The governance zome shall validate the RAVE against the Unyt DHT (via cross-DNA call) before approving the transition.
 - **REQ-NDO-CS-11**: When a state transition is approved in the presence of a valid `EconomicAgreement` rule, the `PrivateParticipationClaim` generated for all participating agents shall include the `settlement_rave_hash` field referencing the validated Unyt RAVE. This field shall be `None` for all transitions where no economic agreement was triggered.
+- **REQ-NDO-CS-12**: The system shall support a `FlowstaIdentity` slot type in the `SlotType` enum. The target of a `FlowstaIdentity` capability slot link shall be an `IsSamePersonEntry` action hash committed by the `flowsta-agent-linking` coordinator zome.
+- **REQ-NDO-CS-13**: Any agent shall be able to create a `FlowstaIdentity` capability slot on their own `Person` entry hash (Tier 1: permissionless attestation). The governance zome shall not require validation of Tier 1 `FlowstaIdentity` slots beyond the standard capability surface governance defined in REQ-NDO-CS-03.
+- **REQ-NDO-CS-14**: The governance zome shall support an `IdentityVerification` governance rule type (or equivalent mechanism) that conditions role promotions or high-value state transitions on the presence of a verified `FlowstaIdentity` capability slot on the requesting agent's `Person` entry hash (Tier 2: governance requirement).
+- **REQ-NDO-CS-15**: When verifying a `FlowstaIdentity` slot for Tier 2 governance enforcement, the governance zome shall validate that: (a) a `FlowstaIdentity` CapabilitySlot link exists from the agent's `Person` hash; (b) the target `IsSamePersonEntry` contains the agent's `AgentPubKey` as one of the two signing parties; (c) the attestation has not been revoked via the `revoke_link` function of the `flowsta-agent-linking` coordinator.
 
 ### 9.6 Migration Requirements
 
@@ -1105,8 +1248,8 @@ affiliation_state(agent) = f(
 - **REQ-NDO-AGENT-04: AffiliationRecord**: The system shall support an `AffiliationRecord` entry for formal network onboarding: the agent cryptographically signs acknowledgement of the network's Terms of Participation, Nondominium & Custodian agreement, and Benefit Redistribution Algorithm. The `AffiliationRecord` is the machine-readable prerequisite for `ActiveAffiliate` status.
 - **REQ-NDO-AGENT-05: Composable AgentProfile View**: The system shall expose a composable `AgentProfile` query assembling identity, capability, reputation, participation, social, and temporal data into a single queryable output. This view shall be computed from existing DHT data — it is not a new stored entry type. Agents control which sections are exposed by granting access to constituent entries.
 - **REQ-NDO-AGENT-06: Social Graph**: The system shall model peer relationships via an `AgentRelationship` bidirectional link type (typed: colleague, collaborator, trusted, voucher), stored as private links. Social relations are part of agent wealth in the OVN model and must be accessible to governance without being publicly discoverable.
-- **REQ-NDO-AGENT-07: CapabilitySlot on Agent Identity**: The `Person` entry hash shall serve as a stigmergic attachment surface for external credential wallets, DID documents, and reputation oracles, using the same `CapabilitySlot` link pattern defined in Section 6 for NDO resources. See Section 6.5 for the forward design.
-- **REQ-NDO-AGENT-08: Portable Credentials**: The system shall support a `PortableCredential` structure — bilaterally signed by an issuer (PrimaryAccountableAgent) and the credential owner — verifiable by other Holochain networks. Types: `RoleCredential`, `ReputationCredential`, `CompetencyCredential`, `AffiliationCredential`. This is the technical mechanism for cross-network identity portability required by the OVN model.
+- **REQ-NDO-AGENT-07: CapabilitySlot on Agent Identity**: The `Person` entry hash shall serve as a stigmergic attachment surface for external credential wallets, DID documents, and reputation oracles, using the same `CapabilitySlot` link pattern defined in Section 6 for NDO resources. See Section 6.5 for the forward design. Flowsta's `FlowstaIdentity` capability slot (Section 6.7) provides the first concrete implementation: a DID-backed, dual-signed attestation attachable to the `Person` hash without schema modification.
+- **REQ-NDO-AGENT-08: Portable Credentials**: The system shall support a `PortableCredential` structure — bilaterally signed by an issuer (PrimaryAccountableAgent) and the credential owner — verifiable by other Holochain networks. Types: `RoleCredential`, `ReputationCredential`, `CompetencyCredential`, `AffiliationCredential`. This is the technical mechanism for cross-network identity portability required by the OVN model. Flowsta's W3C DID (`did:flowsta:uhCAk...`) provides the cross-network identity anchor required for credential portability. When combined with the `FlowstaIdentity` capability slot, portable credentials become attributable to a verified cross-app identity.
 
 ---
 
@@ -1261,13 +1404,25 @@ The Weave Interaction Pattern defines how hApps create, search, link, and organi
 
 `unyt-integration.md` defines Unyt as the transactional layer for Nondominium — peer-to-peer accounting infrastructure built on Holochain, providing currencies, Smart Agreements, and agent-centric value flows. In the NDO model, Unyt integrates at three points:
 
-- **Capability surface**: `UnytAgreement` slot type (Section 6.5) is the permissionless attachment point — any agent can propose economic terms for any NDO
+- **Capability surface**: `UnytAgreement` slot type (Section 6.6) is the permissionless attachment point — any agent can propose economic terms for any NDO
 - **Layer 1**: `GovernanceRule` entries of type `EconomicAgreement` carry endorsed Unyt Smart Agreement references as Layer 1 assets, sitting alongside other governance rules in the resource's specification
 - **Layer 2**: RAVE hashes (Recorded Agreement Verifiably Executed) link into `PrivateParticipationClaim` entries via `settlement_rave_hash`, binding economic settlement records to participation records in the Layer 2 process
 
 The NDO three-layer model and Unyt are architecturally complementary: the NDO tracks *what* happens (resource events, custody, quality, lifecycle); Unyt tracks *who owes what to whom* (credits, debits, settlement). The governance zome is the bridge that conditions resource state transitions on proof of economic settlement, making the resource itself the enforcement mechanism for its own economic terms.
 
 The PPR system and Unyt credit limits form a feedback loop: agents' `ReputationSummary` (derived from their accumulated PPRs) feeds into the Unyt `Compute Credit Limit Agreement`, making participation history the collateral for economic access in the commons network. This is the primary mechanism by which the Nondominium commons becomes self-sustaining without platform intermediaries or administrative overhead.
+
+### 11.6 Flowsta Integration
+
+`flowsta-integration.md` defines Flowsta as the identity and authentication layer for the NDO — decentralized authentication built on Holochain, providing cross-app identity linking, W3C DIDs, and zero-knowledge privacy. In the NDO model, Flowsta integrates at three points:
+
+- **Capability surface**: `FlowstaIdentity` slot type (Section 6.7) is the permissionless **Tier 1** attachment point — any agent can link their `Person` entry to a Vault dual-signed `IsSamePersonEntry`, making their cross-app DID discoverable (no governance enforcement at this tier)
+- **Agent identity (G15)**: The `FlowstaIdentity` slot is the first concrete implementation of the `PersonCapabilitySlot` pattern defined in Section 6.5 — a DID-backed attestation attached to the agent's identity anchor without modifying the `Person` entry schema
+- **Governance enforcement (Tier 2, Phase 3)**: `IdentityVerification` governance rules can condition role promotions and high-value transitions on a **`FlowstaIdentity` slot that passes REQ-NDO-CS-15 validation** (valid `IsSamePersonEntry`, requestor key included, not revoked), bridging permissionless participation and accountable governance
+
+The NDO three-layer model and Flowsta are architecturally complementary: the NDO tracks *who does what* (participation, custody, quality, reputation via PPRs); Flowsta tracks *who is who* (cross-app identity, DID, recovery). The capability slot mechanism is the bridge that connects an agent's local DHT identity to their portable, cross-app identity without requiring any core entry schema changes.
+
+Flowsta Vault's BIP39 recovery and auto-backup mechanisms address a gap in the current NDO architecture: agent key recovery. The non-deletable, append-only nature of `Person` entries and PPRs assumes the agent retains access to their signing key. Vault's deterministic key regeneration from a 24-word mnemonic ensures that the permanent records the NDO creates remain accessible to their authors across device loss and hardware failure.
 
 ---
 

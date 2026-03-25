@@ -345,10 +345,10 @@ pub struct PrivateParticipationClaim {
 > `GovernanceProcess` entries that communities can extend with custom process types, role
 > requirements, and validation schemes. See `governance.md §6.2`.
 >
-> **TODO (post-MVP — EconomicAgreement rule type, resources.md §6.6)**: Add `EconomicAgreement`
+> **TODO (post-MVP — EconomicAgreement rule type, ndo_prima_materia.md §6.6)**: Add `EconomicAgreement`
 > to the `GovernanceRuleType` enum for Unyt Smart Agreement integration. When present, the
 > governance zome requires a valid Unyt RAVE before approving state transitions for the configured
-> `trigger_actions`. See `ndo_prima_materia.md §6.5` and `REQ-NDO-CS-09`.
+> `trigger_actions`. See `ndo_prima_materia.md` §6.6 and `REQ-NDO-CS-09`.
 
 ### 4. Role-Specific Validation Rules
 

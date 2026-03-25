@@ -95,7 +95,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 - **🔐 Capability-Based Security**: Progressive trust model (Simple → Accountable → Primary Accountable Agent)
 - **📋 Private Participation Receipts (PPRs)**: Cryptographic reputation tracking across 16 categories
 - **🔄 Economic Processes**: Structured workflows (Use, Transport, Storage, Repair) with role-based access
-- **🛡️ Private Data Sharing**: Request/grant workflows with field-level control and 7-day expiration
+- **🛡️ Private Data Sharing**: Request/grant workflows with field-level control and time-limited grants (30-day maximum per `PrivateDataCapabilityMetadata`; shorter defaults may apply in UI flows — see [person_zome.md](documentation/zomes/person_zome.md))
 
 ---
 
@@ -152,7 +152,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 **Private Data Sharing**
 
 - `request_private_data_access()` - Request access to specific fields
-- `grant_private_data_access()` - Grant time-limited access (7-day expiration)
+- `grant_private_data_access()` - Grant time-limited access (subject to 30-day maximum enforced in capability metadata)
 - `get_private_data()` - Retrieve authorized private data
 - `revoke_private_data_access()` - Revoke granted permissions
 
@@ -276,7 +276,7 @@ bun run test:debug           # Verbose test output for debugging
 
 ### ✅ Phase 2 Complete: Advanced Governance & Reputation
 
-- **Capability-Based Sharing**: Complete request/grant workflows with 7-day expiration
+- **Capability-Based Sharing**: Complete request/grant workflows with time-limited grants (30-day cap; see person zome docs)
 - **PPR System**: 16-category reputation tracking with cryptographic signatures
 - **Economic Processes**: Four structured processes (Use, Transport, Storage, Repair)
 - **Multi-Reviewer Validation**: 2-of-3, N-of-M, and simple majority validation

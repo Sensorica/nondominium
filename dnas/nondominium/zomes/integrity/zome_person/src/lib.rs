@@ -27,11 +27,14 @@ use std::{fmt::Display, str::FromStr};
 //
 // TODO (G15 — CapabilitySlot on Agent): The `Person` entry hash should serve as a stigmergic
 // attachment surface for external capabilities — analogous to the NondominiumIdentity
-// CapabilitySlot in ndo_prima_materia.md §6. Add a `PersonCapabilitySlot` link type:
+// CapabilitySlot surface in `documentation/requirements/ndo_prima_materia.md` §6. Add a
+// `PersonCapabilitySlot` link type:
 //   PersonCapabilitySlot: Person hash → capability target (DID document, credential wallet,
 //                                                           reputation oracle, external registry)
 // Implement `attach_agent_capability_slot` and `get_agent_capability_slots` coordinator
-// functions. See `REQ-AGENT-11` and `ndo_prima_materia.md` §6.5.
+// functions. See `REQ-AGENT-11`, `ndo_prima_materia.md` §6.5 (Person attachment surface),
+// §6.7 + REQ-NDO-CS-12–CS-15 (Flowsta `FlowstaIdentity` / `IsSamePersonEntry`), and
+// `documentation/requirements/post-mvp/flowsta-integration.md`.
 
 /// Represents a person's public profile with basic information
 #[hdk_entry_helper]

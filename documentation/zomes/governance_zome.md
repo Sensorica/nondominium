@@ -2,6 +2,8 @@
 
 The Governance zome implements the core economic coordination and validation infrastructure for the nondominium ecosystem, providing ValueFlows-compliant economic event logging, commitment management, Private Participation Receipt (PPR) reputation system, and comprehensive agent validation workflows. It serves as the governance backbone enabling decentralized resource sharing with embedded accountability and cryptographically-secured reputation tracking.
 
+**Post-MVP (target architecture):** unified transition evaluation is specified to optionally enforce **Unyt** economic closure (`EconomicAgreement` rules, `rave_hash`; `documentation/requirements/ndo_prima_materia.md` §6.6) and **Flowsta** identity checks (`IdentityVerification`, `FlowstaIdentity`; §6.7). See `documentation/archives/governance.md` §3.7, `documentation/requirements/post-mvp/unyt-integration.md`, and `documentation/requirements/post-mvp/flowsta-integration.md`. MVP coordinator paths (e.g. promotion validation) precede that consolidation.
+
 ## Core Data Structures
 
 ### VfAction Enum

@@ -49,6 +49,8 @@ nondominium implements a modular governance-as-operator architecture that separa
 - Testing: Vitest 3.1.3 + @holochain/tryorama 0.18.2
 - Client: @holochain/client 0.19.0
 
+**Documentation map:** See [documentation/DOCUMENTATION_INDEX.md](documentation/DOCUMENTATION_INDEX.md). Post-MVP **NDO** model and optional **Unyt** / **Flowsta** integrations are specified in [documentation/requirements/ndo_prima_materia.md](documentation/requirements/ndo_prima_materia.md) and the stubs under [documentation/requirements/post-mvp/](documentation/requirements/post-mvp/).
+
 ## Environment Setup
 
 > **PREREQUISITE**: Set up the [Holochain development environment](https://developer.holochain.org/docs/install/).

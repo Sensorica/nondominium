@@ -18,6 +18,16 @@ The governance-as-operator architecture establishes a clear separation between d
 - **Swappability**: Different governance schemes can be applied to the same resource types
 - **Maintainability**: Clear separation of concerns reduces system complexity
 
+### 1.3 Related specifications (post-MVP NDO & integrations)
+
+Typed governance evaluation is specified to grow toward a single **`evaluate_transition_request`** path that can read:
+
+- **Economic closure (Unyt):** endorsed **`EconomicAgreement`** rules, transition **`rave_hash`**, RAVE validation — `documentation/requirements/ndo_prima_materia.md` **§6.6**, REQ-NDO-CS-07–CS-11; design narrative in `documentation/requirements/post-mvp/unyt-integration.md`.
+- **Cross-app identity (Flowsta):** **`IdentityVerification`** (or equivalent) rules and **`FlowstaIdentity`** slot checks per REQ-NDO-CS-14–CS-15 — `ndo_prima_materia.md` **§6.7**; `documentation/requirements/post-mvp/flowsta-integration.md`.
+- **Agent / resource ontology context:** `documentation/archives/governance.md` §3.7 (parallel Unyt vs Flowsta operator pattern).
+
+MVP code may still use separate coordinator entry points (e.g. `validate_agent_for_promotion`); the target architecture folds these into unified transition evaluation as the generic NDO matures.
+
 ## 2. Cross-Zome Interface Specifications
 
 ### 2.1 State Transition Request

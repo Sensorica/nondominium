@@ -26,7 +26,7 @@ pub struct Person {
 
 > **TODO (G1 — AgentEntityType)**: Add an `agent_entity_type: AgentEntityType` field to this struct (or to a companion `AgentContext` entry). This field distinguishes Individual, Collective, Project, Network, Bot, and ExternalOrganisation agents. Currently all agents are implicitly modelled as individual humans. See `agent.md` §6.1 and `REQ-AGENT-01`.
 >
-> **TODO (G15 — CapabilitySlot on Agent)**: The `Person` entry hash should serve as a stigmergic attachment surface — analogous to the `NondominiumIdentity` CapabilitySlot in `ndo_prima_materia.md` §6. External credential wallets, DID documents, and reputation oracles should be attachable via typed DHT links from the `Person` hash without modifying this entry. See `agent.md` §3.2 and `REQ-AGENT-11`.
+> **TODO (G15 — CapabilitySlot on Agent)**: The `Person` entry hash should serve as a stigmergic attachment surface — analogous to the `NondominiumIdentity` CapabilitySlot in `ndo_prima_materia.md` §6. External credential wallets, DID documents, and reputation oracles should be attachable via typed DHT links from the `Person` hash without modifying this entry. **Flowsta** is the first specified consumer: `FlowstaIdentity` slot → `IsSamePersonEntry` (`ndo_prima_materia.md` §6.5–6.7, REQ-NDO-CS-12–CS-15; `documentation/requirements/post-mvp/flowsta-integration.md`). See `documentation/archives/agent.md` §3.2, §3.5 and `REQ-AGENT-11`.
 
 **Privacy**: Public entry, discoverable by all agents
 **Validation**: Name required (1-100 chars), avatar URL format validation

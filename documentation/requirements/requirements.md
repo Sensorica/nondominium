@@ -39,6 +39,19 @@ Develop a new class of Resources that are:
 5.  **Reputation System**: Implement Private Participation Receipts (PPRs) for trustworthy, cumulative reputation tracking
 6.  **Process Management**: Support structured Economic Processes with role-based access control
 
+### 2.3 Post-MVP capability integrations (NDO, Unyt, Flowsta)
+
+The **current MVP** in this repository implements `ResourceSpecification`, `EconomicResource`, and `GovernanceRule` with governance-as-operator patterns as specified elsewhere in this document. **Normative requirements** for the generic **Nondominium Object (NDO)** — three-layer model, lifecycle vs operational state, capability slot surface, and typed integration with external operators — live in **[ndo_prima_materia.md](ndo_prima_materia.md)** (REQ-NDO-L0 through REQ-NDO-AGENT-08, REQ-NDO-CS-01 through REQ-NDO-CS-15, migration §10).
+
+Optional, pay-as-you-grow integrations (communities may adopt one, both, or neither):
+
+| Integration | Role | Normative detail | Design stub |
+|-------------|------|------------------|-------------|
+| **Unyt** | Economic settlement (Smart Agreements, RAVE proofs, PPR↔RAVE provenance) | `ndo_prima_materia.md` §6.6, §11.5; REQ-NDO-CS-07–CS-11 | [unyt-integration.md](post-mvp/unyt-integration.md) |
+| **Flowsta** | Cross-app identity (Vault `IsSamePersonEntry`, `FlowstaIdentity` slot, DID, recovery); Tier 1 (Phase 1) vs Tier 2 (Phase 3) | `ndo_prima_materia.md` §6.5–6.7, §11.6; REQ-NDO-CS-12–CS-15; REQ-NDO-AGENT-07–08 | [flowsta-integration.md](post-mvp/flowsta-integration.md) |
+
+**Knowledge-base context** (ontology, OVN alignment, gap analysis): [resources.md](../archives/resources.md), [agent.md](../archives/agent.md), [governance.md](../archives/governance.md). This PRD remains the anchor for MVP user stories and REQ-USER / REQ-RES / REQ-GOV IDs; NDO-wide REQ-NDO-* IDs are defined in `ndo_prima_materia.md` §9.
+
 ## 3. nondominium Resource Characteristics
 
 nondominium Resources must exhibit the following characteristics:

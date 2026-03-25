@@ -2,7 +2,7 @@
 
 **Type**: Archive / Knowledge Base Document  
 **Created**: 2026-03-11  
-**Relates to**: `nondominium-prima-materia.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`  
+**Relates to**: `ndo_prima_materia.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`, `flowsta-integration.md`  
 **Sources**: MVP code (`zome_resource`), post-MVP design documents, [OVN wiki — Resource](https://ovn.world/index.php?title=Resource), [OVN wiki — Resource type](https://ovn.world/index.php?title=Resource_type)
 
 ---
@@ -60,7 +60,7 @@ Bar-Yam's complexity matching principle states that the governance complexity of
 - A design file shared across a network requires moderate governance (attribution, versioning, integrity)
 - A physical CNC machine used by 50 agents requires substantial governance (access rules, maintenance scheduling, custody chains, reliability tracking)
 
-The NDO's three-layer model (prima-materia) directly implements this principle. The LifecycleStage enum ensures that governance overhead is matched to the resource's current social complexity. But this document will argue that even the NDO plan needs further refinement to model the full spectrum of resource types that exist in practice.
+The NDO's three-layer model (`ndo_prima_materia.md`) directly implements this principle. The LifecycleStage enum ensures that governance overhead is matched to the resource's current social complexity. But this document will argue that even the NDO plan needs further refinement to model the full spectrum of resource types that exist in practice.
 
 ### 1.5 Resources as Social Infrastructure
 
@@ -146,18 +146,20 @@ The link types model resource discovery and navigation:
 
 | Gap | Impact | Planned fix |
 |---|---|---|
-| `ResourceState` conflates lifecycle and operational dimensions (TODO in code) | Cannot model in-transit, in-storage, or in-maintenance resources independently of lifecycle stage | Split into `LifecycleStage` (on `NondominiumIdentity`) + `OperationalState` (on `EconomicResource`) — see prima-materia Section 5 |
-| No property regime field | Cannot distinguish nondominium from commons from individual stewardship | `PropertyRegime` enum (prima-materia) |
-| No resource nature field | Cannot distinguish digital from physical from hybrid | `ResourceNature` enum (prima-materia) |
-| `GovernanceRule.rule_data` is untyped JSON string | No schema enforcement, no tooling support, no peer validation of rule semantics | `GovernanceRuleType` enum with typed schemas (prima-materia + unyt-integration) |
-| No lifecycle before `PendingValidation` | Cannot model resources in ideation, design, development stages | `LifecycleStage` (prima-materia) |
+| `ResourceState` conflates lifecycle and operational dimensions (TODO in code) | Cannot model in-transit, in-storage, or in-maintenance resources independently of lifecycle stage | Split into `LifecycleStage` (on `NondominiumIdentity`) + `OperationalState` (on `EconomicResource`) — see `ndo_prima_materia.md` Section 5 |
+| No property regime field | Cannot distinguish nondominium from commons from individual stewardship | `PropertyRegime` enum (`ndo_prima_materia.md`) |
+| No resource nature field | Cannot distinguish digital from physical from hybrid | `ResourceNature` enum (`ndo_prima_materia.md`) |
+| `GovernanceRule.rule_data` is untyped JSON string | No schema enforcement, no tooling support, no peer validation of rule semantics | `GovernanceRuleType` enum with typed schemas (`ndo_prima_materia.md` + `unyt-integration.md`) |
+| No lifecycle before `PendingValidation` | Cannot model resources in ideation, design, development stages | `LifecycleStage` (`ndo_prima_materia.md`) |
 | Single custodian only | Cannot model shared tools, collective custody, resource pools | Many-to-many flows (post-MVP) |
-| No resource-level identity separate from specification hash | Identity changes when specification is updated | `NondominiumIdentity` (prima-materia Layer 0) |
+| No resource-level identity separate from specification hash | Identity changes when specification is updated | `NondominiumIdentity` (`ndo_prima_materia.md` Layer 0) |
 | No versioning | Cannot track design evolution, forks, repairs | Versioning DAG (post-MVP) |
 | No digital integrity | Cannot verify downloaded digital resource data | Digital Resource Integrity (post-MVP) |
 | No rivalry/non-rivalry modeling | Governance defaults are the same for all resource types | Gap — see Section 5 |
 | No scope classification | Cannot determine network-wide vs. project-specific visibility | Gap — see Section 5 |
 | No resource reliability | No way to track a tool's track record independent of custodian reputation | Gap — see Section 5 |
+| No cross-app identity or DID | Agents cannot prove identity across Holochain apps or networks; reputation is local to this DHT; no key recovery mechanism | `FlowstaIdentity` CapabilitySlot on `Person` entry hash (`ndo_prima_materia.md` Section 6.7); W3C DID via Flowsta agent linking; Vault key recovery |
+| No agent key recovery | If agent loses device, signing key (and all private entries/PPRs) are inaccessible; no deterministic key regeneration | Flowsta Vault BIP39 recovery phrases; auto-backup; CAL-compliant data export (`ndo_prima_materia.md` Section 6.7) |
 
 ---
 
@@ -165,7 +167,7 @@ The link types model resource discovery and navigation:
 
 The following improvements are designed in the post-MVP documentation. Each is described briefly here; full specifications are in the referenced documents.
 
-### 3.1 NDO Three-Layer Model (`nondominium-prima-materia.md`)
+### 3.1 NDO Three-Layer Model (`ndo_prima_materia.md`)
 
 The most significant architectural change. Replaces the flat `ResourceSpecification + EconomicResource` model with a progressive three-layer structure:
 
@@ -233,6 +235,10 @@ Extension of the single-custodian model to shared custody with weights and roles
 ### 3.7 Unyt Integration (`unyt-integration.md`)
 
 Economic settlement layer via Unyt Smart Agreements and RAVEs. `EconomicAgreement` GovernanceRule type, RAVE validation as state transition precondition, PPR↔RAVE provenance chain, reputation-derived credit limits.
+
+### 3.8 Flowsta Integration (`flowsta-integration.md`)
+
+Decentralized identity and authentication layer via Flowsta agent linking. `FlowstaIdentity` CapabilitySlot on `Person` entry hash, providing W3C DID (`did:flowsta:uhCAk...`) without modifying the `Person` entry schema. Two-tier identity authority: Tier 1 (permissionless attestation via CapabilitySlot link) and Tier 2 (governance-enforced identity verification for role promotions and high-value transitions). Flowsta Vault provides BIP39 key recovery and auto-backup for agent data resilience (CAL-compliant). PPR `ReputationSummary` becomes attributable to a cross-app DID, enabling portable reputation across Flowsta-linked Holochain apps.
 
 ---
 
@@ -411,6 +417,7 @@ The OVN wiki provides three orthogonal classification axes that NDO does not yet
   - **AffiliationState-based** (post-MVP, TODO G2): derived from participation history via `AffiliationRecord` entries — e.g. `ActiveAffiliate` or `CoreAffiliate` tier. Not declared but computed; harder to game than assigned roles
   - **PortableCredential-based** (post-MVP, TODO G8): cross-network verifiable claims from allied networks, enabling recognition of contribution history that happened elsewhere
   - **ZKP-based** (post-MVP, TODO G7): privacy-preserving proofs of the form "I have ≥ N claims of type T" without revealing raw scores, counterparties, or timestamps — prerequisite for governance access without surveillance
+  - **FlowstaIdentity-based** (post-MVP): cross-app identity via `FlowstaIdentity` CapabilitySlot on the agent's `Person` entry hash pointing to a dual-signed `IsSamePersonEntry` (Vault agent linking). Tier 1 (REQ-NDO-CS-12/CS-13) is a voluntary trust signal; Tier 2 (REQ-NDO-CS-14/CS-15) lets governance require a valid link for high-value or high-risk resource access — sybil resistance and cross-network accountability without revealing private PPR data
 - Formally restricted: requires formal approval procedures
 
 This maps to governance rule patterns in NDO but is not a first-class property. Encoding it explicitly would allow the system to set appropriate governance defaults and UI affordances automatically.
@@ -436,6 +443,8 @@ And the related distinction:
 | Shareable | Commons / pool items — shared without ownership transfer | GovernanceRules can encode this but it is not a first-class classification |
 
 The OVN wiki makes an important observation: allowing non-transferable assets (like reputation) to be transferred would destroy their value — "allowing this would in fact destroy the reputation system, as its meaning would be called into question." This is why Nondominium PPRs are cryptographically linked to the generating agent's key pair and cannot be assigned to another agent.
+
+Flowsta's `FlowstaIdentity` CapabilitySlot introduces an important nuance: PPR reputation becomes *attributable* across apps (via a verified W3C DID) without becoming *transferable*. The DID is a stable cross-app reference key — other Flowsta-linked apps can verify that a given reputation history belongs to a specific cross-app identity — but the underlying `PrivateParticipationClaim` entries remain cryptographically bound to the generating agent's key pair on this DHT. Attribution portability and claim transferability are orthogonal: the former enables cross-network trust signals; the latter remains forbidden to preserve the integrity of the reputation system.
 
 **Complexity economics note**: Transferability determines what kind of market or exchange system applies to a resource. Non-transferable resources require non-market coordination mechanisms (gifting, contribution tracking, reputation systems). The NDO already enforces non-transferability of PPRs at the cryptographic level. Extending this concept to other resources (should a method always be shareable? should equipment ever be non-transferable? these are governance questions) requires transferability to be a formal property.
 
@@ -509,8 +518,8 @@ For the generic NDO, the implication is: **do not model intangible resources as 
 | OVN concept | NDO implementation | Status |
 |---|---|---|
 | Resource Type (specification/instance distinction) | `ResourceSpecification` + `EconomicResource` | ✅ Implemented |
-| Property regimes (Private, Commons, Collective, Pool, CommonPool, Nondominium) | `PropertyRegime` enum | 🔄 Planned (prima-materia) |
-| Value chain maturity stages | `LifecycleStage` enum (10 stages) | 🔄 Planned (prima-materia) |
+| Property regimes (Private, Commons, Collective, Pool, CommonPool, Nondominium) | `PropertyRegime` enum | 🔄 Planned (`ndo_prima_materia.md`) |
+| Value chain maturity stages | `LifecycleStage` enum (10 stages) | 🔄 Planned (`ndo_prima_materia.md`) |
 | Embedded governance rules | `GovernanceRule` entries linked to `ResourceSpecification` | ✅ Implemented (weakly typed) |
 | Physical resource custody | `EconomicResource.custodian`, custody transfer | ✅ Implemented (single custodian, assumed individual agent — gap: collective agent custodianship not supported; TODO G1) |
 | Multi-custodian / shared custody | Many-to-many flows | 🔄 Planned |
@@ -520,6 +529,8 @@ For the generic NDO, the implication is: **do not model intangible resources as 
 | Contribution tracking | PPR system, Layer 2 EconomicEvents | ✅ Implemented |
 | OVN license / contribution propagation | Versioning + PPR upstream propagation | 🔄 Planned |
 | Economic settlement | Unyt integration | 🔄 Planned (post-MVP) |
+| Cross-app identity / DID | `FlowstaIdentity` CapabilitySlot via Flowsta agent linking (`ndo_prima_materia.md` Section 6.7) | 🔄 Planned (post-MVP) |
+| Agent key recovery | Flowsta Vault BIP39 recovery, auto-backup, CAL-compliant data export | 🔄 Planned (post-MVP) |
 
 ### 5.2 Partial — concepts present in OVN and partially covered in NDO
 
@@ -550,6 +561,7 @@ These represent the forward agenda for the generic NDO design:
 | **Transferability classification** | Formal encoding of transferable / non-transferable / shareable | Add `Transferability` enum; informs custody transfer governance |
 | **Nondominium as distinct PropertyRegime** | Nondominium (no-enclosure guarantee) ≠ Commons (shared stewardship) | Resolved in §6.3 — `Nondominium` variant added to `PropertyRegime` with validation that no governance rule can assert or transfer ownership |
 | **Affiliation-gated resource access** | Role membership alone is insufficient for high-stakes access to rivalrous resources — participation quality (affiliation tier) should also gate access. `GovernanceRule` currently evaluates only role membership, not derived `AffiliationState` | Extend `GovernanceRule.rule_data` schema with `min_affiliation` field (e.g. `"min_affiliation": "ActiveAffiliate"`); extend governance operator `evaluate_transition` to cross-zome query `AffiliationState` from `zome_person` (refs G2, REQ-AGENT-03, REQ-AGENT-05) |
+| **Cross-app identity verification** | No mechanism for an agent to prove they are the same person across multiple Holochain apps or external systems. PPR reputation is local to this DHT; no cross-network trust signal | Add `FlowstaIdentity` CapabilitySlot on `Person` hash (`ndo_prima_materia.md` Section 6.7, REQ-NDO-CS-12). Governance rules can require Tier 2–validated Flowsta linking for high-value access (REQ-NDO-CS-14, Flowsta Phase 3). Flowsta DID provides the cross-app identity anchor for portable credentials (REQ-NDO-AGENT-08) |
 | **Collective agent custodianship** | `EconomicResource.custodian` is currently `AgentPubKey`, assuming individual agent. Collective, Project, Network, and Bot agents (G1) should also be valid custodians | Replace `AgentPubKey` with `AgentContext` (union type) across `EconomicResource.custodian`, `TransitionContext.target_custodian`, and `NondominiumIdentity.initiator` (ref G1, REQ-AGENT-02) |
 | **Intangibles** | Social capital, trust, competencies — not tracked but should be preserved | Design principle: NDO governance architecture should cultivate intangibles as emergent properties, not track them as entries |
 
@@ -676,8 +688,10 @@ These defaults are starting points — communities override them through the Gov
 > - `AffiliationState`-based gating (G2): the governance operator queries `zome_person` for the requesting agent's derived affiliation tier and compares it to the `min_affiliation` condition in `GovernanceRule.rule_data`
 > - `PortableCredential` acceptance (G8): governance rules can declare which external credential types they accept, enabling cross-network access without re-joining
 > - ZKP-compatible evaluation (G7): reputation proofs are verified without revealing raw PPR scores or counterparties
+> - **`FlowstaIdentity` Tier 1 (Flowsta Phase 1; REQ-NDO-CS-12, REQ-NDO-CS-13)**: Agents can attach a `FlowstaIdentity` slot on their `Person` hash to a valid `IsSamePersonEntry` (Vault dual-signed attestation), making a DID discoverable and enabling cross-app **attribution** of reputation — without `AffiliationRecord`, `PortableCredential`, or ZKP infrastructure. The governance zome does **not** enforce Tier 1 (`ndo_prima_materia.md` Section 6.7).
+> - **`FlowstaIdentity` Tier 2 (Flowsta Phase 3; REQ-NDO-CS-14, REQ-NDO-CS-15)**: Governance rules can **require** a valid Flowsta link (per REQ-NDO-CS-15 checks) for credentialed access to resources that need sybil resistance or cross-network accountability — same phase and pattern as Unyt governance-operator enforcement (`ndo_prima_materia.md` Section 6.7).
 >
-> These capabilities require the `AffiliationRecord` entry type (REQ-AGENT-05), cross-zome `AffiliationState` queries, and ZKP proof infrastructure — all post-MVP.
+> The AffiliationState, PortableCredential, and ZKP dimensions above require the `AffiliationRecord` entry type (REQ-AGENT-05), cross-zome `AffiliationState` queries, and/or ZKP proof infrastructure — all post-MVP. **Flowsta Tier 1** is the exception among trust signals: voluntary linking can ship in Flowsta Phase 1 without those dependencies. **Flowsta Tier 2** enforcement requires Flowsta Phase 3 (`zome_gouvernance` changes), not Phase 1.
 
 ---
 

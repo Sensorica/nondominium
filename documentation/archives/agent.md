@@ -2,7 +2,7 @@
 
 **Type**: Archive / Knowledge Base Document  
 **Created**: 2026-03-11  
-**Relates to**: `governance.md`, `resources.md`, `nondominium-prima-materia.md`, `unyt-integration.md`  
+**Relates to**: `governance.md`, `resources.md`, `ndo_prima_materia.md`, `unyt-integration.md`, `flowsta-integration.md`  
 **Sources**: MVP code (`zome_person`, `zome_gouvernance` PPR/validation), post-MVP design, [OVN wiki — Agent](https://ovn.world/index.php?title=Agent), [Identity](https://ovn.world/index.php?title=Identity), [Individual profile](https://ovn.world/index.php?title=Individual_profile), [Organizational structure](https://ovn.world/index.php?title=Organizational_structure)
 
 ---
@@ -199,6 +199,8 @@ This is a forward-looking implementation: one person may use Nondominium from a 
 | No agent type taxonomy | OVN: individual, group, project, network, bot | Everything is modeled as an individual human |
 | Promotion is partially stubbed | `request_role_promotion` returns a placeholder hash | Promotion requests cannot be queried or tracked |
 | Legal_name is never shared | Appropriate for most use cases but inflexible | Cannot support cases where legal identity sharing is required (e.g., insurance, legal agreements) |
+| No cross-app identity or DID | OVN: portable profile across networks; agents as bridge nodes between OVNs | Agents cannot prove they are the same person on another Holochain app; reputation and roles stay local to this DNA. Planned: `FlowstaIdentity` CapabilitySlot on `Person` hash, W3C DID via Flowsta agent linking (`ndo_prima_materia.md` Section 6.7) |
+| No deterministic key recovery | Permanent `Person` and PPR model assume long-lived signing keys | Device loss can strand the agent from their source chain and private entries. Planned: Flowsta Vault BIP39 recovery, auto-backup, CAL-compliant export (`ndo_prima_materia.md` Section 6.7) |
 
 ---
 
@@ -220,7 +222,9 @@ Agent-NDOs use the same three-layer structure as resource-NDOs (see `resources.m
 
 ### 3.2 CapabilitySlot on Agent Identity
 
-The NDO CapabilitySlot surface (from `nondominium-prima-materia.md`) can be extended to agent identities: an agent's `Person` entry hash becomes a stigmergic attachment point for external applications — credential wallets, reputation oracles, DID documents, professional networks — without modifying the core Person entry. This is the agent-level equivalent of the resource-level CapabilitySlot.
+The NDO CapabilitySlot surface (from `ndo_prima_materia.md`) can be extended to agent identities: an agent's `Person` entry hash becomes a stigmergic attachment point for external applications — credential wallets, reputation oracles, DID documents, professional networks — without modifying the core Person entry. This is the agent-level equivalent of the resource-level CapabilitySlot.
+
+**Flowsta Auth** (`ndo_prima_materia.md` **Section 6.7**) is the first specified implementation: a `FlowstaIdentity` CapabilitySlot from the `Person` entry hash to an `IsSamePersonEntry` (dual-signed attestation: NDO agent key + Flowsta Vault key), yielding a W3C DID (`did:flowsta:uhCAk...`) without changing the `Person` schema. Full architecture, two-tier identity authority, and integration phases are summarised in **Section 3.5** below.
 
 ### 3.3 Composable Profile Aggregator
 
@@ -236,6 +240,12 @@ This view is not stored as a new entry type — it is computed from existing DHT
 ### 3.4 Credential Portability via Holochain Membrane Proofs
 
 Post-MVP: a mechanism to export cryptographically signed summaries of an agent's role assignments and ReputationSummary that can be verified by other Holochain networks. This implements the OVN requirement for portable identity: a person's contribution track record in one community should be recognisable in another.
+
+Flowsta agent linking provides a cross-app identity anchor (DID) so `ReputationSummary` and participation history can be *attributed* across Flowsta-linked apps; full `PortableCredential` structures (this document, Section 6.5) remain the NDO-native export path — the two are complementary (`ndo_prima_materia.md` Section 6.7, PPR cross-app attribution).
+
+### 3.5 Flowsta Integration (`flowsta-integration.md`)
+
+Decentralized identity and authentication for Holochain apps: **agent linking** commits `IsSamePersonEntry` on this DNA via `flowsta-agent-linking` zomes; **`FlowstaIdentity`** CapabilitySlot on the agent's **`Person`** entry hash points to that attestation. **Tier 1** (Flowsta Phase 1): permissionless self-attestation (trust signal; REQ-NDO-CS-12/CS-13). **Tier 2** (Flowsta Phase 3): governance can require a valid Flowsta link for sensitive transitions (e.g. **PrimaryAccountableAgent** promotion, high-value custody) via **`IdentityVerification`-style rules** (REQ-NDO-CS-14/CS-15). **Flowsta Vault**: BIP39 recovery, encrypted auto-backups, CAL-aligned export — addressing the gap between permanent `Person`/PPR anchors and real-world key loss. **OAuth-only path** (`@flowsta/auth`): consistent DID across web apps while the app keeps its own Holochain keys (Flowsta docs "Option 1"); **Vault path** ("Option 2") is the one that produces **`IsSamePersonEntry`** on the NDO DHT. See `ndo_prima_materia.md` Section 6.7 and Section 11.6; see also `resources.md` Section 3.8 for resource-ontology cross-links.
 
 ---
 
@@ -319,6 +329,8 @@ The OVN wiki synthesises the state of the art in decentralised identity:
 
 **Portability challenge**: "I can gain some credentials based on activities in one organization/context and have that, or only a part of it, being recognized in another context." This is the core portability requirement. The technical path: ZKP-based proofs from Holochain source chains that can be verified by other Holochain networks or other distributed systems.
 
+**Near-term bridge — Flowsta**: Flowsta supplies W3C DIDs and dual-signed agent linking (`IsSamePersonEntry` on the NDO DHT, `ndo_prima_materia.md` Section 6.7) so the same human can be recognised across Holochain conductors without shared DNA. `PrivateParticipationClaim` entries remain non-transferable and bound to the local `AgentPubKey`; reputation summaries can nevertheless be *attributed* to a DID for cross-app trust — the same distinction as `resources.md` Section 4.6 (attribution portability is not claim transferability). REQ-NDO-AGENT-08 positions the Flowsta DID as the cross-network identity anchor for portable credentials. ZKP/VC layers remain the longer-term path for minimally revealing proofs at scale.
+
 **The identity insurance alternative**: the OVN wiki cites Vinay Gupta's proposal that what P2P systems need is not reputation but restorative justice — insurance that compensates you if an agent acts in bad faith. "If I present you with proof that I am insured against bad conduct, and you trust my insurer will pay, REPUTATION is suddenly a whole bunch less important." This is a provocative alternative to the PPR approach: rather than tracking reputation to prevent bad actors, use economic backstops to make bad acting unprofitable. The NDO's Unyt Smart Agreement integration could potentially implement this pattern.
 
 ### 4.5 Privacy vs Network Efficiency
@@ -360,15 +372,17 @@ The NDO currently has no social graph and no multi-network affiliation model. An
 | Capability expiry and explicit revocation | 30-day max grants + RevokedGrantMarker | ✅ Implemented |
 | Composable profile building blocks | Person + PrivatePersonData + PersonRole + ReputationSummary | ✅ Partial (separate, not aggregated) |
 | Functional role credentials | Transport / Repair / Storage validated competency roles | ✅ Implemented |
+| Cross-app identity / DID (agent) | `FlowstaIdentity` CapabilitySlot + Flowsta agent linking (`ndo_prima_materia.md` Section 6.7) | 🔄 Planned (post-MVP) |
+| Agent key recovery (Vault) | Flowsta Vault BIP39, auto-backup, CAL export (`ndo_prima_materia.md` Section 6.7) | 🔄 Planned (post-MVP) |
 
 ### 5.2 Partial — concepts present in OVN and partially covered in NDO
 
 | OVN concept | NDO partial coverage | Gap |
 |---|---|---|
 | Affiliation spectrum | Joined (has Person) vs not joined | No close/active/core/inactive states; no affiliation conditions |
-| Active affiliate = contribution + recognition | SimpledAgent → Accountable promotion is contribution-gated | Recognition is informal; no algorithmic determination of active affiliate status |
+| Active affiliate = contribution + recognition | SimpleAgent → Accountable promotion is contribution-gated | Recognition is informal; no algorithmic determination of active affiliate status |
 | Core affiliate = algorithmically selected | PPR-based ReputationSummary provides the data | No algorithm using PPR data to compute core affiliate status |
-| Portability | Roles and PPRs are local | No export mechanism; no VC/DID interoperability |
+| Portability | Roles and PPRs are local | No export mechanism; no VC/DID interoperability yet. Planned: cross-app *attribution* via Flowsta DID + `FlowstaIdentity` slot (`ndo_prima_materia.md` Section 6.7); NDO-native `PortableCredential` export (this document, Section 6.5) remains complementary |
 | Privacy vs efficiency trade-off | Agents can share ReputationSummary selectively | No per-interaction privacy level choice; no pseudonymous participation mode |
 | Agent-controlled profile sections | Private data share controlled | No mechanism to protect some sections while exposing others; no correction mechanism for contributions |
 
@@ -383,8 +397,8 @@ The NDO currently has no social graph and no multi-network affiliation model. An
 | **Affiliation conditions** (formal ToP agreements) | No affiliation ceremony | Add `AffiliationRecord`: a hash-referenced acknowledgement of Terms of Participation + benefit redistribution agreement |
 | **Affiliation lifecycle** (active/core/close/inactive) | Binary in/out membership | Derive affiliation state algorithmically from PPR activity + recency; expose as queryable status |
 | **Zero-knowledge capability proofs** | Must reveal raw data to prove eligibility | Integrate ZKP library or ZKP-compatible VC layer; allow `prove_capability(condition)` without data disclosure |
-| **Credential portability** (across networks) | Roles and PPRs are local | Define a `PortableCredential` structure: signed summary of roles + PPR statistics, verifiable by other Holochain networks |
-| **Sybil resistance mechanism** | No proof-of-personhood | Integrate social vouching (existing agents vouch for new agents), biometric opt-in, or Proof-of-Personhood integration as optional membrane proof |
+| **Credential portability** (across networks) | Roles and PPRs are local | Flowsta W3C DID + `FlowstaIdentity` CapabilitySlot on `Person` hash as cross-network identity anchor (REQ-NDO-AGENT-08, `ndo_prima_materia.md` Section 6.7); and define a `PortableCredential` structure: signed summary of roles + PPR statistics, verifiable by other Holochain networks |
+| **Sybil resistance mechanism** | No proof-of-personhood | Optional Tier 2 governance requirement for verified Flowsta identity (REQ-NDO-CS-14) for high-trust roles; complements social vouching (existing agents vouch for new agents), biometric opt-in, or Proof-of-Personhood integration as optional membrane proof |
 | **Pseudonymous participation mode** | Contribution always linked to AgentPubKey | Allow ephemeral agents (agent contributes under a temporary key without linking to Person); contribution is recorded but unlinkable to physical identity |
 | **Agent AI/bot delegation** | Agents must act manually | Define a `DelegatedAgent` relationship: a Person can authorise an AI agent to act on their behalf within defined scope |
 | **Needs and wants** in profile | Not modeled | Add `AgentNeedsWants` as an optional profile extension: what resources the agent needs and what they can offer; enables matching |
@@ -451,7 +465,7 @@ pub struct AgentProfile {
     // Capability layer
     pub roles: Vec<PersonRole>,
     pub capability_level: String,           // member/stewardship/coordination/governance
-    pub capability_slots: Vec<CapabilitySlotInfo>,  // External credential attachments
+    pub capability_slots: Vec<CapabilitySlotInfo>,  // External credential attachments; includes FlowstaIdentity → IsSamePersonEntry; optional resolved flowsta_did for UI (`ndo_prima_materia.md` Section 6.7)
     
     // Reputation layer (derived, selectively shared)
     pub reputation_summary: Option<ReputationSummary>,
@@ -523,6 +537,8 @@ pub enum PortableCredentialType {
 
 A receiving network can verify the `issuer_signature` against the issuing network's DNA hash, establishing a cryptographic chain of trust without requiring centralized credential issuers.
 
+Receiving networks may correlate credentials with a **Flowsta DID** when the issuer also records a **`FlowstaIdentity`** link on the agent's `Person` hash — improving interoperability without making PPR entries themselves transferable.
+
 ---
 
 ## 7. Complexity Economics Justification: Why Each Agent Concept Matters
@@ -534,6 +550,8 @@ A receiving network can verify the `issuer_signature` against the issuing networ
 **ZKP capability proofs** matter because the current privacy-accountability model forces a false binary: either share raw data (low privacy, high accountability) or share nothing (high privacy, no accountability). Zero-knowledge proofs break this binary. An agent can prove "I have at least 10 completed maintenance commitments" without revealing who the counterparties were, what the resources were, or what the exact performance scores were. This is the technical foundation for privacy-preserving meritocracy — governance access based on contribution without requiring surveillance.
 
 **Credential portability** matters because the value of contribution data is severely limited if it only functions within a single application instance. An experienced Sensorica contributor who joins a new OVN should be able to leverage their track record. Without portability, every new commons requires starting from zero, creating massive friction to growth of the P2P ecosystem. Benkler's model of the peer production advantage assumes information flows across organisational boundaries — credential portability is the mechanism that makes this flow possible.
+
+**Cross-app identity (Flowsta)** matters for the same reason credential portability matters: agents who participate in multiple OVNs or hApps are bridge nodes (Section 4.6). Without a verifiable same-person link across conductors, every network treats them as a stranger; sybil pressure and cold-start friction repeat. Flowsta's permissionless Tier 1 keeps overhead low for casual participants; Tier 2 lets communities demand verified identity only where Bar-Yam-style complexity matching says it is worth the coordination cost (high-trust governance, high-value custody).
 
 **The composable individual profile** matters because an agent's full profile — their roles, contributions, social relations, affiliations, capabilities — is the information substrate for most governance and economic decisions in the commons. If this information is scattered across disconnected entries with no composable view, the information cost of making well-informed decisions is high. Bar-Yam's complexity matching principle: the governance system's access to information about participants must match the complexity of the participation patterns it is trying to govern.
 

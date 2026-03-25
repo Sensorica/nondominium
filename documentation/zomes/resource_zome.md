@@ -17,6 +17,8 @@ The Resource zome implements the core resource management infrastructure for the
 >
 > See `ndo_prima_materia.md` §§4, 8, and 10 for entry structures, link types, and migration
 > strategy. See `resources.md` §3 for the canonical three-layer model.
+>
+> **Unyt (post-MVP):** endorsed economic terms use typed **`EconomicAgreement`** `GovernanceRule` data (`ndo_prima_materia.md` §6.6, REQ-NDO-CS-09–CS-11; `documentation/requirements/post-mvp/unyt-integration.md`).
 
 ## Core Data Structures
 
@@ -112,8 +114,9 @@ pub struct GovernanceRule {
     // TODO (post-MVP, governance.md §4.8): add `expires_at: Option<Timestamp>` for temporal
     // governance. Rules with an expiry become inactive after the deadline without requiring a
     // manual update. Enables sunset clauses and time-limited access grants.
-    // TODO (post-MVP, resources.md §6.6): add `EconomicAgreement` variant to `rule_type` for
-    // Unyt Smart Agreement integration. See ndo_prima_materia.md §6.5 and REQ-NDO-CS-09.
+    // TODO (post-MVP): add `EconomicAgreement` to typed `GovernanceRuleType` for Unyt Smart
+    // Agreement integration. See ndo_prima_materia.md §6.6, REQ-NDO-CS-07–CS-11, and
+    // documentation/specifications/governance/governance.md (EconomicAgreement TODO).
 }
 ```
 
