@@ -1,11 +1,8 @@
-![][image1]  
-Only the Sensorica logo is copyright. Content on this document is [**_Creative Commons (BY NC SA)_**](http://creativecommons.org/licenses/by-nc-sa/3.0/)
-
 # Artcoin
 
 Main doc
 
-[**Project page**](https://www.sensorica.co/projects/urban/artcoin)
+**[Project page](https://www.sensorica.co/projects/urban/artcoin)**
 
 This is a co-creation document  
 If you contribute to this doc **make sure you respect** the [Content rules](https://docs.google.com/document/d/1pB901EfuFigFjmbWEg9VF7zwr4w9mv4ayXsl9FLC1y8/edit?hl=en_US)
@@ -58,19 +55,23 @@ Table of contents
 
 [Discussion Sensorica and Verses](#discussion-sensorica-and-verses)
 
-| Building shared understanding To Dos: Send to [Canada Heritage](https://www.canada.ca/en/canadian-heritage.html). Goal of this document Get the project funded. Already sent as proposal to [Knights foundation](https://knightfoundation.us5.list-manage.com/track/click?u=44a06e103b99cf80e07a2eaad&id=047bb74534&e=fc7323284b) (refused). Collaborators [Sensorica](http://www.sensorica.co), [Quebec Art Council](https://www.facebook.com/Conseildesartistesquebecois), [Verses](https://www.verses.io/). Timeline: undefined... Contribution logging: if you contribute to this initiative [log your time here](http://nrp.sensorica.co/accounting/process/1117/). Background This project was discussed for the first time in [THIS doc](https://docs.google.com/document/d/12fAc5GIKfHQS1F6F7pxf8J-oALkb39lqquYpmhjCCeU/edit#heading=h.aixnjfmkt0gi) with the name _Artbacks_. It was first proposed by [Devin Balkind](https://www.facebook.com/devin.balkind?ref=br_rs), discussed with Tibi at the SENSORICA lab on February 27th 2017\. |
-| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
-#
+| Building shared understanding To Dos: Send to [Canada Heritage](https://www.canada.ca/en/canadian-heritage.html). Goal of this document Get the project funded. Already sent as proposal to [Knights foundation](https://knightfoundation.us5.list-manage.com/track/click?u=44a06e103b99cf80e07a2eaad&id=047bb74534&e=fc7323284b) (refused). Collaborators [Sensorica](http://www.sensorica.co), [Quebec Art Council](https://www.facebook.com/Conseildesartistesquebecois), [Verses](https://www.verses.io/). Timeline: undefined... Contribution logging: if you contribute to this initiative [log your time here](http://nrp.sensorica.co/accounting/process/1117/). Background This project was discussed for the first time in [THIS doc](https://docs.google.com/document/d/12fAc5GIKfHQS1F6F7pxf8J-oALkb39lqquYpmhjCCeU/edit#heading=h.aixnjfmkt0gi) with the name *Artbacks*. It was first proposed by [Devin Balkind](https://www.facebook.com/devin.balkind?ref=br_rs), discussed with Tibi at the SENSORICA lab on February 27th 2017 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+
+
+
 
 # Project Title
 
-At this moment the project is named _Artcoin_, some have proposed IoA (Internet of _Art_)
+At this moment the project is named *Artcoin*, some have proposed IoA (Internet of *Art*)
 
 # Description {#description}
 
-| We intend to prototype an _Internet of Art_ (IoA) platform that more fully extends the sharing, enjoyment and interactivity of artworks, using _Internet of Things_ (IoT) and blockchain technologies. We are building on an established art circulation and presentation ecosystem, [Soogart](https://www.facebook.com/soogart/), which was inspired from [L’Artoteque](http://www.artotheque.ca), developed by the founders of the Quebec Art Council (partner in this project). [Soogart](https://www.facebook.com/soogart/) is an intermediary agency between painters and venues (residential houses, offices spaces, cafes and restaurants, etc.), where painters can display their art to gain public recognition, and generate revenue from rental fees or sales. |     |
-| :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :-- |
+
+| We intend to prototype an *Internet of Art* (IoA) platform that more fully extends the sharing, enjoyment and interactivity of artworks, using *Internet of Things* (IoT) and blockchain technologies. We are building on an established art circulation and presentation ecosystem, [Soogart](https://www.facebook.com/soogart/), which was inspired from [L’Artoteque](http://www.artotheque.ca), developed by the founders of the Quebec Art Council (partner in this project). [Soogart](https://www.facebook.com/soogart/) is an intermediary agency between painters and venues (residential houses, offices spaces, cafes and restaurants, etc.), where painters can display their art to gain public recognition, and generate revenue from rental fees or sales. |     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+
 
 We propose a model that desintermediates the economic ecosystem built around [Soogart](https://www.facebook.com/soogart/), using a decentralized cryptoeconomic model, which will provide greater opportunities to artists and venues, and make art more available to the general public.
 
@@ -104,11 +105,11 @@ Yet another important lesson is the impact that the new cryptoeconomic model wil
 
 ## Background {#background}
 
-Tibi to introduce economic reasons \- art as non rival asset, non scarce asset. New economic model that avoids traditional market failures for art.
+Tibi to introduce economic reasons  art as non rival asset, non scarce asset. New economic model that avoids traditional market failures for art.
 
 ## Project audience and impact {#project-audience-and-impact}
 
-There are 4 central participants \- each of which represents, in its own manner, an audience for this project:
+There are 4 central participants  each of which represents, in its own manner, an audience for this project:
 
 - Artists
 - Operators and patrons of venues and events
@@ -119,7 +120,7 @@ Artists gain increased access to the art-appreciating public, novel digital tool
 
 Operators and patrons of venues and events gain access to local artworks and the associated enhancement of their venue or event with minimal demand on their time and attention because the IoA platform alleviates manual effort and introduces greater security, all at reduced operating cost. They also enjoy greater varieties of artwork and also gain new channels for interacting with both works and creators.
 
-Arts agencies interested in supporting their community artists gain access to a dynamic, real-time datastream informing them across a variety of useful dimensions \- enabling them to address questions like: _Where are artists displaying art?_ _Who is viewing the art? What are they saying about those venues, events, experiences, artworks and artists?_ _How are artists engaging with the viewing public?_
+Arts agencies interested in supporting their community artists gain access to a dynamic, real-time datastream informing them across a variety of useful dimensions  enabling them to address questions like: *Where are artists displaying art?* *Who is viewing the art? What are they saying about those venues, events, experiences, artworks and artists?* *How are artists engaging with the viewing public?*
 
 # Progress {#progress}
 
@@ -135,11 +136,11 @@ VERSES Labs provides enterprises, organizations and governments with an extensiv
 
 **CAKE/SENSORICA** [www.sensorica.co](http://www.sensorica.co)  
 A network of software and hardware developers specialized in IoT and p2p infrastructures.  
-Created in 2011, registered as _Academie canadienne pour l'économie du savoir_, NEQ 1169850923\.  
+Created in 2011, registered as *Academie canadienne pour l'économie du savoir*, NEQ 1169850923  
 Association of 30 core members, up to 150 contributors,
 
 **Quebec Art Council** [www.conseildesarts.org](http://conseildesarts.org)  
-Created in 2007; registered as _Conseil multidisciplinaire des artistes québécois_; NEQ 1164541303\.  
+Created in 2007; registered as *Conseil multidisciplinaire des artistes québécois*; NEQ 1164541303  
 Association of 600 artists (550 of them being visual artists) based in Montreal Quebec, with close to 18000 Facebook followers, an active mailing list of 12000 members.  
 Organizer of Art Erotique festival in Montreal.
 
@@ -167,11 +168,11 @@ Organizer of Art Erotique festival in Montreal.
 
 # Connect technologies {#connect-technologies}
 
-[https://www.verses.io/](https://www.verses.io/) \[protocol\]  
-[https://www.foam.space/](https://www.foam.space/\) \[proof of location\]  
-[http://myceliaformusic.com/](http://myceliaformusic.com/) \[Imogin Heap\]  
-[https://mattereum.com/](https://mattereum.com/) \[Vinay Gupta\]  
-[https://www.kendra.io/](https://www.kendra.io/) \[Daniel Harris\]
+[https://www.verses.io/](https://www.verses.io/) protocol  
+[https://www.foam.space/](https://www.foam.space/\) proof of location  
+[http://myceliaformusic.com/](http://myceliaformusic.com/) Imogin Heap  
+[https://mattereum.com/](https://mattereum.com/) Vinay Gupta  
+[https://www.kendra.io/](https://www.kendra.io/) Daniel Harris
 
 # Meetings {#meetings}
 
@@ -185,24 +186,24 @@ Organizer of Art Erotique festival in Montreal.
 26 August 2020
 
 In attendance  
-[**Tibi**](https://www.sensorica.co/affiliates/tibi): co-founder of Sensorica  
-[**Chris**](https://www.linkedin.com/in/christopherslaney/): Acting Manager, Creative Marketplace Lab at Canadian Heritage  
+**[Tibi](https://www.sensorica.co/affiliates/tibi)**: co-founder of Sensorica  
+**[Chris](https://www.linkedin.com/in/christopherslaney/)**: Acting Manager, Creative Marketplace Lab at Canadian Heritage  
 **Johnny**: Research and policy analyst at the Creative Marketplace Lab at Canadian Heritage. Interested in AI and arts, from an academic perspective. Leading a group on AI and creative marketplace.
 
-The **_Creative Marketplace Lab on Data, Skills and Technology_** is a team dedicated to taking innovative and experimental approaches to difficult issues in the creative marketplace such as creator remuneration and technological disruption. Current key experiments include the economic viability of creators research, which will try an emerging methodology called “respondent-driven sampling” to better represent the creative marketplace (in collaboration with the Cultural Industries Branch), and skills experimentation with digital tools, testing the effectiveness of online self-assessment tools for copyright literacy. \[[reference](https://www.canada.ca/en/canadian-heritage/corporate/publications/plans-reports/departmental-plan-2020-2021.html)\]
+The ***Creative Marketplace Lab on Data, Skills and Technology*** is a team dedicated to taking innovative and experimental approaches to difficult issues in the creative marketplace such as creator remuneration and technological disruption. Current key experiments include the economic viability of creators research, which will try an emerging methodology called “respondent-driven sampling” to better represent the creative marketplace (in collaboration with the Cultural Industries Branch), and skills experimentation with digital tools, testing the effectiveness of online self-assessment tools for copyright literacy. [reference](https://www.canada.ca/en/canadian-heritage/corporate/publications/plans-reports/departmental-plan-2020-2021.html)
 
-The **_Creative Marketplace Lab_** takes a convener role for the government, engaging actors in the art market. Its mission is not legislative in nature. Works with the legislative branch, advises the legislative, performs research.
+The ***Creative Marketplace Lab*** takes a convener role for the government, engaging actors in the art market. Its mission is not legislative in nature. Works with the legislative branch, advises the legislative, performs research.
 
 **Most promising funding agencies**:
 
 - [Canada Council Digital Strategy Fund](https://canadacouncil.ca/funding/strategic-funds/digital-strategy-fund)
 - [Canada Media Fund](https://www.cmf-fmc.ca/programs-deadlines/programs) (the experimental streams may be the best match)
 
-**John** expressed the possibility of partnering with the ArtCoin project, which he sees as a good case study for the **_Creative Marketplace Lab_**.
+**John** expressed the possibility of partnering with the ArtCoin project, which he sees as a good case study for the ***Creative Marketplace Lab***.
 
 Tibi presented this project as an opportunity to build on an existing business model and association of 500 artists, experiment with new tech and its implications on the economic reality of artists.
 
-Questions were asked about how we see the convergence of DLT and AI in the Art domain. Tibi said that this is still an open question, that the ArtCoin project is at the pilot, proof of concept level, that we bring together talented people sitting on disruptive technologies, with a vision of exploring p2p models for art production. We already envision a technological infrastructure that facilitates the flow of physical artistic artifacts, makes physical art more fluid, reduces the costs of transfer of physical artifacts, the logistics involved with changing location, changing hands, custodiAnship / responsibility. On top of that logistical layer, enabled by DLT \+ IoT \+ Verses, we envision building feedback mechanisms, in order to build incentives for art production and distribution, to reward artists and those involved in the manipulation / handling of physical artistic artifacts. These feedback systems work on data about how physical artistic artifacts, where they are, for how long, how viewers engage or interact with them, see them, like them, comment on them, share them, … This part requires AI, to extract patterns and qualifiers about artistic artifacts, artists and venues. Tibi mentioned that we don’t know how all this is going to look in the future, what type of economic model can emerge from this, but what we propose is to engage in a path of experimentation with 500 artists and a talented group of technologists.
+Questions were asked about how we see the convergence of DLT and AI in the Art domain. Tibi said that this is still an open question, that the ArtCoin project is at the pilot, proof of concept level, that we bring together talented people sitting on disruptive technologies, with a vision of exploring p2p models for art production. We already envision a technological infrastructure that facilitates the flow of physical artistic artifacts, makes physical art more fluid, reduces the costs of transfer of physical artifacts, the logistics involved with changing location, changing hands, custodiAnship / responsibility. On top of that logistical layer, enabled by DLT  IoT  Verses, we envision building feedback mechanisms, in order to build incentives for art production and distribution, to reward artists and those involved in the manipulation / handling of physical artistic artifacts. These feedback systems work on data about how physical artistic artifacts, where they are, for how long, how viewers engage or interact with them, see them, like them, comment on them, share them, … This part requires AI, to extract patterns and qualifiers about artistic artifacts, artists and venues. Tibi mentioned that we don’t know how all this is going to look in the future, what type of economic model can emerge from this, but what we propose is to engage in a path of experimentation with 500 artists and a talented group of technologists.
 
 As discussed between Sensorica, Verses and the Quebec Arts Council, Tibi mentioned that the goal is to create a hybrid infrastructure that can operate in a traditional way (a centralized intermediary between artists and venues that offers storage and handling / logistics, the current business model of Soogart) and with a flip of a switch can be operated in a p2p way, where there is not need for an intermediary between the artists and venues, moving to a p2p model. That minimizes the risk of Soogart, allowing it to experiment with the p2p model as a side project, and eventually expanding the p2p process as it refines and becomes increasingly economically viable, perhaps surpassing at some point the traditional model.
 
@@ -227,10 +228,10 @@ Some early ideas about economic models / patterns that we could put on the table
 
 In attendance: [Tibi](https://www.sensorica.co/affiliates/tibi) and David.
 
-Artist profile \- dynamic, is what he has made, who he knows, where his stuff exists.  
+Artist profile  dynamic, is what he has made, who he knows, where his stuff exists.  
 What is Art?  
-What is ownership? \- bundling a number of rights together.  
-Royalties \- _droit de suite_ : if you resell a painting you must give % to the artist.  
+What is ownership?  bundling a number of rights together.  
+Royalties  *droit de suite* : if you resell a painting you must give % to the artist.  
 Use Verses  
 Talk about ownership  
 Artist’s profile: art pieces, time, where his art is, …  
