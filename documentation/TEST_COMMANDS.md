@@ -2,6 +2,36 @@
 
 Quick reference for running tests from the project root.
 
+## 🦀 **Sweettest (Rust) — Scaffold (tests added alongside NDO refactor)**
+
+Runs Holochain in-process. Faster, no WebSocket round-trip, direct Rust types.
+
+Currently contains the `misc` ping test and shared conductor infrastructure.
+Per-zome tests are written alongside the NDO refactor (see `ndo_prima_materia.md` §10).
+
+```bash
+# Build .dna bundle then run all Rust tests
+bun run sweettest
+
+# Same with --nocapture (see test output in real time)
+bun run sweettest:verbose
+
+# Skip build:happ if .dna is already built
+bun run sweettest:only
+```
+
+Cargo commands directly (inside `nix develop`):
+```bash
+# Requires LIBCLANG_PATH and BINDGEN_EXTRA_CLANG_ARGS to be set (exported by nix develop)
+CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest
+CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest -- --nocapture
+```
+
+## 📋 **Tryorama (TypeScript) — Active**
+
+Still the primary test suite until NDO refactor lands and Sweettest tests are co-evolved.
+
+
 ## 🚀 **Basic Test Commands**
 
 All commands automatically build zomes and package the hApp before running tests.

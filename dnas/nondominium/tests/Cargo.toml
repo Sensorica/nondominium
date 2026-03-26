@@ -1,0 +1,23 @@
+[package]
+name = "nondominium_sweettest"
+version = "0.1.0"
+edition = "2021"
+
+# This crate is NOT compiled to WASM. It uses the holochain test_utils feature
+# to run Sweettest in-process against the compiled .dna bundles.
+#
+# IMPORTANT: Run with CARGO_TARGET_DIR=target/native-tests to avoid
+# artifact conflicts with the wasm32-unknown-unknown build directory.
+#
+# Prerequisites: `bun run build:happ` must be run before `cargo test`
+#
+# Test cases for each zome will be added alongside the NDO refactor
+# (see documentation/requirements/ndo_prima_materia.md §10 migration phases).
+
+[dependencies]
+holochain = { workspace = true }
+tokio     = { workspace = true }
+
+[[test]]
+name = "misc"
+path = "src/misc/mod.rs"
