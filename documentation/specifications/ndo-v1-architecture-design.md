@@ -432,12 +432,6 @@ flowchart TD
     EEVENT -->|"triggers"| PPR
 
     NDO -->|"NDOToComponent\n(holonic composition)"| NDO
-
-    style L0  fill:#1e3a5f,color:#fff,stroke:#3b82f6
-    style L1  fill:#1a3a2a,color:#fff,stroke:#22c55e
-    style L2  fill:#2a1a3a,color:#fff,stroke:#a855f7
-    style VFP fill:#2a2a1a,color:#fff,stroke:#eab308
-    style VFO fill:#3a1a1a,color:#fff,stroke:#ef4444
 ```
 
 **Activation rules:**
@@ -485,15 +479,19 @@ stateDiagram-v2
 
 ### Transition Authorization Table
 
+// TODO: If some criterias are met (e.g.: being innactive since
+// TODO: If some criterias are met (e.g.: likebeing hiberning since more than x times, a new custodian can claim it)
+// Todo: Table to fix
+
 | Transition                    | Authorized by                        | VfAction trigger |
-| ----------------------------- | ------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
+| ----------------------------- | ------------------------------------ | ---------------- | --- |
 | Ideation → Specification      | Initiator                            | Work             |
 | Specification → Development   | Initiator or any Accountable Agent   | Work             |
 | Development → Prototype       | Custodian + governance validation    | Modify           |
 | Prototype → Stable            | N-of-M peer validation               | Accept           |
 | Stable / Active → Distributed | Primary Accountable Agent            | Transfer         |
-| Any → Hibernating             | Current custodian(s)                 | Lower            | // TODO: If some criterias are met (e.g.: being innactive since more than x times)                                    |
-| Hibernating → Active          | Current custodian(s)                 | Raise            | // TODO: If some criterias are met (e.g.: like being hiberning since more than x times, a new custodian can claim it) |
+| Any → Hibernating             | Current custodian(s)                 | Lower            |     |
+| Hibernating → Active          | Current custodian(s)                 | Raise            |
 | Any → Deprecated              | Custodian + successor NDO declared   | Cite             |
 | Any → EndOfLife               | Custodian + challenge period elapsed | Consume          |
 
@@ -526,15 +524,35 @@ stateDiagram-v2
 
 ### Cross-Zome Call Pattern (governance-as-operator)
 
-```
-zome_resource coordinator: request_resource_transition(input)
-    └─► cross_zome_call("zome_gouvernance", "evaluate_transition", request)
-         └─► zome_gouvernance: evaluate_transition(request)
-              ├─► cross_zome_call("zome_resource", "get_governance_rules", spec_hash)
-              ├─► evaluate each GovernanceRule against request
-              ├─► on approval: cross_zome_call("zome_resource", "update_resource_state", ...)
-              ├─► create_entry(EconomicEvent)
-              └─► issue_ppr(...)
+```mermaid
+sequenceDiagram
+    actor Agent
+    participant ZR as zome_resource<br/>(data)
+    participant ZG as zome_gouvernance<br/>(operator)
+    participant ZP as zome_person<br/>(identity)
+
+    Agent->>ZR: request_resource_transition(input)
+    ZR->>ZG: cross_zome_call("evaluate_transition", request)
+
+    ZG->>ZR: cross_zome_call("get_governance_rules", spec_hash)
+    ZR-->>ZG: Vec<GovernanceRule>
+
+    ZG->>ZP: cross_zome_call("get_agent_capability_level", agent_pub_key)
+    ZP-->>ZG: CapabilityLevel
+
+    ZG->>ZG: evaluate rules against request + capability
+
+    alt approved
+        ZG->>ZR: cross_zome_call("update_resource_operational_state", new_state)
+        ZR-->>ZG: ActionHash
+        ZG->>ZG: create_entry(EconomicEvent)
+        ZG->>ZG: issue_ppr(event_hash, participants)
+        ZG-->>ZR: Ok(event_hash)
+        ZR-->>Agent: Ok(event_hash)
+    else rejected
+        ZG-->>ZR: Err(GovernanceViolation)
+        ZR-->>Agent: Err(GovernanceViolation)
+    end
 ```
 
 ---
