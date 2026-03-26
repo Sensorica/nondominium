@@ -21,6 +21,8 @@ members = [
 # `cargo build --target wasm32-unknown-unknown` only compiles WASM zomes.
 # nondominium_sweettest has native-only deps (holochain, tokio, mio) that
 # cannot compile to WASM.
+# NOTE: Globs in `members` above do not carry through to `default-members`.
+# New zomes added via the glob must be listed here explicitly as well.
 default-members = [
     "dnas/nondominium/zomes/coordinator/zome_person",
     "dnas/nondominium/zomes/integrity/zome_person",
