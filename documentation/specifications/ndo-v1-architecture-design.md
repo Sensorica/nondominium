@@ -21,7 +21,7 @@ version: v1.0 design
 ValueFlows 1.0 defines the economic ontology. Every VF class either:
 
 - **Maps directly** to an NDO entry type (EconomicResource, EconomicEvent, Commitment, Agreement, Process, ResourceSpecification)
-- **Is deferred** from v1.0 scope (Intent, vf:Claim as reciprocity — handled in R&O / post-v1.0)
+- **Is deferred** from v1.0 scope (Intent, vf:Claim as reciprocity — post-v1.0)
 
 NDO adds above the VF floor:
 | NDO Extension | Relationship to VF |
@@ -66,10 +66,10 @@ Layer 0 — IDENTITY (NondominiumIdentity — permanent, immutable name+regime+n
 | `vf:EconomicEvent`         | `EconomicEvent`                      | `zome_gouvernance` | Full                      | + `realization_of`, `fulfills` fields                |
 | `vf:Commitment`            | `Commitment`                         | `zome_gouvernance` | Full                      | + `clause_of` field                                  |
 | `vf:Agreement`             | `Agreement`                          | `zome_gouvernance` | Full                      | New entry type                                       |
-| `vf:Claim`                 | `Fulfillment` (renamed from `Claim`) | `zome_gouvernance` | Partial                   | VF fulfillment bridge; reciprocity Claim = post-v1.0 |
+| `vf:Claim`                 | `Fulfillment` (Rust: `Claim` — ADR-004) | `zome_gouvernance` | Partial                | VF fulfillment bridge; reciprocity Claim = post-v1.0 |
 | `vf:Process`               | `Process`                            | `zome_gouvernance` | Basic                     | New entry type; Layer 2 anchor                       |
 | `vf:Unit`                  | `Unit`                               | `zome_resource`    | Full                      | New entry type                                       |
-| `vf:Intent`                | —                                    | —                  | Out of scope              | Handled in hAppenings R&O                            |
+| `vf:Intent`                | —                                    | —                  | Post-v1.0                 | Valid VF 1.0 class — deferred; CapabilitySlot extension path |
 | NDO: `NondominiumIdentity` | `NondominiumIdentity`                | `zome_resource`    | New                       | Layer 0 permanent identity                           |
 | NDO: `GovernanceRule`      | `GovernanceRule`                     | `zome_resource`    | Enhanced                  | `GovernanceRuleType` enum (was String)               |
 | NDO: PPR                   | `PrivateParticipationClaim`          | `zome_gouvernance` | Unchanged                 | Bilateral cryptographic accountability               |
@@ -444,8 +444,6 @@ flowchart TD
 
 ### Lifecycle Transition State Machine
 
-// TODO: Hibernation can go back to all previous states including active.
-
 ```mermaid
 stateDiagram-v2
     direction LR
@@ -467,7 +465,14 @@ stateDiagram-v2
     Distributed   --> Hibernating : Lower
     Active        --> Hibernating : Lower
 
-    Hibernating --> Active : Raise\n(custodian)
+    Hibernating --> Ideation      : Raise\n(return to prior stage)
+    Hibernating --> Specification : Raise\n(return to prior stage)
+    Hibernating --> Development   : Raise\n(return to prior stage)
+    Hibernating --> Prototype     : Raise\n(return to prior stage)
+    Hibernating --> Stable        : Raise\n(return to prior stage)
+    Hibernating --> Distributed   : Raise\n(return to prior stage)
+    Hibernating --> Active        : Raise\n(return to prior stage)
+    Hibernating --> Active        : Raise\n(claim — any AccountableAgent\nif inactivity criteria met)
 
     Active      --> Deprecated : Cite\n(successor NDO required)
     Active      --> EndOfLife  : Consume\n(challenge period)
@@ -479,21 +484,18 @@ stateDiagram-v2
 
 ### Transition Authorization Table
 
-// TODO: If some criterias are met (e.g.: being innactive since
-// TODO: If some criterias are met (e.g.: likebeing hiberning since more than x times, a new custodian can claim it)
-// Todo: Table to fix
-
-| Transition                    | Authorized by                        | VfAction trigger |
-| ----------------------------- | ------------------------------------ | ---------------- | --- |
-| Ideation → Specification      | Initiator                            | Work             |
-| Specification → Development   | Initiator or any Accountable Agent   | Work             |
-| Development → Prototype       | Custodian + governance validation    | Modify           |
-| Prototype → Stable            | N-of-M peer validation               | Accept           |
-| Stable / Active → Distributed | Primary Accountable Agent            | Transfer         |
-| Any → Hibernating             | Current custodian(s)                 | Lower            |     |
-| Hibernating → Active          | Current custodian(s)                 | Raise            |
-| Any → Deprecated              | Custodian + successor NDO declared   | Cite             |
-| Any → EndOfLife               | Custodian + challenge period elapsed | Consume          |
+| Transition                              | Authorized by                                                              | VfAction trigger |
+| --------------------------------------- | -------------------------------------------------------------------------- | ---------------- |
+| Ideation → Specification                | Initiator                                                                  | Work             |
+| Specification → Development             | Initiator or any Accountable Agent                                         | Work             |
+| Development → Prototype                 | Custodian + governance validation                                          | Modify           |
+| Prototype → Stable                      | N-of-M peer validation                                                     | Accept           |
+| Stable / Active → Distributed           | Primary Accountable Agent                                                  | Transfer         |
+| Any → Hibernating                       | Current custodian(s)                                                       | Lower            |
+| Hibernating → [prior stage]             | Current custodian(s)                                                       | Raise            |
+| Hibernating → Active (custodian claim)  | Any AccountableAgent — inactivity criteria met (governance-configured threshold) | Raise       |
+| Any → Deprecated                        | Custodian + successor NDO declared                                         | Cite             |
+| Any → EndOfLife                         | Custodian + challenge period elapsed                                       | Consume          |
 
 ---
 
@@ -511,7 +513,7 @@ stateDiagram-v2
 
 **Owns:** All economic activity. All governance evaluation. All reputation.
 
-- Entry types: `Process`, `Agreement`, `EconomicEvent`, `Commitment`, `Claim` (Fulfillment), `ValidationReceipt`, `ResourceValidation`, `PrivateParticipationClaim`
+- Entry types: `Process`, `Agreement`, `EconomicEvent`, `Commitment`, `Fulfillment` (Rust: `Claim` — ADR-004), `ValidationReceipt`, `ResourceValidation`, `PrivateParticipationClaim`
 - Responsibility: Receive transition requests from resource zome. Evaluate applicable GovernanceRules. Generate EconomicEvents on approval. Issue PPRs.
 - Does NOT: Create or update resource entries directly (cross-zome call to zome_resource for state updates).
 
@@ -651,14 +653,14 @@ The PPR `PerformanceMetrics` struct (timeliness, quality, reliability, communica
 
 ## 9. Explicit Out-of-Scope for v1.0
 
-| Feature                                                             | Reason                                                                     | Phase        |
-| ------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------ |
-| `AgentContext` union (collective, project, network, bot)            | Requires governance refactoring across all 3 zomes                         | Post-v1.0    |
-| `AffiliationRecord` + `AffiliationState` derivation                 | Depends on AgentContext                                                    | Post-v1.0    |
-| Flowsta Phase 2/3 (governance enforcement of identity verification) | Stub in GovernanceRuleType; UI/governance integration separate             | Post-v1.0    |
-| Unyt Smart Agreement full integration                               | Stub in GovernanceRuleType + SlotType; RAVE proof validation separate      | Post-v1.0    |
-| `vf:Intent` (Requests & Offers)                                     | Handled in hAppenings R&O project                                          | Out of scope |
-| `vf:Claim` (reciprocity, settlement)                                | NDO Claim entry is fulfillment semantics; VF reciprocity Claim = post-v1.0 | Post-v1.0    |
+| Feature                                                             | Reason                                                                                  | Phase     |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------- |
+| `AgentContext` union (collective, project, network, bot)            | Requires governance refactoring across all 3 zomes                                      | Post-v1.0 |
+| `AffiliationRecord` + `AffiliationState` derivation                 | Depends on AgentContext                                                                  | Post-v1.0 |
+| Flowsta Phase 2/3 (governance enforcement of identity verification) | Stub in GovernanceRuleType; UI/governance integration separate                          | Post-v1.0 |
+| Unyt Smart Agreement full integration                               | Stub in GovernanceRuleType + SlotType; RAVE proof validation separate                   | Post-v1.0 |
+| `vf:Intent`                                                         | Valid VF 1.0 class — deferred post-v1.0; extension path via CapabilitySlot surface      | Post-v1.0 |
+| `vf:Claim` (reciprocity, settlement)                                | NDO Fulfillment entry (Rust: `Claim`) has fulfillment semantics; VF reciprocity Claim = post-v1.0 | Post-v1.0 |
 | `ProcessSpecification`                                              | Not yet needed                                                             | Post-v1.0    |
 | Many-to-many flows (multi-custodian)                                | Architecture requires AgentContext                                         | Post-v1.0    |
 | Versioning DAG / digital resource integrity                         | Separate specification                                                     | Post-v1.0    |
