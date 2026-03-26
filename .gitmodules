@@ -1,4 +1,4 @@
 [submodule "vendor/hrea"]
 	path = vendor/hrea
-	url = https://github.com/h-REA/hREA.git
+	url = git@github.com:Sensorica/hREA.git
 	branch = main-0.6
