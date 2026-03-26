@@ -16,12 +16,32 @@ version: v1.0 design
 
 ## 1. Design Principles
 
+### 1.0 Dual-DNA Architecture (Ground Rule)
+
+Nondominium runs as a **dual-DNA hApp** — `hrea` DNA + `ndo` DNA, both registered as roles in `happ.yaml`. NDO does **not** re-implement VF entry types. All VF core types are owned by the `hrea` DNA. NDO coordinates governance, identity, and accountability on top of hREA via cross-DNA calls (`CallTargetCell::OtherRole("hrea")`).
+
+| Lives in hREA DNA | Lives in NDO DNA |
+|---|---|
+| EconomicResource, EconomicEvent | NondominiumIdentity (Layer 0) |
+| Commitment, Agreement, Plan | GovernanceRule, CapabilitySlot |
+| ResourceSpecification (VF core) | PrivateParticipationClaim (PPR) |
+| Process, Intent (post-v1.0) | ValidationReceipt, ResourceValidation |
+| ReaAgent, ReaUnit | EncryptedProfile, Person |
+| All VF 1.0 types | All NDO governance/identity extensions |
+
+NDO zomes interact with hREA via:
+- `call(CallTargetCell::OtherRole("hrea"), "hrea", fn_name, input)` — from coordinator
+- Storing returned `ActionHash` values in NDO-side link structures for traversal
+
+**hREA dependency:** NDO v1.0 depends on hREA reaching a target compliance state. See `documentation/hREA-strategic-roadmap.md` (Phase 1 gap closure) and `documentation/hrea-valueflows-1.0-compliance.md` for the full audit. P0 gaps (`effortQuantity`, `vf:Claim`) must land in hREA before NDO's full work-event and reciprocity workflows are available.
+
 ### 1.1 VF 1.0 as the Floor, NDO Innovations as the Extension
 
-ValueFlows 1.0 defines the economic ontology. Every VF class either:
+ValueFlows 1.0 defines the economic ontology. VF core classes are provided by the hREA DNA. Every VF class either:
 
-- **Maps directly** to an NDO entry type (EconomicResource, EconomicEvent, Commitment, Agreement, Process, ResourceSpecification)
-- **Is deferred** from v1.0 scope (Intent, vf:Claim as reciprocity — post-v1.0)
+- **Delegated to hREA** — NDO calls hREA coordinator functions and stores returned hashes
+- **Extended by NDO** — NDO adds a companion entry type with NDO-specific fields linked to the hREA hash
+- **Is deferred** from v1.0 scope (Intent, vf:Claim as reciprocity — handled by hREA post-Phase 1)
 
 NDO adds above the VF floor:
 | NDO Extension | Relationship to VF |
@@ -58,21 +78,23 @@ Layer 0 — IDENTITY (NondominiumIdentity — permanent, immutable name+regime+n
 
 ## 2. VF 1.0 Class Mapping
 
-| VF Class                   | NDO Entry                            | Zome               | v1.0 Status               | Notes                                                |
-| -------------------------- | ------------------------------------ | ------------------ | ------------------------- | ---------------------------------------------------- |
-| `vf:Agent`                 | `AgentPubKey` + `Person`             | `zome_person`      | Partial — individual only | Collective agents = post-v1.0                        |
-| `vf:EconomicResource`      | `EconomicResource`                   | `zome_resource`    | Full                      | Dual quantity, Unit ref, primary_accountable         |
-| `vf:ResourceSpecification` | `ResourceSpecification`              | `zome_resource`    | Full                      | + NDO extensions (regime, nature via L0)             |
-| `vf:EconomicEvent`         | `EconomicEvent`                      | `zome_gouvernance` | Full                      | + `realization_of`, `fulfills` fields                |
-| `vf:Commitment`            | `Commitment`                         | `zome_gouvernance` | Full                      | + `clause_of` field                                  |
-| `vf:Agreement`             | `Agreement`                          | `zome_gouvernance` | Full                      | New entry type                                       |
-| `vf:Claim`                 | `Fulfillment` (Rust: `Claim` — ADR-004) | `zome_gouvernance` | Partial                | VF fulfillment bridge; reciprocity Claim = post-v1.0 |
-| `vf:Process`               | `Process`                            | `zome_gouvernance` | Basic                     | New entry type; Layer 2 anchor                       |
-| `vf:Unit`                  | `Unit`                               | `zome_resource`    | Full                      | New entry type                                       |
-| `vf:Intent`                | —                                    | —                  | Post-v1.0                 | Valid VF 1.0 class — deferred; CapabilitySlot extension path |
-| NDO: `NondominiumIdentity` | `NondominiumIdentity`                | `zome_resource`    | New                       | Layer 0 permanent identity                           |
-| NDO: `GovernanceRule`      | `GovernanceRule`                     | `zome_resource`    | Enhanced                  | `GovernanceRuleType` enum (was String)               |
-| NDO: PPR                   | `PrivateParticipationClaim`          | `zome_gouvernance` | Unchanged                 | Bilateral cryptographic accountability               |
+Legend: **hREA** = provided by hREA DNA (cross-DNA call from NDO) · **NDO** = native NDO entry type · **NDO+hREA** = NDO extends hREA with a companion entry
+
+| VF Class                   | DNA    | Entry / Mechanism                       | NDO Zome           | v1.0 Status               | Notes                                                |
+| -------------------------- | ------ | --------------------------------------- | ------------------ | ------------------------- | ---------------------------------------------------- |
+| `vf:Agent`                 | hREA   | `ReaAgent` via cross-DNA call           | `zome_person`      | Partial — individual only | NDO also stores `AgentPubKey` + `Person`             |
+| `vf:EconomicResource`      | hREA   | `ReaEconomicResource` via cross-DNA     | `zome_resource`    | Full (via hREA)           | NDO stores returned hash; links to NondominiumIdentity |
+| `vf:ResourceSpecification` | NDO+hREA | `ReaResourceSpecification` (hREA) + `ResourceSpecification` extension (NDO) | `zome_resource` | Full | NDO extension holds: category, tags, is_active, image |
+| `vf:EconomicEvent`         | hREA   | `ReaEconomicEvent` via cross-DNA        | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA; stores hash for PPR linkage          |
+| `vf:Commitment`            | hREA   | `ReaCommitment` via cross-DNA           | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA; links PPR to hREA Commitment hash    |
+| `vf:Agreement`             | hREA   | `ReaAgreement` via cross-DNA            | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA post-Phase 1a (reciprocal fields)     |
+| `vf:Claim`                 | NDO    | `Fulfillment` (Rust: `Claim` — ADR-004) | `zome_gouvernance` | Partial                   | NDO fulfillment bridge; hREA `vf:Claim` = post-Phase 1c |
+| `vf:Process`               | hREA   | `ReaProcess` via cross-DNA              | `zome_gouvernance` | Basic (via hREA)          | NDO Layer 2 activation links to hREA Process hash    |
+| `vf:Unit`                  | NDO    | `Unit`                                  | `zome_resource`    | Full                      | NDO-local for now; may delegate to hREA post-v1.0    |
+| `vf:Intent`                | —      | —                                       | —                  | Post-v1.0                 | Valid VF 1.0 class — deferred; CapabilitySlot path   |
+| NDO: `NondominiumIdentity` | NDO    | `NondominiumIdentity`                   | `zome_resource`    | New                       | Layer 0 permanent identity anchor                    |
+| NDO: `GovernanceRule`      | NDO    | `GovernanceRule`                        | `zome_resource`    | Enhanced                  | `GovernanceRuleType` enum (was String)               |
+| NDO: PPR                   | NDO    | `PrivateParticipationClaim`             | `zome_gouvernance` | Unchanged                 | Bilateral cryptographic accountability               |
 
 ---
 
@@ -501,21 +523,31 @@ stateDiagram-v2
 
 ## 5. Zome Responsibility Boundaries
 
-### zome_resource — Identity & Data
+### hREA DNA — VF Core Layer
 
-**Owns:** All resource data. No business logic. No cross-zome calls in coordinator.
+**Owns:** All VF 1.0 core types. Accessed via `CallTargetCell::OtherRole("hrea")`.
 
-- Entry types: `Unit`, `NondominiumIdentity`, `ResourceSpecification`, `EconomicResource`, `GovernanceRule`
-- Responsibility: Store, retrieve, and validate entry structure. Expose request interfaces for governance.
-- Does NOT: Evaluate governance rules, issue PPRs, approve state transitions.
+- Entry types: `ReaEconomicResource`, `ReaEconomicEvent`, `ReaCommitment`, `ReaAgreement`, `ReaProcess`, `ReaResourceSpecification`, `ReaAgent`, `ReaUnit`, + all other VF types
+- NDO interacts with hREA only through its coordinator public functions — never reads hREA's source chain directly
+- hREA Phase 1+2 roadmap: `documentation/hREA-strategic-roadmap.md`
+
+### zome_resource — NDO Identity & Extension Layer
+
+**Owns:** NDO-specific resource data. No business logic. Cross-DNA calls to hREA for VF operations.
+
+- Entry types: `Unit`, `NondominiumIdentity`, `ResourceSpecification` (NDO extension — category, tags, image, is_active), `GovernanceRule`
+- Responsibility: Layer 0 identity anchors, NDO resource spec extensions, governance rule storage, capability slots
+- Cross-DNA calls: `create_rea_resource_specification`, `create_rea_economic_resource` (stores returned hashes)
+- Does NOT: Own VF core types, evaluate governance rules, issue PPRs, approve state transitions
 
 ### zome_gouvernance — Operator & Accountability
 
-**Owns:** All economic activity. All governance evaluation. All reputation.
+**Owns:** NDO governance logic. NDO-specific accountability types. Orchestrates hREA economic events.
 
-- Entry types: `Process`, `Agreement`, `EconomicEvent`, `Commitment`, `Fulfillment` (Rust: `Claim` — ADR-004), `ValidationReceipt`, `ResourceValidation`, `PrivateParticipationClaim`
-- Responsibility: Receive transition requests from resource zome. Evaluate applicable GovernanceRules. Generate EconomicEvents on approval. Issue PPRs.
-- Does NOT: Create or update resource entries directly (cross-zome call to zome_resource for state updates).
+- Entry types: `Fulfillment` (Rust: `Claim` — ADR-004), `ValidationReceipt`, `ResourceValidation`, `PrivateParticipationClaim`
+- Responsibility: Receive transition requests. Evaluate GovernanceRules. Call hREA to create EconomicEvents, Commitments, Agreements. Issue PPRs after hREA call succeeds.
+- Cross-DNA calls: `create_rea_economic_event`, `create_rea_commitment`, `create_rea_agreement`, `create_rea_process`
+- Does NOT: Create hREA entries without governance evaluation; own VF core types
 
 ### zome_person — Identity & Privacy
 
@@ -524,14 +556,15 @@ stateDiagram-v2
 - No changes in v1.0.
 - Post-v1.0: Add `AgentContext` union type, `AffiliationRecord`.
 
-### Cross-Zome Call Pattern (governance-as-operator)
+### Cross-DNA + Cross-Zome Call Pattern (governance-as-operator)
 
 ```mermaid
 sequenceDiagram
     actor Agent
-    participant ZR as zome_resource<br/>(data)
-    participant ZG as zome_gouvernance<br/>(operator)
-    participant ZP as zome_person<br/>(identity)
+    participant ZR as zome_resource<br/>(NDO — identity/extension)
+    participant ZG as zome_gouvernance<br/>(NDO — operator)
+    participant ZP as zome_person<br/>(NDO — identity)
+    participant HR as hREA DNA<br/>(VF core types)
 
     Agent->>ZR: request_resource_transition(input)
     ZR->>ZG: cross_zome_call("evaluate_transition", request)
@@ -545,12 +578,13 @@ sequenceDiagram
     ZG->>ZG: evaluate rules against request + capability
 
     alt approved
+        ZG->>HR: cross_dna_call("create_rea_economic_event", event_input)
+        HR-->>ZG: ActionHash (hREA event hash)
         ZG->>ZR: cross_zome_call("update_resource_operational_state", new_state)
         ZR-->>ZG: ActionHash
-        ZG->>ZG: create_entry(EconomicEvent)
-        ZG->>ZG: issue_ppr(event_hash, participants)
-        ZG-->>ZR: Ok(event_hash)
-        ZR-->>Agent: Ok(event_hash)
+        ZG->>ZG: issue_ppr(hrea_event_hash, participants)
+        ZG-->>ZR: Ok(hrea_event_hash)
+        ZR-->>Agent: Ok(hrea_event_hash)
     else rejected
         ZG-->>ZR: Err(GovernanceViolation)
         ZR-->>Agent: Err(GovernanceViolation)
@@ -702,6 +736,13 @@ The PPR `PerformanceMetrics` struct (timeliness, quality, reliability, communica
 - **Decision:** The current `Claim` entry (fulfills → Commitment, fulfilled_by → EconomicEvent) is semantically a VF "fulfillment bridge." It is NOT VF's `vf:Claim` (reciprocity). Rust struct keeps name `Claim`; design docs call it "Fulfillment."
 - **Rationale:** Renaming the Rust type in v1.0 would be a larger refactor than the value it provides. VF compliance is achieved via `EconomicEvent.fulfills → Commitment` (direct field); the bridge entry becomes redundant but is kept for audit trail.
 - **Consequence:** Post-v1.0, the Claim entry may be renamed to Fulfillment and VF's reciprocity Claim added as a new entry type.
+
+### ADR-006: VF core types delegated to hREA DNA, not reimplemented in NDO
+
+- **Status:** Accepted
+- **Decision:** NDO does not re-implement VF entry types (EconomicResource, EconomicEvent, Commitment, Agreement, Process, ResourceSpecification). All VF core types are owned by the `hrea` DNA (registered as `OtherRole("hrea")` in `happ.yaml`). NDO coordinator zomes call hREA functions and store returned `ActionHash` values.
+- **Rationale:** Avoids duplication and divergence. hREA is the canonical VF 1.0 implementation. NDO's value is in governance, identity, and accountability layers — not in reimplementing economic primitives. The `vendor/hrea` submodule is already a live runtime DNA in the bundle.
+- **Consequence:** NDO v1.0 capabilities are bounded by hREA's current compliance level (~65% VF 1.0). P0 gaps in hREA (`effortQuantity`, `vf:Claim`) must be resolved before NDO's work-event recording and claim-based reciprocity workflows are available. See `documentation/hREA-strategic-roadmap.md` for the Phase 1 gap closure plan.
 
 ### ADR-005: Process entry type lives in zome_gouvernance
 
