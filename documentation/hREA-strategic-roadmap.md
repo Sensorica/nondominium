@@ -42,7 +42,7 @@ A full compliance audit against the VF 1.0 TTL ontology (`https://w3id.org/value
 - **P1:** Add `purpose` to `ReaProposal` (offer/request distinction). Required for Requests & Offers filtering.
 - **P2:** `vf:SpatialThing` as a proper entry type (replace `Option<String>` location fields); `vf:BatchLotRecord`; missing Action effect dimensions (`locationEffect`, `stageEffect`, `stateEffect`, `containedEffect`, `createResource`, `eventQuantity`).
 
-Full field-by-field gap analysis: `.local/hrea-valueflows-1.0-compliance.md`
+Full field-by-field gap analysis: `./hrea-valueflows-1.0-compliance.md`
 
 **Stub validation implementation**
 
@@ -186,7 +186,7 @@ Taking on hREA maintainership is not only a technical commitment. It is a positi
 
 **Open maintainership** — The goal is not to control hREA but to revive it. Active solicitation of co-maintainers, clear contribution guides, and a public roadmap support a healthy transition. Struct changes in Phase 1 (adding `vf:Claim`, `effortQuantity`, location type migration) are breaking changes for existing hREA users. Clear migration guides and a deprecation window are part of the stabilization commitment — not an afterthought.
 
-**Nondominium as reference implementation** — Sensorica's use of hREA through Nondominium provides the most concrete test of the zome API's real-world fitness. Feedback flows upstream: what breaks in practice gets fixed in hREA. The compliance analysis at `.local/hrea-valueflows-1.0-compliance.md` is the living source of truth for Phase 1 gap closure and the generator of the Phase 2 context documents.
+**Nondominium as reference implementation** — Sensorica's use of hREA through Nondominium provides the most concrete test of the zome API's real-world fitness. Feedback flows upstream: what breaks in practice gets fixed in hREA. The compliance analysis at `./hrea-valueflows-1.0-compliance.md` is the living source of truth for Phase 1 gap closure and the generator of the Phase 2 context documents.
 
 **hAppenings ecosystem alignment** — Requests & Offers and other hAppenings hApps should benefit from hREA improvements. The JSON-LD work should be designed with multi-hApp composition in mind from the start.
 
@@ -213,4 +213,4 @@ Taking on hREA maintainership is not only a technical commitment. It is a positi
 - [JSON-LD](https://json-ld.org)
 - [Holochain](https://holochain.org)
 - [REA Ontology](http://www.reaontology.com)
-- [Compliance analysis](.local/hrea-valueflows-1.0-compliance.md)
+- [Compliance analysis](./hrea-valueflows-1.0-compliance.md)

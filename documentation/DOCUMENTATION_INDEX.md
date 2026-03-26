@@ -111,6 +111,14 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | **[PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md)** | Security model for reputation system           | ✅ Complete |
 | **[ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md)**                  | ValueFlows implementation with governance examples | ✅ Complete |
 
+### Architecture & Roadmap
+
+| Document                                                                                              | Description                                                    | Status      |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------- |
+| **[NDO v1.0 Architecture Design](documentation/specifications/ndo-v1-architecture-design.md)**        | Dual-DNA architecture, VF 1.0 class mapping, entry type specs, ADRs, migration notes | ✅ Active |
+| **[hREA VF 1.0 Compliance Analysis](documentation/hrea-valueflows-1.0-compliance.md)**               | Field-by-field audit of hREA main-0.6 against VF 1.0 ontology (~65% compliance)     | ✅ Active |
+| **[hREA Strategic Roadmap](documentation/hREA-strategic-roadmap.md)**                                | Phase 1+2 maintainership proposal: VF 1.0 gap closure and JSON-LD API               | ✅ Active |
+
 ### Technical Specifications
 
 | Document                                                                                              | Description                                                    | Status      |

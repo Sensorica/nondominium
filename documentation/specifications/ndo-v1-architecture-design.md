@@ -9,7 +9,7 @@ version: v1.0 design
 # Nondominium v1.0 — Architecture & Data Model Design
 
 **Design session:** 2026-03-25
-**Basis:** ValueFlows 1.0 ontology + NDO Prima Materia (ndo_prima_materia.md)
+**Basis:** ValueFlows 1.0 ontology + [NDO Prima Materia](../requirements/ndo_prima_materia.md)
 **Scope:** Three-zome Holochain DNA — data model, VF compliance, zome boundaries, coordinator signatures
 
 ---
@@ -737,19 +737,19 @@ The PPR `PerformanceMetrics` struct (timeliness, quality, reliability, communica
 - **Rationale:** Renaming the Rust type in v1.0 would be a larger refactor than the value it provides. VF compliance is achieved via `EconomicEvent.fulfills → Commitment` (direct field); the bridge entry becomes redundant but is kept for audit trail.
 - **Consequence:** Post-v1.0, the Claim entry may be renamed to Fulfillment and VF's reciprocity Claim added as a new entry type.
 
-### ADR-006: VF core types delegated to hREA DNA, not reimplemented in NDO
-
-- **Status:** Accepted
-- **Decision:** NDO does not re-implement VF entry types (EconomicResource, EconomicEvent, Commitment, Agreement, Process, ResourceSpecification). All VF core types are owned by the `hrea` DNA (registered as `OtherRole("hrea")` in `happ.yaml`). NDO coordinator zomes call hREA functions and store returned `ActionHash` values.
-- **Rationale:** Avoids duplication and divergence. hREA is the canonical VF 1.0 implementation. NDO's value is in governance, identity, and accountability layers — not in reimplementing economic primitives. The `vendor/hrea` submodule is already a live runtime DNA in the bundle.
-- **Consequence:** NDO v1.0 capabilities are bounded by hREA's current compliance level (~65% VF 1.0). P0 gaps in hREA (`effortQuantity`, `vf:Claim`) must be resolved before NDO's work-event recording and claim-based reciprocity workflows are available. See `documentation/hREA-strategic-roadmap.md` for the Phase 1 gap closure plan.
-
 ### ADR-005: Process entry type lives in zome_gouvernance
 
 - **Status:** Accepted
 - **Decision:** `Process` entry type is defined in `zome_gouvernance` integrity, not `zome_resource`.
 - **Rationale:** Processes are governed economic activities. Layer 2 activation link (`NDOToProcess`) in `zome_resource` LinkTypes points to a `Process` entry hash in `zome_gouvernance` — cross-zome ActionHash references are valid in Holochain.
 - **Consequence:** The NDO Layer 2 activation is a cross-zome link. `get_ndo_layer2(ndo_hash)` in the resource coordinator must make a cross-zome call to retrieve the Process record.
+
+### ADR-006: VF core types delegated to hREA DNA, not reimplemented in NDO
+
+- **Status:** Accepted
+- **Decision:** NDO does not re-implement VF entry types (EconomicResource, EconomicEvent, Commitment, Agreement, Process, ResourceSpecification). All VF core types are owned by the `hrea` DNA (registered as `OtherRole("hrea")` in `happ.yaml`). NDO coordinator zomes call hREA functions and store returned `ActionHash` values.
+- **Rationale:** Avoids duplication and divergence. hREA is the canonical VF 1.0 implementation. NDO's value is in governance, identity, and accountability layers — not in reimplementing economic primitives. The `vendor/hrea` submodule is already a live runtime DNA in the bundle.
+- **Consequence:** NDO v1.0 capabilities are bounded by hREA's current compliance level (~65% VF 1.0). P0 gaps in hREA (`effortQuantity`, `vf:Claim`) must be resolved before NDO's work-event recording and claim-based reciprocity workflows are available. See `documentation/hREA-strategic-roadmap.md` for the Phase 1 gap closure plan.
 
 ---
 
