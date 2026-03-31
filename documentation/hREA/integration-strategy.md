@@ -2,13 +2,9 @@
 
 ## Executive Summary
 
-This document outlines the comprehensive integration strategy for incorporating hREA (Holochain Resource-Event-Agent) into Nondominium's architecture. The approach positions hREA
-as a backend economic engine while maintaining Nondominium's specialized focus on governance,
-privacy, and the Private Participation Receipt (PPR) system.
+This document outlines the comprehensive integration strategy for incorporating hREA (Holochain Resource-Event-Agent) into Nondominium's architecture. The approach positions hREA as a backend economic engine while maintaining Nondominium's specialized focus on governance, privacy, and the Private Participation Receipt (PPR) system.
 
-**Key Decision**: Use git submodule + cross-DNA calls via the Holochain HDK `call()` function to
-integrate hREA directly at the Rust/zome level. This bypasses hREA's GraphQL API entirely —
-integration happens in the backend, not the UI.
+**Key Decision**: Use git submodule + cross-DNA calls via the Holochain HDK `call()` function to integrate hREA directly at the Rust/zome level. This bypasses hREA's GraphQL API entirely; integration happens in the backend, not the UI.
 
 **hREA Repository**: https://github.com/h-REA/hREA (branch: `main-0.6`)
 **Architecture**: Single DNA (`hrea`) with separate coordinator + integrity zomes
@@ -55,11 +51,9 @@ integration happens in the backend, not the UI.
 
 ### Why Zome-Level Integration (Not GraphQL)
 
-hREA exposes a GraphQL API intended for UI consumption. For Nondominium, integration must happen
-at the Rust/HDK layer because:
+hREA exposes a GraphQL API intended for UI consumption. For Nondominium, integration must happen at the Rust/HDK layer because:
 
-1. **Business logic integrity**: Governance rules and PPR generation must fire atomically with
-   economic events — this cannot be guaranteed through a UI-level API roundtrip
+1. **Business logic integrity**: Governance rules and PPR generation must fire atomically with economic events; this cannot be guaranteed through a UI-level API roundtrip
 2. **Capability security**: Cross-zome calls within the same conductor maintain Holochain's
    capability-based access model; GraphQL calls would bypass this
 3. **Performance**: Same-conductor bridge calls (~5-10ms) vs network roundtrips (~100-500ms)
@@ -89,14 +83,9 @@ at the Rust/HDK layer because:
 | —         | missing                            | `image: Option<String>`                                                                                           |
 | —         | missing                            | `tracking_identifier: Option<String>`                                                                             |
 
-**Key gap**: Nondominium's `EconomicResource` uses a single `quantity: f64` and a `String` unit.
-hREA uses `QuantityValue { has_numerical_value: f64, has_unit: ActionHash }` and tracks both
-accounting quantity (committed) and on-hand quantity (physically available) separately. This
-distinction is fundamental to ValueFlows and currently missing.
+**Key gap**: Nondominium's `EconomicResource` uses a single `quantity: f64` and a `String` unit. hREA uses `QuantityValue { has_numerical_value: f64, has_unit: ActionHash }` and tracks both accounting quantity (committed) and on-hand quantity (physically available) separately. This distinction is fundamental to ValueFlows and currently missing.
 
-**Also critical**: hREA automatically updates `onhand_quantity` and `accounting_quantity` when
-an economic event is created, based on the action type's `ActionEffect`. Nondominium has no
-equivalent automatic quantity update system.
+**Also critical**: hREA automatically updates `onhand_quantity` and `accounting_quantity` when an economic event is created, based on the action type's `ActionEffect`. Nondominium has no equivalent automatic quantity update system.
 
 ---
 
@@ -119,10 +108,7 @@ equivalent automatic quantity update system.
 | —        | missing                               | `triggered_by: Option<ActionHash>` (triggering Event)                   |
 | —        | missing                               | `corrects: Option<ActionHash>` (correction chain)                       |
 
-**Key gap**: The Nondominium `EconomicEvent` has a field called `affects` which appears to
-duplicate `resource_inventoried_as`. hREA's `to_resource_inventoried_as` is the correct field
-for the destination resource in a transfer — a different concept. More critically, the entire
-`fulfills` relationship (Event fulfills Commitment) is absent from Nondominium's model.
+**Key gap**: The Nondominium `EconomicEvent` has a field called `affects` which appears to duplicate `resource_inventoried_as`. hREA's `to_resource_inventoried_as` is the correct field for the destination resource in a transfer (a different concept). More critically, the entire `fulfills` relationship (Event fulfills Commitment) is absent from Nondominium's model.
 
 ---
 
@@ -180,8 +166,7 @@ hREA uses `rea_action: String` with standardized ValueFlows action names:
 - `"transfer"`, `"move"`, `"use"`, `"consume"`, `"produce"`, `"work"`, `"modify"`,
   `"combine"`, `"separate"`, `"raise"`, `"lower"`, `"cite"`, `"accept"`, `"dropAll"`, `"pickup"`
 
-hREA's `vf_actions` crate maps action strings to `ActionEffect` variants that control how
-resource quantities change on event creation. Nondominium's custom enum lacks this system.
+hREA's `vf_actions` crate maps action strings to `ActionEffect` variants that control how resource quantities change on event creation. Nondominium's custom enum lacks this system.
 
 ---
 
@@ -288,8 +273,7 @@ where
 
 ### Pattern 1: Creating a Resource + Event (atomic)
 
-hREA provides `create_economic_event_with_resource` which creates both in one call and
-automatically sets up quantities. Use this for resource registration:
+hREA provides `create_economic_event_with_resource` which creates both in one call and automatically sets up quantities. Use this for resource registration:
 
 ```rust
 // zome_resource coordinator — registers a new resource in hREA
@@ -418,8 +402,7 @@ pub fn propose_commitment_in_hrea(
 
 ### Pattern 3: Recording an Economic Event (fulfills Commitment)
 
-When a commitment is fulfilled, create an economic event in hREA that references both the
-resource and the commitment. hREA automatically updates resource quantities.
+When a commitment is fulfilled, create an economic event in hREA that references both the resource and the commitment. hREA automatically updates resource quantities.
 
 ```rust
 // zome_gouvernance coordinator — records fulfillment of a commitment
@@ -473,8 +456,7 @@ pub fn record_economic_event_in_hrea(
 
 ### Pattern 4: Capability Grants for Cross-Role Calls
 
-Depending on the hREA DNA's capability configuration, cross-role calls may need explicit
-unrestricted grants. Add to hREA DNA's init if required, or configure in the happ.yaml:
+Depending on the hREA DNA's capability configuration, cross-role calls may need explicit unrestricted grants. Add to hREA DNA's init if required, or configure in the happ.yaml:
 
 ```rust
 // In zome_gouvernance or zome_resource init() — grant hREA functions
@@ -500,8 +482,7 @@ pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
 
 ### Pattern 5: Person / Agent Hybrid
 
-When creating a Person in Nondominium, also create a `ReaAgent` in hREA and store the
-cross-reference:
+When creating a Person in Nondominium, also create a `ReaAgent` in hREA and store the cross-reference:
 
 ```rust
 // zome_person coordinator — create_person now creates in both DNAs
@@ -587,8 +568,7 @@ roles:
         properties: ~
 ```
 
-The role name `"hrea"` in `happ.yaml` is what gets passed to
-`CallTargetCell::OtherRole("hrea".into())` in coordinator zome code.
+The role name `"hrea"` in `happ.yaml` is what gets passed to `CallTargetCell::OtherRole("hrea".into())` in coordinator zome code.
 
 ---
 
@@ -619,15 +599,13 @@ members = [
 hrea_integrity = { path = "vendor/hrea/dnas/hrea/zomes/integrity/hrea" }
 ```
 
-**Note**: The struct definitions in the call patterns above use local inline structs to avoid
-coupling Nondominium's crate graph to hREA's. For tighter integration, use
-`hrea_integrity` as a workspace dependency and import types directly.
+**Note**: The struct definitions in the call patterns above use local inline structs to avoid coupling Nondominium's crate graph to hREA's. For tighter integration, use `hrea_integrity` as a workspace dependency and import types directly.
 
 ---
 
 ## Migration Strategy
 
-Holochain DHT entries are immutable — existing entries cannot be deleted or migrated in-place.
+Holochain DHT entries are immutable: existing entries cannot be deleted or migrated in-place.
 The migration path respects this constraint.
 
 ### Phase 2 Migration (Current)
@@ -805,8 +783,7 @@ describe("Nondominium-hREA integration", () => {
 | DHT get (remote)                  | ~100-500ms          | Reading peer-authored entries |
 | Remote agent call                 | ~200-1000ms         | Agent-to-agent direct calls   |
 
-The bridge call overhead (~5-10ms) is acceptable because hREA integration happens at write time
-(creating resources/events), not at read time for every UI render.
+The bridge call overhead (~5-10ms) is acceptable because hREA integration happens at write time (creating resources/events), not at read time for every UI render.
 
 ### Optimization Patterns
 
@@ -860,20 +837,19 @@ The bridge call overhead (~5-10ms) is acceptable because hREA integration happen
 
 ## Risk Assessment
 
-| Risk                                                  | Likelihood | Impact | Mitigation                                                        |
-| ----------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------- |
-| hREA `main-0.6` branch API changes                    | Medium     | High   | Pin to a specific commit hash, not a branch pointer               |
-| Cross-DNA call capability issues                      | Medium     | High   | Test cap grants early in Phase 1                                  |
-| hREA DNA build incompatibility (HDK version mismatch) | Low        | High   | Confirmed: both use HDK ^0.6.0 / HDI ^0.7.0 on holonix main-0.6  |
-| Performance degradation from bridge calls             | Low        | Medium | Benchmark early; cache hREA hashes in Nondominium links           |
-| Migration query complexity (dual-read layer)          | Medium     | Low    | Keep migration period short; prioritize hREA-backed data          |
+| Risk                                                  | Likelihood | Impact | Mitigation                                                      |
+| ----------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------- |
+| hREA `main-0.6` branch API changes                    | Medium     | High   | Pin to a specific commit hash, not a branch pointer             |
+| Cross-DNA call capability issues                      | Medium     | High   | Test cap grants early in Phase 1                                |
+| hREA DNA build incompatibility (HDK version mismatch) | Low        | High   | Confirmed: both use HDK ^0.6.0 / HDI ^0.7.0 on holonix main-0.6 |
+| Performance degradation from bridge calls             | Low        | Medium | Benchmark early; cache hREA hashes in Nondominium links         |
+| Migration query complexity (dual-read layer)          | Medium     | Low    | Keep migration period short; prioritize hREA-backed data        |
 
 ---
 
 ## Future: PPR System as hREA Enhancement
 
-Nondominium's PPR system has no current hREA equivalent. It could eventually be contributed to
-hREA as a governance extension:
+Nondominium's PPR system has no current hREA equivalent. It could eventually be contributed to hREA as a governance extension:
 
 1. **Prove the pattern**: Demonstrate PPR value in Nondominium production
 2. **Document the spec**: Formalize `PrivateParticipationClaim` as a ValueFlows extension
@@ -884,12 +860,9 @@ hREA as a governance extension:
 
 ## Conclusion
 
-Nondominium's integration strategy uses hREA as the **economic data layer** (EconomicResource,
-EconomicEvent, Commitment, Agent) while keeping Nondominium's **governance and privacy layer**
-entirely custom (PPR, GovernanceRule, ValidationReceipt, EncryptedProfile).
+Nondominium's integration strategy uses hREA as the **economic data layer** (EconomicResource, EconomicEvent, Commitment, Agent) while keeping Nondominium's **governance and privacy layer** entirely custom (PPR, GovernanceRule, ValidationReceipt, EncryptedProfile).
 
-The bridge pattern — `call(CallTargetCell::OtherRole("hrea"), "hrea", fn_name, ...)` — is the
-mechanism that makes this work at the Rust/zome level without touching hREA's GraphQL API.
+The bridge pattern (`call(CallTargetCell::OtherRole("hrea"), "hrea", fn_name, ...)`) is the mechanism that makes this work at the Rust/zome level without touching hREA's GraphQL API.
 
 Key outcomes:
 
@@ -897,8 +870,7 @@ Key outcomes:
 - **Privacy preserved**: EncryptedProfile + PPR system layers over hREA's public economic data
 - **Governance innovation intact**: PPR system remains Nondominium's unique contribution
 - **Migration safe**: DHT immutability respected; legacy entries remain valid indefinitely
-- **Ecosystem interoperability**: Other hREA-based apps can interoperate with Nondominium's
-  economic data directly through the shared hREA DNA
+- **Ecosystem interoperability**: Other hREA-based apps can interoperate with Nondominium's economic data directly through the shared hREA DNA
 
 ---
 

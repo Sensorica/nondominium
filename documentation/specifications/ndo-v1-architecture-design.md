@@ -20,20 +20,21 @@ version: v1.0 design
 
 Nondominium runs as a **dual-DNA hApp** — `hrea` DNA + `ndo` DNA, both registered as roles in `happ.yaml`. NDO does **not** re-implement VF entry types. All VF core types are owned by the `hrea` DNA. NDO coordinates governance, identity, and accountability on top of hREA via cross-DNA calls (`CallTargetCell::OtherRole("hrea")`).
 
-| Lives in hREA DNA | Lives in NDO DNA |
-|---|---|
-| EconomicResource, EconomicEvent | NondominiumIdentity (Layer 0) |
-| Commitment, Agreement, Plan | GovernanceRule, CapabilitySlot |
-| ResourceSpecification (VF core) | PrivateParticipationClaim (PPR) |
-| Process, Intent (post-v1.0) | ValidationReceipt, ResourceValidation |
-| ReaAgent, ReaUnit | EncryptedProfile, Person |
-| All VF 1.0 types | All NDO governance/identity extensions |
+| Lives in hREA DNA               | Lives in NDO DNA                       |
+| ------------------------------- | -------------------------------------- |
+| EconomicResource, EconomicEvent | NondominiumIdentity (Layer 0)          |
+| Commitment, Agreement, Plan     | GovernanceRule, CapabilitySlot         |
+| ResourceSpecification (VF core) | PrivateParticipationClaim (PPR)        |
+| Process, Intent (post-v1.0)     | ValidationReceipt, ResourceValidation  |
+| ReaAgent, ReaUnit               | EncryptedProfile, Person               |
+| All VF 1.0 types                | All NDO governance/identity extensions |
 
 NDO zomes interact with hREA via:
+
 - `call(CallTargetCell::OtherRole("hrea"), "hrea", fn_name, input)` — from coordinator
 - Storing returned `ActionHash` values in NDO-side link structures for traversal
 
-**hREA dependency:** NDO v1.0 depends on hREA reaching a target compliance state. See `documentation/hREA-strategic-roadmap.md` (Phase 1 gap closure) and `documentation/hrea-valueflows-1.0-compliance.md` for the full audit. P0 gaps (`effortQuantity`, `vf:Claim`) must land in hREA before NDO's full work-event and reciprocity workflows are available.
+**hREA dependency:** NDO v1.0 depends on hREA reaching a target compliance state. See `documentation/hREA/strategic-roadmap.md` (Phase 1 gap closure) and `documentation/hREA/valueflows-1.0-compliance.md` for the full audit. P0 gaps (`effortQuantity`, `vf:Claim`) must land in hREA before NDO's full work-event and reciprocity workflows are available.
 
 ### 1.1 VF 1.0 as the Floor, NDO Innovations as the Extension
 
@@ -80,21 +81,21 @@ Layer 0 — IDENTITY (NondominiumIdentity — permanent, immutable name+regime+n
 
 Legend: **hREA** = provided by hREA DNA (cross-DNA call from NDO) · **NDO** = native NDO entry type · **NDO+hREA** = NDO extends hREA with a companion entry
 
-| VF Class                   | DNA    | Entry / Mechanism                       | NDO Zome           | v1.0 Status               | Notes                                                |
-| -------------------------- | ------ | --------------------------------------- | ------------------ | ------------------------- | ---------------------------------------------------- |
-| `vf:Agent`                 | hREA   | `ReaAgent` via cross-DNA call           | `zome_person`      | Partial — individual only | NDO also stores `AgentPubKey` + `Person`             |
-| `vf:EconomicResource`      | hREA   | `ReaEconomicResource` via cross-DNA     | `zome_resource`    | Full (via hREA)           | NDO stores returned hash; links to NondominiumIdentity |
-| `vf:ResourceSpecification` | NDO+hREA | `ReaResourceSpecification` (hREA) + `ResourceSpecification` extension (NDO) | `zome_resource` | Full | NDO extension holds: category, tags, is_active, image |
-| `vf:EconomicEvent`         | hREA   | `ReaEconomicEvent` via cross-DNA        | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA; stores hash for PPR linkage          |
-| `vf:Commitment`            | hREA   | `ReaCommitment` via cross-DNA           | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA; links PPR to hREA Commitment hash    |
-| `vf:Agreement`             | hREA   | `ReaAgreement` via cross-DNA            | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA post-Phase 1a (reciprocal fields)     |
-| `vf:Claim`                 | NDO    | `Fulfillment` (Rust: `Claim` — ADR-004) | `zome_gouvernance` | Partial                   | NDO fulfillment bridge; hREA `vf:Claim` = post-Phase 1c |
-| `vf:Process`               | hREA   | `ReaProcess` via cross-DNA              | `zome_gouvernance` | Basic (via hREA)          | NDO Layer 2 activation links to hREA Process hash    |
-| `vf:Unit`                  | NDO    | `Unit`                                  | `zome_resource`    | Full                      | NDO-local for now; may delegate to hREA post-v1.0    |
-| `vf:Intent`                | —      | —                                       | —                  | Post-v1.0                 | Valid VF 1.0 class — deferred; CapabilitySlot path   |
-| NDO: `NondominiumIdentity` | NDO    | `NondominiumIdentity`                   | `zome_resource`    | New                       | Layer 0 permanent identity anchor                    |
-| NDO: `GovernanceRule`      | NDO    | `GovernanceRule`                        | `zome_resource`    | Enhanced                  | `GovernanceRuleType` enum (was String)               |
-| NDO: PPR                   | NDO    | `PrivateParticipationClaim`             | `zome_gouvernance` | Unchanged                 | Bilateral cryptographic accountability               |
+| VF Class                   | DNA      | Entry / Mechanism                                                           | NDO Zome           | v1.0 Status               | Notes                                                   |
+| -------------------------- | -------- | --------------------------------------------------------------------------- | ------------------ | ------------------------- | ------------------------------------------------------- |
+| `vf:Agent`                 | hREA     | `ReaAgent` via cross-DNA call                                               | `zome_person`      | Partial — individual only | NDO also stores `AgentPubKey` + `Person`                |
+| `vf:EconomicResource`      | hREA     | `ReaEconomicResource` via cross-DNA                                         | `zome_resource`    | Full (via hREA)           | NDO stores returned hash; links to NondominiumIdentity  |
+| `vf:ResourceSpecification` | NDO+hREA | `ReaResourceSpecification` (hREA) + `ResourceSpecification` extension (NDO) | `zome_resource`    | Full                      | NDO extension holds: category, tags, is_active, image   |
+| `vf:EconomicEvent`         | hREA     | `ReaEconomicEvent` via cross-DNA                                            | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA; stores hash for PPR linkage             |
+| `vf:Commitment`            | hREA     | `ReaCommitment` via cross-DNA                                               | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA; links PPR to hREA Commitment hash       |
+| `vf:Agreement`             | hREA     | `ReaAgreement` via cross-DNA                                                | `zome_gouvernance` | Full (via hREA)           | NDO calls hREA post-Phase 1a (reciprocal fields)        |
+| `vf:Claim`                 | NDO      | `Fulfillment` (Rust: `Claim` — ADR-004)                                     | `zome_gouvernance` | Partial                   | NDO fulfillment bridge; hREA `vf:Claim` = post-Phase 1c |
+| `vf:Process`               | hREA     | `ReaProcess` via cross-DNA                                                  | `zome_gouvernance` | Basic (via hREA)          | NDO Layer 2 activation links to hREA Process hash       |
+| `vf:Unit`                  | NDO      | `Unit`                                                                      | `zome_resource`    | Full                      | NDO-local for now; may delegate to hREA post-v1.0       |
+| `vf:Intent`                | —        | —                                                                           | —                  | Post-v1.0                 | Valid VF 1.0 class — deferred; CapabilitySlot path      |
+| NDO: `NondominiumIdentity` | NDO      | `NondominiumIdentity`                                                       | `zome_resource`    | New                       | Layer 0 permanent identity anchor                       |
+| NDO: `GovernanceRule`      | NDO      | `GovernanceRule`                                                            | `zome_resource`    | Enhanced                  | `GovernanceRuleType` enum (was String)                  |
+| NDO: PPR                   | NDO      | `PrivateParticipationClaim`                                                 | `zome_gouvernance` | Unchanged                 | Bilateral cryptographic accountability                  |
 
 ---
 
@@ -506,18 +507,18 @@ stateDiagram-v2
 
 ### Transition Authorization Table
 
-| Transition                              | Authorized by                                                              | VfAction trigger |
-| --------------------------------------- | -------------------------------------------------------------------------- | ---------------- |
-| Ideation → Specification                | Initiator                                                                  | Work             |
-| Specification → Development             | Initiator or any Accountable Agent                                         | Work             |
-| Development → Prototype                 | Custodian + governance validation                                          | Modify           |
-| Prototype → Stable                      | N-of-M peer validation                                                     | Accept           |
-| Stable / Active → Distributed           | Primary Accountable Agent                                                  | Transfer         |
-| Any → Hibernating                       | Current custodian(s)                                                       | Lower            |
-| Hibernating → [prior stage]             | Current custodian(s)                                                       | Raise            |
-| Hibernating → Active (custodian claim)  | Any AccountableAgent — inactivity criteria met (governance-configured threshold) | Raise       |
-| Any → Deprecated                        | Custodian + successor NDO declared                                         | Cite             |
-| Any → EndOfLife                         | Custodian + challenge period elapsed                                       | Consume          |
+| Transition                             | Authorized by                                                                    | VfAction trigger |
+| -------------------------------------- | -------------------------------------------------------------------------------- | ---------------- |
+| Ideation → Specification               | Initiator                                                                        | Work             |
+| Specification → Development            | Initiator or any Accountable Agent                                               | Work             |
+| Development → Prototype                | Custodian + governance validation                                                | Modify           |
+| Prototype → Stable                     | N-of-M peer validation                                                           | Accept           |
+| Stable / Active → Distributed          | Primary Accountable Agent                                                        | Transfer         |
+| Any → Hibernating                      | Current custodian(s)                                                             | Lower            |
+| Hibernating → [prior stage]            | Current custodian(s)                                                             | Raise            |
+| Hibernating → Active (custodian claim) | Any AccountableAgent — inactivity criteria met (governance-configured threshold) | Raise            |
+| Any → Deprecated                       | Custodian + successor NDO declared                                               | Cite             |
+| Any → EndOfLife                        | Custodian + challenge period elapsed                                             | Consume          |
 
 ---
 
@@ -529,7 +530,7 @@ stateDiagram-v2
 
 - Entry types: `ReaEconomicResource`, `ReaEconomicEvent`, `ReaCommitment`, `ReaAgreement`, `ReaProcess`, `ReaResourceSpecification`, `ReaAgent`, `ReaUnit`, + all other VF types
 - NDO interacts with hREA only through its coordinator public functions — never reads hREA's source chain directly
-- hREA Phase 1+2 roadmap: `documentation/hREA-strategic-roadmap.md`
+- hREA Phase 1+2 roadmap: `documentation/hREA/strategic-roadmap.md`
 
 ### zome_resource — NDO Identity & Extension Layer
 
@@ -687,23 +688,23 @@ The PPR `PerformanceMetrics` struct (timeliness, quality, reliability, communica
 
 ## 9. Explicit Out-of-Scope for v1.0
 
-| Feature                                                             | Reason                                                                                  | Phase     |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------- |
-| `AgentContext` union (collective, project, network, bot)            | Requires governance refactoring across all 3 zomes                                      | Post-v1.0 |
-| `AffiliationRecord` + `AffiliationState` derivation                 | Depends on AgentContext                                                                  | Post-v1.0 |
-| Flowsta Phase 2/3 (governance enforcement of identity verification) | Stub in GovernanceRuleType; UI/governance integration separate                          | Post-v1.0 |
-| Unyt Smart Agreement full integration                               | Stub in GovernanceRuleType + SlotType; RAVE proof validation separate                   | Post-v1.0 |
-| `vf:Intent`                                                         | Valid VF 1.0 class — deferred post-v1.0; extension path via CapabilitySlot surface      | Post-v1.0 |
+| Feature                                                             | Reason                                                                                            | Phase     |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------- |
+| `AgentContext` union (collective, project, network, bot)            | Requires governance refactoring across all 3 zomes                                                | Post-v1.0 |
+| `AffiliationRecord` + `AffiliationState` derivation                 | Depends on AgentContext                                                                           | Post-v1.0 |
+| Flowsta Phase 2/3 (governance enforcement of identity verification) | Stub in GovernanceRuleType; UI/governance integration separate                                    | Post-v1.0 |
+| Unyt Smart Agreement full integration                               | Stub in GovernanceRuleType + SlotType; RAVE proof validation separate                             | Post-v1.0 |
+| `vf:Intent`                                                         | Valid VF 1.0 class — deferred post-v1.0; extension path via CapabilitySlot surface                | Post-v1.0 |
 | `vf:Claim` (reciprocity, settlement)                                | NDO Fulfillment entry (Rust: `Claim`) has fulfillment semantics; VF reciprocity Claim = post-v1.0 | Post-v1.0 |
-| `ProcessSpecification`                                              | Not yet needed                                                             | Post-v1.0    |
-| Many-to-many flows (multi-custodian)                                | Architecture requires AgentContext                                         | Post-v1.0    |
-| Versioning DAG / digital resource integrity                         | Separate specification                                                     | Post-v1.0    |
-| Network and federation governance layers                            | Requires holonic governance design                                         | Post-v1.0    |
-| Non-binary decision mechanisms (conviction voting, quadratic)       | Governance extension                                                       | Post-v1.0    |
-| ZKP proofs for affiliation privacy                                  | Cryptographic infrastructure                                               | Post-v1.0    |
-| Dispute resolution mechanism                                        | Beyond PPR category placeholder                                            | Post-v1.0    |
-| Frontend updates                                                    | Separate work                                                              | Separate     |
-| GovernanceRule typed rule_data schemas (per GovernanceRuleType)     | Phase 2 governance work                                                    | Post-v1.0    |
+| `ProcessSpecification`                                              | Not yet needed                                                                                    | Post-v1.0 |
+| Many-to-many flows (multi-custodian)                                | Architecture requires AgentContext                                                                | Post-v1.0 |
+| Versioning DAG / digital resource integrity                         | Separate specification                                                                            | Post-v1.0 |
+| Network and federation governance layers                            | Requires holonic governance design                                                                | Post-v1.0 |
+| Non-binary decision mechanisms (conviction voting, quadratic)       | Governance extension                                                                              | Post-v1.0 |
+| ZKP proofs for affiliation privacy                                  | Cryptographic infrastructure                                                                      | Post-v1.0 |
+| Dispute resolution mechanism                                        | Beyond PPR category placeholder                                                                   | Post-v1.0 |
+| Frontend updates                                                    | Separate work                                                                                     | Separate  |
+| GovernanceRule typed rule_data schemas (per GovernanceRuleType)     | Phase 2 governance work                                                                           | Post-v1.0 |
 
 ---
 
@@ -749,7 +750,7 @@ The PPR `PerformanceMetrics` struct (timeliness, quality, reliability, communica
 - **Status:** Accepted
 - **Decision:** NDO does not re-implement VF entry types (EconomicResource, EconomicEvent, Commitment, Agreement, Process, ResourceSpecification). All VF core types are owned by the `hrea` DNA (registered as `OtherRole("hrea")` in `happ.yaml`). NDO coordinator zomes call hREA functions and store returned `ActionHash` values.
 - **Rationale:** Avoids duplication and divergence. hREA is the canonical VF 1.0 implementation. NDO's value is in governance, identity, and accountability layers — not in reimplementing economic primitives. The `vendor/hrea` submodule is already a live runtime DNA in the bundle.
-- **Consequence:** NDO v1.0 capabilities are bounded by hREA's current compliance level (~65% VF 1.0). P0 gaps in hREA (`effortQuantity`, `vf:Claim`) must be resolved before NDO's work-event recording and claim-based reciprocity workflows are available. See `documentation/hREA-strategic-roadmap.md` for the Phase 1 gap closure plan.
+- **Consequence:** NDO v1.0 capabilities are bounded by hREA's current compliance level (~65% VF 1.0). P0 gaps in hREA (`effortQuantity`, `vf:Claim`) must be resolved before NDO's work-event recording and claim-based reciprocity workflows are available. See `documentation/hREA/strategic-roadmap.md` for the Phase 1 gap closure plan.
 
 ---
 
