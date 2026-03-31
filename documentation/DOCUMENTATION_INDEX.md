@@ -1,6 +1,7 @@
 # Nondominium Project Documentation Index
 
-**Updated**: 2026-03-31
+**Generated**: 2025-12-17
+**Version**: 2.0
 
 ---
 
@@ -69,16 +70,15 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 ### Zome Structure
 
-| Zome                                                             | Purpose                         | Key Features                                                                                                                                                                 |
-| ---------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[`zome_person`](documentation/zomes/person_zome.md)**          | Agent identity & access control | • Agent profiles & roles<br>• Capability-based security<br>• Private data sharing workflows<br>• PPR integration & reputation tracking                                       |
-| **[`zome_resource`](documentation/zomes/resource_zome.md)**      | Pure data model                 | • EconomicResource & EconomicEvent data structures<br>• Resource state management only<br>• Cross-zome interface for governance requests<br>• No business logic              |
-| **[`zome_gouvernance`](documentation/zomes/governance_zome.md)** | State transition operator       | • Governance rule evaluation<br>• State transition validation<br>• Economic event generation<br>• PPR issuance (16 categories)<br>• Agent promotion & capability progression |
+| Zome                                                             | Purpose                            | Key Features                                                                                                                                                           |
+| ---------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[`zome_person`](documentation/zomes/person_zome.md)**          | Agent identity & access control    | • Agent profiles & roles<br>• Capability-based security<br>• Private data sharing workflows<br>• PPR integration & reputation tracking                                    |
+| **[`zome_resource`](documentation/zomes/resource_zome.md)**      | Pure data model                    | • EconomicResource & EconomicEvent data structures<br>• Resource state management only<br>• Cross-zome interface for governance requests<br>• No business logic         |
+| **[`zome_gouvernance`](documentation/zomes/governance_zome.md)** | State transition operator         | • Governance rule evaluation<br>• State transition validation<br>• Economic event generation<br>• PPR issuance (16 categories)<br>• Agent promotion & capability progression |
 
 ### Governance-as-Operator Architecture
 
 **Key Design Principles:**
-
 - **Modular Design**: Resource zome manages data, governance zome enforces rules
 - **Swappable Governance**: Different governance schemes can be applied to same resources
 - **Pure Function Governance**: Stateless evaluation with deterministic outputs
@@ -86,7 +86,6 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 - **Cross-Zome Interface**: Well-defined communication protocol
 
 **Documentation:**
-
 - **[Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md)** - Technical architecture and design patterns
 - **[Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md)** - Detailed implementation with code examples
 - **[Cross-Zome API](documentation/specifications/governance/cross-zome-api.md)** - Complete API specifications
@@ -104,33 +103,24 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 ### Project Requirements & Design
 
-| Document                                                                                                  | Description                                        | Status      |
-| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------- |
-| **[Requirements](documentation/requirements/requirements.md)**                                            | Complete PRD with modular governance architecture  | ✅ Complete |
-| **[UI Architecture](documentation/specifications/ui_architecture.md)**                                    | Frontend design patterns & component structure     | ✅ Complete |
-| **[UI Design](documentation/requirements/ui_design.md)**                                                  | User interface design specifications               | ✅ Complete |
-| **[PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md)** | Security model for reputation system               | ✅ Complete |
-| **[ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md)**                             | ValueFlows implementation with governance examples | ✅ Complete |
-
-### Architecture & Roadmap
-
-| Document                                                                                       | Description                                                                          | Status    |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------- |
-| **[NDO v1.0 Architecture Design](documentation/specifications/ndo-v1-architecture-design.md)** | Dual-DNA architecture, VF 1.0 class mapping, entry type specs, ADRs, migration notes | ✅ Active |
-| **[hREA Integration Strategy](documentation/hREA/integration-strategy.md)**                    | Cross-DNA call architecture, zome-level integration pattern, migration plan          | ✅ Active |
-| **[hREA VF 1.0 Compliance Analysis](documentation/hREA/valueflows-1.0-compliance.md)**         | Field-by-field audit of hREA main-0.6 against VF 1.0 ontology (~65% compliance)      | ✅ Active |
-| **[hREA Strategic Roadmap](documentation/hREA/strategic-roadmap.md)**                          | Phase 1+2 maintainership proposal: VF 1.0 gap closure and JSON-LD API                | ✅ Active |
+| Document                                                                                     | Description                                    | Status      |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------- | ----------- |
+| **[Requirements](documentation/requirements/requirements.md)**                               | Complete PRD with modular governance architecture | ✅ Complete |
+| **[UI Architecture](documentation/specifications/ui_architecture.md)**                         | Frontend design patterns & component structure | ✅ Complete |
+| **[UI Design](documentation/requirements/ui_design.md)**                                     | User interface design specifications           | ✅ Complete |
+| **[PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md)** | Security model for reputation system           | ✅ Complete |
+| **[ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md)**                  | ValueFlows implementation with governance examples | ✅ Complete |
 
 ### Technical Specifications
 
-| Document                                                                                                                   | Description                                                | Status      |
-| -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------- |
-| **[Architecture Overview](documentation/zomes/architecture_overview.md)**                                                  | Comprehensive system architecture & cross-zome integration | ✅ Complete |
-| **[Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md)**        | Technical architecture for modular governance design       | ✅ Complete |
-| **[Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples           | ✅ Complete |
-| **[Cross-Zome API](documentation/specifications/governance/cross-zome-api.md)**                                            | Complete API specifications for zome communication         | ✅ Complete |
-| **[Implementation Plan](documentation/archives/implementation_plan.md)**                                                   | Development roadmap & phase breakdown                      | ✅ Complete |
-| **[Implementation Status](documentation/archives/IMPLEMENTATION_STATUS.md)**                                               | Current development progress & completion status           | ✅ Complete |
+| Document                                                                                              | Description                                                    | Status      |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------- |
+| **[Architecture Overview](documentation/zomes/architecture_overview.md)**                                | Comprehensive system architecture & cross-zome integration     | ✅ Complete |
+| **[Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md)** | Technical architecture for modular governance design          | ✅ Complete |
+| **[Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples            | ✅ Complete |
+| **[Cross-Zome API](documentation/specifications/governance/cross-zome-api.md)**                                    | Complete API specifications for zome communication            | ✅ Complete |
+| **[Implementation Plan](documentation/archives/implementation_plan.md)**                                 | Development roadmap & phase breakdown                          | ✅ Complete |
+| **[Implementation Status](documentation/archives/IMPLEMENTATION_STATUS.md)**                            | Current development progress & completion status               | ✅ Complete |
 
 ### Testing & Infrastructure
 
@@ -315,13 +305,27 @@ bun run test:debug           # Verbose test output for debugging
 1. **ResourceCreation** - Recognition for successful resource contributions
 2. **ResourceValidation** - Credit for network validation activities
 
-**Core Usage Roles (Custodianship):** 3. **CustodyTransfer** - Outgoing custodian recognition 4. **CustodyAcceptance** - Incoming custodian validation
+**Core Usage Roles (Custodianship):**
+3. **CustodyTransfer** - Outgoing custodian recognition
+4. **CustodyAcceptance** - Incoming custodian validation
 
-**Intermediate Roles (Specialized Services):** 5. **MaintenanceCommitmentAccepted** - Maintenance agreement recognition 6. **MaintenanceFulfillmentCompleted** - Maintenance service completion 7. **StorageCommitmentAccepted** - Storage service agreement 8. **StorageFulfillmentCompleted** - Storage service completion 9. **TransportCommitmentAccepted** - Transport service agreement 10. **TransportFulfillmentCompleted** - Transport service completion 11. **GoodFaithTransfer** - Trust-based transfer recognition
+**Intermediate Roles (Specialized Services):**
+5. **MaintenanceCommitmentAccepted** - Maintenance agreement recognition
+6. **MaintenanceFulfillmentCompleted** - Maintenance service completion
+7. **StorageCommitmentAccepted** - Storage service agreement
+8. **StorageFulfillmentCompleted** - Storage service completion
+9. **TransportCommitmentAccepted** - Transport service agreement
+10. **TransportFulfillmentCompleted** - Transport service completion
+11. **GoodFaithTransfer** - Trust-based transfer recognition
 
-**Network Governance:** 12. **DisputeResolutionParticipation** - Constructive conflict resolution 13. **ValidationActivity** - Ongoing validation duties 14. **RuleCompliance** - Consistent governance adherence
+**Network Governance:**
+12. **DisputeResolutionParticipation** - Constructive conflict resolution
+13. **ValidationActivity** - Ongoing validation duties
+14. **RuleCompliance** - Consistent governance adherence
 
-**Resource End-of-Life:** 15. **EndOfLifeDeclaration** - Responsible lifecycle management 16. **EndOfLifeValidation** - Expert validation services
+**Resource End-of-Life:**
+15. **EndOfLifeDeclaration** - Responsible lifecycle management
+16. **EndOfLifeValidation** - Expert validation services
 
 ### Economic Processes with Role-Based Access
 
