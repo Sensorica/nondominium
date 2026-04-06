@@ -83,8 +83,10 @@ pub async fn setup_dual_dna_two_agents() -> (
         .await
         .expect("Failed to load hREA DNA bundle");
 
+    // Explicit role names are required so that `CallTargetCell::OtherRole("hrea")`
+    // resolves correctly inside the nondominium zomes.
     let apps = conductors
-        .setup_app("dual", &[dna_nd, dna_hrea])
+        .setup_app("dual", &[("nondominium", dna_nd), ("hrea", dna_hrea)])
         .await
         .expect("Failed to install dual-DNA app on conductors");
 

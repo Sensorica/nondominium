@@ -21,3 +21,7 @@ tokio     = { workspace = true }
 [[test]]
 name = "misc"
 path = "src/misc/mod.rs"
+
+[[test]]
+name = "person"
+path = "src/person/mod.rs"
