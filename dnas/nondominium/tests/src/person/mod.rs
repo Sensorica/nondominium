@@ -11,7 +11,6 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --test person
 
 use holochain::prelude::*;
-use holochain::sweettest::*;
 use serde::{Deserialize, Serialize};
 
 use nondominium_sweettest::common::*;
