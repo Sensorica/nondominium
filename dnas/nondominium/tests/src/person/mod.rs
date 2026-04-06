@@ -62,10 +62,11 @@ struct ReaAgent {
 /// Panics if the record has no entry, or if the entry is not an `App` entry,
 /// or if deserialization fails. All three cases indicate a programming error
 /// (wrong return type annotation on the `conductor.call` site).
-fn decode_record_entry<T: serde::de::DeserializeOwned>(record: &Record) -> T {
+fn decode_record_entry<T: serde::de::DeserializeOwned + std::fmt::Debug>(record: &Record) -> T {
     match record.entry().as_option() {
         Some(Entry::App(app_bytes)) => {
-            holochain_serialized_bytes::decode(app_bytes.as_sb().bytes())
+            // app_bytes: &AppEntryBytes; Deref<Target=SerializedBytes> gives .bytes() -> &[u8]
+            holochain_serialized_bytes::decode(app_bytes.bytes())
                 .expect("entry deserialization failed")
         }
         _ => panic!("expected Present App entry"),
