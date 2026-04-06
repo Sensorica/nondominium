@@ -1,4 +1,12 @@
 /**
+ * @deprecated Tryorama (TypeScript) tests are deprecated.
+ *
+ * All new tests must be written in Sweettest (Rust): `dnas/nondominium/tests/`
+ * These files are kept as reference but will not be maintained going forward.
+ * See tests/DEPRECATED.md for migration context.
+ */
+
+/**
  * hREA Bridge Integration Tests — Issues #51, #52, #53, #55
  *
  * Validates that create_person creates a corresponding ReaAgent in the hREA DNA

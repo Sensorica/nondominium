@@ -15,9 +15,15 @@ edition = "2021"
 # (see documentation/requirements/ndo_prima_materia.md §10 migration phases).
 
 [dependencies]
-holochain = { workspace = true }
-tokio     = { workspace = true }
+holochain                  = { workspace = true }
+tokio                      = { workspace = true }
+serde                      = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
 
 [[test]]
 name = "misc"
 path = "src/misc/mod.rs"
+
+[[test]]
+name = "person"
+path = "src/person/mod.rs"

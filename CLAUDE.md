@@ -21,7 +21,7 @@ bun install              # Install all dependencies
 ```bash
 bun run start            # Start 2-agent development network with UIs
 bun run network          # Custom agent network: AGENTS=3 bun run network
-bun run tests             # Run full test suite (foundation, integration, scenarios)
+bun run tests             # DEPRECATED: Tryorama TypeScript tests — see tests/DEPRECATED.md
 ```
 
 ### Build Pipeline
@@ -34,17 +34,28 @@ bun run package          # Create final .webhapp distribution
 
 ### Testing Commands
 
-**Running specific test files**: Use `bun run tests` followed by the test file path or pattern.
+**Primary test suite: Sweettest (Rust)** in `dnas/nondominium/tests/`
+
+```bash
+# Prerequisites — must run before any test execution:
+bun run build:happ
+
+# Run all Sweettest tests
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
+
+# Run a specific test module
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test misc
+
+# Run a specific test function
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person person_create_populates_hrea_agent_hash
+```
+
+> **Deprecated:** `bun run tests` runs the legacy Tryorama (TypeScript) test suite. All tests in `tests/` are deprecated. New tests must be written in Sweettest. See `tests/DEPRECATED.md`.
 
 **Test Development Tips**:
 
-1. **Test Isolation**: Use `.only()` on `describe` or `it` blocks to run specific tests during development:
-
-```typescript
-describe.only('specific test suite', () => { ... })  // Run only this suite
-it.only('specific test', async () => { ... })       // Run only this test
-test.only('specific test', async () => { ... })       // Run only this test
-```
+1. **Test Isolation**: Use `#[ignore]` on tests not yet ready, or filter by name with `cargo test <name>`.
 
 2. **Rust Debugging**: Use the `warn!` macro in Rust zome functions to log debugging information that will appear in test output:
 
@@ -77,7 +88,7 @@ nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant res
 
 - **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), WASM compilation target
 - **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
-- **Testing**: Vitest 3.1.3 + @holochain/tryorama 0.18.2
+- **Testing**: Sweettest (Rust, `holochain = "=0.6.0" features = ["test_utils"]`) — primary; Tryorama (TypeScript) deprecated
 - **Client**: @holochain/client 0.19.0 for DHT interaction
 
 ### Data Model Foundations
@@ -128,27 +139,29 @@ create_link(path.path_entry_hash()?, hash.clone(), LinkTypes::AnchorType, LinkTa
 
 ## Test Architecture
 
-### 4-Layer Testing Strategy
+### Primary: Sweettest (Rust)
 
-1. **Foundation Tests**: Basic zome function calls and connectivity
-2. **Integration Tests**: Cross-zome interactions and multi-agent scenarios
-3. **Scenario Tests**: Complete user journeys and workflows
-4. **Performance Tests**: Load and stress testing (in progress for PPR system)
+All new tests are written in Sweettest (Rust) in `dnas/nondominium/tests/src/`.
 
-### Test Configuration
+```
+dnas/nondominium/tests/src/
+├── lib.rs                  # Module declarations
+├── common/
+│   └── conductors.rs       # Shared setup: setup_two_agents(), setup_dual_dna_two_agents()
+├── misc/mod.rs             # Misc zome tests (ping)
+└── person/mod.rs           # Person zome + hREA bridge tests
+```
 
-- **Timeout**: 4 minutes for complex multi-agent scenarios
-- **Concurrency**: Single fork execution for DHT consistency
-- **Agent Simulation**: Supports 2+ distributed agents per test
+**Shared setup functions** (from `common::conductors`):
+- `setup_two_agents()` — two conductors with nondominium DNA
+- `setup_three_agents()` — three conductors with nondominium DNA
+- `setup_dual_dna_two_agents()` — two conductors with nondominium + hREA DNAs (explicit role names)
 
-### Test File Organization
+**DHT sync** between agents: `await_consistency(&[&cell_a, &cell_b]).await.unwrap()`
 
-Tests are organized by zome and functionality:
+### Deprecated: Tryorama (TypeScript)
 
-- `tests/src/nondominium/person/`: Person zome tests
-- `tests/src/nondominium/resource/`: Resource zome tests
-- `tests/src/nondominium/governance/`: Governance zome tests
-- `tests/src/nondominium/governance/ppr-system/`: PPR system tests
+Tests in `tests/` use Tryorama and are deprecated. See `tests/DEPRECATED.md` for migration status.
 
 ## Development Status
 
