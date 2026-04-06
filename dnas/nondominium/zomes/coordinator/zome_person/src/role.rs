@@ -339,7 +339,7 @@ pub fn promote_agent_with_validation(input: PromoteAgentInput) -> ExternResult<R
 // authorised approvers have no way to discover pending requests without out-of-band
 // communication.
 //
-// Required changes (see `documentation/archives/implementation_plan.md` Phase 2.4):
+// Required changes (see `documentation/implementation_plan.md` Phase 2.4):
 //
 // 1. Define a `RolePromotionRequest` entry type in `zome_person_integrity/src/lib.rs`:
 //    ```rust

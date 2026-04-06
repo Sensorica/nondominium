@@ -820,7 +820,7 @@ pub enum OntologyLayer {
 
 ### Phase 3 — Agent Ontology Expansion 📋 **PLANNED** (see `documentation/archives/agent.md`)
 
-> **TODO**: The following agent-layer gaps were identified against the OVN wiki ontology (15 years of commons-based peer production practice). The current implementation models only individual agents. The items below must be incorporated into Phase 3 planning. See `documentation/zomes/person_zome.md` Future Enhancements section and `documentation/archives/implementation_plan.md` Phase 3 for detailed task breakdowns.
+> **TODO**: The following agent-layer gaps were identified against the OVN wiki ontology (15 years of commons-based peer production practice). The current implementation models only individual agents. The items below must be incorporated into Phase 3 planning. See `documentation/zomes/person_zome.md` Future Enhancements section and `documentation/implementation_plan.md` Phase 3 for detailed task breakdowns.
 
 **Phase 3 Agent Items:**
 - 📋 **[G1] `AgentEntityType` field**: Distinguish Individual, Collective, Project, Network, Bot, ExternalOrganisation agents (`REQ-AGENT-01`)
@@ -843,7 +843,7 @@ pub enum OntologyLayer {
 - 📋 **Performance Optimization**: Large-scale network operation with predictive scaling and efficiency optimization
 - 📋 **Community Governance**: Reputation-weighted validation and automated role progression based on performance metrics
 
-**Phase 4 Agent Items (see `documentation/archives/implementation_plan.md` Phase 4):**
+**Phase 4 Agent Items (see `documentation/implementation_plan.md` Phase 4):**
 - 📋 **[G8] `PortableCredential`**: Bilaterally-signed, cross-network verifiable credential export (`REQ-AGENT-12`)
 - 📋 **[G7] ZKP capability proofs**: Prove eligibility without raw data disclosure (`REQ-AGENT-13`)
 - 📋 **[G9] Sybil resistance**: Social vouching / Proof-of-Personhood configurable membrane proof (`REQ-AGENT-15`)

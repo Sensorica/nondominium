@@ -1,8 +1,9 @@
-# User Story: Resource Usage Process
+# User Story: Open Science - Resource Usage Process
 
 ## Scenario: University Research Team Using Shared Laboratory Equipment
 
-**Context**: A university research team needs specialized laboratory equipment for a critical experiment, accessing it through their institutional platform integrated with Nondominium. **This scenario demonstrates Nondominium's capabilities for specialized equipment access, with TrueCommon providing enhanced research network coordination and impact measurement.**
+**Context**: A university research team needs specialized laboratory equipment for a critical experiment, accessing it through their institutional platform integrated with Nondominium. **This scenario demonstrates Nondominium's capabilities for specialized equipment access, with post MVP capabilities providing enhanced research network coordination and impact measurement.**
+
 
 ---
 
@@ -38,11 +39,11 @@ graph TB
 - Research reputation and responsible usage tracking
 - Secure audit trails for research compliance
 
-### **TrueCommon Research Network Enhancement**
+### **Post MVP Research Network Enhancement**
 
 ```mermaid
 graph TB
-    subgraph "TrueCommon - Research Network Coordination"
+    subgraph "Research Network Coordination"
         NRP[Research Network Planning]
         Impact[Research Impact Measurement]
         Accounting[Research Cost Accounting]
@@ -57,7 +58,7 @@ graph TB
     end
 ```
 
-**TrueCommon Enhances Research Networks With**:
+**Post MVP enhancement**:
 - Multi-institution research coordination
 - Research impact measurement beyond equipment usage
 - Collaborative project planning and resource allocation

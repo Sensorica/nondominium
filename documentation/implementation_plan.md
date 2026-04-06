@@ -2,7 +2,25 @@
 
 ## 1. Executive Summary
 
-This plan details the phased implementation of the nondominium hApp, a decentralized, organization-agnostic resource management system built on Holochain and ValueFlows. The implementation builds incrementally on the existing working foundation to deliver a comprehensive ecosystem with Economic Processes, Private Participation Receipt (PPR) reputation system, agent capability progression, and sophisticated cross-zome coordination. The plan ensures progressive trust, embedded governance, and strict compliance with the updated requirements and technical specifications while avoiding breaking changes to the existing codebase.
+This plan details the phased implementation of the nondominium hApp, a decentralized, organization-agnostic resource management system built on Holochain and ValueFlows. The implementation builds incrementally on the existing working foundation to deliver Economic Processes, Private Participation Receipt (PPR) reputation, agent capability progression, and cross-zome coordination, while aligning with the **generic Nondominium Object (NDO)** model where that work is scheduled.
+
+**MVP vs post-MVP (normative boundary):** Per [requirements.md §2.3](requirements/requirements.md), the **current MVP** in this repository is the combination of `ResourceSpecification`, `EconomicResource`, and `GovernanceRule` with governance-as-operator patterns. **NDO-wide** requirements (three-layer model, lifecycle versus operational state, capability slots, migration, REQ-NDO-*) live in [ndo_prima_materia.md](requirements/ndo_prima_materia.md) and are **not** implied by the MVP DNA until explicitly implemented. Phases 2–4 below are mostly **MVP core** delivery; the **NDO model and migration** track extends or refactors that foundation when scheduled. Post-MVP agent ontology (REQ-AGENT-*, REQ-NDO-AGENT-*) is specified in [requirements.md §4.4](requirements/requirements.md), with background analysis in [archives/agent.md](archives/agent.md).
+
+### 1.1 Requirements map (normative sources)
+
+| Source | Role |
+|--------|------|
+| [requirements.md](requirements/requirements.md) | PRD; REQ-USER-*, REQ-RES-*, REQ-GOV-*, REQ-PROC-*, REQ-AGENT-* (§4.4 post-MVP agent ontology) |
+| [ndo_prima_materia.md](requirements/ndo_prima_materia.md) | NDO layers (L0/L1/L2), lifecycle and operational state, capability surface, COP framing; REQ-NDO-* (§9), migration (§10) |
+| [ui_design.md](requirements/ui_design.md) | UI specifications (complements [specifications/ui_architecture.md](../specifications/ui_architecture.md)) |
+| [post-mvp/unyt-integration.md](requirements/post-mvp/unyt-integration.md) | Unyt / RAVE / economic agreement slots (REQ-NDO-CS-07–CS-11) |
+| [post-mvp/flowsta-integration.md](requirements/post-mvp/flowsta-integration.md) | Flowsta identity slots and Tier 1/2 governance (REQ-NDO-CS-12–CS-15) |
+| [post-mvp/many-to-many-flows.md](requirements/post-mvp/many-to-many-flows.md) | N-ary custody and ValueFlows events; plan after shared custody / `AgentContext` model matures |
+| [post-mvp/versioning.md](requirements/post-mvp/versioning.md) | Version DAG for resources and app-as-resource; complements REQ-NDO-L1-03 (multiple specs per NDO) |
+| [post-mvp/digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md) | Manifests and verifiable digital assets; aligns with Layer 1 `DigitalAsset` capability slots (prima materia §9.2) |
+| [post-mvp/resource-transport-flow-protocol.md](requirements/post-mvp/resource-transport-flow-protocol.md) | Multi-dimensional transport/flow semantics over economic events |
+| [post-mvp/valueflows-dsl.md](requirements/post-mvp/valueflows-dsl.md) | DSL for recipes, bulk bootstrap, scripted coordination (operational tooling track) |
+| [archives/resources.md](archives/resources.md), [archives/governance.md](archives/governance.md) | Ontology and gap-analysis context (non-normative for REQ IDs) |
 
 ---
 
@@ -16,10 +34,50 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 - **Capability-Based Security**: All access is managed through Holochain capability tokens with role-based process access
 - **Privacy-Preserving Accountability**: PPR system enables reputation without compromising privacy through selective disclosure
 - **Process-Aware Infrastructure**: Economic Processes (Use, Transport, Storage, Repair) integrated throughout the system architecture
+- **NDO alignment**: When implementing the NDO track, follow pay-as-you-grow **layer activation** (L0 identity always on; L1 specification and L2 process when complexity demands) and keep **LifecycleStage** (on identity) orthogonal to **OperationalState** (on resource instances), with the governance zome as state-transition operator (REQ-NDO-LC-02, REQ-NDO-OS-02)
 
 ---
 
-## 3. Implementation Phases
+## 3. Architecture alignment (NDO prima materia)
+
+The **three-layer model** ([ndo_prima_materia.md §4](requirements/ndo_prima_materia.md)) structures resources as:
+
+- **Layer 0 — Identity**: `NondominiumIdentity` (stable anchor, tombstone at end of life); only `lifecycle_stage` evolves after creation (REQ-NDO-L0-*).
+- **Layer 1 — Specification**: Activated by `NDOToSpecification` → `ResourceSpecification` (governance rules, discoverable form); may be dormant/archived while L0 remains (REQ-NDO-L1-*).
+- **Layer 2 — Process**: Activated by `NDOToProcess` → ValueFlows `Process`; hosts commitments, claims, events, PPRs (REQ-NDO-L2-*).
+
+**Two state dimensions** ([§5](requirements/ndo_prima_materia.md)): `LifecycleStage` lives on the identity (maturity of the artefact); `OperationalState` lives on `EconomicResource` (transient process condition). Transitions on one must not imply transitions on the other (REQ-NDO-OS-04).
+
+```mermaid
+flowchart TB
+  subgraph layers [Layer_stack]
+    L2[Layer2_Process]
+    L1[Layer1_Specification]
+    L0[Layer0_Identity_always_on]
+    L0 --> L1
+    L1 --> L2
+  end
+```
+
+---
+
+## 4. Implementation tracks
+
+Work below is grouped into **parallel tracks** so MVP delivery, NDO migration, agent ontology, integrations, and extended specs are not confused as a single serial timeline.
+
+| Track | Intent | Primary references |
+|--------|--------|-------------------|
+| **MVP core** | Phases 2–4 in Section 5: private data sharing, economic processes, PPR, promotion, security, cross-zome coordination | [requirements.md](requirements/requirements.md) REQ-USER / REQ-PROC / REQ-GOV |
+| **NDO model and migration** | `NondominiumIdentity`, `NDOToSpecification` / `NDOToProcess`, holonic links, `CapabilitySlot`, lifecycle plus operational split, faceted discovery links, one-time migration (REQ-NDO-MIG-*) | [ndo_prima_materia.md](requirements/ndo_prima_materia.md) §§8–10, §9 |
+| **Agent ontology** | REQ-AGENT-* / REQ-NDO-AGENT-* items under Phases 2–4 | [requirements.md §4.4](requirements/requirements.md); [archives/agent.md](archives/agent.md) for OVN background |
+| **Unyt / Flowsta** | Phased integration; governance enforcement in later phases | Section 12.2–12.3; REQ-NDO-CS-07–CS-15 |
+| **Extended post-MVP** | Many-to-many flows, versioning, digital integrity, RTP-FP, VF DSL — reference and ordering only in Section 12.5 | `documentation/requirements/post-mvp/*.md` |
+
+**Phase 2.2 and the NDO track:** Checklists for `LifecycleStage` / `OperationalState`, split discovery links, and process-aware resource work **implement REQ-NDO-LC-*, REQ-NDO-OS-*, and parts of REQ-NDO-L2-*** once `NondominiumIdentity` and NDO links exist; until then, some items remain preparatory. Full L0-first creation and migration follow Section 12.1 and REQ-NDO-MIG-*.
+
+---
+
+## 5. Implementation Phases
 
 ### Phase 1: Foundation Layer ✅ **COMPLETED** (Existing Working Code)
 
@@ -75,7 +133,7 @@ _Building on existing private data infrastructure without breaking changes_
 
 #### 2.2 Economic Process Infrastructure (`zome_resource`) 📋 **CURRENT SPRINT**
 
-_Extending existing resource management with process-aware workflows_
+_Extending existing resource management with process-aware workflows. **NDO track overlap:** state split and discovery links map to REQ-NDO-LC-*, REQ-NDO-OS-*, REQ-NDO-OS-06; process and PPR linkage align with REQ-NDO-L2-* once Layer 2 is modeled via `NDOToProcess` (see [ndo_prima_materia.md §4.4](requirements/ndo_prima_materia.md))._
 
 - [ ] **Economic Process Data Structures** (NEW):
   - [ ] `EconomicProcess` entry type with status tracking and role requirements
@@ -134,7 +192,7 @@ _Implementing the full Simple → Accountable → Primary Accountable Agent prog
   - [ ] Agent identity validation with private data verification
   - [ ] Specialized role validation with existing role holder approval
 
-**Agent Ontology Items (Post-MVP, Phase 2 — see `agent.md` §5.3 and `REQ-AGENT-*`):**
+**Agent Ontology Items (Post-MVP, Phase 2 — see [requirements.md §4.4](requirements/requirements.md) and [archives/agent.md](archives/agent.md) §5.3; `REQ-AGENT-*`):**
 
 - [ ] **[G13] Fix `request_role_promotion` stub** (HIGH PRIORITY — broken workflow):
   - [ ] Create a real `RolePromotionRequest` entry type in `zome_person` integrity, replacing the current placeholder hash return
@@ -182,7 +240,7 @@ _Building on existing capability infrastructure with Economic Process integratio
   - [ ] Enhanced private data access control with granular field permissions
   - [ ] Cross-zome capability validation for complex workflows
 
-**Agent Ontology Items (Post-MVP, Phase 3 — see `agent.md` §5.3 and `REQ-AGENT-*`):**
+**Agent Ontology Items (Post-MVP, Phase 3 — see [requirements.md §4.4](requirements/requirements.md) and [archives/agent.md](archives/agent.md) §5.3; `REQ-AGENT-*`):**
 
 - [ ] **[G1] `AgentEntityType` configuration** (NEW):
   - [ ] Define `AgentEntityType` enum in `zome_person` integrity: `Individual`, `Collective(String)`, `Project(ActionHash)`, `Network(ActionHash)`, `Bot { capabilities: Vec<String>, operator: AgentPubKey }`, `ExternalOrganisation(String)`
@@ -315,7 +373,7 @@ _Building sophisticated process chaining and automation on established foundatio
   - [ ] Resource utilization analytics and efficiency metrics
   - [ ] Agent performance trends and specialization insights
 
-**Agent Ontology Items (Post-MVP, Phase 4 — see `agent.md` §5.3 and `REQ-AGENT-*`):**
+**Agent Ontology Items (Post-MVP, Phase 4 — see [requirements.md §4.4](requirements/requirements.md) and [archives/agent.md](archives/agent.md) §5.3; `REQ-AGENT-*`):**
 
 - [ ] **[G8] `PortableCredential` structure and export** (NEW):
   - [ ] Define `PortableCredential` struct: `issuing_network` (DNA hash), `agent`, `credential_type: PortableCredentialType`, `claims`, `issued_at`, `valid_until`, `issuer_signature`, `agent_signature`
@@ -385,7 +443,7 @@ _Optimizing the system for large-scale network operation_
 
 ---
 
-## 4. Quality Assurance
+## 6. Quality Assurance
 
 - **Test-Driven Development**: Write tests before implementation.
 - **Incremental Integration**: Continuous integration between zomes.
@@ -403,7 +461,7 @@ _Optimizing the system for large-scale network operation_
 
 ---
 
-## 6. Success Metrics & Implementation Tracking
+## 8. Success Metrics & Implementation Tracking
 
 ### Phase 1 Achievements ✅ **FOUNDATION COMPLETE**
 
@@ -501,7 +559,7 @@ _Optimizing the system for large-scale network operation_
 
 ---
 
-## 8. Enhanced Roadmap & Future Enhancements
+## 10. Enhanced Roadmap & Future Enhancements
 
 ### Immediate Development Priorities (Next 6 Months)
 
@@ -514,6 +572,7 @@ _Optimizing the system for large-scale network operation_
 
 - **Phase 3**: Production security with progressive capability tokens
 - **Phase 4.1**: Advanced process workflows and automation
+- **NDO migration track** (when scheduled): L0-first resource creation, retroactive anchoring, capability slots — Section 12.1 and REQ-NDO-MIG-*
 - **Cross-Network Integration**: Federated nondominium networks with PPR portability
 - **Mobile Interface**: Progressive Web App with full Economic Process support
 
@@ -530,12 +589,17 @@ _Optimizing the system for large-scale network operation_
 - **Reputation System**: >80% agent participation in PPR system with meaningful reputation differentiation
 - **Process Efficiency**: Average Economic Process completion time <24 hours with automated matching
 - **Community Governance**: >70% community validation participation with dispute resolution <1% of transactions
+- **NDO readiness** (when the track is active): new resources created via L0; legacy specs migrated without data loss; independent queries for lifecycle versus operational facets (REQ-NDO-MIG-01–MIG-05, REQ-NDO-OS-06)
 
 ---
 
-## 9. Implementation Strategy Summary
+## 11. Implementation Strategy Summary
 
 This enhanced implementation plan transforms the nondominium hApp from a foundational resource management system into a comprehensive, production-ready ecosystem for decentralized commons governance. The plan:
+
+### MVP core (near-term)
+
+- Ship user-visible flows in Section 5 Phases 2–4: private data access, four economic process types, PPR issuance and reputation summaries, promotion and specialized roles, capability hardening, and cross-zome consistency — measured against REQ-USER-*, REQ-PROC-*, and REQ-GOV-* in [requirements.md](requirements/requirements.md).
 
 ### **Builds Incrementally on Existing Code**
 
@@ -561,37 +625,52 @@ This enhanced implementation plan transforms the nondominium hApp from a foundat
 - Comprehensive error handling and rollback mechanisms across all zomes
 - Advanced validation schemes with reputation-weighted consensus and dispute resolution
 
-This plan ensures the nondominium hApp will fulfill its vision of decentralized, commons-based resource management with sophisticated governance, Economic Process management, privacy-preserving reputation tracking, and embedded accountability at every layer, in strict alignment with the enhanced requirements and technical specifications.
+This plan ensures the nondominium hApp will fulfill its vision of decentralized, commons-based resource management with sophisticated governance, Economic Process management, privacy-preserving reputation tracking, and embedded accountability, in alignment with [requirements.md](requirements/requirements.md) and, when scheduled, the NDO model in [ndo_prima_materia.md](requirements/ndo_prima_materia.md).
+
+### NDO track (when prioritized)
+
+- Introduce L0/L1/L2 structures, migration, and capability surface without breaking existing MVP flows until migration windows are defined (REQ-NDO-MIG-*).
+- Preserve governance-as-operator invariants while splitting lifecycle and operational dimensions (REQ-ARCH-07, REQ-NDO-LC-02, REQ-NDO-OS-02).
 
 ---
 
-## 10. Post-MVP design track: NDO model, Unyt, Flowsta
+## 12. Post-MVP design tracks (NDO, integrations, extensions)
 
-**Status:** specified in documentation; **not** part of the MVP WASM deliverable until explicitly scheduled. Normative requirements: `documentation/requirements/ndo_prima_materia.md` (§9 REQ-NDO-*, §10 migration). Stubs: `documentation/requirements/post-mvp/unyt-integration.md`, `documentation/requirements/post-mvp/flowsta-integration.md`. Archives: `documentation/archives/resources.md`, `agent.md`, `governance.md`.
+**Status:** specified in documentation; **not** part of the MVP WASM deliverable until explicitly scheduled. Normative NDO requirements: [ndo_prima_materia.md](requirements/ndo_prima_materia.md) (§9 REQ-NDO-*, §10 migration). Integration stubs: [unyt-integration.md](requirements/post-mvp/unyt-integration.md), [flowsta-integration.md](requirements/post-mvp/flowsta-integration.md). Supplementary ontology context: [archives/resources.md](archives/resources.md), [archives/agent.md](archives/agent.md), [archives/governance.md](archives/governance.md).
 
-### 10.1 Generic NDO (three-layer model, lifecycle split)
+### 12.1 Generic NDO (three-layer model, lifecycle split)
 
-- [ ] Introduce `NondominiumIdentity` (Layer 0), `NDOToSpecification` / `NDOToProcess` / holonic links, capability slot surface — see `ndo_prima_materia.md` §§4, 8, 10.
-- [ ] Split `ResourceState` into `LifecycleStage` + `OperationalState`; split discovery links (`REQ-NDO-OS-06`) — already listed in Phase 2.2 of this plan; align with prima materia §5 / §9.4.
+- [ ] Introduce `NondominiumIdentity` (Layer 0), `NDOToSpecification` / `NDOToProcess` / holonic links, capability slot surface — see [ndo_prima_materia.md](requirements/ndo_prima_materia.md) §§4, 8, 10.
+- [ ] Split `ResourceState` into `LifecycleStage` + `OperationalState`; split discovery links (`REQ-NDO-OS-06`) — detailed in Phase 2.2 (Section 5); align with prima materia §5 / §9.4.
 
-### 10.2 Unyt integration (three phases, parallel to prima materia §6.6)
+### 12.2 Unyt integration (three phases, parallel to prima materia §6.6)
 
 - [ ] **Phase 1 — Capability surface:** `UnytAgreement` `SlotType`; Tier 1 proposals on NDO identity hashes (`REQ-NDO-CS-07`, `REQ-NDO-CS-08`).
 - [ ] **Phase 2 — Governance rules:** typed `EconomicAgreement` on `GovernanceRule` / `GovernanceRuleType` (`REQ-NDO-CS-09`); zome_resource / integrity changes only.
 - [ ] **Phase 3 — Governance zome:** `evaluate_transition_request` requires valid `rave_hash` when rules trigger; cross-cell RAVE validation; PPR `settlement_rave_hash` (`REQ-NDO-CS-10`, `REQ-NDO-CS-11`).
 
-### 10.3 Flowsta integration (three phases, parallel to prima materia §6.7)
+### 12.3 Flowsta integration (three phases, parallel to prima materia §6.7)
 
 - [ ] **Phase 1 — DNA + slots:** `FlowstaIdentity` in `SlotType`; bundle `flowsta-agent-linking` integrity + coordinator zomes; Tier 1 linking only (`REQ-NDO-CS-12`, `REQ-NDO-CS-13`).
-- [ ] **Phase 2 — UI / Vault UX:** link flows, DID display, Vault backup APIs — see `flowsta-integration.md` §6.
+- [ ] **Phase 2 — UI / Vault UX:** link flows, DID display, Vault backup APIs — see [flowsta-integration.md](requirements/post-mvp/flowsta-integration.md) §6.
 - [ ] **Phase 3 — Governance enforcement:** `IdentityVerification` (or equivalent) + REQ-NDO-CS-15 checks in transition evaluation (`REQ-NDO-CS-14`); fold into same operator story as Unyt Phase 3.
 
-### 10.4 Agent capability surface (G15)
+### 12.4 Agent capability surface (G15)
 
-- [ ] `Person` entry hash as stigmergic attachment point for `FlowstaIdentity` and future slots (`REQ-NDO-AGENT-07`, `REQ-AGENT-11`) — see `agent.md` §3.2, `person_zome.md` Person TODO.
+- [ ] `Person` entry hash as stigmergic attachment point for `FlowstaIdentity` and future slots (`REQ-NDO-AGENT-07`, `REQ-AGENT-11`) — see [archives/agent.md](archives/agent.md) §3.2, [person_zome.md](zomes/person_zome.md) Person TODO.
+
+### 12.5 Extended post-MVP specifications
+
+High-level ordering and dependencies (detailed requirements live in each file):
+
+- **[many-to-many-flows.md](requirements/post-mvp/many-to-many-flows.md):** Shared custody and n-ary `EconomicEvent` / `Commitment` participants — plan after **AgentContext** / collective custodianship (Phase 3 agent ontology) stabilizes; PPR rules must be extended for multi-party flows.
+- **[versioning.md](requirements/post-mvp/versioning.md):** DAG of versions across material, digital, and app-as-resource — complements **REQ-NDO-L1-03** (multiple `ResourceSpecification` links per NDO); non-breaking addition over existing spec/resource entries.
+- **[digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md):** Content-addressed manifests and hierarchical verification — attach via Layer 1 **DigitalAsset** capability slots (prima materia §9.2); aligns with distributed storage expectations for specs.
+- **[resource-transport-flow-protocol.md](requirements/post-mvp/resource-transport-flow-protocol.md):** Multi-dimensional transport and flow semantics — builds on mature **EconomicEvent** metadata and process modeling; cross-link to operational state and RTP-style location/custody dimensions.
+- **[valueflows-dsl.md](requirements/post-mvp/valueflows-dsl.md):** Scriptable network bootstrap and recipe definition — operational tooling; depends on stable VF entry types and governance evaluation surfaces in the DNA.
 
 ---
 
-# Some new ideas parked here for later consideration
+## 13. Open questions / research
 
-How does NDO and Nondiminium hApp mitigates coordination costs, communication overhead, and the free-rider problem?
+- **Coordination economics:** How do the NDO model and the nondominium hApp mitigate coordination costs, communication overhead, and free-rider dynamics? See design rationale in [ndo_prima_materia.md §2](requirements/ndo_prima_materia.md) (complexity economics, pay-as-you-grow layers) and COP/testing notes in §3.

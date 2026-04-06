@@ -1,8 +1,9 @@
-# User Story: Distribution Network - Last-Mile Logistics Coordination
+# User Story: Food Basket - Last-Mile Logistics Coordination
 
 ## Scenario: Cooperative Distribution Network for Local Food Systems
 
 **Context**: A network of local farms and food producers coordinates last-mile delivery to urban customers through a distributed logistics system powered by Nondominium, optimizing routes and sharing delivery resources.
+
 
 ---
 

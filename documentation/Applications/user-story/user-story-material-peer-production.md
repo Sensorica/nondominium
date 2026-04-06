@@ -1,8 +1,9 @@
-# User Story: Production Network - Collaborative Manufacturing
+# User Story: peer production (makerspace) - Collaborative Manufacturing
 
-## Scenario: Makerspace Network Producing Custom Equipment Using Nondominium + TrueCommon
+## Scenario: Makerspace Network Producing Custom Equipment Using Nondominium
 
-**Context**: A distributed network of makerspaces collaborates to produce custom scientific equipment for research institutions. **This scenario clearly demonstrates the limitations of Nondominium's resource sharing economics and the critical need for TrueCommon's full REA integration with Network Resource Planning (NRP) for complete peer production network management.**
+**Context**: A distributed network of makerspaces collaborates to produce custom scientific equipment for research institutions. **This scenario clearly demonstrates the limitations of Nondominium's resource sharing economics and the critical need for extension (ex. full REA integration with Network Resource Planning (NRP) for complete peer production network management).**
+
 
 ---
 
@@ -59,10 +60,10 @@ graph TB
 - **Supply Chain Integration**: Material procurement and inventory management
 - **Quality Management**: Cross-facility quality assurance processes
 
-**What TrueCommon Must Provide**:
+**New capabilities required**:
 - **Network Resource Planning (NRP)**: Distributed production coordination
 - **Full REA Integration**: Complete economic relationships and value flows
-- **Production Accounting**: Comprehensive cost and value tracking
+- **Production Accounting**: Comprehensive cost and contribution tracking
 - **Supply Chain Management**: Material flow optimization across network
 - **Impact Assessment**: Environmental and social impact measurement
 
@@ -76,7 +77,7 @@ graph TB
 
 ### **Alex Thompson** - Advanced Fabrication Specialist
 
-- **Role**: Primary Accountable Agent (Production Manager)
+- **Role**: Primary Accountable Agent (Production Facilitator)
 - **Goal**: Coordinate multi-site manufacturing while maintaining quality standards
 - **Reputation**: Expert in precision manufacturing with ISO certification
 
@@ -120,7 +121,7 @@ sequenceDiagram
    - Quality standards (ISO 9001 compliance)
    - Timeline (8 weeks total production)
    - Budget allocation ($45,000 total)
-2. **IP Protection**: Embedded governance rules protect research intellectual property
+2. **IP Protection**: Embedded governance rules protect research aainst IP enclosure (commons)
 3. **Workflow Design**: Multi-stage production process with validation gates
 4. **Capability Matching**: Platform identifies makerspaces with required equipment and expertise
 

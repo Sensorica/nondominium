@@ -4,6 +4,10 @@
 
 **Context**: An artist organizes a traveling exhibition across multiple galleries and alternative venues, coordinating logistics, artwork transport, and installation through the Artcoin distribution network built on Nondominium.
 
+
+See also *artcoin_main_doc.md*, *user-story-artcoin.md* and *Nondominium_Artcoin.md*. 
+
+
 ---
 
 ## 🖼️ The Players

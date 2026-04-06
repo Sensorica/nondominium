@@ -129,7 +129,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | **[Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md)**        | Technical architecture for modular governance design       | ✅ Complete |
 | **[Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples           | ✅ Complete |
 | **[Cross-Zome API](documentation/specifications/governance/cross-zome-api.md)**                                            | Complete API specifications for zome communication         | ✅ Complete |
-| **[Implementation Plan](documentation/archives/implementation_plan.md)**                                                   | Development roadmap & phase breakdown                      | ✅ Complete |
+| **[Implementation Plan](implementation_plan.md)**                                                                        | Development roadmap & phase breakdown                      | ✅ Complete |
 | **[Implementation Status](documentation/archives/IMPLEMENTATION_STATUS.md)**                                               | Current development progress & completion status           | ✅ Complete |
 
 ### Testing & Infrastructure

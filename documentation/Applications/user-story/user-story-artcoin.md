@@ -1,8 +1,11 @@
-# User Story: Artist Network - Art Circulation and Discovery
+# User Story: ArtCoin - Art Circulation and Discovery
 
 ## Scenario: Artist Sharing Artwork Through Venues Using Nondominium
 
-**Context**: An independent artist wants to circulate their paintings through a network of venues (cafes, restaurants, offices) to gain exposure and generate rental income, using the Artcoin platform built on Nondominium infrastructure. **This scenario primarily demonstrates Nondominium's resource sharing capabilities, with optional TrueCommon integration for comprehensive cultural network economics.**
+**Context**: An independent artist wants to circulate their paintings through a network of venues (cafes, restaurants, offices) to gain exposure and generate rental income, using the Artcoin platform built on Nondominium infrastructure. **This scenario primarily demonstrates Nondominium's resource sharing capabilities, with optional extension for a more comprehensive cultural network economics.**
+
+See also *artcoin_main_doc.md* and *Nondominium_Artcoin.md*.
+
 
 ---
 
@@ -32,13 +35,16 @@ graph TB
     PPR --> Reputation
 ```
 
+
+
 **Why Nondominium Excels for Art Networks**:
+
 - Perfect fit for bilateral resource sharing (artwork ↔ venue)
 - PPR system captures artistic and custodial reputation effectively
 - Economic events handle rental and sales transactions cleanly
 - Governance rules protect artwork and ensure proper care
 
-### **Optional TrueCommon Enhancement (Cultural Economics Analysis)**
+### **Optional Enhancement (Cultural Economics Analysis)**
 
 ```mermaid
 graph TB
@@ -57,7 +63,10 @@ graph TB
     end
 ```
 
-**TrueCommon Enhancement**:
+
+
+**Enhancement**:
+
 - Cultural value beyond simple rental income
 - Social impact measurement of public art access
 - Artist career development analytics
@@ -110,15 +119,17 @@ sequenceDiagram
     ND->>Gov: Link governance rules to artwork
 ```
 
+
+
 **Artwork Onboarding Process**:
 
 1. **Artist Registration**: Maya creates her artist profile with portfolio and credentials
 2. **Resource Specification**: Defines artwork type (Oil on Canvas 2025 collection)
 3. **Artwork Registration**: Registers "Urban Rhythms" with:
-   - Physical specifications (size, medium, weight)
-   - High-resolution images and provenance
-   - Governance rules: 70/30 split, $40/month rental, insurance requirements
-   - Care instructions and display preferences
+  - Physical specifications (size, medium, weight)
+  - High-resolution images and provenance
+  - Governance rules: 70/30 split, $40/month rental, insurance requirements
+  - Care instructions and display preferences
 
 ### **Phase 2: Venue Discovery & Matching (Week 2)**
 
@@ -149,18 +160,20 @@ sequenceDiagram
     ND->>Gov: Create venue display agreement
 ```
 
+
+
 **Venue Discovery Process**:
 
 1. **Artwork Browsing**: Jean-Pierre searches Artcoin platform for café-appropriate artwork
 2. **Artist Review**: Evaluates Maya's portfolio and reputation:
-   - 3 previous successful venue displays
-   - 4.8/5 artwork quality rating
-   - Positive venue feedback comments
+  - 3 previous successful venue displays
+  - 4.8/5 artwork quality rating
+  - Positive venue feedback comments
 3. **Governance Review**: Analyzes display terms:
-   - $40/month rental fee ✅
-   - 70% artist commission on sales ✅
-   - Smoke-free environment requirement ✅
-   - Quarterly rotation option
+  - $40/month rental fee ✅
+  - 70% artist commission on sales ✅
+  - Smoke-free environment requirement ✅
+  - Quarterly rotation option
 4. **Display Commitment**: Jean-Pierre submits AccessForUse commitment for 3-month initial period
 
 ### **Phase 3: Validation & Trust Building (Week 3)**
@@ -188,13 +201,15 @@ sequenceDiagram
     Gov->>PPR: record_validation_activity()
 ```
 
+
+
 **Mutual Validation Process**:
 
 1. **Venue Vetting**: Maya reviews Jean-Pierre's café reputation:
-   - 8 previous art displays completed
-   - 4.9/5 artwork care rating
-   - No damage incidents in 2 years
-   - Active art promotion on social media
+  - 8 previous art displays completed
+  - 4.9/5 artwork care rating
+  - No damage incidents in 2 years
+  - Active art promotion on social media
 2. **Insurance Verification**: Jean-Pierre provides liability insurance certificate
 3. **Display Agreement**: Both parties sign smart contract with automated revenue sharing
 4. **Trust Confirmation**: PPR system records mutual validation for future partnerships
@@ -222,12 +237,14 @@ stateDiagram-v2
     end note
 ```
 
+
+
 **Transport & Installation**:
 
 1. **Artwork Preparation**: Maya prepares "Urban Rhythms" for transport:
-   - Professional packaging and framing
-   - Certificate of authenticity signed
-   - Installation and care instructions
+  - Professional packaging and framing
+  - Certificate of authenticity signed
+  - Installation and care instructions
 2. **Transport Coordination**: Verified transport agent arranges delivery
 3. **Custody Transfer**: Maya transfers custody to transport agent (CustodyTransfer PPR)
 4. **Venue Installation**: Transport agent delivers and installs artwork at café
@@ -257,19 +274,21 @@ graph LR
     C --> I
 ```
 
+
+
 **Public Display Experience**:
 
 1. **Physical Installation**: "Urban Rhythms" prominently displayed in café seating area
 2. **Digital Integration**: QR code links to artwork's Nondominium profile showing:
-   - Artist biography and artistic statement
-   - Previous display history and public engagement
-   - Purchase inquiries and rental information
-   - Authenticity verification and provenance
+  - Artist biography and artistic statement
+  - Previous display history and public engagement
+  - Purchase inquiries and rental information
+  - Authenticity verification and provenance
 3. **Engagement Tracking**: Platform monitors:
-   - Daily viewer interactions via QR code scans
-   - Social media mentions and shares
-   - Sales inquiries and appreciation requests
-   - Public comments and ratings
+  - Daily viewer interactions via QR code scans
+  - Social media mentions and shares
+  - Sales inquiries and appreciation requests
+  - Public comments and ratings
 4. **Monthly Revenue**: Automated payment processing with 70/30 revenue split
 
 ### **Phase 6: Extended Discovery & Sales Opportunity (Month 2)**
@@ -296,6 +315,8 @@ sequenceDiagram
     ND->>Gov: Execute revenue sharing (70% Maya, 20% JeanPierre, 10% platform)
     Gov->>PPR: issue_participation_receipts()
 ```
+
+
 
 **Sales Process Integration**:
 
@@ -335,6 +356,8 @@ graph LR
     Maya_Before --> Phase1
     Phase4 --> Maya_After
 ```
+
+
 
 **Maya's PPR Growth**:
 
@@ -379,6 +402,8 @@ mindmap
         Community beautification
 ```
 
+
+
 ---
 
 ## 🌐 Platform Integration Architecture
@@ -418,6 +443,8 @@ graph TB
     Analytics -.-> |Patron Data| CRM
 ```
 
+
+
 ### **Artist-Centric Features**
 
 **Creative Empowerment Tools**:
@@ -430,7 +457,7 @@ graph TB
 **Smart Contract Capabilities**:
 
 - **Dynamic Pricing**: Automated pricing adjustments based on artist reputation and demand
-- **Royalty Enforcement**: _Droit de suite_ compliance for secondary sales
+- **Royalty Enforcement**: *Droit de suite* compliance for secondary sales
 - **Multi-Venue Management**: Simultaneous display across multiple venues
 - **Flexibility Options**: Easy modification of governance rules for different artwork collections
 
@@ -478,6 +505,8 @@ mindmap
         Community identity
         Intergenerational connection
 ```
+
+
 
 ### **Technology-Enhanced Art Experience**
 
@@ -535,4 +564,4 @@ mindmap
 
 ---
 
-_Artwork "Urban Rhythms" successfully sold to a private collector after 2 months of café display. Maya now has 3 other artworks displayed across different venues and is earning consistent monthly rental income while building her artistic reputation._
+*Artwork "Urban Rhythms" successfully sold to a private collector after 2 months of café display. Maya now has 3 other artworks displayed across different venues and is earning consistent monthly rental income while building her artistic reputation.*

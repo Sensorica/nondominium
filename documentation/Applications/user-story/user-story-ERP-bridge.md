@@ -1,8 +1,10 @@
-# User Story: Resource Transaction Process
+# User Story: Resource Sharing / Mutualization
 
-## Scenario: Two Organizations Sharing Equipment via Tiki Wiki Integration
+## Scenario: Two Organizations Sharing Equipment via an open soruce ERP
 
-**Context**: Sensorica (a maker space) and FabLab (a fabrication lab) want to share a CNC machine through their Tiki Wiki platform integration with Nondominium. **This scenario represents Nondominium's core strength - bilateral resource sharing between organizations - with potential TrueCommon enhancement for broader equipment network optimization.**
+**Context**: Sensorica (a maker space) and FabLab (a fabrication lab) want to share a CNC machine through their traditional open source ERP platform integration with Nondominium. **This scenario represents Nondominium's core strength - bilateral resource sharing between organizations - with potential enhancement for broader equipment network optimization.**
+
+See also *erp_holochain_bridge.md*
 
 ---
 
@@ -38,11 +40,11 @@ graph TB
 - Reputation tracking for equipment care and responsible usage
 - Secure transaction logging and audit trails
 
-### **TrueCommon Enhancement Option (Equipment Network Optimization)**
+### **Enhancement Option (Equipment Network Optimization)**
 
 ```mermaid
 graph TB
-    subgraph "TrueCommon - Network Resource Planning"
+    subgraph "Network Resource Planning (NRP)"
         NRP[Equipment Network Planning]
         Utilization[Utilization Optimization]
         Maintenance[Shared Maintenance Planning]
@@ -57,7 +59,7 @@ graph TB
     end
 ```
 
-**TrueCommon Would Add**:
+**Post MVP Would Add**:
 - Multi-equipment network optimization
 - Predictive maintenance scheduling
 - Utilization analytics and bottleneck identification
@@ -92,53 +94,53 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant Marco as Marco (FabLab)
-    participant Tiki as Tiki Wiki
+    participant ERP as ERP
     participant ND as Nondominium
     participant Res as Resource Zome
     participant Gov as Governance Zome
 
-    Marco->>Tiki: Search for CNC equipment
-    Tiki->>ND: get_all_economic_resources()
+    Marco->>ERP: Search for CNC equipment
+    ERP->>ND: get_all_economic_resources()
     ND->>Res: Query available resources
     Res-->>ND: Return CNC machine specs
-    ND-->>Tiki: Resource with governance rules
-    Tiki-->>Marco: Display CNC machine details
+    ND-->>ERP: Resource with governance rules
+    ERP-->>Marco: Display CNC machine details
 
-    Marco->>Tiki: Review governance rules
-    Tiki->>ND: get_governance_rule_profile()
+    Marco->>ERP: Review governance rules
+    ERP->>ND: get_governance_rule_profile()
     ND->>Gov: Return rules (certification, insurance)
-    Marco->>Tiki: Submit AccessForUse commitment
-    Tiki->>ND: propose_commitment()
+    Marco->>ERP: Submit AccessForUse commitment
+    ERP->>ND: propose_commitment()
     ND->>Gov: Create commitment
 ```
 
 **Sarah's Actions**:
 
-1. **Resource Discovery**: Marco searches Tiki Wiki for available fabrication equipment
+1. **Resource Discovery**: Marco searches the ERP for available fabrication equipment
 2. **Governance Review**: Marco reviews CNC machine's embedded governance rules:
    - Requires Transport certification ✅
    - Proof of facility insurance required
    - Minimum 48-hour notice for transport
-3. **Intent Signaling**: Marco submits `AccessForUse` commitment through Tiki interface
+3. **Intent Signaling**: Marco submits `AccessForUse` commitment through ERP interface
 
 ### **Phase 2: Validation & Trust Building (Day 2)**
 
 ```mermaid
 sequenceDiagram
     participant Sarah as Sarah (Sensorica)
-    participant Tiki as Tiki Wiki
+    participant ERP as ERP
     participant ND as Nondominium
     participant PPR as PPR System
 
     ND->>Sarah: Notify of new commitment
-    Sarah->>Tiki: Review Marco's credentials
-    Tiki->>ND: derive_reputation_summary(Marco)
+    Sarah->>ERP: Review Marco's credentials
+    ERP->>ND: derive_reputation_summary(Marco)
     ND->>PPR: Calculate reputation scores
     PPR-->>ND: Return reputation data (98% on-time, 4.8/5 quality)
-    ND-->>Tiki: Display Marco's reputation
+    ND-->>ERP: Display Marco's reputation
     Sarah->>ND: validate_agent_for_custodianship()
     ND->>Gov: Create validation receipt
-    Gov-->>Tiki: Commitment approved
+    Gov-->>ERP: Commitment approved
 ```
 
 **Multi-Party Validation**:
@@ -177,22 +179,22 @@ stateDiagram-v2
 sequenceDiagram
     participant Marco as Marco (FabLab)
     participant Sarah as Sarah (Sensorica)
-    participant Tiki as Tiki Wiki
+    participant ERP as ERP 
     participant ND as Nondominium
     participant Res as Resource Zome
     participant PPR as PPR System
 
-    Marco->>Tiki: Arrive for transport
-    Tiki->>ND: initiate_transport_process()
+    Marco->>ERP: Arrive for transport
+    ERP->>ND: initiate_transport_process()
     ND->>Gov: Validate Marco's Transport role
-    Sarah->>Tiki: Scan QR code on CNC machine
-    Marco->>Tiki: Scan QR code confirmation
-    Tiki->>ND: transfer_custody()
+    Sarah->>ERP: Scan QR code on CNC machine
+    Marco->>ERP: Scan QR code confirmation
+    ERP->>ND: transfer_custody()
     ND->>Res: Update custodian: Sarah → Marco
     ND->>Gov: log_economic_event(TransferCustody)
     Gov->>PPR: issue_participation_receipts()
     PPR-->>ND: Generate PPRs for both agents
-    ND-->>Tiki: Update transport status
+    ND-->>ERP: Update transport status
 ```
 
 **The Physical Transfer**:
@@ -200,7 +202,7 @@ sequenceDiagram
 1. **Transport Initiation**: Marco arrives with certified transport equipment
 2. **Custody Transfer Ceremony**: Both agents scan QR codes on CNC machine
 3. **Multi-Signature Process**: Bilateral cryptographic signatures executed
-4. **Real-time Updates**: Tiki Wiki shows live transport status
+4. **Real-time Updates**: ERP shows live transport status
 
 ### **Phase 5: Usage & Monitoring (Week 1-2)**
 
@@ -228,7 +230,7 @@ graph LR
 
 1. **Use Process Activation**: Marco initiates CNC machine for prototype production
 2. **Quality Monitoring**: System tracks usage hours and maintenance needs
-3. **Progress Reporting**: Daily usage logs through Tiki interface
+3. **Progress Reporting**: Daily usage logs through ERP interface
 4. **Performance Metrics**: Automatic PPR generation for each use session
 
 ### **Phase 6: Return & Completion (Day 15)**
@@ -237,23 +239,23 @@ graph LR
 sequenceDiagram
     participant Marco as Marco (FabLab)
     participant Sarah as Sarah (Sensorica)
-    participant Tiki as Tiki Wiki
+    participant ERP as ERP
     participant ND as Nondominium
     participant PPR as PPR System
 
-    Marco->>Tiki: Complete maintenance checklist
-    Tiki->>ND: claim_commitment()
-    Marco->>Tiki: Initiate return transport
-    Tiki->>ND: initiate_transport_process()
-    Sarah->>Tiki: Scan return QR code
-    Tiki->>ND: transfer_custody()
+    Marco->>ERP: Complete maintenance checklist
+    ERP->>ND: claim_commitment()
+    Marco->>ERP: Initiate return transport
+    ERP->>ND: initiate_transport_process()
+    Sarah->>ERP: Scan return QR code
+    ERP->>ND: transfer_custody()
     ND->>Res: Update custodian: Marco → Sarah
-    Sarah->>Tiki: Inspect and approve return
-    Tiki->>ND: validate_specialized_role()
+    Sarah->>ERP: Inspect and approve return
+    ERP->>ND: validate_specialized_role()
     ND->>Gov: Create validation receipts
     Gov->>PPR: issue_participation_receipts()
     PPR-->>ND: Update reputation scores
-    ND-->>Tiki: Transaction complete
+    ND-->>ERP: Transaction complete
 ```
 
 **Return Process**:
@@ -332,7 +334,7 @@ graph LR
 ```mermaid
 graph TB
     subgraph "Web2 Platform Layer"
-        Tiki[Tiki Wiki Platform]
+        ERP[ERP Platform]
         Mobile[Mobile App]
         API[REST API]
     end
@@ -355,7 +357,7 @@ graph TB
         Finance[Financial Reporting]
     end
 
-    Tiki --> API
+    ERP --> API
     Mobile --> API
     API --> Person
     API --> Resource
@@ -374,12 +376,12 @@ graph TB
     Governance -.-> |Validation & PPR| Person
 ```
 
-### **Tiki Wiki Interface**
+### **ERP Interface**
 
 - **Resource Gallery**: Visual catalog with availability calendars
 - **Agent Profiles**: Public reputation summaries with privacy controls
 - **Workflow Dashboard**: Step-by-step transaction tracking
-- **Notification System**: Real-time updates via email and Tiki messages
+- **Notification System**: Real-time updates via email and ERP messages
 
 ### **Enterprise Integration**
 
@@ -454,7 +456,7 @@ mindmap
         Collaborative opportunities
     Technical Features
       Familiar Interface
-        Tiki Wiki integration
+        ERP integration
         Mobile accessibility
       Enterprise Ready
         API integration

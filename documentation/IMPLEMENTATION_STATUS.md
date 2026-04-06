@@ -437,7 +437,7 @@ The following are **documented and traceable** to REQ-NDO-* in `documentation/re
 | **Flowsta (agent linking, IdentityVerification)** | `ndo_prima_materia.md` §6.7, §11.6; `flowsta-integration.md`; REQ-NDO-CS-12–CS-15 | Not started — `flowsta-agent-linking` zomes not bundled; `GovernanceRule` remains untyped strings |
 | **Person capability slot (G15)** | `agent.md` §3.2; `person_zome.md`; REQ-AGENT-11, REQ-NDO-AGENT-07 | Not started — no `FlowstaIdentity` links on `Person` hash |
 
-See `documentation/archives/implementation_plan.md` §10 for a phased checklist aligned with prima materia.
+See `documentation/implementation_plan.md` Section 12 for a phased checklist aligned with prima materia.
 
 ---
 
