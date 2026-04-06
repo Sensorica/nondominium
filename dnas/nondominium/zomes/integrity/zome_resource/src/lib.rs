@@ -35,19 +35,28 @@ impl std::fmt::Display for ResourceState {
   }
 }
 
-// NDO Layer 0 — LifecycleStage (REQ-NDO-LC-01 through LC-07)
-// The maturity/evolutionary phase of a NondominiumIdentity. Advances rarely and usually
-// irreversibly. The ONLY mutable field in NondominiumIdentity after creation.
-// See: documentation/requirements/ndo_prima_materia.md §5 and §9.4
+// NDO Layer 0 — LifecycleStage (REQ-NDO-LC-01 through REQ-NDO-LC-07)
+// The maturity/evolutionary phase of a NondominiumIdentity. Advances rarely and (mostly)
+// irreversibly, driven by significant events. The ONLY mutable field in NondominiumIdentity
+// after creation (REQ-NDO-L0-04).
+// See: documentation/requirements/ndo_prima_materia.md §5.1 and §9.4
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum LifecycleStage {
-  Ideation,      // spark of an idea, no design yet
-  Specification, // design documents exist, Layer 1 active
-  Development,   // active build/fabrication work
-  Production,    // stable, in active use
-  Hibernating,   // dormant but recoverable
-  Deprecated,    // superseded, not recommended
-  EndOfLife,     // permanently archived, Layer 0 tombstone
+  // --- Emergence Phase ---
+  Ideation,       // Placeholder: name and intent only. Layer 0 alone.
+  Specification,  // Design/requirements being written. Layer 1 activating.
+  Development,    // Active construction, prototyping. Layers 0+1+2 active.
+  Prototype,      // PoC exists, not production-ready. Layers 0+1+2 active.
+  // --- Maturity Phase ---
+  Stable,         // Production-ready, design is replicable. All layers active.
+  Distributed,    // Being actively fabricated/used across the network.
+  // --- Operation Phase ---
+  Active,         // In normal use. All layers active.
+  // --- Suspension (REQ-NDO-LC-04: reversible) ---
+  Hibernating,    // Dormant but recoverable. Layers 1+2 dormant, Layer 0 active.
+  // --- Terminal (REQ-NDO-LC-04: not reactivatable) ---
+  Deprecated,     // Superseded. Successor NDO required (REQ-NDO-LC-06).
+  EndOfLife,      // Concluded. Layer 0 tombstone; fully terminal.
 }
 
 // NDO Layer 0 — PropertyRegime (REQ-NDO-L0-02)
@@ -108,7 +117,8 @@ pub struct EconomicResource {
 
 // NDO Layer 0 — NondominiumIdentity (REQ-NDO-L0-01, REQ-NDO-L0-07)
 // The permanent identity anchor of a resource. Exists from the moment of conception through
-// end-of-life. All fields are immutable after creation EXCEPT lifecycle_stage.
+// end-of-life. All fields are immutable after creation EXCEPT lifecycle_stage (and
+// successor_ndo_hash, which is set exactly once when transitioning to Deprecated).
 // The original ActionHash from create_ndo is the stable Layer 0 identity for all time.
 // See: documentation/requirements/ndo_prima_materia.md §4.2 and §9.1
 #[hdk_entry_helper]
@@ -118,9 +128,14 @@ pub struct NondominiumIdentity {
   pub initiator: AgentPubKey,
   pub property_regime: PropertyRegime,
   pub resource_nature: ResourceNature,
-  pub lifecycle_stage: LifecycleStage, // the ONLY mutable field (REQ-NDO-L0-03)
+  pub lifecycle_stage: LifecycleStage, // the ONLY mutable field (REQ-NDO-L0-04)
   pub created_at: Timestamp,
   pub description: Option<String>,
+  // Required when lifecycle_stage == Deprecated (REQ-NDO-LC-06).
+  // Set exactly once during the Deprecated transition; immutable once set.
+  // #[serde(default)] ensures existing pre-field records deserialize to None.
+  #[serde(default)]
+  pub successor_ndo_hash: Option<ActionHash>,
 }
 
 #[hdk_entry_types]
@@ -144,6 +159,12 @@ pub enum LinkTypes {
   // NDO Layer 0 discovery anchors (REQ-NDO-L0-05, REQ-NDO-L0-07)
   AllNdos,    // global anchor: "ndo_identities" path → NondominiumIdentity action hashes
   AgentToNdo, // initiator pubkey → NondominiumIdentity action hashes
+
+  // NDO Layer 0 lifecycle links
+  NdoToSuccessor,        // deprecated NDO action hash → successor NondominiumIdentity (REQ-NDO-LC-06)
+  NdoToTransitionEvent,  // NDO action hash → EconomicEvent that triggered the transition (REQ-NDO-L0-05)
+                         // Link only; full event validation deferred (integrity cannot
+                         // cross-zome call to zome_gouvernance)
 
   // Hierarchical linking for efficient queries
   SpecificationToResource,       // ResourceSpec -> EconomicResource
@@ -346,7 +367,8 @@ fn validate_create_governance_rule(
   Ok(ValidateCallbackResult::Valid)
 }
 
-// REQ-NDO-L0-01: NondominiumIdentity name must not be empty
+// REQ-NDO-L0-01: NondominiumIdentity name must not be empty.
+// REQ-NDO-LC-01: Only emergence/maturity/operation stages are valid at creation time.
 fn validate_create_nondominium_identity(
   ndi: &NondominiumIdentity,
   _author: &AgentPubKey,
@@ -356,11 +378,37 @@ fn validate_create_nondominium_identity(
       "NondominiumIdentity name cannot be empty".to_string(),
     ));
   }
+
+  // Suspension and terminal stages are not valid initial stages
+  let invalid_initial = [
+    LifecycleStage::Hibernating,
+    LifecycleStage::Deprecated,
+    LifecycleStage::EndOfLife,
+  ];
+  if invalid_initial.contains(&ndi.lifecycle_stage) {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "NondominiumIdentity cannot be created in stage {:?}; \
+       only emergence, maturity, or operation stages are valid initial stages",
+      ndi.lifecycle_stage
+    )));
+  }
+
+  // successor_ndo_hash has no meaning at creation time
+  if ndi.successor_ndo_hash.is_some() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "successor_ndo_hash must be None at creation".to_string(),
+    ));
+  }
+
   Ok(ValidateCallbackResult::Valid)
 }
 
-// REQ-NDO-L0-03, REQ-NDO-L0-04: Only lifecycle_stage may be updated, and only by the initiator.
-// All other fields are permanently immutable after creation.
+// REQ-NDO-L0-03, REQ-NDO-L0-04: Only lifecycle_stage (and successor_ndo_hash during the
+// Deprecated transition) may be updated, and only by the initiator. All other fields are
+// permanently immutable after creation.
+// REQ-NDO-LC-04: State machine transition allowlist enforced — Hibernating is reversible;
+// Deprecated and EndOfLife are terminal.
+// REQ-NDO-LC-06: Transitioning to Deprecated requires a successor NDO hash.
 fn validate_update_nondominium_identity(
   action: &Update,
   original: &NondominiumIdentity,
@@ -372,6 +420,8 @@ fn validate_update_nondominium_identity(
       "Only the initiator may update NondominiumIdentity lifecycle stage".to_string(),
     ));
   }
+
+  // --- Immutable fields ---
   if new_entry.name != original.name {
     return Ok(ValidateCallbackResult::Invalid(
       "NondominiumIdentity name is immutable after creation".to_string(),
@@ -402,7 +452,72 @@ fn validate_update_nondominium_identity(
       "NondominiumIdentity description is immutable after creation".to_string(),
     ));
   }
-  // lifecycle_stage is the only permitted change — no additional check needed
+
+  // --- successor_ndo_hash immutability: once set, cannot change ---
+  if original.successor_ndo_hash.is_some()
+    && new_entry.successor_ndo_hash != original.successor_ndo_hash
+  {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity successor_ndo_hash is immutable once set".to_string(),
+    ));
+  }
+
+  // --- State machine: enforce transition allowlist (REQ-NDO-LC-04) ---
+  let from = &original.lifecycle_stage;
+  let to = &new_entry.lifecycle_stage;
+
+  let allowed: &[LifecycleStage] = match from {
+    LifecycleStage::Ideation      => &[LifecycleStage::Specification],
+    LifecycleStage::Specification => &[LifecycleStage::Development],
+    LifecycleStage::Development   => &[LifecycleStage::Prototype,   LifecycleStage::Hibernating],
+    LifecycleStage::Prototype     => &[LifecycleStage::Stable,      LifecycleStage::Hibernating],
+    LifecycleStage::Stable        => &[LifecycleStage::Distributed, LifecycleStage::Hibernating],
+    LifecycleStage::Distributed   => &[LifecycleStage::Active,      LifecycleStage::Hibernating],
+    LifecycleStage::Active        => &[
+      LifecycleStage::Hibernating,
+      LifecycleStage::Deprecated,
+      LifecycleStage::EndOfLife,
+    ],
+    // Hibernating is the only reversible pause state (REQ-NDO-LC-04)
+    LifecycleStage::Hibernating   => &[LifecycleStage::Active, LifecycleStage::Deprecated],
+    // Terminal states: Deprecated can only move to EndOfLife; EndOfLife has no exit
+    LifecycleStage::Deprecated    => &[LifecycleStage::EndOfLife],
+    LifecycleStage::EndOfLife     => &[], // fully terminal — no transitions permitted
+  };
+
+  if !allowed.contains(to) {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "Invalid lifecycle transition: {:?} → {:?} is not permitted by the state machine",
+      from, to
+    )));
+  }
+
+  // --- REQ-NDO-LC-06: Transitioning to Deprecated requires a successor NDO hash ---
+  if *to == LifecycleStage::Deprecated {
+    match &new_entry.successor_ndo_hash {
+      None => {
+        return Ok(ValidateCallbackResult::Invalid(
+          "Transition to Deprecated requires successor_ndo_hash (REQ-NDO-LC-06)".to_string(),
+        ));
+      }
+      Some(h) => {
+        // Verify the successor hash resolves to a real record on the DHT.
+        // must_get_valid_record propagates UnresolvedDependencies via ? if not yet fetched.
+        must_get_valid_record(h.clone())?;
+      }
+    }
+  }
+
+  // --- successor_ndo_hash may only be set when transitioning to Deprecated ---
+  if new_entry.successor_ndo_hash.is_some()
+    && original.successor_ndo_hash.is_none()
+    && *to != LifecycleStage::Deprecated
+  {
+    return Ok(ValidateCallbackResult::Invalid(
+      "successor_ndo_hash may only be set when transitioning to Deprecated".to_string(),
+    ));
+  }
+
   Ok(ValidateCallbackResult::Valid)
 }
 

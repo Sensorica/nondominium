@@ -19,11 +19,19 @@ pub struct NdoOutput {
   pub entry: NondominiumIdentity,
 }
 
-// Input for updating a NondominiumIdentity's lifecycle stage (the only permitted mutation)
+// Input for updating a NondominiumIdentity's lifecycle stage (the only permitted mutation).
+// REQ-NDO-LC-06: successor_ndo_hash required when new_stage == Deprecated.
+// REQ-NDO-L0-05: transition_event_hash references the triggering EconomicEvent.
+//   Link is created when Some; full cross-zome validation of the event is deferred
+//   until coordinator cross-zome calls to zome_gouvernance are stable.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateLifecycleStageInput {
   pub original_action_hash: ActionHash,
   pub new_stage: LifecycleStage,
+  /// Must be Some when new_stage == Deprecated (REQ-NDO-LC-06)
+  pub successor_ndo_hash: Option<ActionHash>,
+  /// Triggering EconomicEvent action hash (REQ-NDO-L0-05); link created when Some
+  pub transition_event_hash: Option<ActionHash>,
 }
 
 /// Resolves the HDK update chain to the latest Record for a NondominiumIdentity.
@@ -76,6 +84,7 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
     lifecycle_stage: input.lifecycle_stage,
     created_at: sys_time()?,
     description: input.description,
+    successor_ndo_hash: None,
   };
 
   let action_hash = create_entry(&EntryTypes::NondominiumIdentity(entry.clone()))?;
@@ -128,13 +137,21 @@ pub fn get_ndo(original_action_hash: ActionHash) -> ExternResult<Option<Nondomin
 
 /// Update the lifecycle_stage of a NondominiumIdentity.
 ///
-/// This is the ONLY permitted mutation on a Layer 0 entry. All other fields are
+/// This is the ONLY permitted mutation on a Layer 0 entry (plus successor_ndo_hash,
+/// which is set exactly once when transitioning to Deprecated). All other fields are
 /// enforced as immutable by the integrity validation (REQ-NDO-L0-03, REQ-NDO-L0-04).
 /// Only the initiator may call this function (REQ-NDO-L0-03).
 ///
+/// When new_stage == Deprecated, successor_ndo_hash must be Some — enforced here and
+/// in the integrity zome (REQ-NDO-LC-06). Creates NdoToSuccessor link.
+///
+/// Creates NdoToTransitionEvent link when transition_event_hash is Some (REQ-NDO-L0-05).
+/// Full cross-zome validation of the event target is deferred until coordinator
+/// cross-zome calls to zome_gouvernance are stable.
+///
 /// Returns the new action hash. The original_action_hash remains the stable Layer 0 identity.
 ///
-/// REQ-NDO-L0-03, REQ-NDO-LC-01 through LC-07
+/// REQ-NDO-L0-03, REQ-NDO-LC-01 through REQ-NDO-LC-07
 #[hdk_extern]
 pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<ActionHash> {
   let caller = agent_info()?.agent_initial_pubkey;
@@ -157,13 +174,46 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
       "NondominiumIdentity entry not found in latest record".to_string(),
     ))?;
 
-  // Only the initiator may advance the lifecycle stage
+  // Only the initiator may advance the lifecycle stage (REQ-NDO-L0-03)
   if caller != current_entry.initiator {
     return Err(ResourceError::NotAuthor.into());
   }
 
-  current_entry.lifecycle_stage = input.new_stage;
+  // Coordinator pre-flight: Deprecated requires a successor (REQ-NDO-LC-06)
+  if input.new_stage == LifecycleStage::Deprecated && input.successor_ndo_hash.is_none() {
+    return Err(ResourceError::InvalidInput(
+      "Transitioning to Deprecated requires successor_ndo_hash (REQ-NDO-LC-06)".to_string(),
+    )
+    .into());
+  }
+
+  // Apply mutations — integrity validation enforces the state machine and immutability
+  current_entry.lifecycle_stage = input.new_stage.clone();
+  current_entry.successor_ndo_hash = input.successor_ndo_hash.clone();
+
   let latest_action_hash = record.action_address().clone();
   let update_hash = update_entry(latest_action_hash, &current_entry)?;
+
+  // REQ-NDO-LC-06: Create successor link when transitioning to Deprecated
+  if input.new_stage == LifecycleStage::Deprecated {
+    // unwrap is safe — pre-flight check above guarantees Some
+    create_link(
+      input.original_action_hash.clone(),
+      input.successor_ndo_hash.unwrap(),
+      LinkTypes::NdoToSuccessor,
+      (),
+    )?;
+  }
+
+  // REQ-NDO-L0-05: Create transition event link when a triggering event hash is provided
+  if let Some(event_hash) = input.transition_event_hash {
+    create_link(
+      input.original_action_hash.clone(),
+      event_hash,
+      LinkTypes::NdoToTransitionEvent,
+      (),
+    )?;
+  }
+
   Ok(update_hash)
 }

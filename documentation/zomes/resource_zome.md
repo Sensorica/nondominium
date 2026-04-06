@@ -22,24 +22,37 @@ Permanent identity anchor for any resource. Exists from the moment of conception
 ```rust
 pub struct NondominiumIdentity {
     pub name: String,
-    pub initiator: AgentPubKey,      // set from agent_info at creation; immutable
-    pub property_regime: PropertyRegime,
-    pub resource_nature: ResourceNature,
-    pub lifecycle_stage: LifecycleStage, // the ONLY mutable field
-    pub created_at: Timestamp,
-    pub description: Option<String>,
+    pub initiator: AgentPubKey,          // set from agent_info at creation; immutable
+    pub property_regime: PropertyRegime, // immutable after creation
+    pub resource_nature: ResourceNature, // immutable after creation
+    pub lifecycle_stage: LifecycleStage, // the ONLY mutable field (REQ-NDO-L0-04)
+    pub created_at: Timestamp,           // immutable after creation
+    pub description: Option<String>,     // immutable after creation
+    pub successor_ndo_hash: Option<ActionHash>, // set once on Deprecated transition (REQ-NDO-LC-06)
 }
 ```
 
-**LifecycleStage** (7 stages): `Ideation` → `Specification` → `Development` → `Production` → `Hibernating` → `Deprecated` → `EndOfLife`
+**LifecycleStage** (10 stages):
+
+| Phase | Stages |
+|---|---|
+| Emergence | `Ideation` → `Specification` → `Development` → `Prototype` |
+| Maturity | `Stable` → `Distributed` |
+| Operation | `Active` |
+| Suspension (reversible) | `Hibernating` |
+| Terminal | `Deprecated` → `EndOfLife` |
+
+State machine transitions are enforced by the integrity zome (see `ndo_prima_materia.md §5.3`). `Hibernating` is the only reversible pause state — it can return to `Active`. `Deprecated` and `EndOfLife` cannot be reactivated (REQ-NDO-LC-04).
 
 **PropertyRegime** (6 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`
 
 **ResourceNature** (5 variants): `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
 
-**Immutability**: Only `lifecycle_stage` may change post-creation. The integrity zome enforces this at validation time and checks that only the `initiator` may perform updates. Delete is always `Invalid` — Layer 0 is permanent.
+**Immutability**: Only `lifecycle_stage` may change post-creation, except that `successor_ndo_hash` is set exactly once during the `Deprecated` transition. Once `successor_ndo_hash` is set it is also immutable. Delete is always `Invalid` — Layer 0 is permanent.
 
 **Discovery links**: `AllNdos` (global anchor `"ndo_identities"` path → action hashes), `AgentToNdo` (initiator pubkey → action hashes)
+
+**Lifecycle links**: `NdoToSuccessor` (deprecated NDO → successor NDO, REQ-NDO-LC-06), `NdoToTransitionEvent` (NDO → triggering `EconomicEvent`, REQ-NDO-L0-05)
 
 ### ResourceSpecification Entry
 
@@ -167,11 +180,27 @@ Returns the **latest** version of a `NondominiumIdentity` by resolving the HDK u
 
 #### `update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<ActionHash>`
 
-Transitions the `lifecycle_stage` of a `NondominiumIdentity`. Only the initiator may call this. Enforced in both the coordinator (pre-flight check) and the integrity zome (validation).
+Transitions the `lifecycle_stage` of a `NondominiumIdentity`. Only the initiator may call this. Enforced in both the coordinator (pre-flight check) and the integrity zome (state machine validation).
 
-**Input**: `UpdateLifecycleStageInput { original_action_hash, new_stage: LifecycleStage }`
+**Input**:
+```rust
+UpdateLifecycleStageInput {
+    original_action_hash: ActionHash,
+    new_stage: LifecycleStage,
+    successor_ndo_hash: Option<ActionHash>,    // required when new_stage == Deprecated
+    transition_event_hash: Option<ActionHash>, // triggering EconomicEvent (REQ-NDO-L0-05)
+}
+```
+
 **Authorization**: caller must equal `entry.initiator`.
+
+**State machine**: The integrity zome enforces the §5.3 transition allowlist. Invalid transitions (e.g. `EndOfLife → Ideation`, `Deprecated → Active`) return a validation error.
+
 **Returns**: new action hash. The `original_action_hash` remains the stable Layer 0 identity.
+
+**Links created** (conditional):
+- `NdoToSuccessor` (`original_action_hash` → `successor_ndo_hash`) — only when `new_stage == Deprecated` (REQ-NDO-LC-06)
+- `NdoToTransitionEvent` (`original_action_hash` → `transition_event_hash`) — when `transition_event_hash` is `Some` (REQ-NDO-L0-05; full cross-zome event validation deferred)
 
 ### Resource Specification Management
 
