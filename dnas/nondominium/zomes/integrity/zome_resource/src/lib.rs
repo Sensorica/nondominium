@@ -1,37 +1,18 @@
 use hdi::prelude::*;
 
-// TODO: Split ResourceState into two orthogonal enums:
+// TODO (post-MVP): Split ResourceState into two orthogonal enums and migrate EconomicResource:
 //
-// 1. LifecycleStage — the maturity/evolutionary phase of the resource (advances rarely, usually
-//    irreversibly). Maps to NondominiumIdentity.lifecycle_stage in the NDO three-layer model.
-//    Values: Ideation, Specification, Development, Prototype, Stable, Distributed,
-//            Active, Hibernating, Deprecated, EndOfLife
+// 1. LifecycleStage — now defined below for NondominiumIdentity (NDO Layer 0).
 //
 // 2. OperationalState — the current process acting on this specific resource instance (cycles
 //    frequently as processes begin and end). Governance-zome controlled.
 //    Values: Available, Reserved, InTransit, InStorage, InMaintenance, InUse, PendingValidation
 //
-// The current enum CONFLATES both dimensions:
-//   PendingValidation  → OperationalState::PendingValidation (pre-activation gate)
-//   Active             → LifecycleStage::Active + OperationalState::Available
-//   Maintenance        → OperationalState::InMaintenance (repair process active; LifecycleStage
-//                        remains whatever it was before, typically Active)
-//   Retired            → LifecycleStage::Deprecated or EndOfLife
-//   Reserved           → OperationalState::Reserved (pre-allocation; LifecycleStage unchanged)
-//
-// Transport, Storage, and Maintenance are PROCESSES that act on a resource at any lifecycle stage.
-// A Prototype can be InTransit (moved between labs). An Active resource can be InStorage.
-// These are NOT lifecycle stages.
+// The current ResourceState enum CONFLATES both dimensions and is kept for EconomicResource
+// backwards-compatibility until the OperationalState refactor (REQ-NDO-OS-06).
 //
 // See: documentation/requirements/ndo_prima_materia.md — Section 5 (LifecycleStage + OperationalState)
 // See: documentation/archives/resources.md — Section 2.4 (known gaps)
-//
-// TODO: Implement PropertyRegime enum when NondominiumIdentity (Layer 0) is introduced.
-// Canonical 6-variant enum: Private, Commons, Collective, Pool, CommonPool, Nondominium.
-// Each variant implies default governance templates via GovernanceDefaultsEngine.
-// See: documentation/requirements/ndo_prima_materia.md — Section 8.2
-// See: documentation/archives/resources.md — Section 6.3 (canonical definition)
-// See: documentation/archives/resources.md — Section 6.6 (PropertyRegime → governance defaults)
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
 pub enum ResourceState {
   #[default]
@@ -52,6 +33,48 @@ impl std::fmt::Display for ResourceState {
       ResourceState::Reserved => write!(f, "reserved"),
     }
   }
+}
+
+// NDO Layer 0 — LifecycleStage (REQ-NDO-LC-01 through LC-07)
+// The maturity/evolutionary phase of a NondominiumIdentity. Advances rarely and usually
+// irreversibly. The ONLY mutable field in NondominiumIdentity after creation.
+// See: documentation/requirements/ndo_prima_materia.md §5 and §9.4
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum LifecycleStage {
+  Ideation,      // spark of an idea, no design yet
+  Specification, // design documents exist, Layer 1 active
+  Development,   // active build/fabrication work
+  Production,    // stable, in active use
+  Hibernating,   // dormant but recoverable
+  Deprecated,    // superseded, not recommended
+  EndOfLife,     // permanently archived, Layer 0 tombstone
+}
+
+// NDO Layer 0 — PropertyRegime (REQ-NDO-L0-02)
+// The governance/ownership regime of a NondominiumIdentity. Immutable after creation.
+// See: documentation/requirements/ndo_prima_materia.md §4.1
+// TODO (post-MVP): Implement PropertyRegime → governance defaults mapping via GovernanceDefaultsEngine.
+// See: documentation/archives/resources.md §6.6 (PropertyRegime → governance defaults)
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum PropertyRegime {
+  Private,
+  Commons,
+  Collective,
+  Pool,
+  CommonPool,
+  Nondominium,
+}
+
+// NDO Layer 0 — ResourceNature (REQ-NDO-L0-02)
+// The physical/digital nature of a NondominiumIdentity. Immutable after creation.
+// See: documentation/requirements/ndo_prima_materia.md §4.1
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum ResourceNature {
+  Physical,
+  Digital,
+  Service,
+  Hybrid,
+  Information,
 }
 
 #[hdk_entry_helper]
@@ -83,6 +106,23 @@ pub struct EconomicResource {
   pub state: ResourceState,
 }
 
+// NDO Layer 0 — NondominiumIdentity (REQ-NDO-L0-01, REQ-NDO-L0-07)
+// The permanent identity anchor of a resource. Exists from the moment of conception through
+// end-of-life. All fields are immutable after creation EXCEPT lifecycle_stage.
+// The original ActionHash from create_ndo is the stable Layer 0 identity for all time.
+// See: documentation/requirements/ndo_prima_materia.md §4.2 and §9.1
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct NondominiumIdentity {
+  pub name: String,
+  pub initiator: AgentPubKey,
+  pub property_regime: PropertyRegime,
+  pub resource_nature: ResourceNature,
+  pub lifecycle_stage: LifecycleStage, // the ONLY mutable field (REQ-NDO-L0-03)
+  pub created_at: Timestamp,
+  pub description: Option<String>,
+}
+
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 #[derive(Serialize, Deserialize, SerializedBytes)]
@@ -90,6 +130,7 @@ pub enum EntryTypes {
   ResourceSpecification(ResourceSpecification),
   EconomicResource(EconomicResource),
   GovernanceRule(GovernanceRule),
+  NondominiumIdentity(NondominiumIdentity),
 }
 
 #[hdk_link_types]
@@ -99,6 +140,10 @@ pub enum LinkTypes {
   AllResourceSpecifications,
   AllEconomicResources,
   AllGovernanceRules,
+
+  // NDO Layer 0 discovery anchors (REQ-NDO-L0-05, REQ-NDO-L0-07)
+  AllNdos,    // global anchor: "ndo_identities" path → NondominiumIdentity action hashes
+  AgentToNdo, // initiator pubkey → NondominiumIdentity action hashes
 
   // Hierarchical linking for efficient queries
   SpecificationToResource,       // ResourceSpec -> EconomicResource
@@ -154,6 +199,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           validate_create_economic_resource(&resource, &action.author)
         }
         EntryTypes::GovernanceRule(rule) => validate_create_governance_rule(&rule, &action.author),
+        EntryTypes::NondominiumIdentity(ndi) => {
+          validate_create_nondominium_identity(&ndi, &action.author)
+        }
       },
       OpEntry::UpdateEntry {
         app_entry, action, ..
@@ -165,13 +213,72 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           validate_update_economic_resource(&resource, &action.author)
         }
         EntryTypes::GovernanceRule(rule) => validate_update_governance_rule(&rule, &action.author),
+        EntryTypes::NondominiumIdentity(new_ndi) => {
+          // Fetch original entry to enforce immutability of all fields except lifecycle_stage
+          // (REQ-NDO-L0-03, REQ-NDO-L0-04)
+          let original_record =
+            must_get_valid_record(action.original_action_address.clone())?;
+          let original: NondominiumIdentity = original_record
+            .entry()
+            .to_app_option()
+            .map_err(|e| {
+              wasm_error!(WasmErrorInner::Guest(format!(
+                "Failed to deserialize original NondominiumIdentity: {:?}",
+                e
+              )))
+            })?
+            .ok_or(wasm_error!(WasmErrorInner::Guest(
+              "Original NondominiumIdentity entry not found in record".to_string()
+            )))?;
+          validate_update_nondominium_identity(&original, &new_ndi)
+        }
       },
       _ => Ok(ValidateCallbackResult::Valid),
     },
-    FlatOp::StoreRecord(OpRecord::CreateLink { .. }) => {
-      // Validate link creation
-      Ok(ValidateCallbackResult::Valid)
-    }
+    FlatOp::StoreRecord(store_record) => match store_record {
+      OpRecord::DeleteEntry {
+        original_action_hash,
+        ..
+      } => {
+        // Identify whether the deleted entry is a NondominiumIdentity (REQ-NDO-L0-06)
+        let original_record = must_get_valid_record(original_action_hash)?;
+        let original_action = original_record.action().clone();
+        let original_action = match original_action {
+          Action::Create(create) => EntryCreationAction::Create(create),
+          Action::Update(update) => EntryCreationAction::Update(update),
+          _ => {
+            return Ok(ValidateCallbackResult::Invalid(
+              "Original action for a delete must be a Create or Update action".to_string(),
+            ));
+          }
+        };
+        let app_entry_type = match original_action.entry_type() {
+          EntryType::App(app_entry_type) => app_entry_type,
+          _ => return Ok(ValidateCallbackResult::Valid),
+        };
+        let entry = match original_record.entry().as_option() {
+          Some(entry) => entry,
+          None => return Ok(ValidateCallbackResult::Valid),
+        };
+        let original_app_entry = match EntryTypes::deserialize_from_type(
+          *app_entry_type.zome_index,
+          app_entry_type.entry_index,
+          entry,
+        )? {
+          Some(app_entry) => app_entry,
+          None => return Ok(ValidateCallbackResult::Valid),
+        };
+        match original_app_entry {
+          EntryTypes::NondominiumIdentity(_) => validate_delete_nondominium_identity(),
+          _ => Ok(ValidateCallbackResult::Valid),
+        }
+      }
+      OpRecord::CreateLink { .. } => {
+        // Validate link creation
+        Ok(ValidateCallbackResult::Valid)
+      }
+      _ => Ok(ValidateCallbackResult::Valid),
+    },
     _ => Ok(ValidateCallbackResult::Valid),
   }
 }
@@ -237,6 +344,66 @@ fn validate_create_governance_rule(
   }
 
   Ok(ValidateCallbackResult::Valid)
+}
+
+// REQ-NDO-L0-01: NondominiumIdentity name must not be empty
+fn validate_create_nondominium_identity(
+  ndi: &NondominiumIdentity,
+  _author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+  if ndi.name.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity name cannot be empty".to_string(),
+    ));
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+// REQ-NDO-L0-03, REQ-NDO-L0-04: Only lifecycle_stage may be updated.
+// All other fields are permanently immutable after creation.
+fn validate_update_nondominium_identity(
+  original: &NondominiumIdentity,
+  new_entry: &NondominiumIdentity,
+) -> ExternResult<ValidateCallbackResult> {
+  if new_entry.name != original.name {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity name is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.initiator != original.initiator {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity initiator is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.property_regime != original.property_regime {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity property_regime is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.resource_nature != original.resource_nature {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity resource_nature is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.created_at != original.created_at {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity created_at is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.description != original.description {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity description is immutable after creation".to_string(),
+    ));
+  }
+  // lifecycle_stage is the only permitted change — no additional check needed
+  Ok(ValidateCallbackResult::Valid)
+}
+
+// REQ-NDO-L0-06: Layer 0 entries cannot be deleted. The identity is permanent.
+fn validate_delete_nondominium_identity() -> ExternResult<ValidateCallbackResult> {
+  Ok(ValidateCallbackResult::Invalid(
+    "NondominiumIdentity entries cannot be deleted. Layer 0 is permanent.".to_string(),
+  ))
 }
 
 fn validate_update_resource_spec(
