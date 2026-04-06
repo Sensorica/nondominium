@@ -167,5 +167,6 @@ Tests in `tests/` use Tryorama and are deprecated. See `tests/DEPRECATED.md` for
 
 **Phase 1 (Complete)**: Person management with role-based access control
 **Phase 2 (In Progress)**: Resource lifecycle and governance implementation, PPR system
+- NDO Layer 0 (`NondominiumIdentity` identity anchor): complete (#80)
 
 The codebase follows Holochain best practices with comprehensive testing, clear zome separation, and ValueFlows standard compliance.

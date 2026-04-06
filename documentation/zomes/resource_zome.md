@@ -2,25 +2,59 @@
 
 The Resource zome implements the core resource management infrastructure for the nondominium ecosystem, providing ValueFlows-compliant resource specification management, Economic Resource lifecycle tracking, governance rule enforcement, and custody transfer workflows. It serves as the foundation for all resource-related activities and supports the Private Participation Receipt (PPR) reputation system through comprehensive audit trails.
 
-> **TODO (post-MVP — NDO Three-Layer Model, ndo_prima_materia.md §4)**: Introduce
-> `NondominiumIdentity` as the Layer 0 permanent identity anchor for all resources. This entry
-> carries `name`, `description`, `initiator`, `property_regime` (6-variant `PropertyRegime` enum),
-> `resource_nature`, `lifecycle_stage` (10-stage `LifecycleStage` enum), and `created_at`. Its
-> action hash becomes the stable identity for the NDO.
+> **NDO Layer 0 (`NondominiumIdentity`) is implemented** — see `### NondominiumIdentity Entry (Layer 0)` below.
 >
-> New link types required:
+> **TODO (post-MVP — NDO Layers 1 & 2, ndo_prima_materia.md §§4, 8, 10)**: Cross-layer link types not yet implemented:
 > - `NDOToSpecification` — Layer 0 identity hash to `ResourceSpecification` (Layer 1 activation)
 > - `NDOToProcess` — Layer 0 identity hash to `Process` (Layer 2 activation)
 > - `NDOToComponent` — Layer 0 identity hash to child NDO identity hash (holonic composition)
 > - `CapabilitySlot` — Layer 0 identity hash to capability targets (stigmergic attachment surface)
-> - `NDOsByLifecycleStage`, `NDOsByNature`, `NDOsByRegime` — discovery anchors
->
-> See `ndo_prima_materia.md` §§4, 8, and 10 for entry structures, link types, and migration
-> strategy. See `resources.md` §3 for the canonical three-layer model.
+> - `NDOsByLifecycleStage`, `NDOsByNature`, `NDOsByRegime` — facet discovery anchors (REQ-NDO-L0-07)
 >
 > **Unyt (post-MVP):** endorsed economic terms use typed **`EconomicAgreement`** `GovernanceRule` data (`ndo_prima_materia.md` §6.6, REQ-NDO-CS-09–CS-11; `documentation/requirements/post-mvp/unyt-integration.md`).
 
 ## Core Data Structures
+
+### NondominiumIdentity Entry (Layer 0)
+
+Permanent identity anchor for any resource. Exists from the moment of conception through end-of-life. The original `ActionHash` from `create_ndo` is the **stable Layer 0 identity** — it never changes even as `lifecycle_stage` evolves.
+
+```rust
+pub struct NondominiumIdentity {
+    pub name: String,
+    pub initiator: AgentPubKey,          // set from agent_info at creation; immutable
+    pub property_regime: PropertyRegime, // immutable after creation
+    pub resource_nature: ResourceNature, // immutable after creation
+    pub lifecycle_stage: LifecycleStage, // the ONLY mutable field (REQ-NDO-L0-04)
+    pub created_at: Timestamp,           // immutable after creation
+    pub description: Option<String>,     // immutable after creation
+    pub successor_ndo_hash: Option<ActionHash>, // set once on Deprecated transition (REQ-NDO-LC-06)
+}
+```
+
+**LifecycleStage** (10 stages):
+
+| Phase | Stages |
+|---|---|
+| Emergence | `Ideation` → `Specification` → `Development` → `Prototype` |
+| Maturity | `Stable` → `Distributed` |
+| Operation | `Active` |
+| Suspension (reversible) | `Hibernating` |
+| Terminal | `Deprecated` → `EndOfLife` |
+
+State machine transitions are enforced by the integrity zome (see `ndo_prima_materia.md §5.3`). `Hibernating` is the only reversible pause state — it can return to `Active`. `Deprecated` and `EndOfLife` cannot be reactivated (REQ-NDO-LC-04).
+
+**PropertyRegime** (6 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`
+
+**ResourceNature** (5 variants): `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
+
+**Immutability**: Only `lifecycle_stage` may change post-creation, except that `successor_ndo_hash` is set exactly once during the `Deprecated` transition. Once `successor_ndo_hash` is set it is also immutable. Delete is always `Invalid` — Layer 0 is permanent.
+
+**Design note — NDO as identifier, not chronicle**: `lifecycle_stage` at creation reflects the resource's actual state at registration time, not a claim about when it was originally conceived. An existing physical resource registered into the system is created at its true current stage (e.g. `Active`), not forced through a synthetic `Ideation` entry. The NDO identity anchor behaves like a DOI or ISBN: it is assigned at the moment of system registration, which may be well after the resource began its life. Forcing `Ideation`-only initial stages would require fabricating DHT history for brownfield resources and block migration of existing `EconomicResource` entries when Layers 1/2 activate.
+
+**Discovery links**: `AllNdos` (global anchor `"ndo_identities"` path → action hashes), `AgentToNdo` (initiator pubkey → action hashes)
+
+**Lifecycle links**: `NdoToSuccessor` (deprecated NDO → successor NDO, REQ-NDO-LC-06), `NdoToTransitionEvent` (NDO → triggering `EconomicEvent`, REQ-NDO-L0-05)
 
 ### ResourceSpecification Entry
 
@@ -83,10 +117,18 @@ pub enum ResourceState {
     Reserved,         // → OperationalState::Reserved (LifecycleStage unchanged)
 }
 
-// TARGET — LifecycleStage (on NondominiumIdentity, Layer 0):
+// IMPLEMENTED — LifecycleStage (on NondominiumIdentity, Layer 0, REQ-NDO-LC-01–07):
 pub enum LifecycleStage {
-    Ideation, Specification, Development, Prototype,
-    Stable, Distributed, Active, Hibernating, Deprecated, EndOfLife,
+    Ideation,      // spark of an idea, Layer 0 anchor only
+    Specification, // design/requirements being written
+    Development,   // active construction / prototyping
+    Prototype,     // proof-of-concept, not yet production-ready
+    Stable,        // production-ready, design is replicable
+    Distributed,   // being actively fabricated/used across the network
+    Active,        // in normal use
+    Hibernating,   // dormant but recoverable (reversible)
+    Deprecated,    // superseded; successor NDO required
+    EndOfLife,     // permanently concluded; Layer 0 tombstone
 }
 
 // TARGET — OperationalState (on EconomicResource, Layer 2):
@@ -96,7 +138,7 @@ pub enum OperationalState {
 }
 ```
 
-**Key principle**: Transport, storage, and maintenance are *processes* that act on a resource at *any* lifecycle stage. A `Prototype` can be `InTransit` between R&D labs. An `Active` resource can be `InMaintenance`. These are operational conditions, not lifecycle milestones.
+**Key principle**: Transport, storage, and maintenance are *processes* that act on a resource at *any* lifecycle stage. A `Development` resource can be `InTransit` between R&D labs. An `Active` resource can be `InMaintenance`. These are operational conditions, not lifecycle milestones.
 
 **Lifecycle**: `LifecycleStage` tracks maturity/evolution (advances rarely, almost irreversibly)
 **Operational**: `OperationalState` tracks active processes (cycles frequently, reset to `Available` when process ends)
@@ -125,6 +167,54 @@ pub struct GovernanceRule {
 **Governance**: Community-driven rule creation and management
 
 ## API Functions
+
+### NDO Layer 0 Management
+
+#### `create_ndo(input: NdoInput) -> ExternResult<NdoOutput>`
+
+Creates a new `NondominiumIdentity`. Sets `initiator` from `agent_info` and `created_at` from `sys_time`. Creates two discovery links.
+
+**Input**: `NdoInput { name, property_regime, resource_nature, lifecycle_stage, description }`
+**Output**: `NdoOutput { action_hash, entry }` — `action_hash` is the stable Layer 0 identity.
+**Links created**: `AllNdos` (global anchor `"ndo_identities"` → action hash), `AgentToNdo` (initiator pubkey → action hash).
+**Validation**: name must not be empty.
+**Initial stage**: Any non-terminal stage is valid at creation (`Hibernating`, `Deprecated`, `EndOfLife` are rejected). Use the resource's actual current stage — do not fabricate a synthetic `Ideation` entry for resources that pre-date system registration (see design note above).
+
+#### `get_ndo(original_action_hash: ActionHash) -> ExternResult<Option<NondominiumIdentity>>`
+
+Returns the **latest** version of a `NondominiumIdentity` by resolving the HDK update chain. Always provide the original action hash — the function handles chain traversal internally.
+
+#### `update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<ActionHash>`
+
+Transitions the `lifecycle_stage` of a `NondominiumIdentity`. Only the initiator may call this. Enforced in both the coordinator (pre-flight check) and the integrity zome (state machine validation).
+
+**Input**:
+```rust
+UpdateLifecycleStageInput {
+    original_action_hash: ActionHash,
+    new_stage: LifecycleStage,
+    successor_ndo_hash: Option<ActionHash>,    // required when new_stage == Deprecated
+    transition_event_hash: Option<ActionHash>, // triggering EconomicEvent (REQ-NDO-L0-05)
+}
+```
+
+**Authorization**: caller must equal `entry.initiator`.
+
+**State machine**: The integrity zome enforces the §5.3 transition allowlist. Invalid transitions (e.g. `EndOfLife → Ideation`, `Deprecated → Active`) return a validation error.
+
+**Returns**: new action hash. The `original_action_hash` remains the stable Layer 0 identity.
+
+**Links created** (conditional):
+- `NdoToSuccessor` (`original_action_hash` → `successor_ndo_hash`) — only when `new_stage == Deprecated` (REQ-NDO-LC-06)
+- `NdoToTransitionEvent` (`original_action_hash` → `transition_event_hash`) — when `transition_event_hash` is `Some` (REQ-NDO-L0-05; full cross-zome event validation deferred)
+
+#### `get_all_ndos(_: ()) -> ExternResult<GetAllNdosOutput>`
+
+Returns the latest version of all `NondominiumIdentity` entries via the global `"ndo_identities"` anchor. Entries unavailable on the DHT or failing deserialization are silently skipped (eventual consistency). Output: `GetAllNdosOutput { ndos: Vec<NdoOutput> }`.
+
+#### `get_my_ndos(_: ()) -> ExternResult<Vec<Link>>`
+
+Returns raw `AgentToNdo` links for the calling agent. Each link's `target` is an `ActionHash` — the original (stable) Layer 0 identity. Pass each to `get_ndo` to resolve the current entry.
 
 ### Resource Specification Management
 

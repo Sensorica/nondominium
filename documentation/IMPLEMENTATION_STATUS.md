@@ -70,7 +70,19 @@ Each zome follows the integrity/coordinator pattern.
 - Extensible rule system with JSON-encoded parameters
 - Enforcement role requirements, resource attachment, audit trail
 
-#### Discovery and Query Patterns ✅
+#### NDO Layer 0 — Identity Anchor ✅
+
+`NondominiumIdentity` provides a permanent identity anchor for any resource from conception through end-of-life. Implemented in PR #80.
+
+- **Entry type**: `NondominiumIdentity` with `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `description`, `successor_ndo_hash`
+- **Enums**: `LifecycleStage` (10 stages: Ideation→Specification→Development→Prototype→Stable→Distributed→Active→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (6 variants), `ResourceNature` (5 variants: Physical, Digital, Service, Hybrid, Information — extends spec's 3-variant definition with Service and Information)
+- **Immutability**: Only `lifecycle_stage` may change post-creation; `successor_ndo_hash` set exactly once on Deprecated transition; deletes are always invalid
+- **Authorization**: Only the `initiator` may call `update_lifecycle_stage` (MVP simplification; full role-based authorization per REQ-NDO-LC-07 deferred to governance zome integration)
+- **Discovery links**: `AllNdos` (global `"ndo_identities"` path anchor), `AgentToNdo` (per-initiator)
+- **API**: `create_ndo`, `get_ndo` (resolves update chain), `get_all_ndos` (global anchor traversal), `get_my_ndos` (raw AgentToNdo links), `update_lifecycle_stage`
+- **REQ coverage**: REQ-NDO-L0-01, -02, -03, -04, -06 implemented; not yet enforced: REQ-NDO-L0-05 (EconomicEvent ref on transitions, optional in coordinator), REQ-NDO-LC-02 (governance-as-operator for transition validation), REQ-NDO-LC-03 (automatic EconomicEvent generation per transition), REQ-NDO-LC-05 (EndOfLife challenge period), REQ-NDO-LC-07 (role-based authorization per §5.3); not yet implemented: REQ-NDO-L0-07 (per-stage/nature/regime facet discovery anchors)
+
+### Discovery and Query Patterns ✅
 
 - Anchors: `AllResourceSpecifications`, `AllEconomicResources`, `AllGovernanceRules`
 - Hierarchical links: Specification → Resource, Custodian → Resources
@@ -228,7 +240,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | Frontend UI components | ❌ Not started |
 | Effect-TS service layer | ❌ Not started |
 | hREA Phase 2–4 | ❌ Not started |
-| NDO three-layer model (Layer 0) | ❌ Not started |
+| NondominiumIdentity (Layer 0 identity anchor) | ✅ Complete |
 
 ---
 
@@ -238,7 +250,8 @@ The following are documented and traceable to REQ-NDO-* in `documentation/requir
 
 | Track | Design sources | Implementation status |
 |---|---|---|
-| **NDO three-layer model** | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3 | Not started — tracked in #73–#77 |
+| **NDO Layer 0 (identity anchor)** | `ndo_prima_materia.md` §§4, 8; REQ-NDO-L0-01–07 | **Complete** (#80) — `NondominiumIdentity` entry with lifecycle validation; REQ-NDO-L0-05 (EconomicEvent ref) and -07 (facet anchors) not yet enforced |
+| **NDO Layers 1 & 2** | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3 | Not started — Layer 1 (Specification links), Layer 2 (Process links), cross-layer link types pending |
 | **Lifecycle vs operational state split** | `ndo_prima_materia.md` §5, §9.4 (`REQ-NDO-OS-01`–`06`) | Not started — `ResourceState` still conflated (see `zome_resource` TODOs) |
 | **Unyt (EconomicAgreement, RAVE)** | `ndo_prima_materia.md` §6.6, §11.5; `unyt-integration.md`; REQ-NDO-CS-07–CS-11 | Not started — no Unyt cell / RAVE validation in governance zome |
 | **Flowsta (agent linking, IdentityVerification)** | `ndo_prima_materia.md` §6.7, §11.6; `flowsta-integration.md`; REQ-NDO-CS-12–CS-15 | Not started — `flowsta-agent-linking` zomes not bundled |
