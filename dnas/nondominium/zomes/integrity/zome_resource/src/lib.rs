@@ -230,7 +230,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
             .ok_or(wasm_error!(WasmErrorInner::Guest(
               "Original NondominiumIdentity entry not found in record".to_string()
             )))?;
-          validate_update_nondominium_identity(&original, &new_ndi)
+          validate_update_nondominium_identity(&action, &original, &new_ndi)
         }
       },
       _ => Ok(ValidateCallbackResult::Valid),
@@ -359,12 +359,19 @@ fn validate_create_nondominium_identity(
   Ok(ValidateCallbackResult::Valid)
 }
 
-// REQ-NDO-L0-03, REQ-NDO-L0-04: Only lifecycle_stage may be updated.
+// REQ-NDO-L0-03, REQ-NDO-L0-04: Only lifecycle_stage may be updated, and only by the initiator.
 // All other fields are permanently immutable after creation.
 fn validate_update_nondominium_identity(
+  action: &Update,
   original: &NondominiumIdentity,
   new_entry: &NondominiumIdentity,
 ) -> ExternResult<ValidateCallbackResult> {
+  // Only the initiator may advance the lifecycle stage (REQ-NDO-L0-03)
+  if action.author != original.initiator {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Only the initiator may update NondominiumIdentity lifecycle stage".to_string(),
+    ));
+  }
   if new_entry.name != original.name {
     return Ok(ValidateCallbackResult::Invalid(
       "NondominiumIdentity name is immutable after creation".to_string(),

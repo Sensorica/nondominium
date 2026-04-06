@@ -22,6 +22,32 @@ The Resource zome implements the core resource management infrastructure for the
 
 ## Core Data Structures
 
+### NondominiumIdentity Entry (Layer 0)
+
+Permanent identity anchor for any resource. Exists from the moment of conception through end-of-life. The original `ActionHash` from `create_ndo` is the **stable Layer 0 identity** — it never changes even as `lifecycle_stage` evolves.
+
+```rust
+pub struct NondominiumIdentity {
+    pub name: String,
+    pub initiator: AgentPubKey,      // set from agent_info at creation; immutable
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub lifecycle_stage: LifecycleStage, // the ONLY mutable field
+    pub created_at: Timestamp,
+    pub description: Option<String>,
+}
+```
+
+**LifecycleStage** (7 stages): `Ideation` → `Specification` → `Development` → `Production` → `Hibernating` → `Deprecated` → `EndOfLife`
+
+**PropertyRegime** (6 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`
+
+**ResourceNature** (5 variants): `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
+
+**Immutability**: Only `lifecycle_stage` may change post-creation. The integrity zome enforces this at validation time and checks that only the `initiator` may perform updates. Delete is always `Invalid` — Layer 0 is permanent.
+
+**Discovery links**: `AllNdos` (global anchor `"ndo_identities"` path → action hashes), `AgentToNdo` (initiator pubkey → action hashes)
+
 ### ResourceSpecification Entry
 
 ```rust
@@ -125,6 +151,29 @@ pub struct GovernanceRule {
 **Governance**: Community-driven rule creation and management
 
 ## API Functions
+
+### NDO Layer 0 Management
+
+#### `create_ndo(input: NdoInput) -> ExternResult<NdoOutput>`
+
+Creates a new `NondominiumIdentity`. Sets `initiator` from `agent_info` and `created_at` from `sys_time`. Creates two discovery links.
+
+**Input**: `NdoInput { name, property_regime, resource_nature, lifecycle_stage, description }`
+**Output**: `NdoOutput { action_hash, entry }` — `action_hash` is the stable Layer 0 identity.
+**Links created**: `AllNdos` (global anchor `"ndo_identities"` → action hash), `AgentToNdo` (initiator pubkey → action hash).
+**Validation**: name must not be empty.
+
+#### `get_ndo(original_action_hash: ActionHash) -> ExternResult<Option<NondominiumIdentity>>`
+
+Returns the **latest** version of a `NondominiumIdentity` by resolving the HDK update chain. Always provide the original action hash — the function handles chain traversal internally.
+
+#### `update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<ActionHash>`
+
+Transitions the `lifecycle_stage` of a `NondominiumIdentity`. Only the initiator may call this. Enforced in both the coordinator (pre-flight check) and the integrity zome (validation).
+
+**Input**: `UpdateLifecycleStageInput { original_action_hash, new_stage: LifecycleStage }`
+**Authorization**: caller must equal `entry.initiator`.
+**Returns**: new action hash. The `original_action_hash` remains the stable Layer 0 identity.
 
 ### Resource Specification Management
 

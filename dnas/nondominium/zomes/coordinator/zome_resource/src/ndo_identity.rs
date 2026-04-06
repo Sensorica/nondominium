@@ -26,6 +26,34 @@ pub struct UpdateLifecycleStageInput {
   pub new_stage: LifecycleStage,
 }
 
+/// Resolves the HDK update chain to the latest Record for a NondominiumIdentity.
+/// Returns None if the original_action_hash does not exist on the DHT.
+///
+/// Used by both get_ndo and update_lifecycle_stage to avoid duplicated chain traversal logic.
+fn resolve_latest_ndo_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+  let mut current_hash = original_action_hash;
+  loop {
+    match get_details(current_hash.clone(), GetOptions::default())? {
+      Some(Details::Record(record_details)) => {
+        if record_details.updates.is_empty() {
+          return Ok(Some(record_details.record));
+        }
+        // Follow the most recent update in the chain
+        current_hash = record_details
+          .updates
+          .into_iter()
+          .max_by_key(|sah| sah.action().timestamp())
+          .ok_or(ResourceError::EntryOperationFailed(
+            "Empty updates list during chain traversal".to_string(),
+          ))?
+          .hashed
+          .hash;
+      }
+      _ => return Ok(None),
+    }
+  }
+}
+
 /// Create a new NondominiumIdentity (NDO Layer 0 anchor).
 ///
 /// The returned action_hash is the stable, permanent Layer 0 identity for this resource.
@@ -83,104 +111,59 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
 /// REQ-NDO-L0-01, REQ-NDO-L0-07
 #[hdk_extern]
 pub fn get_ndo(original_action_hash: ActionHash) -> ExternResult<Option<NondominiumIdentity>> {
-  let mut current_hash = original_action_hash;
-
-  loop {
-    let details = get_details(current_hash.clone(), GetOptions::default())?;
-
-    match details {
-      Some(Details::Record(record_details)) => {
-        if record_details.updates.is_empty() {
-          // No further updates — this is the latest version
-          return record_details
-            .record
-            .entry()
-            .to_app_option::<NondominiumIdentity>()
-            .map_err(|e| {
-              ResourceError::SerializationError(format!(
-                "Failed to deserialize NondominiumIdentity: {:?}",
-                e
-              ))
-              .into()
-            });
-        }
-
-        // Follow the most recent update in the chain
-        current_hash = record_details
-          .updates
-          .into_iter()
-          .max_by_key(|sah| sah.action().timestamp())
-          .unwrap()
-          .hashed
-          .hash;
-      }
-      _ => return Ok(None),
-    }
-  }
+  let Some(record) = resolve_latest_ndo_record(original_action_hash)? else {
+    return Ok(None);
+  };
+  record
+    .entry()
+    .to_app_option::<NondominiumIdentity>()
+    .map_err(|e| {
+      ResourceError::SerializationError(format!(
+        "Failed to deserialize NondominiumIdentity: {:?}",
+        e
+      ))
+      .into()
+    })
 }
 
 /// Update the lifecycle_stage of a NondominiumIdentity.
 ///
 /// This is the ONLY permitted mutation on a Layer 0 entry. All other fields are
 /// enforced as immutable by the integrity validation (REQ-NDO-L0-03, REQ-NDO-L0-04).
-///
-/// Resolves to the latest action hash in the update chain before calling update_entry,
-/// ensuring correct chain ordering regardless of how many lifecycle transitions have occurred.
+/// Only the initiator may call this function (REQ-NDO-L0-03).
 ///
 /// Returns the new action hash. The original_action_hash remains the stable Layer 0 identity.
 ///
 /// REQ-NDO-L0-03, REQ-NDO-LC-01 through LC-07
 #[hdk_extern]
-pub fn update_lifecycle_stage(
-  input: UpdateLifecycleStageInput,
-) -> ExternResult<ActionHash> {
-  // Resolve the update chain to find the latest record
-  let mut current_hash = input.original_action_hash.clone();
+pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<ActionHash> {
+  let caller = agent_info()?.agent_initial_pubkey;
 
-  loop {
-    let details = get_details(current_hash.clone(), GetOptions::default())?;
+  let record = resolve_latest_ndo_record(input.original_action_hash.clone())?
+    .ok_or(ResourceError::EntryOperationFailed(
+      "NondominiumIdentity not found for update".to_string(),
+    ))?;
 
-    match details {
-      Some(Details::Record(record_details)) => {
-        if record_details.updates.is_empty() {
-          // This is the latest record — update from here
-          let mut current_entry: NondominiumIdentity = record_details
-            .record
-            .entry()
-            .to_app_option()
-            .map_err(|e| {
-              ResourceError::SerializationError(format!(
-                "Failed to deserialize NondominiumIdentity: {:?}",
-                e
-              ))
-            })?
-            .ok_or(ResourceError::EntryOperationFailed(
-              "NondominiumIdentity entry not found in latest record".to_string(),
-            ))?;
+  let mut current_entry: NondominiumIdentity = record
+    .entry()
+    .to_app_option()
+    .map_err(|e| {
+      ResourceError::SerializationError(format!(
+        "Failed to deserialize NondominiumIdentity: {:?}",
+        e
+      ))
+    })?
+    .ok_or(ResourceError::EntryOperationFailed(
+      "NondominiumIdentity entry not found in latest record".to_string(),
+    ))?;
 
-          // Update only the lifecycle_stage field
-          current_entry.lifecycle_stage = input.new_stage;
-
-          let latest_action_hash = record_details.record.action_address().clone();
-          let update_hash = update_entry(latest_action_hash, &current_entry)?;
-          return Ok(update_hash);
-        }
-
-        // Follow the most recent update
-        current_hash = record_details
-          .updates
-          .into_iter()
-          .max_by_key(|sah| sah.action().timestamp())
-          .unwrap()
-          .hashed
-          .hash;
-      }
-      _ => {
-        return Err(ResourceError::EntryOperationFailed(
-          "NondominiumIdentity not found for update".to_string(),
-        )
-        .into())
-      }
-    }
+  // Only the initiator may advance the lifecycle stage
+  if caller != current_entry.initiator {
+    return Err(ResourceError::NotAuthor.into());
   }
+
+  current_entry.lifecycle_stage = input.new_stage;
+  let latest_action_hash = record.action_address().clone();
+  let update_hash = update_entry(latest_action_hash, &current_entry)?;
+  Ok(update_hash)
 }
