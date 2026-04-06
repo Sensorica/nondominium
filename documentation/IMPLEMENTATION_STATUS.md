@@ -74,13 +74,13 @@ Each zome follows the integrity/coordinator pattern.
 
 `NondominiumIdentity` provides a permanent identity anchor for any resource from conception through end-of-life. Implemented in PR #80.
 
-- **Entry type**: `NondominiumIdentity` with `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `description`
-- **Enums**: `LifecycleStage` (10 stages: Ideation→Specification→Development→Prototype→Stable→Distributed→Active→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (6 variants), `ResourceNature` (5 variants)
-- **Immutability**: Only `lifecycle_stage` may change post-creation; deletes are always invalid
-- **Authorization**: Only the `initiator` may call `update_lifecycle_stage`
+- **Entry type**: `NondominiumIdentity` with `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `description`, `successor_ndo_hash`
+- **Enums**: `LifecycleStage` (10 stages: Ideation→Specification→Development→Prototype→Stable→Distributed→Active→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (6 variants), `ResourceNature` (5 variants: Physical, Digital, Service, Hybrid, Information — extends spec's 3-variant definition with Service and Information)
+- **Immutability**: Only `lifecycle_stage` may change post-creation; `successor_ndo_hash` set exactly once on Deprecated transition; deletes are always invalid
+- **Authorization**: Only the `initiator` may call `update_lifecycle_stage` (MVP simplification; full role-based authorization per REQ-NDO-LC-07 deferred to governance zome integration)
 - **Discovery links**: `AllNdos` (global `"ndo_identities"` path anchor), `AgentToNdo` (per-initiator)
-- **API**: `create_ndo`, `get_ndo` (resolves update chain), `update_lifecycle_stage`
-- **REQ coverage**: REQ-NDO-L0-01, -02, -03, -04, -06 implemented; REQ-NDO-L0-05 (EconomicEvent ref on transitions) not yet enforced; REQ-NDO-L0-07 (per-stage/nature/regime discovery anchors) not yet implemented
+- **API**: `create_ndo`, `get_ndo` (resolves update chain), `get_all_ndos` (global anchor traversal), `get_my_ndos` (raw AgentToNdo links), `update_lifecycle_stage`
+- **REQ coverage**: REQ-NDO-L0-01, -02, -03, -04, -06 implemented; not yet enforced: REQ-NDO-L0-05 (EconomicEvent ref on transitions, optional in coordinator), REQ-NDO-LC-02 (governance-as-operator for transition validation), REQ-NDO-LC-03 (automatic EconomicEvent generation per transition), REQ-NDO-LC-05 (EndOfLife challenge period), REQ-NDO-LC-07 (role-based authorization per §5.3); not yet implemented: REQ-NDO-L0-07 (per-stage/nature/regime facet discovery anchors)
 
 ### Discovery and Query Patterns ✅
 

@@ -77,6 +77,12 @@ pub enum PropertyRegime {
 // NDO Layer 0 — ResourceNature (REQ-NDO-L0-02)
 // The physical/digital nature of a NondominiumIdentity. Immutable after creation.
 // See: documentation/requirements/ndo_prima_materia.md §4.1
+//
+// Note: The spec (§8.2) defines 3 variants (Digital, Physical, Hybrid). This implementation
+// extends that to 5 by adding Service and Information, which are first-class resource natures
+// in the OVN/ValueFlows context and needed for NDOs representing software services and
+// knowledge assets. These additions are backwards-compatible (existing records are unaffected)
+// and do not conflict with any spec constraint. See PR #80 Decisions table.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
   Physical,
@@ -138,6 +144,12 @@ pub struct NondominiumIdentity {
   // Required when lifecycle_stage == Deprecated (REQ-NDO-LC-06).
   // Set exactly once during the Deprecated transition; immutable once set.
   // #[serde(default)] ensures existing pre-field records deserialize to None.
+  //
+  // Note: the spec (§8.1) does not include this field — successor relationship is
+  // spec-defined as a link only (NdoToSuccessor). This implementation stores it as both
+  // a field AND a link, making the successor inspectable on the entry without a link
+  // traversal. The NdoToSuccessor link is still created for graph-query compatibility.
+  // See PR #80 Decisions table.
   #[serde(default)]
   pub successor_ndo_hash: Option<ActionHash>,
 }
@@ -265,7 +277,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         original_action_hash,
         ..
       } => {
-        // Identify whether the deleted entry is a NondominiumIdentity (REQ-NDO-L0-06)
+        // Identify whether the deleted entry is a NondominiumIdentity (REQ-NDO-L0-03)
         let original_record = must_get_valid_record(original_action_hash)?;
         let original_action = original_record.action().clone();
         let original_action = match original_action {
@@ -407,18 +419,19 @@ fn validate_create_nondominium_identity(
   Ok(ValidateCallbackResult::Valid)
 }
 
-// REQ-NDO-L0-03, REQ-NDO-L0-04: Only lifecycle_stage (and successor_ndo_hash during the
-// Deprecated transition) may be updated, and only by the initiator. All other fields are
-// permanently immutable after creation.
+// REQ-NDO-L0-04: Only lifecycle_stage (and successor_ndo_hash during the Deprecated
+// transition) may be updated after creation. All other fields are permanently immutable.
 // REQ-NDO-LC-04: State machine transition allowlist enforced — Hibernating is reversible;
 // Deprecated and EndOfLife are terminal.
 // REQ-NDO-LC-06: Transitioning to Deprecated requires a successor NDO hash.
+// Note: initiator-only restriction is an MVP simplification of REQ-NDO-LC-07 (governance
+// zome enforces authorized role per transition). Full role-based authorization is deferred.
 fn validate_update_nondominium_identity(
   action: &Update,
   original: &NondominiumIdentity,
   new_entry: &NondominiumIdentity,
 ) -> ExternResult<ValidateCallbackResult> {
-  // Only the initiator may advance the lifecycle stage (REQ-NDO-L0-03)
+  // Only the initiator may advance the lifecycle stage (MVP simplification of REQ-NDO-LC-07)
   if action.author != original.initiator {
     return Ok(ValidateCallbackResult::Invalid(
       "Only the initiator may update NondominiumIdentity lifecycle stage".to_string(),
@@ -529,7 +542,8 @@ fn validate_update_nondominium_identity(
   Ok(ValidateCallbackResult::Valid)
 }
 
-// REQ-NDO-L0-06: Layer 0 entries cannot be deleted. The identity is permanent.
+// REQ-NDO-L0-03: Layer 0 entries cannot be deleted. The identity is permanent.
+// REQ-NDO-L0-06: At EndOfLife the entry remains readable as a tombstone — ensured by this delete gate.
 fn validate_delete_nondominium_identity() -> ExternResult<ValidateCallbackResult> {
   Ok(ValidateCallbackResult::Invalid(
     "NondominiumIdentity entries cannot be deleted. Layer 0 is permanent.".to_string(),

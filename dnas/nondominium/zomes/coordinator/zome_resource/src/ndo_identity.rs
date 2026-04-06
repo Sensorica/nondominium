@@ -149,8 +149,9 @@ pub fn get_ndo(original_action_hash: ActionHash) -> ExternResult<Option<Nondomin
 ///
 /// This is the ONLY permitted mutation on a Layer 0 entry (plus successor_ndo_hash,
 /// which is set exactly once when transitioning to Deprecated). All other fields are
-/// enforced as immutable by the integrity validation (REQ-NDO-L0-03, REQ-NDO-L0-04).
-/// Only the initiator may call this function (REQ-NDO-L0-03).
+/// enforced as immutable by the integrity validation (REQ-NDO-L0-04).
+/// Only the initiator may call this function (MVP simplification of REQ-NDO-LC-07 —
+/// full role-based authorization per §5.3 is deferred to governance zome integration).
 ///
 /// When new_stage == Deprecated, successor_ndo_hash must be Some — enforced here and
 /// in the integrity zome (REQ-NDO-LC-06). Creates NdoToSuccessor link.
@@ -161,7 +162,7 @@ pub fn get_ndo(original_action_hash: ActionHash) -> ExternResult<Option<Nondomin
 ///
 /// Returns the new action hash. The original_action_hash remains the stable Layer 0 identity.
 ///
-/// REQ-NDO-L0-03, REQ-NDO-LC-01 through REQ-NDO-LC-07
+/// REQ-NDO-L0-04, REQ-NDO-LC-01 through REQ-NDO-LC-07
 #[hdk_extern]
 pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<ActionHash> {
   let caller = agent_info()?.agent_initial_pubkey;
@@ -184,7 +185,7 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
       "NondominiumIdentity entry not found in latest record".to_string(),
     ))?;
 
-  // Only the initiator may advance the lifecycle stage (REQ-NDO-L0-03)
+  // Only the initiator may advance the lifecycle stage (MVP simplification of REQ-NDO-LC-07)
   if caller != current_entry.initiator {
     return Err(ResourceError::NotAuthor.into());
   }
