@@ -494,6 +494,13 @@ fn validate_update_nondominium_identity(
     ));
   }
 
+  // Terminal source: Deprecated exits only to EndOfLife
+  if *from == LifecycleStage::Deprecated && *to != LifecycleStage::EndOfLife {
+    return Ok(ValidateCallbackResult::Invalid(
+      "Deprecated is terminal; only EndOfLife transition is permitted".to_string(),
+    ));
+  }
+
   // Terminal destination: any non-terminal source may Deprecate or end
   if *to == LifecycleStage::Deprecated || *to == LifecycleStage::EndOfLife {
     // hibernation_origin must be cleared when entering a terminal state
