@@ -52,7 +52,11 @@ fn resolve_latest_ndo_record(original_action_hash: ActionHash) -> ExternResult<O
         if record_details.updates.is_empty() {
           return Ok(Some(record_details.record));
         }
-        // Follow the most recent update in the chain
+        // Follow the most recent update in the chain.
+        // Tie-breaking: if two updates share the same timestamp (rare on the DHT),
+        // max_by_key picks one deterministically by iteration order. This is acceptable
+        // because simultaneous updates from different agents would themselves be a
+        // conflict the initiator must resolve via a subsequent update.
         current_hash = record_details
           .updates
           .into_iter()

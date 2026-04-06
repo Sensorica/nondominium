@@ -130,6 +130,10 @@ pub struct NondominiumIdentity {
   pub resource_nature: ResourceNature,
   pub lifecycle_stage: LifecycleStage, // the ONLY mutable field (REQ-NDO-L0-04)
   pub created_at: Timestamp,
+  // Immutable after creation. REQ-NDO-L0-04 is stricter than the spec strictly requires here;
+  // description is frozen intentionally to prevent retroactive reframing of the resource's
+  // original intent. Post-MVP: consider a separate mutable `notes` field if editorial
+  // corrections are needed without altering the canonical identity record.
   pub description: Option<String>,
   // Required when lifecycle_stage == Deprecated (REQ-NDO-LC-06).
   // Set exactly once during the Deprecated transition; immutable once set.
@@ -504,6 +508,10 @@ fn validate_update_nondominium_identity(
         // Verify the successor hash resolves to a real record on the DHT.
         // must_get_valid_record propagates UnresolvedDependencies via ? if not yet fetched.
         must_get_valid_record(h.clone())?;
+        // TODO (post-MVP): verify the resolved record's entry type is NondominiumIdentity.
+        // Currently only record existence is checked; a motivated actor could reference an
+        // arbitrary action hash as the "successor". Deserializing EntryTypes here would add
+        // strong type safety at the cost of additional DHT reads in the validation path.
       }
     }
   }

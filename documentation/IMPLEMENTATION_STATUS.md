@@ -75,7 +75,7 @@ Each zome follows the integrity/coordinator pattern.
 `NondominiumIdentity` provides a permanent identity anchor for any resource from conception through end-of-life. Implemented in PR #80.
 
 - **Entry type**: `NondominiumIdentity` with `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `description`
-- **Enums**: `LifecycleStage` (7 stages: Ideation→Specification→Development→Production→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (6 variants), `ResourceNature` (5 variants)
+- **Enums**: `LifecycleStage` (10 stages: Ideation→Specification→Development→Prototype→Stable→Distributed→Active→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (6 variants), `ResourceNature` (5 variants)
 - **Immutability**: Only `lifecycle_stage` may change post-creation; deletes are always invalid
 - **Authorization**: Only the `initiator` may call `update_lifecycle_stage`
 - **Discovery links**: `AllNdos` (global `"ndo_identities"` path anchor), `AgentToNdo` (per-initiator)
