@@ -87,6 +87,18 @@ Each zome follows the integrity/coordinator pattern with robust validation and c
 - **Resource Integration**: Direct governance attachment to resources
 - **Audit Trail**: Complete rule creation and modification tracking
 
+#### NDO Layer 0 — Identity Anchor ✅
+
+`NondominiumIdentity` provides a permanent identity anchor for any resource from conception through end-of-life. Implemented in PR #80.
+
+- **Entry type**: `NondominiumIdentity` with `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `description`
+- **Enums**: `LifecycleStage` (7 stages: Ideation→Specification→Development→Production→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (6 variants), `ResourceNature` (5 variants)
+- **Immutability**: Only `lifecycle_stage` may change post-creation; deletes are always invalid
+- **Authorization**: Only the `initiator` may call `update_lifecycle_stage`
+- **Discovery links**: `AllNdos` (global `"ndo_identities"` path anchor), `AgentToNdo` (per-initiator)
+- **API**: `create_ndo`, `get_ndo` (resolves update chain), `update_lifecycle_stage`
+- **REQ coverage**: REQ-NDO-L0-01, -02, -03, -04, -06 implemented; REQ-NDO-L0-05 (EconomicEvent ref on transitions) not yet enforced; REQ-NDO-L0-07 (per-stage/nature/regime discovery anchors) not yet implemented
+
 ### Discovery and Query Patterns ✅
 
 #### Comprehensive Link Architecture
@@ -431,7 +443,8 @@ The following are **documented and traceable** to REQ-NDO-* in `documentation/re
 
 | Track | Design sources | Implementation status |
 | ----- | -------------- | ---------------------- |
-| **NDO three-layer model** | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3 | Not started — MVP uses flat `ResourceSpecification` + `EconomicResource` |
+| **NDO Layer 0 (identity anchor)** | `ndo_prima_materia.md` §§4, 8; REQ-NDO-L0-01–07 | **Complete** (#80) — `NondominiumIdentity` entry with lifecycle validation; REQ-NDO-L0-05 (EconomicEvent ref) and -07 (facet anchors) not yet enforced |
+| **NDO Layers 1 & 2** | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3 | Not started — Layer 1 (Specification links), Layer 2 (Process links), cross-layer link types pending |
 | **Lifecycle vs operational state split** | `ndo_prima_materia.md` §5, §9.4 (`REQ-NDO-OS-01`–`06`) | Not started — `ResourceState` still conflated (see zome_resource TODOs) |
 | **Unyt (EconomicAgreement, RAVE)** | `ndo_prima_materia.md` §6.6, §11.5; `unyt-integration.md`; REQ-NDO-CS-07–CS-11 | Not started — no Unyt cell / RAVE validation in governance zome |
 | **Flowsta (agent linking, IdentityVerification)** | `ndo_prima_materia.md` §6.7, §11.6; `flowsta-integration.md`; REQ-NDO-CS-12–CS-15 | Not started — `flowsta-agent-linking` zomes not bundled; `GovernanceRule` remains untyped strings |

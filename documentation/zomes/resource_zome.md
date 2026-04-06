@@ -2,21 +2,14 @@
 
 The Resource zome implements the core resource management infrastructure for the nondominium ecosystem, providing ValueFlows-compliant resource specification management, Economic Resource lifecycle tracking, governance rule enforcement, and custody transfer workflows. It serves as the foundation for all resource-related activities and supports the Private Participation Receipt (PPR) reputation system through comprehensive audit trails.
 
-> **TODO (post-MVP — NDO Three-Layer Model, ndo_prima_materia.md §4)**: Introduce
-> `NondominiumIdentity` as the Layer 0 permanent identity anchor for all resources. This entry
-> carries `name`, `description`, `initiator`, `property_regime` (6-variant `PropertyRegime` enum),
-> `resource_nature`, `lifecycle_stage` (10-stage `LifecycleStage` enum), and `created_at`. Its
-> action hash becomes the stable identity for the NDO.
+> **NDO Layer 0 (`NondominiumIdentity`) is implemented** — see `### NondominiumIdentity Entry (Layer 0)` below.
 >
-> New link types required:
+> **TODO (post-MVP — NDO Layers 1 & 2, ndo_prima_materia.md §§4, 8, 10)**: Cross-layer link types not yet implemented:
 > - `NDOToSpecification` — Layer 0 identity hash to `ResourceSpecification` (Layer 1 activation)
 > - `NDOToProcess` — Layer 0 identity hash to `Process` (Layer 2 activation)
 > - `NDOToComponent` — Layer 0 identity hash to child NDO identity hash (holonic composition)
 > - `CapabilitySlot` — Layer 0 identity hash to capability targets (stigmergic attachment surface)
-> - `NDOsByLifecycleStage`, `NDOsByNature`, `NDOsByRegime` — discovery anchors
->
-> See `ndo_prima_materia.md` §§4, 8, and 10 for entry structures, link types, and migration
-> strategy. See `resources.md` §3 for the canonical three-layer model.
+> - `NDOsByLifecycleStage`, `NDOsByNature`, `NDOsByRegime` — facet discovery anchors (REQ-NDO-L0-07)
 >
 > **Unyt (post-MVP):** endorsed economic terms use typed **`EconomicAgreement`** `GovernanceRule` data (`ndo_prima_materia.md` §6.6, REQ-NDO-CS-09–CS-11; `documentation/requirements/post-mvp/unyt-integration.md`).
 
@@ -109,10 +102,15 @@ pub enum ResourceState {
     Reserved,         // → OperationalState::Reserved (LifecycleStage unchanged)
 }
 
-// TARGET — LifecycleStage (on NondominiumIdentity, Layer 0):
+// IMPLEMENTED — LifecycleStage (on NondominiumIdentity, Layer 0, REQ-NDO-LC-01–07):
 pub enum LifecycleStage {
-    Ideation, Specification, Development, Prototype,
-    Stable, Distributed, Active, Hibernating, Deprecated, EndOfLife,
+    Ideation,      // spark of an idea, no design yet
+    Specification, // design/requirements being written
+    Development,   // active construction / prototyping
+    Production,    // stable, in active use
+    Hibernating,   // dormant but not end-of-life
+    Deprecated,    // superseded by a newer version
+    EndOfLife,     // permanently archived, Layer 0 tombstone
 }
 
 // TARGET — OperationalState (on EconomicResource, Layer 2):
@@ -122,7 +120,7 @@ pub enum OperationalState {
 }
 ```
 
-**Key principle**: Transport, storage, and maintenance are *processes* that act on a resource at *any* lifecycle stage. A `Prototype` can be `InTransit` between R&D labs. An `Active` resource can be `InMaintenance`. These are operational conditions, not lifecycle milestones.
+**Key principle**: Transport, storage, and maintenance are *processes* that act on a resource at *any* lifecycle stage. A `Development` resource can be `InTransit` between R&D labs. A `Production` resource can be `InMaintenance`. These are operational conditions, not lifecycle milestones.
 
 **Lifecycle**: `LifecycleStage` tracks maturity/evolution (advances rarely, almost irreversibly)
 **Operational**: `OperationalState` tracks active processes (cycles frequently, reset to `Available` when process ends)
