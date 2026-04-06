@@ -1,3 +1,11 @@
+/**
+ * @deprecated Tryorama (TypeScript) tests are deprecated.
+ *
+ * All new tests must be written in Sweettest (Rust): `dnas/nondominium/tests/`
+ * These files are kept as reference but will not be maintained going forward.
+ * See tests/DEPRECATED.md for migration context.
+ */
+
 import { assert, test } from "vitest";
 import { Scenario, PlayerApp, dhtSync } from "@holochain/tryorama";
 import { runScenarioWithTwoAgents } from "../utils.js";
