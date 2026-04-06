@@ -62,11 +62,13 @@ struct ReaAgent {
 /// Panics if the record has no entry, or if the entry is not an `App` entry,
 /// or if deserialization fails. All three cases indicate a programming error
 /// (wrong return type annotation on the `conductor.call` site).
-fn decode_record_entry<T: serde::de::DeserializeOwned>(record: Record) -> T {
-    match record.entry.into_option().expect("record has no entry") {
-        Entry::App(app_bytes) => holochain_serialized_bytes::decode(app_bytes.into_sb().bytes())
-            .expect("entry deserialization failed"),
-        other => panic!("expected Entry::App, got {other:?}"),
+fn decode_record_entry<T: serde::de::DeserializeOwned>(record: &Record) -> T {
+    match record.entry().as_option() {
+        Some(Entry::App(app_bytes)) => {
+            holochain_serialized_bytes::decode(app_bytes.as_sb().bytes())
+                .expect("entry deserialization failed")
+        }
+        _ => panic!("expected Present App entry"),
     }
 }
 
@@ -93,7 +95,7 @@ async fn person_create_populates_hrea_agent_hash() {
         .call(&nd_alice.zome("zome_person"), "create_person", input)
         .await;
 
-    let person: PersonOutput = decode_record_entry(record);
+    let person: PersonOutput = decode_record_entry(&record);
 
     assert!(
         person.hrea_agent_hash.is_some(),
@@ -126,7 +128,7 @@ async fn get_hrea_agents_returns_matching_rea_agent() {
         .call(&nd_alice.zome("zome_person"), "create_person", input)
         .await;
 
-    let person: PersonOutput = decode_record_entry(person_record);
+    let person: PersonOutput = decode_record_entry(&person_record);
     let hrea_hash = person
         .hrea_agent_hash
         .expect("hrea_agent_hash must be set to test cross-DNA read");
@@ -150,7 +152,7 @@ async fn get_hrea_agents_returns_matching_rea_agent() {
         .unwrap()
         .expect("agent record should not be None");
 
-    let rea_agent: ReaAgent = decode_record_entry(agent_record);
+    let rea_agent: ReaAgent = decode_record_entry(&agent_record);
 
     assert_eq!(
         rea_agent.name, "Bob",
