@@ -388,21 +388,47 @@ Each transition between lifecycle stages is driven by a **VfAction economic even
 ```mermaid
 stateDiagram-v2
     [*] --> Ideation : "NondominiumIdentity created"
+
+    %% Forward maturity chain (monotonic, no skipping)
     Ideation --> Specification : "Produce (spec created)"
     Specification --> Development : "Work (contributions begin)"
     Development --> Prototype : "Produce (PoC delivered)"
     Prototype --> Stable : "Accept (peer validated)"
     Stable --> Distributed : "Transfer (first fabrication)"
     Distributed --> Active : "Use (operational)"
+
+    %% Suspend — any non-terminal stage may enter Hibernating
+    Ideation --> Hibernating : "Lower"
+    Specification --> Hibernating : "Lower"
+    Development --> Hibernating : "Lower"
+    Prototype --> Hibernating : "Lower"
+    Stable --> Hibernating : "Lower"
+    Distributed --> Hibernating : "Lower"
     Active --> Hibernating : "Lower (activity paused)"
-    Hibernating --> Active : "Raise (reactivated)"
+
+    %% Resume — always returns to the stage that was paused (hibernation_origin)
+    Hibernating --> Ideation : "Raise (to origin)"
+    Hibernating --> Specification : "Raise (to origin)"
+    Hibernating --> Development : "Raise (to origin)"
+    Hibernating --> Prototype : "Raise (to origin)"
+    Hibernating --> Stable : "Raise (to origin)"
+    Hibernating --> Distributed : "Raise (to origin)"
+    Hibernating --> Active : "Raise (to origin)"
+
+    %% Terminal — any non-terminal stage may deprecate or end
     Hibernating --> Deprecated : "Cite (successor declared)"
     Active --> Deprecated : "Cite (superseded)"
     Deprecated --> EndOfLife : "Consume (formally concluded)"
     Active --> EndOfLife : "Consume (formally concluded)"
-    Stable --> Hibernating : "Lower"
-    Development --> Hibernating : "Lower"
 ```
+
+> **Hibernating is a memory-preserving pause.** The `hibernation_origin` field records the stage
+> that was active before entering `Hibernating`. On resume ("Raise"), the resource returns to
+> exactly that stage — not necessarily `Active`. This means a resource paused at `Specification`
+> resumes at `Specification`, preserving the integrity of the maturity chain.
+>
+> The Mermaid above shows representative "Raise" arrows; in practice, the valid resume target
+> is always `hibernation_origin`, enforced by the integrity zome.
 
 **Transition authorization by role:**
 
@@ -412,8 +438,10 @@ stateDiagram-v2
 | Specification → Development | Initiator or any Accountable Agent with contribution |
 | Development → Prototype | Custodian + governance validation |
 | Prototype → Stable | Multi-agent peer validation (configurable N-of-M) |
+| Stable → Distributed | Custodian |
+| Distributed → Active | Custodian |
 | Any → Hibernating | Current custodian(s) |
-| Hibernating → Active | Current custodian(s) |
+| Hibernating → {origin stage} | Current custodian(s) |
 | Any → Deprecated | Custodian + declaration of successor NDO |
 | Any → EndOfLife | Custodian + challenge period (see REQ-GOV-11 to REQ-GOV-13) |
 
