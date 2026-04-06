@@ -117,8 +117,10 @@ pub struct EconomicResource {
 
 // NDO Layer 0 — NondominiumIdentity (REQ-NDO-L0-01, REQ-NDO-L0-07)
 // The permanent identity anchor of a resource. Exists from the moment of conception through
-// end-of-life. All fields are immutable after creation EXCEPT lifecycle_stage (and
-// successor_ndo_hash, which is set exactly once when transitioning to Deprecated).
+// end-of-life. Most fields are immutable after creation; three are conditionally mutable:
+//   lifecycle_stage    — changes on every transition (REQ-NDO-L0-04)
+//   successor_ndo_hash — set once when entering Deprecated (REQ-NDO-LC-06)
+//   hibernation_origin — set on → Hibernating, cleared on Hibernating → (see §5.3)
 // The original ActionHash from create_ndo is the stable Layer 0 identity for all time.
 // See: documentation/requirements/ndo_prima_materia.md §4.2 and §9.1
 #[hdk_entry_helper]
@@ -128,7 +130,7 @@ pub struct NondominiumIdentity {
   pub initiator: AgentPubKey,
   pub property_regime: PropertyRegime,
   pub resource_nature: ResourceNature,
-  pub lifecycle_stage: LifecycleStage, // the ONLY mutable field (REQ-NDO-L0-04)
+  pub lifecycle_stage: LifecycleStage,
   pub created_at: Timestamp,
   pub description: Option<String>,
   // Required when lifecycle_stage == Deprecated (REQ-NDO-LC-06).
@@ -136,6 +138,13 @@ pub struct NondominiumIdentity {
   // #[serde(default)] ensures existing pre-field records deserialize to None.
   #[serde(default)]
   pub successor_ndo_hash: Option<ActionHash>,
+  // Records the stage that was active immediately before entering Hibernating.
+  // Set by the coordinator on → Hibernating; cleared on Hibernating → (any stage).
+  // Always None in non-Hibernating states. Enables "Hibernating → {origin}" resume
+  // semantics so a paused resource returns to exactly where it was.
+  // #[serde(default)] ensures forward-compatibility with pre-field records.
+  #[serde(default)]
+  pub hibernation_origin: Option<LifecycleStage>,
 }
 
 #[hdk_entry_types]
@@ -400,15 +409,27 @@ fn validate_create_nondominium_identity(
     ));
   }
 
+  // hibernation_origin has no meaning at creation time
+  if ndi.hibernation_origin.is_some() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "hibernation_origin must be None at creation".to_string(),
+    ));
+  }
+
   Ok(ValidateCallbackResult::Valid)
 }
 
-// REQ-NDO-L0-03, REQ-NDO-L0-04: Only lifecycle_stage (and successor_ndo_hash during the
-// Deprecated transition) may be updated, and only by the initiator. All other fields are
-// permanently immutable after creation.
-// REQ-NDO-LC-04: State machine transition allowlist enforced — Hibernating is reversible;
-// Deprecated and EndOfLife are terminal.
+// REQ-NDO-L0-03, REQ-NDO-L0-04: Only lifecycle_stage, successor_ndo_hash (once, on
+// Deprecated), and hibernation_origin (set/cleared with Hibernating) may change.
+// All other fields are permanently immutable. Only the initiator may update.
+// REQ-NDO-LC-04: Hibernating is reversible; Deprecated and EndOfLife are terminal.
 // REQ-NDO-LC-06: Transitioning to Deprecated requires a successor NDO hash.
+//
+// State machine (per ndo_prima_materia.md §5.3):
+//   Forward chain (monotonic): Ideation→Spec→Dev→Proto→Stable→Dist→Active
+//   Suspend (any non-terminal → Hibernating): records hibernation_origin
+//   Resume (Hibernating → origin): clears hibernation_origin; target MUST equal origin
+//   Terminal (any → Deprecated [+successor] or EndOfLife): Deprecated → EndOfLife only exit
 fn validate_update_nondominium_identity(
   action: &Update,
   original: &NondominiumIdentity,
@@ -421,7 +442,7 @@ fn validate_update_nondominium_identity(
     ));
   }
 
-  // --- Immutable fields ---
+  // --- Permanently immutable fields ---
   if new_entry.name != original.name {
     return Ok(ValidateCallbackResult::Invalid(
       "NondominiumIdentity name is immutable after creation".to_string(),
@@ -453,7 +474,7 @@ fn validate_update_nondominium_identity(
     ));
   }
 
-  // --- successor_ndo_hash immutability: once set, cannot change ---
+  // --- successor_ndo_hash: immutable once set ---
   if original.successor_ndo_hash.is_some()
     && new_entry.successor_ndo_hash != original.successor_ndo_hash
   {
@@ -462,63 +483,113 @@ fn validate_update_nondominium_identity(
     ));
   }
 
-  // --- State machine: enforce transition allowlist (REQ-NDO-LC-04) ---
+  // --- Semantic state machine ---
   let from = &original.lifecycle_stage;
   let to = &new_entry.lifecycle_stage;
 
-  let allowed: &[LifecycleStage] = match from {
-    LifecycleStage::Ideation      => &[LifecycleStage::Specification],
-    LifecycleStage::Specification => &[LifecycleStage::Development],
-    LifecycleStage::Development   => &[LifecycleStage::Prototype,   LifecycleStage::Hibernating],
-    LifecycleStage::Prototype     => &[LifecycleStage::Stable,      LifecycleStage::Hibernating],
-    LifecycleStage::Stable        => &[LifecycleStage::Distributed, LifecycleStage::Hibernating],
-    LifecycleStage::Distributed   => &[LifecycleStage::Active,      LifecycleStage::Hibernating],
-    LifecycleStage::Active        => &[
-      LifecycleStage::Hibernating,
-      LifecycleStage::Deprecated,
-      LifecycleStage::EndOfLife,
-    ],
-    // Hibernating is the only reversible pause state (REQ-NDO-LC-04)
-    LifecycleStage::Hibernating   => &[LifecycleStage::Active, LifecycleStage::Deprecated],
-    // Terminal states: Deprecated can only move to EndOfLife; EndOfLife has no exit
-    LifecycleStage::Deprecated    => &[LifecycleStage::EndOfLife],
-    LifecycleStage::EndOfLife     => &[], // fully terminal — no transitions permitted
-  };
-
-  if !allowed.contains(to) {
-    return Ok(ValidateCallbackResult::Invalid(format!(
-      "Invalid lifecycle transition: {:?} → {:?} is not permitted by the state machine",
-      from, to
-    )));
+  // Terminal source: EndOfLife has no exit
+  if *from == LifecycleStage::EndOfLife {
+    return Ok(ValidateCallbackResult::Invalid(
+      "EndOfLife is terminal; no further transitions are permitted".to_string(),
+    ));
   }
 
-  // --- REQ-NDO-LC-06: Transitioning to Deprecated requires a successor NDO hash ---
-  if *to == LifecycleStage::Deprecated {
-    match &new_entry.successor_ndo_hash {
-      None => {
-        return Ok(ValidateCallbackResult::Invalid(
-          "Transition to Deprecated requires successor_ndo_hash (REQ-NDO-LC-06)".to_string(),
-        ));
-      }
-      Some(h) => {
-        // Verify the successor hash resolves to a real record on the DHT.
-        // must_get_valid_record propagates UnresolvedDependencies via ? if not yet fetched.
-        must_get_valid_record(h.clone())?;
+  // Terminal destination: any non-terminal source may Deprecate or end
+  if *to == LifecycleStage::Deprecated || *to == LifecycleStage::EndOfLife {
+    // hibernation_origin must be cleared when entering a terminal state
+    if new_entry.hibernation_origin.is_some() {
+      return Ok(ValidateCallbackResult::Invalid(
+        "hibernation_origin must be None when entering a terminal state".to_string(),
+      ));
+    }
+    // REQ-NDO-LC-06: Deprecated requires a validated successor hash
+    if *to == LifecycleStage::Deprecated {
+      match &new_entry.successor_ndo_hash {
+        None => {
+          return Ok(ValidateCallbackResult::Invalid(
+            "Transition to Deprecated requires successor_ndo_hash (REQ-NDO-LC-06)".to_string(),
+          ));
+        }
+        Some(h) => {
+          must_get_valid_record(h.clone())?;
+        }
       }
     }
+    return Ok(ValidateCallbackResult::Valid);
   }
 
-  // --- successor_ndo_hash may only be set when transitioning to Deprecated ---
-  if new_entry.successor_ndo_hash.is_some()
-    && original.successor_ndo_hash.is_none()
-    && *to != LifecycleStage::Deprecated
-  {
+  // successor_ndo_hash may only be set when entering Deprecated (caught above)
+  if new_entry.successor_ndo_hash.is_some() && original.successor_ndo_hash.is_none() {
     return Ok(ValidateCallbackResult::Invalid(
       "successor_ndo_hash may only be set when transitioning to Deprecated".to_string(),
     ));
   }
 
-  Ok(ValidateCallbackResult::Valid)
+  // Entering Hibernating: record origin, reject Hibernating → Hibernating
+  if *to == LifecycleStage::Hibernating {
+    if *from == LifecycleStage::Hibernating {
+      return Ok(ValidateCallbackResult::Invalid(
+        "Cannot transition Hibernating → Hibernating".to_string(),
+      ));
+    }
+    // hibernation_origin must be set to the stage being paused
+    if new_entry.hibernation_origin.as_ref() != Some(from) {
+      return Ok(ValidateCallbackResult::Invalid(format!(
+        "hibernation_origin must equal the current stage ({:?}) when entering Hibernating",
+        from
+      )));
+    }
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
+  // Resuming from Hibernating: must return to origin, clear origin field
+  if *from == LifecycleStage::Hibernating {
+    let origin = original.hibernation_origin.as_ref().ok_or_else(|| {
+      wasm_error!(WasmErrorInner::Guest(
+        "Hibernating entry is missing hibernation_origin — data integrity error".to_string()
+      ))
+    })?;
+    if to != origin {
+      return Ok(ValidateCallbackResult::Invalid(format!(
+        "Resuming from Hibernating must return to the origin stage ({:?}), not {:?}",
+        origin, to
+      )));
+    }
+    if new_entry.hibernation_origin.is_some() {
+      return Ok(ValidateCallbackResult::Invalid(
+        "hibernation_origin must be None after resuming from Hibernating".to_string(),
+      ));
+    }
+    return Ok(ValidateCallbackResult::Valid);
+  }
+
+  // hibernation_origin must remain None outside of Hibernating transitions
+  if new_entry.hibernation_origin.is_some() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "hibernation_origin must be None for non-Hibernating transitions".to_string(),
+    ));
+  }
+
+  // Forward maturity chain (monotonic, no skipping)
+  let allowed_next = match from {
+    LifecycleStage::Ideation      => Some(LifecycleStage::Specification),
+    LifecycleStage::Specification => Some(LifecycleStage::Development),
+    LifecycleStage::Development   => Some(LifecycleStage::Prototype),
+    LifecycleStage::Prototype     => Some(LifecycleStage::Stable),
+    LifecycleStage::Stable        => Some(LifecycleStage::Distributed),
+    LifecycleStage::Distributed   => Some(LifecycleStage::Active),
+    LifecycleStage::Active        => None, // Active exits only via Hibernating/terminal (above)
+    LifecycleStage::Deprecated    => None, // Deprecated exits only via EndOfLife (above)
+    _ => None,
+  };
+
+  match allowed_next {
+    Some(ref next) if next == to => Ok(ValidateCallbackResult::Valid),
+    _ => Ok(ValidateCallbackResult::Invalid(format!(
+      "Invalid lifecycle transition: {:?} → {:?} is not permitted",
+      from, to
+    ))),
+  }
 }
 
 // REQ-NDO-L0-06: Layer 0 entries cannot be deleted. The identity is permanent.

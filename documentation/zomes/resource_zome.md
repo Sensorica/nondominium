@@ -22,13 +22,14 @@ Permanent identity anchor for any resource. Exists from the moment of conception
 ```rust
 pub struct NondominiumIdentity {
     pub name: String,
-    pub initiator: AgentPubKey,          // set from agent_info at creation; immutable
+    pub initiator: AgentPubKey,          // immutable after creation
     pub property_regime: PropertyRegime, // immutable after creation
     pub resource_nature: ResourceNature, // immutable after creation
-    pub lifecycle_stage: LifecycleStage, // the ONLY mutable field (REQ-NDO-L0-04)
+    pub lifecycle_stage: LifecycleStage, // mutable — changes on every transition
     pub created_at: Timestamp,           // immutable after creation
     pub description: Option<String>,     // immutable after creation
-    pub successor_ndo_hash: Option<ActionHash>, // set once on Deprecated transition (REQ-NDO-LC-06)
+    pub successor_ndo_hash: Option<ActionHash>, // set once on → Deprecated (REQ-NDO-LC-06)
+    pub hibernation_origin: Option<LifecycleStage>, // set on → Hibernating, cleared on exit
 }
 ```
 
@@ -42,13 +43,21 @@ pub struct NondominiumIdentity {
 | Suspension (reversible) | `Hibernating` |
 | Terminal | `Deprecated` → `EndOfLife` |
 
-State machine transitions are enforced by the integrity zome (see `ndo_prima_materia.md §5.3`). `Hibernating` is the only reversible pause state — it can return to `Active`. `Deprecated` and `EndOfLife` cannot be reactivated (REQ-NDO-LC-04).
+State machine transitions are enforced by the integrity zome (see `ndo_prima_materia.md §5.3`). `Hibernating` is a memory-preserving pause — it resumes to the exact stage that was paused, not necessarily `Active`. `Deprecated` and `EndOfLife` are terminal (REQ-NDO-LC-04). Any non-terminal stage may enter `Hibernating`, `Deprecated`, or `EndOfLife`.
 
 **PropertyRegime** (6 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`
 
 **ResourceNature** (5 variants): `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
 
-**Immutability**: Only `lifecycle_stage` may change post-creation, except that `successor_ndo_hash` is set exactly once during the `Deprecated` transition. Once `successor_ndo_hash` is set it is also immutable. Delete is always `Invalid` — Layer 0 is permanent.
+**Mutability** (three conditionally-mutable fields):
+
+| Field | Rule |
+|---|---|
+| `lifecycle_stage` | Changes on every transition |
+| `successor_ndo_hash` | Set exactly once when entering `Deprecated`; immutable after |
+| `hibernation_origin` | Set to the paused stage when entering `Hibernating`; cleared on exit |
+
+All other fields are permanently immutable after creation. Delete is always `Invalid` — Layer 0 is permanent.
 
 **Design note — NDO as identifier, not chronicle**: `lifecycle_stage` at creation reflects the resource's actual state at registration time, not a claim about when it was originally conceived. An existing physical resource registered into the system is created at its true current stage (e.g. `Active`), not forced through a synthetic `Ideation` entry. The NDO identity anchor behaves like a DOI or ISBN: it is assigned at the moment of system registration, which may be well after the resource began its life. Forcing `Ideation`-only initial stages would require fabricating DHT history for brownfield resources and block migration of existing `EconomicResource` entries when Layers 1/2 activate.
 
