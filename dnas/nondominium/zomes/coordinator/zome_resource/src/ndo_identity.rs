@@ -216,8 +216,13 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
     current_entry.hibernation_origin = None;
   }
 
-  current_entry.lifecycle_stage = to;
-  current_entry.successor_ndo_hash = input.successor_ndo_hash.clone();
+  current_entry.lifecycle_stage = to.clone();
+  // Only update successor_ndo_hash when entering Deprecated. Preserve the existing value
+  // for all other transitions — Deprecated → EndOfLife must not overwrite the already-set
+  // successor hash with None (integrity rejects immutable-once-set field changes).
+  if to == LifecycleStage::Deprecated {
+    current_entry.successor_ndo_hash = input.successor_ndo_hash.clone();
+  }
 
   let latest_action_hash = record.action_address().clone();
   let update_hash = update_entry(latest_action_hash, &current_entry)?;
