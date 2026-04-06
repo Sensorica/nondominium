@@ -19,6 +19,12 @@ pub struct NdoOutput {
   pub entry: NondominiumIdentity,
 }
 
+// Output from get_all_ndos
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetAllNdosOutput {
+  pub ndos: Vec<NdoOutput>,
+}
+
 // Input for updating a NondominiumIdentity's lifecycle stage (the only permitted mutation).
 // REQ-NDO-LC-06: successor_ndo_hash required when new_stage == Deprecated.
 // REQ-NDO-L0-05: transition_event_hash references the triggering EconomicEvent.
@@ -196,10 +202,14 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
 
   // REQ-NDO-LC-06: Create successor link when transitioning to Deprecated
   if input.new_stage == LifecycleStage::Deprecated {
-    // unwrap is safe — pre-flight check above guarantees Some
+    let successor_hash = input.successor_ndo_hash.ok_or_else(|| {
+      ResourceError::InvalidInput(
+        "successor_ndo_hash required for Deprecated transition (REQ-NDO-LC-06)".to_string(),
+      )
+    })?;
     create_link(
       input.original_action_hash.clone(),
-      input.successor_ndo_hash.unwrap(),
+      successor_hash,
       LinkTypes::NdoToSuccessor,
       (),
     )?;
@@ -216,4 +226,48 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
   }
 
   Ok(update_hash)
+}
+
+/// Retrieve all NondominiumIdentities via the global "ndo_identities" anchor.
+///
+/// Returns the latest version of each NDO (chain-resolved). Entries that fail
+/// to resolve or deserialize are silently skipped — DHT availability is eventual.
+///
+/// REQ-NDO-L0-07
+#[hdk_extern]
+pub fn get_all_ndos(_: ()) -> ExternResult<GetAllNdosOutput> {
+  let path = Path::from("ndo_identities");
+  let links_query =
+    LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllNdos)?;
+  let links = get_links(links_query, GetStrategy::default())?;
+
+  let mut ndos = Vec::new();
+  for link in links {
+    let Some(action_hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
+      continue;
+    };
+    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
+      continue;
+    };
+    ndos.push(NdoOutput { action_hash, entry });
+  }
+  Ok(GetAllNdosOutput { ndos })
+}
+
+/// Return raw AgentToNdo links for the calling agent.
+///
+/// Returns links rather than resolved entries so callers can access
+/// the target action_hash directly without a second DHT round-trip
+/// when only the identity is needed. Pass each target to `get_ndo`
+/// to resolve the current entry.
+///
+/// REQ-NDO-L0-07
+#[hdk_extern]
+pub fn get_my_ndos(_: ()) -> ExternResult<Vec<Link>> {
+  let agent_pub_key = agent_info()?.agent_initial_pubkey;
+  let links_query = LinkQuery::try_new(agent_pub_key, LinkTypes::AgentToNdo)?;
+  get_links(links_query, GetStrategy::default())
 }
