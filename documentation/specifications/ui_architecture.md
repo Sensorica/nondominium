@@ -8,7 +8,7 @@ The **Nondominium** project has evolved into a sophisticated, production-ready e
 
 **Technology Stack:**
 
-- SvelteKit + Svelte 5 + TypeScript + TailwindCSS ✅
+- SvelteKit + Svelte 5 + TypeScript + UnoCSS + Melt UI next-gen ✅
 - **Effect-TS** for functional programming paradigms with Economic Process and PPR state management
 - Comprehensive testing (Unit, Integration, E2E) including Economic Process workflows
 - Enhanced 7-layer architecture pattern supporting complex cross-zome interactions
@@ -323,7 +323,7 @@ get_all_claims() -> Vec<Claim>
 
 1. **Migrate to SvelteKit** - Convert from vanilla Svelte with Economic Process support
 2. **Add Effect-TS dependencies** - `effect` + related packages for complex state management
-3. **Setup TailwindCSS** - Design system supporting role-based UI and process workflows
+3. **Setup UnoCSS + Melt UI next-gen** — design system supporting role-based UI and process workflows
 4. **Create Enhanced HolochainClientService** - Connection layer with cross-zome coordination and PPR integration
 
 ### Phase 2: Comprehensive Service Layer
@@ -663,12 +663,12 @@ const createAndLinkProfile = (
 - Basic Svelte 5 setup with Holochain client connection
 - No UI components yet - minimal scaffolding only
 - TypeScript support configured
-- Missing: SvelteKit, TailwindCSS, Effect-TS
+- Missing: SvelteKit, UnoCSS, Melt UI next-gen, Effect-TS
 
 ### Migration Steps
 
 1. **Convert to SvelteKit**: Update build config and routing
-2. **Add dependencies**: Effect-TS, TailwindCSS
+2. **Add dependencies**: Effect-TS, UnoCSS, Melt UI next-gen (`melt`)
 3. **Create service layer**: HolochainClientService with Effect integration
 4. **Implement stores**: PersonStore, RoleStore with Effect patterns
 5. **Build components**: Starting with PersonProfile and community directory

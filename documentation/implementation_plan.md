@@ -510,7 +510,7 @@ _Optimizing the system for large-scale network operation_
 ### Phase 1: Enhanced Foundation UI 🚀 **IMMEDIATE PRIORITY**
 
 - [ ] **SvelteKit Migration**: Convert to full-stack framework with Economic Process support
-- [ ] **TailwindCSS Integration**: Design system supporting role-based UI and process workflows
+- [ ] **UnoCSS + Melt UI next-gen Integration**: Design system (UnoCSS preset-wind, preset-icons) and headless components supporting role-based UI and process workflows (see #83)
 - [ ] **Effect-TS Integration**: Functional programming layer for complex async state including PPR tracking
 - [ ] **Enhanced HolochainClientService**: Type-safe DHT connection with Economic Process and PPR integration
 

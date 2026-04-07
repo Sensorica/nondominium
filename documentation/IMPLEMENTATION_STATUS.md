@@ -11,7 +11,7 @@ This document tracks what is **actually implemented and verified** in the curren
 ### Technology Stack
 
 - **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), compiled to WASM
-- **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5 + TailwindCSS
+- **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5 + UnoCSS + Melt UI next-gen
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) is deprecated
 - **Client**: @holochain/client 0.19.0 for DHT interaction
 
@@ -166,7 +166,7 @@ Resource lifecycle, governance/PPR wiring, and production hardening via hREA are
 
 ### Infrastructure ✅
 
-- SvelteKit + TailwindCSS project scaffolded (`vite.config.ts`, `svelte.config.js`)
+- SvelteKit + UnoCSS + Melt UI next-gen project scaffolded (`vite.config.ts`, `svelte.config.js`, `uno.config.ts`)
 - `HolochainProvider.svelte` — Holochain client connection management
 - Service layer stubs: `person.service.ts`, `resource.service.ts`, `governance.service.ts`
 - Store layer stubs: `person.store.svelte.ts`, `resource.store.svelte.ts`, `governance.store.svelte.ts`
@@ -231,7 +231,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | Commitments and claims | ✅ Complete |
 | PPR data structures + cryptographic auth | ✅ Complete |
 | hREA Phase 1 (Person/ReaAgent bridge) | ✅ Complete |
-| SvelteKit + TailwindCSS setup | ✅ Complete |
+| SvelteKit + UnoCSS + Melt UI next-gen setup | ⏳ In Progress |
 | Sweettest scaffold + person tests | ✅ Complete |
 | Economic processes (Use/Transport/Storage/Repair) | ❌ Not started |
 | PPR receipt generation and EOL workflows | ❌ Not started |
