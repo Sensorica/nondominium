@@ -575,11 +575,12 @@ fn validate_update_nondominium_identity(
 
   // Resuming from Hibernating: must return to origin, clear origin field
   if *from == LifecycleStage::Hibernating {
-    let origin = original.hibernation_origin.as_ref().ok_or_else(|| {
-      wasm_error!(WasmErrorInner::Guest(
-        "Hibernating entry is missing hibernation_origin — data integrity error".to_string()
-      ))
-    })?;
+    let origin = match original.hibernation_origin.as_ref() {
+      Some(o) => o,
+      None => return Ok(ValidateCallbackResult::Invalid(
+        "Hibernating entry is missing hibernation_origin — data integrity error".to_string(),
+      )),
+    };
     if to != origin {
       return Ok(ValidateCallbackResult::Invalid(format!(
         "Resuming from Hibernating must return to the origin stage ({:?}), not {:?}",
