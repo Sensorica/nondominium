@@ -95,6 +95,7 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
     created_at: sys_time()?,
     description: input.description,
     successor_ndo_hash: None,
+    hibernation_origin: None,
   };
 
   let action_hash = create_entry(&EntryTypes::NondominiumIdentity(entry.clone()))?;
@@ -198,9 +199,30 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
     .into());
   }
 
-  // Apply mutations — integrity validation enforces the state machine and immutability
-  current_entry.lifecycle_stage = input.new_stage.clone();
-  current_entry.successor_ndo_hash = input.successor_ndo_hash.clone();
+  // Apply mutations — integrity validation enforces the state machine and immutability.
+  // hibernation_origin is managed automatically; callers do not set it directly.
+  let from = current_entry.lifecycle_stage.clone();
+  let to = input.new_stage.clone();
+
+  // Entering Hibernating: record the stage being paused
+  if to == LifecycleStage::Hibernating {
+    current_entry.hibernation_origin = Some(from.clone());
+  }
+  // Exiting Hibernating or entering a terminal state: clear the origin field
+  if from == LifecycleStage::Hibernating
+    || to == LifecycleStage::Deprecated
+    || to == LifecycleStage::EndOfLife
+  {
+    current_entry.hibernation_origin = None;
+  }
+
+  current_entry.lifecycle_stage = to.clone();
+  // Only update successor_ndo_hash when entering Deprecated. Preserve the existing value
+  // for all other transitions — Deprecated → EndOfLife must not overwrite the already-set
+  // successor hash with None (integrity rejects immutable-once-set field changes).
+  if to == LifecycleStage::Deprecated {
+    current_entry.successor_ndo_hash = input.successor_ndo_hash.clone();
+  }
 
   let latest_action_hash = record.action_address().clone();
   let update_hash = update_entry(latest_action_hash, &current_entry)?;
