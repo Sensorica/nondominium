@@ -185,6 +185,12 @@ pub enum LinkTypes {
   AllNdos,    // global anchor: "ndo_identities" path → NondominiumIdentity action hashes
   AgentToNdo, // initiator pubkey → NondominiumIdentity action hashes
 
+  // NDO Layer 0 categorization anchors for filtered discovery (REQ-NDO-L0-05, issue #75)
+  // anchor path pattern: "ndo.lifecycle.{Stage:?}" / "ndo.nature.{Nature:?}" / "ndo.regime.{Regime:?}"
+  NdoByLifecycleStage, // Path("ndo.lifecycle.{stage}") → NondominiumIdentity action hashes
+  NdoByNature,         // Path("ndo.nature.{nature}")   → NondominiumIdentity action hashes
+  NdoByPropertyRegime, // Path("ndo.regime.{regime}")   → NondominiumIdentity action hashes
+
   // NDO Layer 0 lifecycle links
   NdoToSuccessor,        // deprecated NDO action hash → successor NondominiumIdentity (REQ-NDO-LC-06)
   NdoToTransitionEvent,  // NDO action hash → EconomicEvent that triggered the transition (REQ-NDO-L0-05)
