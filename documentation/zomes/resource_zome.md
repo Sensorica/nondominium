@@ -9,7 +9,6 @@ The Resource zome implements the core resource management infrastructure for the
 > - `NDOToProcess` — Layer 0 identity hash to `Process` (Layer 2 activation)
 > - `NDOToComponent` — Layer 0 identity hash to child NDO identity hash (holonic composition)
 > - `CapabilitySlot` — Layer 0 identity hash to capability targets (stigmergic attachment surface)
-> - `NDOsByLifecycleStage`, `NDOsByNature`, `NDOsByRegime` — facet discovery anchors (REQ-NDO-L0-07)
 >
 > **Unyt (post-MVP):** endorsed economic terms use typed **`EconomicAgreement`** `GovernanceRule` data (`ndo_prima_materia.md` §6.6, REQ-NDO-CS-09–CS-11; `documentation/requirements/post-mvp/unyt-integration.md`).
 
@@ -61,7 +60,7 @@ All other fields are permanently immutable after creation. Delete is always `Inv
 
 **Design note — NDO as identifier, not chronicle**: `lifecycle_stage` at creation reflects the resource's actual state at registration time, not a claim about when it was originally conceived. An existing physical resource registered into the system is created at its true current stage (e.g. `Active`), not forced through a synthetic `Ideation` entry. The NDO identity anchor behaves like a DOI or ISBN: it is assigned at the moment of system registration, which may be well after the resource began its life. Forcing `Ideation`-only initial stages would require fabricating DHT history for brownfield resources and block migration of existing `EconomicResource` entries when Layers 1/2 activate.
 
-**Discovery links**: `AllNdos` (global anchor `"ndo_identities"` path → action hashes), `AgentToNdo` (initiator pubkey → action hashes)
+**Discovery links**: `AllNdos` (global anchor `"ndo_identities"` path → action hashes), `AgentToNdo` (initiator pubkey → action hashes), `NdoByLifecycleStage` / `NdoByNature` / `NdoByPropertyRegime` (categorization anchors — path pattern `"ndo.lifecycle.{Stage:?}"` etc. → action hashes, REQ-NDO-L0-05)
 
 **Lifecycle links**: `NdoToSuccessor` (deprecated NDO → successor NDO, REQ-NDO-LC-06), `NdoToTransitionEvent` (NDO → triggering `EconomicEvent`, REQ-NDO-L0-05)
 
@@ -185,7 +184,7 @@ Creates a new `NondominiumIdentity`. Sets `initiator` from `agent_info` and `cre
 
 **Input**: `NdoInput { name, property_regime, resource_nature, lifecycle_stage, description }`
 **Output**: `NdoOutput { action_hash, entry }` — `action_hash` is the stable Layer 0 identity.
-**Links created**: `AllNdos` (global anchor `"ndo_identities"` → action hash), `AgentToNdo` (initiator pubkey → action hash).
+**Links created**: `AllNdos` (global anchor `"ndo_identities"` → action hash), `AgentToNdo` (initiator pubkey → action hash), `NdoByLifecycleStage` (stage anchor → action hash), `NdoByNature` (nature anchor → action hash), `NdoByPropertyRegime` (regime anchor → action hash). Nature and regime anchors are immutable and never moved.
 **Validation**: name must not be empty.
 **Initial stage**: Any non-terminal stage is valid at creation (`Hibernating`, `Deprecated`, `EndOfLife` are rejected). Use the resource's actual current stage — do not fabricate a synthetic `Ideation` entry for resources that pre-date system registration (see design note above).
 
@@ -213,17 +212,30 @@ UpdateLifecycleStageInput {
 
 **Returns**: new action hash. The `original_action_hash` remains the stable Layer 0 identity.
 
-**Links created** (conditional):
+**Links created / moved** (conditional):
 - `NdoToSuccessor` (`original_action_hash` → `successor_ndo_hash`) — only when `new_stage == Deprecated` (REQ-NDO-LC-06)
 - `NdoToTransitionEvent` (`original_action_hash` → `transition_event_hash`) — when `transition_event_hash` is `Some` (REQ-NDO-L0-05; full cross-zome event validation deferred)
+- `NdoByLifecycleStage` link is **moved**: the old stage's link is deleted and a new link is created at the new stage anchor (only when stage actually changes).
 
 #### `get_all_ndos(_: ()) -> ExternResult<GetAllNdosOutput>`
 
 Returns the latest version of all `NondominiumIdentity` entries via the global `"ndo_identities"` anchor. Entries unavailable on the DHT or failing deserialization are silently skipped (eventual consistency). Output: `GetAllNdosOutput { ndos: Vec<NdoOutput> }`.
 
-#### `get_my_ndos(_: ()) -> ExternResult<Vec<Link>>`
+#### `get_my_ndos(_: ()) -> ExternResult<GetAllNdosOutput>`
 
-Returns raw `AgentToNdo` links for the calling agent. Each link's `target` is an `ActionHash` — the original (stable) Layer 0 identity. Pass each to `get_ndo` to resolve the current entry.
+Returns all `NondominiumIdentity` entries created by the calling agent, resolved to their latest versions. Uses `AgentToNdo` links. Entries unavailable on the DHT or failing deserialization are silently skipped (eventual consistency). Output: `GetAllNdosOutput { ndos: Vec<NdoOutput> }`.
+
+#### `get_ndos_by_lifecycle_stage(stage: LifecycleStage) -> ExternResult<GetAllNdosOutput>`
+
+Returns all NDOs currently at the given `LifecycleStage`. Uses the `NdoByLifecycleStage` categorization anchor (path `"ndo.lifecycle.{stage:?}"`). The anchor is maintained by `create_ndo` and `update_lifecycle_stage`. Entries unavailable on the DHT or failing deserialization are silently skipped. REQ-NDO-L0-05, REQ-NDO-L0-07.
+
+#### `get_ndos_by_nature(nature: ResourceNature) -> ExternResult<GetAllNdosOutput>`
+
+Returns all NDOs of the given `ResourceNature`. Uses the `NdoByNature` categorization anchor (path `"ndo.nature.{nature:?}"`). The anchor is immutable — it is set at creation time and never moved. Entries unavailable on the DHT or failing deserialization are silently skipped. REQ-NDO-L0-05, REQ-NDO-L0-07.
+
+#### `get_ndos_by_property_regime(regime: PropertyRegime) -> ExternResult<GetAllNdosOutput>`
+
+Returns all NDOs under the given `PropertyRegime`. Uses the `NdoByPropertyRegime` categorization anchor (path `"ndo.regime.{regime:?}"`). The anchor is immutable — it is set at creation time and never moved. Entries unavailable on the DHT or failing deserialization are silently skipped. REQ-NDO-L0-05, REQ-NDO-L0-07.
 
 ### Resource Specification Management
 
