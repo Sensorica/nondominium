@@ -117,6 +117,7 @@ Use, Transport, Storage, and Repair process workflows are specified but not impl
 #### Data Structures ✅
 
 16 `ParticipationClaimType` variants are defined in `zome_gouvernance/src/ppr.rs`:
+
 - Genesis: `ResourceCreation`, `ResourceValidation`
 - Custody: `CustodyTransfer`, `CustodyAcceptance`
 - Services: `MaintenanceCommitmentAccepted`, `MaintenanceFulfillmentCompleted`, `StorageCommitmentAccepted`, `StorageFulfillmentCompleted`, `TransportCommitmentAccepted`, `TransportFulfillmentCompleted`, `GoodFaithTransfer`
@@ -190,11 +191,13 @@ No domain-specific UI components exist yet. The following are tracked as open is
 All new tests are written in Sweettest in `dnas/nondominium/tests/src/`.
 
 **Shared setup utilities** (`common::conductors`):
+
 - `setup_two_agents()` — two conductors, nondominium DNA
 - `setup_three_agents()` — three conductors, nondominium DNA
 - `setup_dual_dna_two_agents()` — two conductors, nondominium + hREA DNAs
 
 **Test modules:**
+
 - `misc/mod.rs` — zome connectivity (ping)
 - `person/mod.rs` — person zome + hREA bridge tests
 
@@ -223,38 +226,38 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 
 ## Current Status Summary
 
-| Area | Status |
-|---|---|
-| Person management (profiles, roles, capability grants) | ✅ Complete |
-| Resource specifications and economic resources | ✅ Complete |
-| ValueFlows action vocabulary + economic events | ✅ Complete |
-| Commitments and claims | ✅ Complete |
-| PPR data structures + cryptographic auth | ✅ Complete |
-| hREA Phase 1 (Person/ReaAgent bridge) | ✅ Complete |
-| SvelteKit + UnoCSS + Melt UI next-gen setup | ⏳ In Progress |
-| Sweettest scaffold + person tests | ✅ Complete |
-| Economic processes (Use/Transport/Storage/Repair) | ❌ Not started |
-| PPR receipt generation and EOL workflows | ❌ Not started |
-| Governance-as-Operator architecture | ❌ Not started |
-| Agent promotion + role validation workflows | 🔄 Partial |
-| Frontend UI components | ❌ Not started |
-| Effect-TS service layer | ❌ Not started |
-| hREA Phase 2–4 | ❌ Not started |
-| NondominiumIdentity (Layer 0 identity anchor) | ✅ Complete |
+| Area                                                   | Status         |
+| ------------------------------------------------------ | -------------- |
+| Person management (profiles, roles, capability grants) | ✅ Complete    |
+| Resource specifications and economic resources         | ✅ Complete    |
+| ValueFlows action vocabulary + economic events         | ✅ Complete    |
+| Commitments and claims                                 | ✅ Complete    |
+| PPR data structures + cryptographic auth               | ✅ Complete    |
+| hREA Phase 1 (Person/ReaAgent bridge)                  | ✅ Complete    |
+| SvelteKit + UnoCSS + Melt UI next-gen setup            | ⏳ In Progress |
+| Sweettest scaffold + person tests                      | ✅ Complete    |
+| Economic processes (Use/Transport/Storage/Repair)      | ❌ Not started |
+| PPR receipt generation and EOL workflows               | ❌ Not started |
+| Governance-as-Operator architecture                    | ❌ Not started |
+| Agent promotion + role validation workflows            | 🔄 Partial     |
+| Frontend UI components                                 | ❌ Not started |
+| Effect-TS service layer                                | ❌ Not started |
+| hREA Phase 2–4                                         | ❌ Not started |
+| NondominiumIdentity (Layer 0 identity anchor)          | ✅ Complete    |
 
 ---
 
 ## Post-MVP Design Specifications
 
-The following are documented and traceable to REQ-NDO-* in `documentation/requirements/ndo_prima_materia.md` but are not in scope for the current development milestone:
+The following are documented and traceable to REQ-NDO-\* in `documentation/requirements/ndo_prima_materia.md` but are not in scope for the current development milestone:
 
-| Track | Design sources | Implementation status |
-|---|---|---|
-| **NDO Layer 0 (identity anchor)** | `ndo_prima_materia.md` §§4, 8; REQ-NDO-L0-01–07 | **Complete** (#80) — `NondominiumIdentity` entry with lifecycle validation; REQ-NDO-L0-05 (EconomicEvent ref) and -07 (facet anchors) not yet enforced |
-| **NDO Layers 1 & 2** | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3 | Not started — Layer 1 (Specification links), Layer 2 (Process links), cross-layer link types pending |
-| **Lifecycle vs operational state split** | `ndo_prima_materia.md` §5, §9.4 (`REQ-NDO-OS-01`–`06`) | Not started — `ResourceState` still conflated (see `zome_resource` TODOs) |
-| **Unyt (EconomicAgreement, RAVE)** | `ndo_prima_materia.md` §6.6, §11.5; `unyt-integration.md`; REQ-NDO-CS-07–CS-11 | Not started — no Unyt cell / RAVE validation in governance zome |
-| **Flowsta (agent linking, IdentityVerification)** | `ndo_prima_materia.md` §6.7, §11.6; `flowsta-integration.md`; REQ-NDO-CS-12–CS-15 | Not started — `flowsta-agent-linking` zomes not bundled |
-| **Person capability slot (G15)** | `agent.md` §3.2; `person_zome.md`; REQ-AGENT-11, REQ-NDO-AGENT-07 | Not started — no `FlowstaIdentity` links on `Person` hash |
+| Track                                             | Design sources                                                                    | Implementation status                                                                                                                                  |
+| ------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **NDO Layer 0 (identity anchor)**                 | `ndo_prima_materia.md` §§4, 8; REQ-NDO-L0-01–07                                   | **Complete** (#80) — `NondominiumIdentity` entry with lifecycle validation; REQ-NDO-L0-05 (EconomicEvent ref) and -07 (facet anchors) not yet enforced |
+| **NDO Layers 1 & 2**                              | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3                              | Not started — Layer 1 (Specification links), Layer 2 (Process links), cross-layer link types pending                                                   |
+| **Lifecycle vs operational state split**          | `ndo_prima_materia.md` §5, §9.4 (`REQ-NDO-OS-01`–`06`)                            | Not started — `ResourceState` still conflated (see `zome_resource` TODOs)                                                                              |
+| **Unyt (EconomicAgreement, RAVE)**                | `ndo_prima_materia.md` §6.6, §11.5; `unyt-integration.md`; REQ-NDO-CS-07–CS-11    | Not started — no Unyt cell / RAVE validation in governance zome                                                                                        |
+| **Flowsta (agent linking, IdentityVerification)** | `ndo_prima_materia.md` §6.7, §11.6; `flowsta-integration.md`; REQ-NDO-CS-12–CS-15 | Not started — `flowsta-agent-linking` zomes not bundled                                                                                                |
+| **Person capability slot (G15)**                  | `agent.md` §3.2; `person_zome.md`; REQ-AGENT-11, REQ-NDO-AGENT-07                 | Not started — no `FlowstaIdentity` links on `Person` hash                                                                                              |
 
 See `documentation/implementation_plan.md` Section 12 for a phased checklist aligned with the prima materia.
