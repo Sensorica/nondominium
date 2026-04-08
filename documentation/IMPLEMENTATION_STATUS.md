@@ -78,9 +78,9 @@ Each zome follows the integrity/coordinator pattern.
 - **Enums**: `LifecycleStage` (10 stages: Ideation→Specification→Development→Prototype→Stable→Distributed→Active→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (6 variants), `ResourceNature` (5 variants: Physical, Digital, Service, Hybrid, Information — extends spec's 3-variant definition with Service and Information)
 - **Immutability**: Only `lifecycle_stage` may change post-creation; `successor_ndo_hash` set exactly once on Deprecated transition; deletes are always invalid
 - **Authorization**: Only the `initiator` may call `update_lifecycle_stage` (MVP simplification; full role-based authorization per REQ-NDO-LC-07 deferred to governance zome integration)
-- **Discovery links**: `AllNdos` (global `"ndo_identities"` path anchor), `AgentToNdo` (per-initiator)
-- **API**: `create_ndo`, `get_ndo` (resolves update chain), `get_all_ndos` (global anchor traversal), `get_my_ndos` (raw AgentToNdo links), `update_lifecycle_stage`
-- **REQ coverage**: REQ-NDO-L0-01, -02, -03, -04, -06 implemented; not yet enforced: REQ-NDO-L0-05 (EconomicEvent ref on transitions, optional in coordinator), REQ-NDO-LC-02 (governance-as-operator for transition validation), REQ-NDO-LC-03 (automatic EconomicEvent generation per transition), REQ-NDO-LC-05 (EndOfLife challenge period), REQ-NDO-LC-07 (role-based authorization per §5.3); not yet implemented: REQ-NDO-L0-07 (per-stage/nature/regime facet discovery anchors)
+- **Discovery links**: `AllNdos` (global `"ndo_identities"` path anchor), `AgentToNdo` (per-initiator), `NdoByLifecycleStage` / `NdoByNature` / `NdoByPropertyRegime` (categorization anchors — PR #84)
+- **API**: `create_ndo`, `get_ndo` (resolves update chain), `get_all_ndos` (global anchor traversal), `get_my_ndos` (resolved entries), `update_lifecycle_stage`, `get_ndos_by_lifecycle_stage`, `get_ndos_by_nature`, `get_ndos_by_property_regime` (PR #84)
+- **REQ coverage**: REQ-NDO-L0-01, -02, -03, -04, -06, -07 implemented; not yet enforced: REQ-NDO-L0-05 (EconomicEvent ref on transitions, optional in coordinator), REQ-NDO-LC-02 (governance-as-operator for transition validation), REQ-NDO-LC-03 (automatic EconomicEvent generation per transition), REQ-NDO-LC-05 (EndOfLife challenge period), REQ-NDO-LC-07 (role-based authorization per §5.3)
 
 ### Discovery and Query Patterns ✅
 
