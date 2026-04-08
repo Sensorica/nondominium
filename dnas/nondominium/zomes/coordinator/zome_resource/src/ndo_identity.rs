@@ -54,6 +54,28 @@ fn property_regime_path(regime: &PropertyRegime) -> ExternResult<EntryHash> {
   Path::from(format!("ndo.regime.{:?}", regime)).path_entry_hash()
 }
 
+/// Resolve a batch of DHT links into NdoOutput entries.
+///
+/// For each link, extracts the target action hash, resolves the latest record via the
+/// update chain, and deserializes the entry. Links that fail any step are silently
+/// skipped (DHT availability is eventual). Used by all NDO query functions.
+fn resolve_ndo_links(links: Vec<Link>) -> ExternResult<Vec<NdoOutput>> {
+  let mut ndos = Vec::new();
+  for link in links {
+    let Some(action_hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
+      continue;
+    };
+    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
+      continue;
+    };
+    ndos.push(NdoOutput { action_hash, entry });
+  }
+  Ok(ndos)
+}
+
 /// Resolves the HDK update chain to the latest Record for a NondominiumIdentity.
 /// Returns None if the original_action_hash does not exist on the DHT.
 ///
@@ -329,21 +351,7 @@ pub fn get_all_ndos(_: ()) -> ExternResult<GetAllNdosOutput> {
   let links_query =
     LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllNdos)?;
   let links = get_links(links_query, GetStrategy::default())?;
-
-  let mut ndos = Vec::new();
-  for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
-      continue;
-    };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
-      continue;
-    };
-    ndos.push(NdoOutput { action_hash, entry });
-  }
-  Ok(GetAllNdosOutput { ndos })
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
 }
 
 /// Return all NondominiumIdentities at a given lifecycle stage.
@@ -359,20 +367,7 @@ pub fn get_ndos_by_lifecycle_stage(stage: LifecycleStage) -> ExternResult<GetAll
     LinkQuery::try_new(lifecycle_stage_path(&stage)?, LinkTypes::NdoByLifecycleStage)?,
     GetStrategy::default(),
   )?;
-  let mut ndos = Vec::new();
-  for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
-      continue;
-    };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
-      continue;
-    };
-    ndos.push(NdoOutput { action_hash, entry });
-  }
-  Ok(GetAllNdosOutput { ndos })
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
 }
 
 /// Return all NondominiumIdentities of a given resource nature.
@@ -388,20 +383,7 @@ pub fn get_ndos_by_nature(nature: ResourceNature) -> ExternResult<GetAllNdosOutp
     LinkQuery::try_new(resource_nature_path(&nature)?, LinkTypes::NdoByNature)?,
     GetStrategy::default(),
   )?;
-  let mut ndos = Vec::new();
-  for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
-      continue;
-    };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
-      continue;
-    };
-    ndos.push(NdoOutput { action_hash, entry });
-  }
-  Ok(GetAllNdosOutput { ndos })
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
 }
 
 /// Return all NondominiumIdentities under a given property regime.
@@ -417,20 +399,7 @@ pub fn get_ndos_by_property_regime(regime: PropertyRegime) -> ExternResult<GetAl
     LinkQuery::try_new(property_regime_path(&regime)?, LinkTypes::NdoByPropertyRegime)?,
     GetStrategy::default(),
   )?;
-  let mut ndos = Vec::new();
-  for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
-      continue;
-    };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
-      continue;
-    };
-    ndos.push(NdoOutput { action_hash, entry });
-  }
-  Ok(GetAllNdosOutput { ndos })
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
 }
 
 /// Return all NondominiumIdentities created by the calling agent, resolved to latest entries.
@@ -446,18 +415,5 @@ pub fn get_my_ndos(_: ()) -> ExternResult<GetAllNdosOutput> {
     LinkQuery::try_new(agent_pub_key, LinkTypes::AgentToNdo)?,
     GetStrategy::default(),
   )?;
-  let mut ndos = Vec::new();
-  for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
-      continue;
-    };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
-      continue;
-    };
-    ndos.push(NdoOutput { action_hash, entry });
-  }
-  Ok(GetAllNdosOutput { ndos })
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
 }
