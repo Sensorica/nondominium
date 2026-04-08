@@ -527,6 +527,76 @@ pub struct ApprovePromotionInput {
 
 ## 🏗️ zome_resource - Resource Lifecycle Management
 
+### NDO (NondominiumIdentity) Layer 0 Management
+
+#### `create_ndo(input: NdoInput) -> ExternResult<NdoOutput>`
+**Purpose**: Create a new Nondominium Identity (Layer 0 anchor) for a resource
+**Authorization**: Any agent
+**Input**:
+```rust
+pub struct NdoInput {
+    pub name: String,
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub lifecycle_stage: LifecycleStage, // any non-terminal stage
+    pub description: Option<String>,
+}
+```
+**Returns**: `NdoOutput { action_hash, entry }` — `action_hash` is the permanent Layer 0 identity
+**Side Effects**: Creates `AllNdos`, `AgentToNdo`, `NdoByLifecycleStage`, `NdoByNature`, and `NdoByPropertyRegime` links
+**Error Cases**: Empty name, terminal initial stage (`Hibernating`, `Deprecated`, `EndOfLife`)
+
+#### `get_ndo(original_action_hash: ActionHash) -> ExternResult<Option<NondominiumIdentity>>`
+**Purpose**: Retrieve the latest version of an NDO by its stable Layer 0 identity hash
+**Authorization**: Public
+**Returns**: Latest `NondominiumIdentity` entry or `None` if not found on DHT
+
+#### `update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<ActionHash>`
+**Purpose**: Transition an NDO's lifecycle stage through the state machine
+**Authorization**: Initiator only
+**Input**:
+```rust
+pub struct UpdateLifecycleStageInput {
+    pub original_action_hash: ActionHash,
+    pub new_stage: LifecycleStage,
+    pub successor_ndo_hash: Option<ActionHash>,    // required when new_stage == Deprecated
+    pub transition_event_hash: Option<ActionHash>, // optional EconomicEvent reference
+}
+```
+**Returns**: New `ActionHash` (original remains the stable Layer 0 identity)
+**Side Effects**: Moves `NdoByLifecycleStage` link to new stage anchor; conditionally creates `NdoToSuccessor` and `NdoToTransitionEvent` links
+**Error Cases**: Unauthorized, invalid state machine transition, missing `successor_ndo_hash` when entering `Deprecated`
+
+#### `get_all_ndos(()) -> ExternResult<GetAllNdosOutput>`
+**Purpose**: Discover all NDOs in the network
+**Authorization**: Public
+**Returns**: `GetAllNdosOutput { ndos: Vec<NdoOutput> }` — resolved to latest versions; unavailable entries silently skipped
+
+#### `get_my_ndos(()) -> ExternResult<GetAllNdosOutput>`
+**Purpose**: Retrieve all NDOs created by the calling agent
+**Authorization**: Any agent (scoped to caller)
+**Returns**: `GetAllNdosOutput { ndos: Vec<NdoOutput> }` — resolved to latest versions; unavailable entries silently skipped
+
+#### `get_ndos_by_lifecycle_stage(stage: LifecycleStage) -> ExternResult<GetAllNdosOutput>`
+**Purpose**: Query NDOs currently at a specific lifecycle stage
+**Authorization**: Public
+**Returns**: `GetAllNdosOutput { ndos: Vec<NdoOutput> }` — uses `NdoByLifecycleStage` anchor; silently skips unavailable entries
+**Requirements**: REQ-NDO-L0-05, REQ-NDO-L0-07
+
+#### `get_ndos_by_nature(nature: ResourceNature) -> ExternResult<GetAllNdosOutput>`
+**Purpose**: Query NDOs of a specific resource nature
+**Authorization**: Public
+**Returns**: `GetAllNdosOutput { ndos: Vec<NdoOutput> }` — uses `NdoByNature` anchor; silently skips unavailable entries
+**Requirements**: REQ-NDO-L0-05, REQ-NDO-L0-07
+
+#### `get_ndos_by_property_regime(regime: PropertyRegime) -> ExternResult<GetAllNdosOutput>`
+**Purpose**: Query NDOs under a specific property regime
+**Authorization**: Public
+**Returns**: `GetAllNdosOutput { ndos: Vec<NdoOutput> }` — uses `NdoByPropertyRegime` anchor; silently skips unavailable entries
+**Requirements**: REQ-NDO-L0-05, REQ-NDO-L0-07
+
+---
+
 ### Resource Specification Management
 
 #### `create_resource_specification(input: ResourceSpecificationInput) -> ExternResult<Record>`

@@ -40,6 +40,42 @@ pub struct UpdateLifecycleStageInput {
   pub transition_event_hash: Option<ActionHash>,
 }
 
+// Path helpers for NDO categorization anchors (issue #75).
+// Using {:#?} would add newlines; {:?} gives the variant name: LifecycleStage::Ideation → "Ideation".
+fn lifecycle_stage_path(stage: &LifecycleStage) -> ExternResult<EntryHash> {
+  Path::from(format!("ndo.lifecycle.{:?}", stage)).path_entry_hash()
+}
+
+fn resource_nature_path(nature: &ResourceNature) -> ExternResult<EntryHash> {
+  Path::from(format!("ndo.nature.{:?}", nature)).path_entry_hash()
+}
+
+fn property_regime_path(regime: &PropertyRegime) -> ExternResult<EntryHash> {
+  Path::from(format!("ndo.regime.{:?}", regime)).path_entry_hash()
+}
+
+/// Resolve a batch of DHT links into NdoOutput entries.
+///
+/// For each link, extracts the target action hash, resolves the latest record via the
+/// update chain, and deserializes the entry. Links that fail any step are silently
+/// skipped (DHT availability is eventual). Used by all NDO query functions.
+fn resolve_ndo_links(links: Vec<Link>) -> ExternResult<Vec<NdoOutput>> {
+  let mut ndos = Vec::new();
+  for link in links {
+    let Some(action_hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
+      continue;
+    };
+    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
+      continue;
+    };
+    ndos.push(NdoOutput { action_hash, entry });
+  }
+  Ok(ndos)
+}
+
 /// Resolves the HDK update chain to the latest Record for a NondominiumIdentity.
 /// Returns None if the original_action_hash does not exist on the DHT.
 ///
@@ -114,6 +150,28 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
     agent_info.agent_initial_pubkey.clone(),
     action_hash.clone(),
     LinkTypes::AgentToNdo,
+    (),
+  )?;
+
+  // Categorization anchors for filtered discovery (issue #75).
+  // NdoByNature and NdoByPropertyRegime are immutable — created once, never moved.
+  // NdoByLifecycleStage is moved by update_lifecycle_stage when stage changes.
+  create_link(
+    lifecycle_stage_path(&entry.lifecycle_stage)?,
+    action_hash.clone(),
+    LinkTypes::NdoByLifecycleStage,
+    (),
+  )?;
+  create_link(
+    resource_nature_path(&entry.resource_nature)?,
+    action_hash.clone(),
+    LinkTypes::NdoByNature,
+    (),
+  )?;
+  create_link(
+    property_regime_path(&entry.property_regime)?,
+    action_hash.clone(),
+    LinkTypes::NdoByPropertyRegime,
     (),
   )?;
 
@@ -201,7 +259,8 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
 
   // Apply mutations — integrity validation enforces the state machine and immutability.
   // hibernation_origin is managed automatically; callers do not set it directly.
-  let from = current_entry.lifecycle_stage.clone();
+  let old_stage = current_entry.lifecycle_stage.clone();
+  let from = old_stage.clone();
   let to = input.new_stage.clone();
 
   // Entering Hibernating: record the stage being paused
@@ -252,6 +311,31 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
     )?;
   }
 
+  // Move NdoByLifecycleStage categorization anchor when stage changes (issue #75).
+  // Delete the link from the old stage anchor that targets original_action_hash,
+  // then create a new link from the new stage anchor. NdoByNature and NdoByPropertyRegime
+  // are immutable and never moved.
+  if old_stage != input.new_stage {
+    let old_links = get_links(
+      LinkQuery::try_new(lifecycle_stage_path(&old_stage)?, LinkTypes::NdoByLifecycleStage)?,
+      GetStrategy::default(),
+    )?;
+    for link in old_links {
+      if let Some(target_hash) = link.target.into_action_hash() {
+        if target_hash == input.original_action_hash {
+          delete_link(link.create_link_hash, GetOptions::default())?;
+          break;
+        }
+      }
+    }
+    create_link(
+      lifecycle_stage_path(&input.new_stage)?,
+      input.original_action_hash.clone(),
+      LinkTypes::NdoByLifecycleStage,
+      (),
+    )?;
+  }
+
   Ok(update_hash)
 }
 
@@ -267,34 +351,69 @@ pub fn get_all_ndos(_: ()) -> ExternResult<GetAllNdosOutput> {
   let links_query =
     LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllNdos)?;
   let links = get_links(links_query, GetStrategy::default())?;
-
-  let mut ndos = Vec::new();
-  for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let Some(record) = resolve_latest_ndo_record(action_hash.clone())? else {
-      continue;
-    };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
-      continue;
-    };
-    ndos.push(NdoOutput { action_hash, entry });
-  }
-  Ok(GetAllNdosOutput { ndos })
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
 }
 
-/// Return raw AgentToNdo links for the calling agent.
+/// Return all NondominiumIdentities at a given lifecycle stage.
 ///
-/// Returns links rather than resolved entries so callers can access
-/// the target action_hash directly without a second DHT round-trip
-/// when only the identity is needed. Pass each target to `get_ndo`
-/// to resolve the current entry.
+/// Uses the NdoByLifecycleStage categorization anchor maintained by create_ndo
+/// and update_lifecycle_stage. Returns the latest version of each NDO.
+/// Entries that fail to resolve or deserialize are silently skipped.
+///
+/// REQ-NDO-L0-05, REQ-NDO-L0-07
+#[hdk_extern]
+pub fn get_ndos_by_lifecycle_stage(stage: LifecycleStage) -> ExternResult<GetAllNdosOutput> {
+  let links = get_links(
+    LinkQuery::try_new(lifecycle_stage_path(&stage)?, LinkTypes::NdoByLifecycleStage)?,
+    GetStrategy::default(),
+  )?;
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
+}
+
+/// Return all NondominiumIdentities of a given resource nature.
+///
+/// Uses the NdoByNature categorization anchor created at NDO creation time.
+/// The nature field is immutable — this anchor never moves.
+/// Entries that fail to resolve or deserialize are silently skipped.
+///
+/// REQ-NDO-L0-05, REQ-NDO-L0-07
+#[hdk_extern]
+pub fn get_ndos_by_nature(nature: ResourceNature) -> ExternResult<GetAllNdosOutput> {
+  let links = get_links(
+    LinkQuery::try_new(resource_nature_path(&nature)?, LinkTypes::NdoByNature)?,
+    GetStrategy::default(),
+  )?;
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
+}
+
+/// Return all NondominiumIdentities under a given property regime.
+///
+/// Uses the NdoByPropertyRegime categorization anchor created at NDO creation time.
+/// The property_regime field is immutable — this anchor never moves.
+/// Entries that fail to resolve or deserialize are silently skipped.
+///
+/// REQ-NDO-L0-05, REQ-NDO-L0-07
+#[hdk_extern]
+pub fn get_ndos_by_property_regime(regime: PropertyRegime) -> ExternResult<GetAllNdosOutput> {
+  let links = get_links(
+    LinkQuery::try_new(property_regime_path(&regime)?, LinkTypes::NdoByPropertyRegime)?,
+    GetStrategy::default(),
+  )?;
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
+}
+
+/// Return all NondominiumIdentities created by the calling agent, resolved to latest entries.
+///
+/// Uses AgentToNdo links set at creation time. Returns the latest version of each NDO
+/// (chain-resolved). Entries that fail to resolve or deserialize are silently skipped.
 ///
 /// REQ-NDO-L0-07
 #[hdk_extern]
-pub fn get_my_ndos(_: ()) -> ExternResult<Vec<Link>> {
+pub fn get_my_ndos(_: ()) -> ExternResult<GetAllNdosOutput> {
   let agent_pub_key = agent_info()?.agent_initial_pubkey;
-  let links_query = LinkQuery::try_new(agent_pub_key, LinkTypes::AgentToNdo)?;
-  get_links(links_query, GetStrategy::default())
+  let links = get_links(
+    LinkQuery::try_new(agent_pub_key, LinkTypes::AgentToNdo)?,
+    GetStrategy::default(),
+  )?;
+  Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
 }

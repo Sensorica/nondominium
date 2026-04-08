@@ -185,6 +185,12 @@ pub enum LinkTypes {
   AllNdos,    // global anchor: "ndo_identities" path → NondominiumIdentity action hashes
   AgentToNdo, // initiator pubkey → NondominiumIdentity action hashes
 
+  // NDO Layer 0 categorization anchors for filtered discovery (REQ-NDO-L0-05, issue #75)
+  // anchor path pattern: "ndo.lifecycle.{Stage:?}" / "ndo.nature.{Nature:?}" / "ndo.regime.{Regime:?}"
+  NdoByLifecycleStage, // Path("ndo.lifecycle.{stage}") → NondominiumIdentity action hashes
+  NdoByNature,         // Path("ndo.nature.{nature}")   → NondominiumIdentity action hashes
+  NdoByPropertyRegime, // Path("ndo.regime.{regime}")   → NondominiumIdentity action hashes
+
   // NDO Layer 0 lifecycle links
   NdoToSuccessor,        // deprecated NDO action hash → successor NondominiumIdentity (REQ-NDO-LC-06)
   NdoToTransitionEvent,  // NDO action hash → EconomicEvent that triggered the transition (REQ-NDO-L0-05)
@@ -320,7 +326,11 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         }
       }
       OpRecord::CreateLink { .. } => {
-        // Validate link creation
+        // TODO(next-pr): Add per-LinkType integrity validation for NdoByLifecycleStage,
+        // NdoByNature, and NdoByPropertyRegime. Currently all CreateLink ops return Valid,
+        // matching the existing zome-wide pattern, but a malicious peer could create spurious
+        // or delete legitimate categorization links. Future validation should verify base/target
+        // types and author permissions before accepting link ops.
         Ok(ValidateCallbackResult::Valid)
       }
       _ => Ok(ValidateCallbackResult::Valid),
