@@ -326,7 +326,11 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         }
       }
       OpRecord::CreateLink { .. } => {
-        // Validate link creation
+        // TODO(next-pr): Add per-LinkType integrity validation for NdoByLifecycleStage,
+        // NdoByNature, and NdoByPropertyRegime. Currently all CreateLink ops return Valid,
+        // matching the existing zome-wide pattern, but a malicious peer could create spurious
+        // or delete legitimate categorization links. Future validation should verify base/target
+        // types and author permissions before accepting link ops.
         Ok(ValidateCallbackResult::Valid)
       }
       _ => Ok(ValidateCallbackResult::Valid),
