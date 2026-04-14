@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Use as reference the following foundatonal documents: 
+* @documentation/requirements/requirements.md 
+* @documentation/requirements/agent.md
+* @documentation/requirements/resources.md
+* @documentation/requirements/governance.md
+* @documentation/specifications/specifications.md
+
 ## Development Environment Setup
 
 This is a Holochain application requiring a Nix development environment:
