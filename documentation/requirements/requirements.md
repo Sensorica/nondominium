@@ -47,7 +47,7 @@ Optional, pay-as-you-grow integrations (communities may adopt one, both, or neit
 
 | Integration | Role | Normative detail | Design stub |
 |-------------|------|------------------|-------------|
-| **Lobby DNA** | Multi-network federation: entry point (Lobby DHT) + per-group coordination (Group DHT) + NDO-to-NDO hard links, Contributions, Smart Agreements; dual deployment (standalone + Moss applet) | REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-* | [lobby-dna.md](post-mvp/lobby-dna.md) / [lobby-architecture.md](../../specifications/post-mvp/lobby-architecture.md) |
+| **Lobby DNA** | Multi-network federation: entry point (Lobby DHT) + per-group coordination (Group DHT) + NDO-to-NDO hard links, Contributions, Smart Agreements; dual deployment (standalone + Moss applet) | REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-* | [lobby-dna.md](post-mvp/lobby-dna.md) / [lobby-architecture.md](../specifications/post-mvp/lobby-architecture.md) |
 | **Unyt** | Economic settlement (Smart Agreements, RAVE proofs, PPR↔RAVE provenance) | `ndo_prima_materia.md` §6.6, §11.5; REQ-NDO-CS-07–CS-11 | [unyt-integration.md](post-mvp/unyt-integration.md) |
 | **Flowsta** | Cross-app identity (Vault `IsSamePersonEntry`, `FlowstaIdentity` slot, DID, recovery); Tier 1 (Phase 1) vs Tier 2 (Phase 3) | `ndo_prima_materia.md` §6.5–6.7, §11.6; REQ-NDO-CS-12–CS-15; REQ-NDO-AGENT-07–08 | [flowsta-integration.md](post-mvp/flowsta-integration.md) |
 
