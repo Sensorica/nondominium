@@ -1,276 +1,161 @@
+import { Effect as E } from 'effect';
 import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
-import holochainService, { type ZomeName } from '../holochain.service.svelte';
+import holochainService from '../holochain.service.svelte';
+import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
+import { GovernanceError } from '$lib/errors/governance.errors';
+import { GOVERNANCE_CONTEXTS } from '$lib/errors/error-contexts';
 import type { Commitment, EconomicEvent } from '@nondominium/shared-types';
 
-// Helper function to properly type zome calls
-function callZome<T>(zomeName: ZomeName, fnName: string, payload: unknown): Promise<T> {
-  return holochainService.callZome(zomeName, fnName, payload) as Promise<T>;
-}
+// ─── Helper ──────────────────────────────────────────────────────────────────
 
-/**
- * Governance zome service - clean architecture without Effect
- * Handles all governance-related operations (Phase 2)
- */
-class GovernanceService {
-  /**
-   * Create a new commitment
-   */
-  async createCommitment(commitment: Omit<Commitment, 'created_at'>): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_gouvernance', 'create_commitment', commitment);
-    } catch (error) {
-      console.error('Failed to create commitment:', error);
-      throw error;
-    }
-  }
+const wz = <T>(
+  fnName: string,
+  payload: unknown,
+  context: string
+): E.Effect<T, GovernanceError> =>
+  wrapZomeCallWithErrorFactory<T, GovernanceError>(
+    holochainService,
+    'zome_gouvernance',
+    fnName,
+    payload,
+    context,
+    GovernanceError.fromError
+  );
 
-  /**
-   * Get a commitment by hash
-   */
-  async getCommitment(hash: ActionHash): Promise<Commitment> {
-    try {
-      return await callZome<Commitment>('zome_gouvernance', 'get_commitment', hash);
-    } catch (error) {
-      console.error('Failed to get commitment:', error);
-      throw error;
-    }
-  }
+// ─── Service interface ────────────────────────────────────────────────────────
 
-  /**
-   * Fulfill a commitment (mark as completed)
-   */
-  async fulfillCommitment(hash: ActionHash): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_gouvernance', 'fulfill_commitment', hash);
-    } catch (error) {
-      console.error('Failed to fulfill commitment:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create a new economic event
-   */
-  async createEconomicEvent(event: Omit<EconomicEvent, 'occurred_at'>): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_gouvernance', 'create_economic_event', event);
-    } catch (error) {
-      console.error('Failed to create economic event:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get an economic event by hash
-   */
-  async getEconomicEvent(hash: ActionHash): Promise<EconomicEvent> {
-    try {
-      return await callZome<EconomicEvent>('zome_gouvernance', 'get_economic_event', hash);
-    } catch (error) {
-      console.error('Failed to get economic event:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get all economic events for a specific agent
-   */
-  async getEventsByAgent(agent: AgentPubKey): Promise<EconomicEvent[]> {
-    try {
-      return await callZome<EconomicEvent[]>('zome_gouvernance', 'get_events_by_agent', agent);
-    } catch (error) {
-      console.error('Failed to get events by agent:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get all commitments made by a specific agent
-   */
-  async getCommitmentsByProvider(provider: AgentPubKey): Promise<Commitment[]> {
-    try {
-      return await callZome<Commitment[]>(
-        'zome_gouvernance',
-        'get_commitments_by_provider',
-        provider
-      );
-    } catch (error) {
-      console.error('Failed to get commitments by provider:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get all commitments received by a specific agent
-   */
-  async getCommitmentsByReceiver(receiver: AgentPubKey): Promise<Commitment[]> {
-    try {
-      return await callZome<Commitment[]>(
-        'zome_gouvernance',
-        'get_commitments_by_receiver',
-        receiver
-      );
-    } catch (error) {
-      console.error('Failed to get commitments by receiver:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get pending commitments (unfulfilled)
-   */
-  async getPendingCommitments(): Promise<Commitment[]> {
-    try {
-      return await callZome<Commitment[]>('zome_gouvernance', 'get_pending_commitments', null);
-    } catch (error) {
-      console.error('Failed to get pending commitments:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Cancel a commitment
-   */
-  async cancelCommitment(hash: ActionHash, reason?: string): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_gouvernance', 'cancel_commitment', {
-        hash,
-        reason
-      });
-    } catch (error) {
-      console.error('Failed to cancel commitment:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update commitment details
-   */
-  async updateCommitment(
+export interface GovernanceService {
+  createCommitment: (
+    commitment: Omit<Commitment, 'created_at'>
+  ) => E.Effect<ActionHash, GovernanceError>;
+  getCommitment: (hash: ActionHash) => E.Effect<Commitment, GovernanceError>;
+  fulfillCommitment: (hash: ActionHash) => E.Effect<ActionHash, GovernanceError>;
+  createEconomicEvent: (
+    event: Omit<EconomicEvent, 'occurred_at'>
+  ) => E.Effect<ActionHash, GovernanceError>;
+  getEconomicEvent: (hash: ActionHash) => E.Effect<EconomicEvent, GovernanceError>;
+  getEventsByAgent: (agent: AgentPubKey) => E.Effect<EconomicEvent[], GovernanceError>;
+  getCommitmentsByProvider: (provider: AgentPubKey) => E.Effect<Commitment[], GovernanceError>;
+  getCommitmentsByReceiver: (receiver: AgentPubKey) => E.Effect<Commitment[], GovernanceError>;
+  getPendingCommitments: () => E.Effect<Commitment[], GovernanceError>;
+  cancelCommitment: (
+    hash: ActionHash,
+    reason?: string
+  ) => E.Effect<ActionHash, GovernanceError>;
+  updateCommitment: (
     hash: ActionHash,
     updatedCommitment: Omit<Commitment, 'created_at'>
-  ): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_gouvernance', 'update_commitment', {
-        hash,
-        commitment: updatedCommitment
-      });
-    } catch (error) {
-      console.error('Failed to update commitment:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get events filtered by type
-   */
-  async getEventsByType(
+  ) => E.Effect<ActionHash, GovernanceError>;
+  getEventsByType: (
     eventType: 'transfer' | 'produce' | 'consume' | 'use'
-  ): Promise<EconomicEvent[]> {
-    try {
-      return await callZome<EconomicEvent[]>('zome_gouvernance', 'get_events_by_type', eventType);
-    } catch (error) {
-      console.error('Failed to get events by type:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get events within a time range
-   */
-  async getEventsInTimeRange(startTime: Timestamp, endTime: Timestamp): Promise<EconomicEvent[]> {
-    try {
-      return await callZome<EconomicEvent[]>('zome_gouvernance', 'get_events_in_time_range', {
-        start_time: startTime,
-        end_time: endTime
-      });
-    } catch (error) {
-      console.error('Failed to get events in time range:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get resource flow history
-   */
-  async getResourceFlow(
+  ) => E.Effect<EconomicEvent[], GovernanceError>;
+  getEventsInTimeRange: (
+    startTime: Timestamp,
+    endTime: Timestamp
+  ) => E.Effect<EconomicEvent[], GovernanceError>;
+  getResourceFlow: (
     resourceHash: ActionHash
-  ): Promise<{ events: EconomicEvent[]; commitments: Commitment[] }> {
-    try {
-      return await callZome<{ events: EconomicEvent[]; commitments: Commitment[] }>(
-        'zome_gouvernance',
-        'get_resource_flow',
-        resourceHash
-      );
-    } catch (error) {
-      console.error('Failed to get resource flow:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Validate governance rules for a resource operation
-   */
-  async validateGovernanceRules(
+  ) => E.Effect<{ events: EconomicEvent[]; commitments: Commitment[] }, GovernanceError>;
+  validateGovernanceRules: (
     resourceHash: ActionHash,
     operation: string,
     agent: AgentPubKey
-  ): Promise<boolean> {
-    try {
-      return await callZome<boolean>('zome_gouvernance', 'validate_governance_rules', {
-        resource_hash: resourceHash,
-        operation,
-        agent
-      });
-    } catch (error) {
-      console.error('Failed to validate governance rules:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create a dispute resolution case
-   */
-  async createDispute(
+  ) => E.Effect<boolean, GovernanceError>;
+  createDispute: (
     commitment: ActionHash,
     complainant: AgentPubKey,
     description: string
-  ): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_gouvernance', 'create_dispute', {
-        commitment,
-        complainant,
-        description
-      });
-    } catch (error) {
-      console.error('Failed to create dispute:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Vote on a dispute resolution
-   */
-  async voteOnDispute(
+  ) => E.Effect<ActionHash, GovernanceError>;
+  voteOnDispute: (
     disputeHash: ActionHash,
     vote: 'approve' | 'reject' | 'abstain',
     agent: AgentPubKey
-  ): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_gouvernance', 'vote_on_dispute', {
-        dispute_hash: disputeHash,
-        vote,
-        agent
-      });
-    } catch (error) {
-      console.error('Failed to vote on dispute:', error);
-      throw error;
-    }
-  }
+  ) => E.Effect<ActionHash, GovernanceError>;
 }
 
-// Export singleton instance
-export const governanceService = new GovernanceService();
+// ─── Implementation ───────────────────────────────────────────────────────────
 
-// Export class for testing
-export { GovernanceService };
+export const governanceService: GovernanceService = {
+  createCommitment: (commitment) =>
+    wz<ActionHash>('create_commitment', commitment, GOVERNANCE_CONTEXTS.CREATE_COMMITMENT),
+
+  getCommitment: (hash) =>
+    wz<Commitment>('get_commitment', hash, GOVERNANCE_CONTEXTS.GET_COMMITMENT),
+
+  fulfillCommitment: (hash) =>
+    wz<ActionHash>('fulfill_commitment', hash, GOVERNANCE_CONTEXTS.FULFILL_COMMITMENT),
+
+  createEconomicEvent: (event) =>
+    wz<ActionHash>('create_economic_event', event, GOVERNANCE_CONTEXTS.CREATE_ECONOMIC_EVENT),
+
+  getEconomicEvent: (hash) =>
+    wz<EconomicEvent>('get_economic_event', hash, GOVERNANCE_CONTEXTS.GET_ECONOMIC_EVENT),
+
+  getEventsByAgent: (agent) =>
+    wz<EconomicEvent[]>('get_events_by_agent', agent, GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT),
+
+  getCommitmentsByProvider: (provider) =>
+    wz<Commitment[]>(
+      'get_commitments_by_provider',
+      provider,
+      GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+    ),
+
+  getCommitmentsByReceiver: (receiver) =>
+    wz<Commitment[]>(
+      'get_commitments_by_receiver',
+      receiver,
+      GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+    ),
+
+  getPendingCommitments: () =>
+    wz<Commitment[]>('get_pending_commitments', null, GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS),
+
+  cancelCommitment: (hash, reason) =>
+    wz<ActionHash>('cancel_commitment', { hash, reason }, GOVERNANCE_CONTEXTS.CANCEL_COMMITMENT),
+
+  updateCommitment: (hash, updatedCommitment) =>
+    wz<ActionHash>(
+      'update_commitment',
+      { hash, commitment: updatedCommitment },
+      GOVERNANCE_CONTEXTS.GET_COMMITMENT
+    ),
+
+  getEventsByType: (eventType) =>
+    wz<EconomicEvent[]>('get_events_by_type', eventType, GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT),
+
+  getEventsInTimeRange: (startTime, endTime) =>
+    wz<EconomicEvent[]>(
+      'get_events_in_time_range',
+      { start_time: startTime, end_time: endTime },
+      GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT
+    ),
+
+  getResourceFlow: (resourceHash) =>
+    wz<{ events: EconomicEvent[]; commitments: Commitment[] }>(
+      'get_resource_flow',
+      resourceHash,
+      GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+    ),
+
+  validateGovernanceRules: (resourceHash, operation, agent) =>
+    wz<boolean>(
+      'validate_governance_rules',
+      { resource_hash: resourceHash, operation, agent },
+      GOVERNANCE_CONTEXTS.EVALUATE_STATE_TRANSITION
+    ),
+
+  createDispute: (commitment, complainant, description) =>
+    wz<ActionHash>(
+      'create_dispute',
+      { commitment, complainant, description },
+      GOVERNANCE_CONTEXTS.CREATE_COMMITMENT
+    ),
+
+  voteOnDispute: (disputeHash, vote, agent) =>
+    wz<ActionHash>(
+      'vote_on_dispute',
+      { dispute_hash: disputeHash, vote, agent },
+      GOVERNANCE_CONTEXTS.EVALUATE_STATE_TRANSITION
+    )
+};
