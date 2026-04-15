@@ -212,7 +212,7 @@ export function createScopedResourceManager<R>(): {
  * Run an Effect from inside Svelte component code. Returns a promise that
  * resolves to the success value or rejects with the typed error.
  */
-export function runEffectInSvelte<A, E>(effect: E.Effect<A, E>): Promise<A> {
+export function runEffect<A, E>(effect: E.Effect<A, E>): Promise<A> {
   return E.runPromise(effect);
 }
 
