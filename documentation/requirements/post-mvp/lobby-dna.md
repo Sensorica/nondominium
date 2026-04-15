@@ -216,7 +216,8 @@ For the comparative table and worked example, see
   without requiring that NDO's permission. Soft links are invisible to the target NDO.
 - **REQ-GROUP-12**: A soft link has one of three purposes: `Incorporation` (planning to
   structurally incorporate the target NDO into a parent NDO), `Use` (using the NDO as a tool
-  or equipment), or `Monitoring` (observing the NDO lifecycle).
+  or equipment), or `Monitoring` (observing the NDO lifecycle). These map to VfAction values
+  `Combine | Use | Cite` respectively (see architecture spec `SoftLink.planned_action`).
 - **REQ-GROUP-13**: A soft link may optionally reference a `Commitment` action hash in the
   target NDO's DHT, associating the planning intent with a formal economic commitment.
 - **REQ-GROUP-14**: When an Incorporation soft link's associated Commitment is fulfilled
@@ -274,7 +275,10 @@ For the comparative table and worked example, see
 
 ### 6.3 Smart agreements
 
-- **REQ-NDO-EXT-12**: The NDO DNA shall support a `Agreement` entry type defining
+Entry type name: `Agreement` (aligned with VF vocabulary `vf:Agreement`); referred to as
+"smart agreements" in this document to emphasise their benefit-distribution role.
+
+- **REQ-NDO-EXT-12**: The NDO DNA shall support an `Agreement` entry type defining
   benefit distribution rules for the NDO. Smart agreements are created and updated only by
   agents holding the `AccountableAgent` role.
 - **REQ-NDO-EXT-13**: A `Agreement` contains a list of `BenefitClause` entries, each
