@@ -129,7 +129,7 @@ class ResourceService {
       return await holochainService.callZome('zome_resource', 'transfer_resource_custody', {
         resource_hash: resourceHash,
         new_custodian: newCustodian
-      });
+      }) as ActionHash;
     } catch (error) {
       console.error('Failed to transfer resource custody:', error);
       throw error;
@@ -144,7 +144,7 @@ class ResourceService {
       return await holochainService.callZome('zome_resource', 'update_resource_quantity', {
         resource_hash: resourceHash,
         new_quantity: newQuantity
-      });
+      }) as ActionHash;
     } catch (error) {
       console.error('Failed to update resource quantity:', error);
       throw error;
@@ -160,7 +160,7 @@ class ResourceService {
         'zome_resource',
         'search_resources_by_specification',
         specificationHash
-      );
+      ) as EconomicResource[];
     } catch (error) {
       console.error('Failed to search resources by specification:', error);
       throw error;
@@ -172,7 +172,7 @@ class ResourceService {
    */
   async getResourceHistory(resourceHash: ActionHash): Promise<EconomicResource[]> {
     try {
-      return await holochainService.callZome('zome_resource', 'get_resource_history', resourceHash);
+      return await holochainService.callZome('zome_resource', 'get_resource_history', resourceHash) as EconomicResource[];
     } catch (error) {
       console.error('Failed to get resource history:', error);
       throw error;
@@ -188,7 +188,7 @@ class ResourceService {
         'zome_resource',
         'delete_resource_specification',
         hash
-      );
+      ) as ActionHash;
     } catch (error) {
       console.error('Failed to delete resource specification:', error);
       throw error;
@@ -200,7 +200,7 @@ class ResourceService {
    */
   async archiveEconomicResource(hash: ActionHash): Promise<ActionHash> {
     try {
-      return await holochainService.callZome('zome_resource', 'archive_economic_resource', hash);
+      return await holochainService.callZome('zome_resource', 'archive_economic_resource', hash) as ActionHash;
     } catch (error) {
       console.error('Failed to archive economic resource:', error);
       throw error;
