@@ -164,7 +164,7 @@ const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceTag> =>
 
     function selectPerson(person: Person) { selectedPerson = person; }
     function clearSelectedPerson() { selectedPerson = null; }
-    function clearError() { errorMessage = null; isLoading = false; }
+    function clearError() { errorMessage = null; }
     async function initialize() { await fetchAllPersons(); await fetchMyProfile(); }
 
     return {

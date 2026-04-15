@@ -137,21 +137,21 @@ export const ResourceServiceLive: Layer.Layer<
         wz<ActionHash>(
           'update_resource_quantity',
           { resource_hash: resourceHash, new_quantity: newQuantity },
-          RESOURCE_CONTEXTS.UPDATE_ECONOMIC_RESOURCE
+          RESOURCE_CONTEXTS.UPDATE_RESOURCE_QUANTITY
         ),
 
       searchResourcesBySpecification: (specificationHash) =>
         wz<EconomicResource[]>(
           'search_resources_by_specification',
           specificationHash,
-          RESOURCE_CONTEXTS.GET_ALL_ECONOMIC_RESOURCES
+          RESOURCE_CONTEXTS.SEARCH_RESOURCES_BY_SPECIFICATION
         ),
 
       getResourceHistory: (resourceHash) =>
         wz<EconomicResource[]>(
           'get_resource_history',
           resourceHash,
-          RESOURCE_CONTEXTS.GET_ECONOMIC_RESOURCE
+          RESOURCE_CONTEXTS.GET_RESOURCE_HISTORY
         ),
 
       deleteResourceSpecification: (hash) =>
@@ -165,7 +165,7 @@ export const ResourceServiceLive: Layer.Layer<
         wz<ActionHash>(
           'archive_economic_resource',
           hash,
-          RESOURCE_CONTEXTS.UPDATE_ECONOMIC_RESOURCE
+          RESOURCE_CONTEXTS.ARCHIVE_ECONOMIC_RESOURCE
         )
     } satisfies ResourceService;
   })

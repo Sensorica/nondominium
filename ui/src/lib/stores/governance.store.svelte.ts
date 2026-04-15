@@ -189,11 +189,19 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
     }
 
     async function fetchMyCommitmentsAsProvider(myAgentPubKey: AgentPubKey): Promise<void> {
-      myCommitmentsAsProvider = await fetchCommitmentsByProvider(myAgentPubKey);
+      const commitments = await run(governanceService.getCommitmentsByProvider(myAgentPubKey));
+      if (commitments) {
+        commitmentsByProvider.set(myAgentPubKey.toString(), commitments);
+        myCommitmentsAsProvider = commitments;
+      }
     }
 
     async function fetchMyCommitmentsAsReceiver(myAgentPubKey: AgentPubKey): Promise<void> {
-      myCommitmentsAsReceiver = await fetchCommitmentsByReceiver(myAgentPubKey);
+      const commitments = await run(governanceService.getCommitmentsByReceiver(myAgentPubKey));
+      if (commitments) {
+        commitmentsByReceiver.set(myAgentPubKey.toString(), commitments);
+        myCommitmentsAsReceiver = commitments;
+      }
     }
 
     async function fetchEventsByAgent(agent: AgentPubKey): Promise<EconomicEvent[]> {
@@ -206,7 +214,11 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
     }
 
     async function fetchMyEconomicEvents(myAgentPubKey: AgentPubKey): Promise<void> {
-      myEconomicEvents = await fetchEventsByAgent(myAgentPubKey);
+      const events = await run(governanceService.getEventsByAgent(myAgentPubKey));
+      if (events) {
+        eventsByAgent.set(myAgentPubKey.toString(), events);
+        myEconomicEvents = events;
+      }
     }
 
     async function fetchPendingCommitments(): Promise<void> {
@@ -299,7 +311,7 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
     function selectCommitment(commitment: Commitment) { selectedCommitment = commitment; }
     function selectEconomicEvent(event: EconomicEvent) { selectedEconomicEvent = event; }
     function clearSelections() { selectedCommitment = null; selectedEconomicEvent = null; }
-    function clearError() { errorMessage = null; isLoading = false; }
+    function clearError() { errorMessage = null; }
     async function initialize() { await fetchPendingCommitments(); }
 
     return {

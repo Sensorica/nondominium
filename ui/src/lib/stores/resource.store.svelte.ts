@@ -137,7 +137,11 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     }
 
     async function fetchMyResources(myAgentPubKey: AgentPubKey): Promise<void> {
-      myResources = await fetchResourcesByCustodian(myAgentPubKey);
+      const resources = await run(resourceService.getResourcesByCustodian(myAgentPubKey));
+      if (resources) {
+        resourcesByCustodian.set(myAgentPubKey.toString(), resources);
+        myResources = resources;
+      }
     }
 
     async function transferResourceCustody(
@@ -207,7 +211,7 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     }
     function selectEconomicResource(resource: EconomicResource) { selectedResource = resource; }
     function clearSelections() { selectedSpecification = null; selectedResource = null; }
-    function clearError() { errorMessage = null; isLoading = false; }
+    function clearError() { errorMessage = null; }
     async function initialize() { await fetchAllResourceSpecifications(); }
 
     return {
