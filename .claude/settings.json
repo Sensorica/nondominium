@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun /home/soushi888/Projets/Sensorica/nondominium/.claude/hooks/LoadProjectDocs.hook.ts"
+          }
+        ]
+      }
+    ]
+  }
+}
