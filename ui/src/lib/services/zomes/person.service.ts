@@ -1,176 +1,118 @@
+import { Context, Effect as E, Layer } from 'effect';
 import type { ActionHash, AgentPubKey } from '@holochain/client';
-import holochainService, { type ZomeName } from '../holochain.service.svelte';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '../holochain.service.svelte';
+import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
+import { PersonError } from '$lib/errors/person.errors';
+import { PERSON_CONTEXTS } from '$lib/errors/error-contexts';
 import type { Person, EncryptedProfile, PersonRole } from '@nondominium/shared-types';
 
-// Helper function to properly type zome calls
-function callZome<T>(zomeName: ZomeName, fnName: string, payload: unknown): Promise<T> {
-  return holochainService.callZome(zomeName, fnName, payload) as Promise<T>;
-}
+// ─── Service interface ────────────────────────────────────────────────────────
 
-/**
- * Person zome service - clean architecture without Effect
- * Handles all person-related operations
- */
-class PersonService {
-  /**
-   * Create a new person profile
-   */
-  async createPerson(person: Omit<Person, 'agent_pub_key' | 'created_at'>): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_person', 'create_person', person);
-    } catch (error) {
-      console.error('Failed to create person:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get a person by their action hash
-   */
-  async getPerson(hash: ActionHash): Promise<Person> {
-    try {
-      return await callZome<Person>('zome_person', 'get_person', hash);
-    } catch (error) {
-      console.error('Failed to get person:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get all persons in the DHT for discovery
-   */
-  async getAllPersons(): Promise<Person[]> {
-    try {
-      return await callZome<Person[]>('zome_person', 'get_all_persons', null);
-    } catch (error) {
-      console.error('Failed to get all persons:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create encrypted private profile data
-   */
-  async createEncryptedProfile(
+export interface PersonService {
+  createPerson: (
+    person: Omit<Person, 'agent_pub_key' | 'created_at'>
+  ) => E.Effect<ActionHash, PersonError>;
+  getPerson: (hash: ActionHash) => E.Effect<Person, PersonError>;
+  getAllPersons: () => E.Effect<Person[], PersonError>;
+  createEncryptedProfile: (
     profile: Omit<EncryptedProfile, 'agent_pub_key' | 'created_at'>
-  ): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_person', 'create_encrypted_profile', profile);
-    } catch (error) {
-      console.error('Failed to create encrypted profile:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get encrypted profile data (only accessible by the owner)
-   */
-  async getEncryptedProfile(hash: ActionHash): Promise<EncryptedProfile> {
-    try {
-      return await callZome<EncryptedProfile>('zome_person', 'get_encrypted_profile', hash);
-    } catch (error) {
-      console.error('Failed to get encrypted profile:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Assign a role to an agent
-   */
-  async assignRole(agent: AgentPubKey, role: string): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_person', 'assign_role', { agent, role });
-    } catch (error) {
-      console.error('Failed to assign role:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get all roles assigned to an agent
-   */
-  async getRoles(agent: AgentPubKey): Promise<PersonRole[]> {
-    try {
-      return await callZome<PersonRole[]>('zome_person', 'get_roles', agent);
-    } catch (error) {
-      console.error('Failed to get roles:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get the current agent's own profile
-   */
-  async getMyProfile(): Promise<{ person: Person | null; private_data: EncryptedProfile | null }> {
-    try {
-      return await callZome<{ person: Person | null; private_data: EncryptedProfile | null }>(
-        'zome_person',
-        'get_my_profile',
-        null
-      );
-    } catch (error) {
-      console.error('Failed to get my profile:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Check if an agent has a specific role capability
-   */
-  async hasRoleCapability(agent: AgentPubKey, role: string): Promise<boolean> {
-    try {
-      return await callZome<boolean>('zome_person', 'has_role_capability', { agent, role });
-    } catch (error) {
-      console.error('Failed to check role capability:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get the capability level of an agent
-   */
-  async getCapabilityLevel(agent: AgentPubKey): Promise<string> {
-    try {
-      return await callZome<string>('zome_person', 'get_capability_level', agent);
-    } catch (error) {
-      console.error('Failed to get capability level:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update an existing person profile
-   */
-  async updatePerson(
+  ) => E.Effect<ActionHash, PersonError>;
+  getEncryptedProfile: (hash: ActionHash) => E.Effect<EncryptedProfile, PersonError>;
+  assignRole: (agent: AgentPubKey, role: string) => E.Effect<ActionHash, PersonError>;
+  getRoles: (agent: AgentPubKey) => E.Effect<PersonRole[], PersonError>;
+  getMyProfile: () => E.Effect<
+    { person: Person | null; private_data: EncryptedProfile | null },
+    PersonError
+  >;
+  hasRoleCapability: (agent: AgentPubKey, role: string) => E.Effect<boolean, PersonError>;
+  getCapabilityLevel: (agent: AgentPubKey) => E.Effect<string, PersonError>;
+  updatePerson: (
     hash: ActionHash,
     updatedPerson: Omit<Person, 'agent_pub_key' | 'created_at'>
-  ): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_person', 'update_person', {
-        hash,
-        person: updatedPerson
-      });
-    } catch (error) {
-      console.error('Failed to update person:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a person profile (mark as deleted)
-   */
-  async deletePerson(hash: ActionHash): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_person', 'delete_person', hash);
-    } catch (error) {
-      console.error('Failed to delete person:', error);
-      throw error;
-    }
-  }
+  ) => E.Effect<ActionHash, PersonError>;
+  deletePerson: (hash: ActionHash) => E.Effect<ActionHash, PersonError>;
 }
 
-// Export singleton instance
-export const personService = new PersonService();
+// ─── Context Tag ─────────────────────────────────────────────────────────────
 
-// Export class for testing
-export { PersonService };
+export class PersonServiceTag extends Context.Tag('PersonService')<
+  PersonServiceTag,
+  PersonService
+>() {}
+
+// ─── Live Layer ───────────────────────────────────────────────────────────────
+
+export const PersonServiceLive: Layer.Layer<
+  PersonServiceTag,
+  never,
+  HolochainClientServiceTag
+> = Layer.effect(
+  PersonServiceTag,
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
+
+    const wz = <T>(fnName: string, payload: unknown, context: string): E.Effect<T, PersonError> =>
+      wrapZomeCallWithErrorFactory<T, PersonError>(
+        holochainClient,
+        'zome_person',
+        fnName,
+        payload,
+        context,
+        PersonError.fromError
+      );
+
+    return {
+      createPerson: (person) =>
+        wz<ActionHash>('create_person', person, PERSON_CONTEXTS.CREATE_PERSON),
+
+      getPerson: (hash) =>
+        wz<Person>('get_person', hash, PERSON_CONTEXTS.GET_PERSON),
+
+      getAllPersons: () =>
+        wz<Person[]>('get_all_persons', null, PERSON_CONTEXTS.GET_ALL_PERSONS),
+
+      createEncryptedProfile: (profile) =>
+        wz<ActionHash>('create_encrypted_profile', profile, PERSON_CONTEXTS.CREATE_ENCRYPTED_PROFILE),
+
+      getEncryptedProfile: (hash) =>
+        wz<EncryptedProfile>('get_encrypted_profile', hash, PERSON_CONTEXTS.GET_ENCRYPTED_PROFILE),
+
+      assignRole: (agent, role) =>
+        wz<ActionHash>('assign_role', { agent, role }, PERSON_CONTEXTS.ASSIGN_ROLE),
+
+      getRoles: (agent) =>
+        wz<PersonRole[]>('get_roles', agent, PERSON_CONTEXTS.GET_ROLES),
+
+      getMyProfile: () =>
+        wz<{ person: Person | null; private_data: EncryptedProfile | null }>(
+          'get_my_profile',
+          null,
+          PERSON_CONTEXTS.GET_MY_PROFILE
+        ),
+
+      hasRoleCapability: (agent, role) =>
+        wz<boolean>('has_role_capability', { agent, role }, PERSON_CONTEXTS.HAS_ROLE_CAPABILITY),
+
+      getCapabilityLevel: (agent) =>
+        wz<string>('get_capability_level', agent, PERSON_CONTEXTS.GET_CAPABILITY_LEVEL),
+
+      updatePerson: (hash, updatedPerson) =>
+        wz<ActionHash>(
+          'update_person',
+          { hash, person: updatedPerson },
+          PERSON_CONTEXTS.UPDATE_PERSON
+        ),
+
+      deletePerson: (hash) =>
+        wz<ActionHash>('delete_person', hash, PERSON_CONTEXTS.DELETE_PERSON)
+    } satisfies PersonService;
+  })
+);
+
+/** Fully-resolved layer for direct use (no further dependencies needed). */
+export const PersonServiceResolved: Layer.Layer<PersonServiceTag> = PersonServiceLive.pipe(
+  Layer.provide(HolochainClientServiceLive)
+);

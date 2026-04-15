@@ -1,424 +1,258 @@
+import { Effect as E, Exit, pipe } from 'effect';
 import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
-import { resourceService } from '../services/zomes/resource.service.js';
+import {
+  ResourceServiceTag,
+  ResourceServiceResolved,
+  type ResourceService
+} from '../services/zomes/resource.service.js';
+import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-helpers/core';
 import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
 
-export type ResourceLoadingState = 'idle' | 'loading' | 'success' | 'error';
+// ─── Store type ────────────────────────────────────────────────────────────────
 
-/**
- * Resource store using Svelte 5 runes
- * Clean architecture following requests-and-offers patterns (without Effect)
- */
-function createResourceStore() {
-  // Loading states
-  let loadingState: ResourceLoadingState = $state('idle');
-  let error: Error | null = $state(null);
+export type ResourceStore = {
+  readonly isLoading: boolean;
+  readonly errorMessage: string | null;
+  readonly allResourceSpecifications: ResourceSpecification[];
+  readonly allEconomicResources: EconomicResource[];
+  readonly myResources: EconomicResource[];
+  readonly selectedSpecification: ResourceSpecification | null;
+  readonly selectedResource: EconomicResource | null;
+  readonly resourcesByCustodian: Map<string, EconomicResource[]>;
 
-  // Data stores
-  let allResourceSpecifications: ResourceSpecification[] = $state([]);
-  const allEconomicResources: EconomicResource[] = $state([]);
-  let myResources: EconomicResource[] = $state([]); // Resources I'm custodian of
-  let selectedSpecification: ResourceSpecification | null = $state(null);
-  let selectedResource: EconomicResource | null = $state(null);
-
-  // Cache for resources and specifications
-  const specificationCache: Map<string, ResourceSpecification> = $state(new Map());
-  const resourceCache: Map<string, EconomicResource> = $state(new Map());
-  const resourcesByCustodian: Map<string, EconomicResource[]> = $state(new Map());
-
-  /**
-   * Set loading state and error handling
-   */
-  function setLoadingState(state: ResourceLoadingState, errorMsg?: Error) {
-    loadingState = state;
-    error = errorMsg || null;
-  }
-
-  /**
-   * Create a new resource specification
-   */
-  async function createResourceSpecification(
+  createResourceSpecification: (
     specData: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-  ): Promise<ActionHash | null> {
-    setLoadingState('loading');
-
-    try {
-      const hash = await resourceService.createResourceSpecification(specData);
-
-      // Refresh the specifications list
-      await fetchAllResourceSpecifications();
-
-      setLoadingState('success');
-      return hash;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
-    }
-  }
-
-  /**
-   * Fetch all resource specifications
-   */
-  async function fetchAllResourceSpecifications(): Promise<void> {
-    setLoadingState('loading');
-
-    try {
-      const specifications = await resourceService.getAllResourceSpecifications();
-      allResourceSpecifications = specifications;
-
-      // Update cache
-      specifications.forEach((spec) => {
-        // TODO: We need the hash to use as cache key
-        // For now, we'll use a combination of name and created_by
-        const cacheKey = `${spec.name}-${spec.created_by.toString()}`;
-        specificationCache.set(cacheKey, spec);
-      });
-
-      setLoadingState('success');
-    } catch (err) {
-      setLoadingState('error', err as Error);
-    }
-  }
-
-  /**
-   * Get a specific resource specification by hash
-   */
-  async function fetchResourceSpecification(
-    hash: ActionHash
-  ): Promise<ResourceSpecification | null> {
-    setLoadingState('loading');
-
-    try {
-      const specification = await resourceService.getResourceSpecification(hash);
-
-      // Update cache
-      const cacheKey = hash.toString();
-      specificationCache.set(cacheKey, specification);
-
-      setLoadingState('success');
-      return specification;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
-    }
-  }
-
-  /**
-   * Create a new economic resource instance
-   */
-  async function createEconomicResource(
+  ) => Promise<ActionHash | null>;
+  fetchAllResourceSpecifications: () => Promise<void>;
+  fetchResourceSpecification: (hash: ActionHash) => Promise<ResourceSpecification | null>;
+  createEconomicResource: (
     resourceData: Omit<EconomicResource, 'created_at'>
-  ): Promise<ActionHash | null> {
-    setLoadingState('loading');
-
-    try {
-      const hash = await resourceService.createEconomicResource(resourceData);
-
-      // Refresh resources
-      await fetchResourcesByCustodian(resourceData.custodian);
-
-      setLoadingState('success');
-      return hash;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
-    }
-  }
-
-  /**
-   * Fetch an economic resource by hash
-   */
-  async function fetchEconomicResource(hash: ActionHash): Promise<EconomicResource | null> {
-    setLoadingState('loading');
-
-    try {
-      const resource = await resourceService.getEconomicResource(hash);
-
-      // Update cache
-      const cacheKey = hash.toString();
-      resourceCache.set(cacheKey, resource);
-
-      setLoadingState('success');
-      return resource;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
-    }
-  }
-
-  /**
-   * Fetch resources by custodian
-   */
-  async function fetchResourcesByCustodian(custodian: AgentPubKey): Promise<EconomicResource[]> {
-    const custodianKey = custodian.toString();
-
-    try {
-      const resources = await resourceService.getResourcesByCustodian(custodian);
-
-      // Update cache
-      resourcesByCustodian.set(custodianKey, resources);
-      resources.forEach((resource) => {
-        // TODO: We need the hash to use as cache key
-        const cacheKey = `${resource.custodian.toString()}-${Date.now()}`;
-        resourceCache.set(cacheKey, resource);
-      });
-
-      return resources;
-    } catch (err) {
-      console.error('Failed to fetch resources by custodian:', err);
-      return [];
-    }
-  }
-
-  /**
-   * Fetch my resources (resources I'm custodian of)
-   */
-  async function fetchMyResources(myAgentPubKey: AgentPubKey): Promise<void> {
-    setLoadingState('loading');
-
-    try {
-      const resources = await fetchResourcesByCustodian(myAgentPubKey);
-      myResources = resources;
-      setLoadingState('success');
-    } catch (err) {
-      setLoadingState('error', err as Error);
-    }
-  }
-
-  /**
-   * Transfer custody of a resource
-   */
-  async function transferResourceCustody(
+  ) => Promise<ActionHash | null>;
+  fetchEconomicResource: (hash: ActionHash) => Promise<EconomicResource | null>;
+  fetchResourcesByCustodian: (custodian: AgentPubKey) => Promise<EconomicResource[]>;
+  fetchMyResources: (myAgentPubKey: AgentPubKey) => Promise<void>;
+  transferResourceCustody: (
     resourceHash: ActionHash,
     newCustodian: AgentPubKey
-  ): Promise<ActionHash | null> {
-    setLoadingState('loading');
-
-    try {
-      const hash = await resourceService.transferResourceCustody(resourceHash, newCustodian);
-
-      // Refresh affected custodian's resources
-      await fetchResourcesByCustodian(newCustodian);
-
-      // Update the resource in cache
-      const resource = await fetchEconomicResource(resourceHash);
-      if (resource) {
-        resource.custodian = newCustodian;
-      }
-
-      setLoadingState('success');
-      return hash;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
-    }
-  }
-
-  /**
-   * Update resource quantity
-   */
-  async function updateResourceQuantity(
+  ) => Promise<ActionHash | null>;
+  updateResourceQuantity: (
     resourceHash: ActionHash,
     newQuantity: number
-  ): Promise<ActionHash | null> {
-    setLoadingState('loading');
-
-    try {
-      const hash = await resourceService.updateResourceQuantity(resourceHash, newQuantity);
-
-      // Update the resource in cache
-      const resource = await fetchEconomicResource(resourceHash);
-      if (resource) {
-        resource.quantity = newQuantity;
-      }
-
-      setLoadingState('success');
-      return hash;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
-    }
-  }
-
-  /**
-   * Search resources by specification
-   */
-  async function searchResourcesBySpecification(
-    specificationHash: EntryHash
-  ): Promise<EconomicResource[]> {
-    try {
-      return await resourceService.searchResourcesBySpecification(specificationHash);
-    } catch (err) {
-      console.error('Failed to search resources by specification:', err);
-      return [];
-    }
-  }
-
-  /**
-   * Get resource history
-   */
-  async function getResourceHistory(resourceHash: ActionHash): Promise<EconomicResource[]> {
-    try {
-      return await resourceService.getResourceHistory(resourceHash);
-    } catch (err) {
-      console.error('Failed to get resource history:', err);
-      return [];
-    }
-  }
-
-  /**
-   * Update a resource specification
-   */
-  async function updateResourceSpecification(
+  ) => Promise<ActionHash | null>;
+  searchResourcesBySpecification: (specificationHash: EntryHash) => Promise<EconomicResource[]>;
+  getResourceHistory: (resourceHash: ActionHash) => Promise<EconomicResource[]>;
+  updateResourceSpecification: (
     hash: ActionHash,
     updatedSpec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-  ): Promise<ActionHash | null> {
-    setLoadingState('loading');
+  ) => Promise<ActionHash | null>;
+  deleteResourceSpecification: (hash: ActionHash) => Promise<ActionHash | null>;
+  archiveEconomicResource: (hash: ActionHash) => Promise<ActionHash | null>;
+  selectResourceSpecification: (specification: ResourceSpecification) => void;
+  selectEconomicResource: (resource: EconomicResource) => void;
+  clearSelections: () => void;
+  clearError: () => void;
+  initialize: () => Promise<void>;
+};
 
-    try {
-      const updateHash = await resourceService.updateResourceSpecification(hash, updatedSpec);
+// ─── Store factory ─────────────────────────────────────────────────────────────
 
-      // Refresh specifications
-      await fetchAllResourceSpecifications();
+const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTag> =>
+  E.gen(function* () {
+    const resourceService: ResourceService = yield* ResourceServiceTag;
 
-      setLoadingState('success');
+    // ─── Reactive state ──────────────────────────────────────────────────────
+    let isLoading: boolean = $state(false);
+    let errorMessage: string | null = $state(null);
+    let allResourceSpecifications: ResourceSpecification[] = $state([]);
+    // TODO: allEconomicResources is never populated — no store method writes to it.
+    // Either wire fetchAllEconomicResources here or remove this getter from the public type before
+    // connecting UI components so consumers are not misled by an always-empty array.
+    const allEconomicResources: EconomicResource[] = $state([]);
+    let myResources: EconomicResource[] = $state([]);
+    let selectedSpecification: ResourceSpecification | null = $state(null);
+    let selectedResource: EconomicResource | null = $state(null);
+
+    const specificationCache: Map<string, ResourceSpecification> = $state(new Map());
+    const resourceCache: Map<string, EconomicResource> = $state(new Map());
+    const resourcesByCustodian: Map<string, EconomicResource[]> = $state(new Map());
+
+    // ─── Loading state setters ────────────────────────────────────────────────
+    const setters = createLoadingStateSetter(
+      (v) => { isLoading = v; },
+      (v) => { errorMessage = v; }
+    );
+
+    // ─── Internal run helper ──────────────────────────────────────────────────
+    async function run<T>(effect: E.Effect<T, unknown>): Promise<T | null> {
+      const exit = await E.runPromiseExit(withLoadingState(() => effect)(setters));
+      return Exit.isSuccess(exit) ? exit.value : null;
+    }
+
+    // ─── Actions ──────────────────────────────────────────────────────────────
+
+    async function createResourceSpecification(
+      specData: Omit<ResourceSpecification, 'created_by' | 'created_at'>
+    ): Promise<ActionHash | null> {
+      const hash = await run(resourceService.createResourceSpecification(specData));
+      if (hash) await fetchAllResourceSpecifications();
+      return hash;
+    }
+
+    async function fetchAllResourceSpecifications(): Promise<void> {
+      const specifications = await run(resourceService.getAllResourceSpecifications());
+      if (specifications) {
+        allResourceSpecifications = specifications;
+        specifications.forEach((spec) => {
+          specificationCache.set(`${spec.name}-${spec.created_by.toString()}`, spec);
+        });
+      }
+    }
+
+    async function fetchResourceSpecification(
+      hash: ActionHash
+    ): Promise<ResourceSpecification | null> {
+      const specification = await run(resourceService.getResourceSpecification(hash));
+      if (specification) specificationCache.set(hash.toString(), specification);
+      return specification;
+    }
+
+    async function createEconomicResource(
+      resourceData: Omit<EconomicResource, 'created_at'>
+    ): Promise<ActionHash | null> {
+      const hash = await run(resourceService.createEconomicResource(resourceData));
+      if (hash) await fetchResourcesByCustodian(resourceData.custodian);
+      return hash;
+    }
+
+    async function fetchEconomicResource(hash: ActionHash): Promise<EconomicResource | null> {
+      const resource = await run(resourceService.getEconomicResource(hash));
+      if (resource) resourceCache.set(hash.toString(), resource);
+      return resource;
+    }
+
+    async function fetchResourcesByCustodian(custodian: AgentPubKey): Promise<EconomicResource[]> {
+      const exit = await E.runPromiseExit(resourceService.getResourcesByCustodian(custodian));
+      if (Exit.isSuccess(exit)) {
+        resourcesByCustodian.set(custodian.toString(), exit.value);
+        return exit.value;
+      }
+      return [];
+    }
+
+    async function fetchMyResources(myAgentPubKey: AgentPubKey): Promise<void> {
+      const resources = await run(resourceService.getResourcesByCustodian(myAgentPubKey));
+      if (resources) {
+        resourcesByCustodian.set(myAgentPubKey.toString(), resources);
+        myResources = resources;
+      }
+    }
+
+    async function transferResourceCustody(
+      resourceHash: ActionHash,
+      newCustodian: AgentPubKey
+    ): Promise<ActionHash | null> {
+      const hash = await run(resourceService.transferResourceCustody(resourceHash, newCustodian));
+      if (hash) {
+        await fetchResourcesByCustodian(newCustodian);
+        const updated = await fetchEconomicResource(resourceHash);
+        if (updated) updated.custodian = newCustodian;
+      }
+      return hash;
+    }
+
+    async function updateResourceQuantity(
+      resourceHash: ActionHash,
+      newQuantity: number
+    ): Promise<ActionHash | null> {
+      const hash = await run(resourceService.updateResourceQuantity(resourceHash, newQuantity));
+      if (hash) {
+        const updated = await fetchEconomicResource(resourceHash);
+        if (updated) updated.quantity = newQuantity;
+      }
+      return hash;
+    }
+
+    async function searchResourcesBySpecification(
+      specificationHash: EntryHash
+    ): Promise<EconomicResource[]> {
+      const exit = await E.runPromiseExit(
+        resourceService.searchResourcesBySpecification(specificationHash)
+      );
+      return Exit.isSuccess(exit) ? exit.value : [];
+    }
+
+    async function getResourceHistory(resourceHash: ActionHash): Promise<EconomicResource[]> {
+      const exit = await E.runPromiseExit(resourceService.getResourceHistory(resourceHash));
+      return Exit.isSuccess(exit) ? exit.value : [];
+    }
+
+    async function updateResourceSpecification(
+      hash: ActionHash,
+      updatedSpec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
+    ): Promise<ActionHash | null> {
+      const updateHash = await run(
+        resourceService.updateResourceSpecification(hash, updatedSpec)
+      );
+      if (updateHash) await fetchAllResourceSpecifications();
       return updateHash;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
     }
-  }
 
-  /**
-   * Delete/archive a resource specification
-   */
-  async function deleteResourceSpecification(hash: ActionHash): Promise<ActionHash | null> {
-    setLoadingState('loading');
-
-    try {
-      const deleteHash = await resourceService.deleteResourceSpecification(hash);
-
-      // Refresh specifications
-      await fetchAllResourceSpecifications();
-
-      setLoadingState('success');
+    async function deleteResourceSpecification(hash: ActionHash): Promise<ActionHash | null> {
+      const deleteHash = await run(resourceService.deleteResourceSpecification(hash));
+      if (deleteHash) await fetchAllResourceSpecifications();
       return deleteHash;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
     }
-  }
 
-  /**
-   * Archive an economic resource
-   */
-  async function archiveEconomicResource(hash: ActionHash): Promise<ActionHash | null> {
-    setLoadingState('loading');
-
-    try {
-      const archiveHash = await resourceService.archiveEconomicResource(hash);
-
-      // Remove from cache and refresh
-      resourceCache.delete(hash.toString());
-
-      setLoadingState('success');
+    async function archiveEconomicResource(hash: ActionHash): Promise<ActionHash | null> {
+      const archiveHash = await run(resourceService.archiveEconomicResource(hash));
+      if (archiveHash) resourceCache.delete(hash.toString());
       return archiveHash;
-    } catch (err) {
-      setLoadingState('error', err as Error);
-      return null;
     }
-  }
 
-  /**
-   * Select a resource specification for detailed view
-   */
-  function selectResourceSpecification(specification: ResourceSpecification) {
-    selectedSpecification = specification;
-  }
-
-  /**
-   * Select an economic resource for detailed view
-   */
-  function selectEconomicResource(resource: EconomicResource) {
-    selectedResource = resource;
-  }
-
-  /**
-   * Clear selections
-   */
-  function clearSelections() {
-    selectedSpecification = null;
-    selectedResource = null;
-  }
-
-  /**
-   * Clear error state
-   */
-  function clearError() {
-    error = null;
-    if (loadingState === 'error') {
-      loadingState = 'idle';
+    function selectResourceSpecification(specification: ResourceSpecification) {
+      selectedSpecification = specification;
     }
-  }
+    function selectEconomicResource(resource: EconomicResource) { selectedResource = resource; }
+    function clearSelections() { selectedSpecification = null; selectedResource = null; }
+    function clearError() { errorMessage = null; }
+    async function initialize() { await fetchAllResourceSpecifications(); }
 
-  /**
-   * Initialize the store
-   */
-  async function initialize() {
-    await fetchAllResourceSpecifications();
-  }
+    return {
+      get isLoading() { return isLoading; },
+      get errorMessage() { return errorMessage; },
+      get allResourceSpecifications() { return allResourceSpecifications; },
+      get allEconomicResources() { return allEconomicResources; },
+      get myResources() { return myResources; },
+      get selectedSpecification() { return selectedSpecification; },
+      get selectedResource() { return selectedResource; },
+      get resourcesByCustodian() { return resourcesByCustodian; },
 
-  return {
-    // Reactive getters
-    get loadingState() {
-      return loadingState;
-    },
-    get error() {
-      return error;
-    },
-    get allResourceSpecifications() {
-      return allResourceSpecifications;
-    },
-    get allEconomicResources() {
-      return allEconomicResources;
-    },
-    get myResources() {
-      return myResources;
-    },
-    get selectedSpecification() {
-      return selectedSpecification;
-    },
-    get selectedResource() {
-      return selectedResource;
-    },
-    get resourcesByCustodian() {
-      return resourcesByCustodian;
-    },
+      createResourceSpecification,
+      fetchAllResourceSpecifications,
+      fetchResourceSpecification,
+      createEconomicResource,
+      fetchEconomicResource,
+      fetchResourcesByCustodian,
+      fetchMyResources,
+      transferResourceCustody,
+      updateResourceQuantity,
+      searchResourcesBySpecification,
+      getResourceHistory,
+      updateResourceSpecification,
+      deleteResourceSpecification,
+      archiveEconomicResource,
+      selectResourceSpecification,
+      selectEconomicResource,
+      clearSelections,
+      clearError,
+      initialize
+    };
+  });
 
-    // Actions
-    createResourceSpecification,
-    fetchAllResourceSpecifications,
-    fetchResourceSpecification,
-    createEconomicResource,
-    fetchEconomicResource,
-    fetchResourcesByCustodian,
-    fetchMyResources,
-    transferResourceCustody,
-    updateResourceQuantity,
-    searchResourcesBySpecification,
-    getResourceHistory,
-    updateResourceSpecification,
-    deleteResourceSpecification,
-    archiveEconomicResource,
-    selectResourceSpecification,
-    selectEconomicResource,
-    clearSelections,
-    clearError,
-    initialize
-  };
-}
+// ─── Store instance ────────────────────────────────────────────────────────────
 
-// Export singleton instance
-export const resourceStore = createResourceStore();
-
-// Export type
-export type ResourceStore = ReturnType<typeof createResourceStore>;
+export const resourceStore: ResourceStore = pipe(
+  createResourceStore(),
+  E.provide(ResourceServiceResolved),
+  E.runSync
+);

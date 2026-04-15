@@ -1,4 +1,5 @@
 import { type AppInfoResponse, AppWebsocket } from '@holochain/client';
+import { Context, Layer } from 'effect';
 
 export type ZomeName = 'zome_person' | 'zome_resource' | 'zome_gouvernance';
 export type RoleName = 'nondominium';
@@ -67,15 +68,6 @@ function createHolochainClientService(): HolochainClientService {
     return await client.appInfo();
   }
 
-  /**
-   * Calls a zome function on the Holochain client.
-   * @param {ZomeName} zomeName - The name of the zome.
-   * @param {string} fnName - The name of the function within the zome.
-   * @param {unknown} payload - The payload to send with the function call.
-   * @param {Uint8Array | null} capSecret - The capability secret for authorization.
-   * @param {RoleName} roleName - The name of the role to call the function on. Defaults to 'requests_and_offers'.
-   * @returns {Promise<unknown>} - The result of the zome function call.
-   */
   /**
    * Verifies if the client is truly connected and working
    */
@@ -152,3 +144,16 @@ function createHolochainClientService(): HolochainClientService {
 
 const holochainClientService = createHolochainClientService();
 export default holochainClientService;
+
+// ─── Effect DI Layer ─────────────────────────────────────────────────────────
+
+export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
+  HolochainClientServiceTag,
+  HolochainClientService
+>() {}
+
+/** Wraps the singleton in a Layer so services can be composed with E.provide. */
+export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> = Layer.succeed(
+  HolochainClientServiceTag,
+  holochainClientService
+);

@@ -1,215 +1,177 @@
+import { Context, Effect as E, Layer } from 'effect';
 import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
-import holochainService, { type ZomeName } from '../holochain.service.svelte';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '../holochain.service.svelte';
+import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
+import { ResourceError } from '$lib/errors/resource.errors';
+import { RESOURCE_CONTEXTS } from '$lib/errors/error-contexts';
 import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
 
-// Helper function to properly type zome calls
-function callZome<T>(zomeName: ZomeName, fnName: string, payload: unknown): Promise<T> {
-  return holochainService.callZome(zomeName, fnName, payload) as Promise<T>;
-}
+// ─── Service interface ────────────────────────────────────────────────────────
 
-/**
- * Resource zome service - clean architecture without Effect
- * Handles all resource-related operations (Phase 2)
- */
-class ResourceService {
-  /**
-   * Create a new resource specification
-   */
-  async createResourceSpecification(
+export interface ResourceService {
+  createResourceSpecification: (
     spec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-  ): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_resource', 'create_resource_specification', spec);
-    } catch (error) {
-      console.error('Failed to create resource specification:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get a resource specification by hash
-   */
-  async getResourceSpecification(hash: ActionHash): Promise<ResourceSpecification> {
-    try {
-      return await callZome<ResourceSpecification>(
-        'zome_resource',
-        'get_resource_specification',
-        hash
-      );
-    } catch (error) {
-      console.error('Failed to get resource specification:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get all resource specifications for discovery
-   */
-  async getAllResourceSpecifications(): Promise<ResourceSpecification[]> {
-    try {
-      return await callZome<ResourceSpecification[]>(
-        'zome_resource',
-        'get_all_resource_specifications',
-        null
-      );
-    } catch (error) {
-      console.error('Failed to get all resource specifications:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create a new economic resource instance
-   */
-  async createEconomicResource(
+  ) => E.Effect<ActionHash, ResourceError>;
+  getResourceSpecification: (hash: ActionHash) => E.Effect<ResourceSpecification, ResourceError>;
+  getAllResourceSpecifications: () => E.Effect<ResourceSpecification[], ResourceError>;
+  createEconomicResource: (
     resource: Omit<EconomicResource, 'created_at'>
-  ): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_resource', 'create_economic_resource', resource);
-    } catch (error) {
-      console.error('Failed to create economic resource:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get an economic resource by hash
-   */
-  async getEconomicResource(hash: ActionHash): Promise<EconomicResource> {
-    try {
-      return await callZome<EconomicResource>('zome_resource', 'get_economic_resource', hash);
-    } catch (error) {
-      console.error('Failed to get economic resource:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get all resources managed by a specific custodian
-   */
-  async getResourcesByCustodian(custodian: AgentPubKey): Promise<EconomicResource[]> {
-    try {
-      return await callZome<EconomicResource[]>(
-        'zome_resource',
-        'get_resources_by_custodian',
-        custodian
-      );
-    } catch (error) {
-      console.error('Failed to get resources by custodian:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update a resource specification
-   */
-  async updateResourceSpecification(
+  ) => E.Effect<ActionHash, ResourceError>;
+  getEconomicResource: (hash: ActionHash) => E.Effect<EconomicResource, ResourceError>;
+  getResourcesByCustodian: (
+    custodian: AgentPubKey
+  ) => E.Effect<EconomicResource[], ResourceError>;
+  updateResourceSpecification: (
     hash: ActionHash,
     updatedSpec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-  ): Promise<ActionHash> {
-    try {
-      return await callZome<ActionHash>('zome_resource', 'update_resource_specification', {
-        hash,
-        specification: updatedSpec
-      });
-    } catch (error) {
-      console.error('Failed to update resource specification:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Transfer custody of a resource to another agent
-   */
-  async transferResourceCustody(
+  ) => E.Effect<ActionHash, ResourceError>;
+  transferResourceCustody: (
     resourceHash: ActionHash,
     newCustodian: AgentPubKey
-  ): Promise<ActionHash> {
-    try {
-      return await holochainService.callZome('zome_resource', 'transfer_resource_custody', {
-        resource_hash: resourceHash,
-        new_custodian: newCustodian
-      }) as ActionHash;
-    } catch (error) {
-      console.error('Failed to transfer resource custody:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update resource quantity
-   */
-  async updateResourceQuantity(resourceHash: ActionHash, newQuantity: number): Promise<ActionHash> {
-    try {
-      return await holochainService.callZome('zome_resource', 'update_resource_quantity', {
-        resource_hash: resourceHash,
-        new_quantity: newQuantity
-      }) as ActionHash;
-    } catch (error) {
-      console.error('Failed to update resource quantity:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Search resources by specification type
-   */
-  async searchResourcesBySpecification(specificationHash: EntryHash): Promise<EconomicResource[]> {
-    try {
-      return await holochainService.callZome(
-        'zome_resource',
-        'search_resources_by_specification',
-        specificationHash
-      ) as EconomicResource[];
-    } catch (error) {
-      console.error('Failed to search resources by specification:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get resource history (all updates)
-   */
-  async getResourceHistory(resourceHash: ActionHash): Promise<EconomicResource[]> {
-    try {
-      return await holochainService.callZome('zome_resource', 'get_resource_history', resourceHash) as EconomicResource[];
-    } catch (error) {
-      console.error('Failed to get resource history:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete/archive a resource specification
-   */
-  async deleteResourceSpecification(hash: ActionHash): Promise<ActionHash> {
-    try {
-      return await holochainService.callZome(
-        'zome_resource',
-        'delete_resource_specification',
-        hash
-      ) as ActionHash;
-    } catch (error) {
-      console.error('Failed to delete resource specification:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Archive an economic resource
-   */
-  async archiveEconomicResource(hash: ActionHash): Promise<ActionHash> {
-    try {
-      return await holochainService.callZome('zome_resource', 'archive_economic_resource', hash) as ActionHash;
-    } catch (error) {
-      console.error('Failed to archive economic resource:', error);
-      throw error;
-    }
-  }
+  ) => E.Effect<ActionHash, ResourceError>;
+  updateResourceQuantity: (
+    resourceHash: ActionHash,
+    newQuantity: number
+  ) => E.Effect<ActionHash, ResourceError>;
+  searchResourcesBySpecification: (
+    specificationHash: EntryHash
+  ) => E.Effect<EconomicResource[], ResourceError>;
+  getResourceHistory: (resourceHash: ActionHash) => E.Effect<EconomicResource[], ResourceError>;
+  deleteResourceSpecification: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
+  archiveEconomicResource: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
 }
 
-// Export singleton instance
-export const resourceService = new ResourceService();
+// ─── Context Tag ─────────────────────────────────────────────────────────────
 
-// Export class for testing
-export { ResourceService };
+export class ResourceServiceTag extends Context.Tag('ResourceService')<
+  ResourceServiceTag,
+  ResourceService
+>() {}
+
+// ─── Live Layer ───────────────────────────────────────────────────────────────
+
+export const ResourceServiceLive: Layer.Layer<
+  ResourceServiceTag,
+  never,
+  HolochainClientServiceTag
+> = Layer.effect(
+  ResourceServiceTag,
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
+
+    const wz = <T>(
+      fnName: string,
+      payload: unknown,
+      context: string
+    ): E.Effect<T, ResourceError> =>
+      wrapZomeCallWithErrorFactory<T, ResourceError>(
+        holochainClient,
+        'zome_resource',
+        fnName,
+        payload,
+        context,
+        ResourceError.fromError
+      );
+
+    return {
+      createResourceSpecification: (spec) =>
+        wz<ActionHash>(
+          'create_resource_specification',
+          spec,
+          RESOURCE_CONTEXTS.CREATE_RESOURCE_SPECIFICATION
+        ),
+
+      getResourceSpecification: (hash) =>
+        wz<ResourceSpecification>(
+          'get_resource_specification',
+          hash,
+          RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION
+        ),
+
+      getAllResourceSpecifications: () =>
+        wz<ResourceSpecification[]>(
+          'get_all_resource_specifications',
+          null,
+          RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
+        ),
+
+      createEconomicResource: (resource) =>
+        wz<ActionHash>(
+          'create_economic_resource',
+          resource,
+          RESOURCE_CONTEXTS.CREATE_ECONOMIC_RESOURCE
+        ),
+
+      getEconomicResource: (hash) =>
+        wz<EconomicResource>(
+          'get_economic_resource',
+          hash,
+          RESOURCE_CONTEXTS.GET_ECONOMIC_RESOURCE
+        ),
+
+      getResourcesByCustodian: (custodian) =>
+        wz<EconomicResource[]>(
+          'get_resources_by_custodian',
+          custodian,
+          RESOURCE_CONTEXTS.GET_RESOURCES_BY_CUSTODIAN
+        ),
+
+      updateResourceSpecification: (hash, updatedSpec) =>
+        wz<ActionHash>(
+          'update_resource_specification',
+          { hash, specification: updatedSpec },
+          RESOURCE_CONTEXTS.UPDATE_RESOURCE_SPECIFICATION
+        ),
+
+      transferResourceCustody: (resourceHash, newCustodian) =>
+        wz<ActionHash>(
+          'transfer_resource_custody',
+          { resource_hash: resourceHash, new_custodian: newCustodian },
+          RESOURCE_CONTEXTS.TRANSFER_RESOURCE_CUSTODY
+        ),
+
+      updateResourceQuantity: (resourceHash, newQuantity) =>
+        wz<ActionHash>(
+          'update_resource_quantity',
+          { resource_hash: resourceHash, new_quantity: newQuantity },
+          RESOURCE_CONTEXTS.UPDATE_RESOURCE_QUANTITY
+        ),
+
+      searchResourcesBySpecification: (specificationHash) =>
+        wz<EconomicResource[]>(
+          'search_resources_by_specification',
+          specificationHash,
+          RESOURCE_CONTEXTS.SEARCH_RESOURCES_BY_SPECIFICATION
+        ),
+
+      getResourceHistory: (resourceHash) =>
+        wz<EconomicResource[]>(
+          'get_resource_history',
+          resourceHash,
+          RESOURCE_CONTEXTS.GET_RESOURCE_HISTORY
+        ),
+
+      deleteResourceSpecification: (hash) =>
+        wz<ActionHash>(
+          'delete_resource_specification',
+          hash,
+          RESOURCE_CONTEXTS.DELETE_RESOURCE_SPECIFICATION
+        ),
+
+      archiveEconomicResource: (hash) =>
+        wz<ActionHash>(
+          'archive_economic_resource',
+          hash,
+          RESOURCE_CONTEXTS.ARCHIVE_ECONOMIC_RESOURCE
+        )
+    } satisfies ResourceService;
+  })
+);
+
+/** Fully-resolved layer for direct use (no further dependencies needed). */
+export const ResourceServiceResolved: Layer.Layer<ResourceServiceTag> = ResourceServiceLive.pipe(
+  Layer.provide(HolochainClientServiceLive)
+);
