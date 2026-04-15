@@ -1,5 +1,6 @@
 <script lang="ts">
   import '../app.css';
+  import 'virtual:uno.css';
   import favicon from '$lib/assets/favicon.svg';
   import HolochainProvider from '$lib/components/HolochainProvider.svelte';
 
