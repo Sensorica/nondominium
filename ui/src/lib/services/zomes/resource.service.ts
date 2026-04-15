@@ -1,22 +1,13 @@
-import { Effect as E } from 'effect';
+import { Context, Effect as E, Layer } from 'effect';
 import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
-import holochainService from '../holochain.service.svelte';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '../holochain.service.svelte';
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import { ResourceError } from '$lib/errors/resource.errors';
 import { RESOURCE_CONTEXTS } from '$lib/errors/error-contexts';
 import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
-
-// ─── Helper ──────────────────────────────────────────────────────────────────
-
-const wz = <T>(fnName: string, payload: unknown, context: string): E.Effect<T, ResourceError> =>
-  wrapZomeCallWithErrorFactory<T, ResourceError>(
-    holochainService,
-    'zome_resource',
-    fnName,
-    payload,
-    context,
-    ResourceError.fromError
-  );
 
 // ─── Service interface ────────────────────────────────────────────────────────
 
@@ -53,111 +44,134 @@ export interface ResourceService {
   archiveEconomicResource: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
 }
 
-// ─── Implementation ───────────────────────────────────────────────────────────
+// ─── Context Tag ─────────────────────────────────────────────────────────────
 
-export const resourceService: ResourceService = {
-  createResourceSpecification: (spec) =>
-    wz<ActionHash>(
-      'create_resource_specification',
-      spec,
-      RESOURCE_CONTEXTS.CREATE_RESOURCE_SPECIFICATION
-    ),
+export class ResourceServiceTag extends Context.Tag('ResourceService')<
+  ResourceServiceTag,
+  ResourceService
+>() {}
 
-  getResourceSpecification: (hash) =>
-    wz<ResourceSpecification>(
-      'get_resource_specification',
-      hash,
-      RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION
-    ),
+// ─── Live Layer ───────────────────────────────────────────────────────────────
 
-  getAllResourceSpecifications: () =>
-    wz<ResourceSpecification[]>(
-      'get_all_resource_specifications',
-      null,
-      RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
-    ),
+export const ResourceServiceLive: Layer.Layer<
+  ResourceServiceTag,
+  never,
+  HolochainClientServiceTag
+> = Layer.effect(
+  ResourceServiceTag,
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
 
-  createEconomicResource: (resource) =>
-    wz<ActionHash>(
-      'create_economic_resource',
-      resource,
-      RESOURCE_CONTEXTS.CREATE_ECONOMIC_RESOURCE
-    ),
+    const wz = <T>(
+      fnName: string,
+      payload: unknown,
+      context: string
+    ): E.Effect<T, ResourceError> =>
+      wrapZomeCallWithErrorFactory<T, ResourceError>(
+        holochainClient,
+        'zome_resource',
+        fnName,
+        payload,
+        context,
+        ResourceError.fromError
+      );
 
-  getEconomicResource: (hash) =>
-    wz<EconomicResource>('get_economic_resource', hash, RESOURCE_CONTEXTS.GET_ECONOMIC_RESOURCE),
+    return {
+      createResourceSpecification: (spec) =>
+        wz<ActionHash>(
+          'create_resource_specification',
+          spec,
+          RESOURCE_CONTEXTS.CREATE_RESOURCE_SPECIFICATION
+        ),
 
-  getResourcesByCustodian: (custodian) =>
-    wz<EconomicResource[]>(
-      'get_resources_by_custodian',
-      custodian,
-      RESOURCE_CONTEXTS.GET_RESOURCES_BY_CUSTODIAN
-    ),
+      getResourceSpecification: (hash) =>
+        wz<ResourceSpecification>(
+          'get_resource_specification',
+          hash,
+          RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION
+        ),
 
-  updateResourceSpecification: (hash, updatedSpec) =>
-    wz<ActionHash>(
-      'update_resource_specification',
-      { hash, specification: updatedSpec },
-      RESOURCE_CONTEXTS.UPDATE_RESOURCE_SPECIFICATION
-    ),
+      getAllResourceSpecifications: () =>
+        wz<ResourceSpecification[]>(
+          'get_all_resource_specifications',
+          null,
+          RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
+        ),
 
-  transferResourceCustody: (resourceHash, newCustodian) =>
-    wrapZomeCallWithErrorFactory<ActionHash, ResourceError>(
-      holochainService,
-      'zome_resource',
-      'transfer_resource_custody',
-      { resource_hash: resourceHash, new_custodian: newCustodian },
-      RESOURCE_CONTEXTS.TRANSFER_RESOURCE_CUSTODY,
-      ResourceError.fromError
-    ),
+      createEconomicResource: (resource) =>
+        wz<ActionHash>(
+          'create_economic_resource',
+          resource,
+          RESOURCE_CONTEXTS.CREATE_ECONOMIC_RESOURCE
+        ),
 
-  updateResourceQuantity: (resourceHash, newQuantity) =>
-    wrapZomeCallWithErrorFactory<ActionHash, ResourceError>(
-      holochainService,
-      'zome_resource',
-      'update_resource_quantity',
-      { resource_hash: resourceHash, new_quantity: newQuantity },
-      RESOURCE_CONTEXTS.UPDATE_ECONOMIC_RESOURCE,
-      ResourceError.fromError
-    ),
+      getEconomicResource: (hash) =>
+        wz<EconomicResource>(
+          'get_economic_resource',
+          hash,
+          RESOURCE_CONTEXTS.GET_ECONOMIC_RESOURCE
+        ),
 
-  searchResourcesBySpecification: (specificationHash) =>
-    wrapZomeCallWithErrorFactory<EconomicResource[], ResourceError>(
-      holochainService,
-      'zome_resource',
-      'search_resources_by_specification',
-      specificationHash,
-      RESOURCE_CONTEXTS.GET_ALL_ECONOMIC_RESOURCES,
-      ResourceError.fromError
-    ),
+      getResourcesByCustodian: (custodian) =>
+        wz<EconomicResource[]>(
+          'get_resources_by_custodian',
+          custodian,
+          RESOURCE_CONTEXTS.GET_RESOURCES_BY_CUSTODIAN
+        ),
 
-  getResourceHistory: (resourceHash) =>
-    wrapZomeCallWithErrorFactory<EconomicResource[], ResourceError>(
-      holochainService,
-      'zome_resource',
-      'get_resource_history',
-      resourceHash,
-      RESOURCE_CONTEXTS.GET_ECONOMIC_RESOURCE,
-      ResourceError.fromError
-    ),
+      updateResourceSpecification: (hash, updatedSpec) =>
+        wz<ActionHash>(
+          'update_resource_specification',
+          { hash, specification: updatedSpec },
+          RESOURCE_CONTEXTS.UPDATE_RESOURCE_SPECIFICATION
+        ),
 
-  deleteResourceSpecification: (hash) =>
-    wrapZomeCallWithErrorFactory<ActionHash, ResourceError>(
-      holochainService,
-      'zome_resource',
-      'delete_resource_specification',
-      hash,
-      RESOURCE_CONTEXTS.DELETE_RESOURCE_SPECIFICATION,
-      ResourceError.fromError
-    ),
+      transferResourceCustody: (resourceHash, newCustodian) =>
+        wz<ActionHash>(
+          'transfer_resource_custody',
+          { resource_hash: resourceHash, new_custodian: newCustodian },
+          RESOURCE_CONTEXTS.TRANSFER_RESOURCE_CUSTODY
+        ),
 
-  archiveEconomicResource: (hash) =>
-    wrapZomeCallWithErrorFactory<ActionHash, ResourceError>(
-      holochainService,
-      'zome_resource',
-      'archive_economic_resource',
-      hash,
-      RESOURCE_CONTEXTS.UPDATE_ECONOMIC_RESOURCE,
-      ResourceError.fromError
-    )
-};
+      updateResourceQuantity: (resourceHash, newQuantity) =>
+        wz<ActionHash>(
+          'update_resource_quantity',
+          { resource_hash: resourceHash, new_quantity: newQuantity },
+          RESOURCE_CONTEXTS.UPDATE_ECONOMIC_RESOURCE
+        ),
+
+      searchResourcesBySpecification: (specificationHash) =>
+        wz<EconomicResource[]>(
+          'search_resources_by_specification',
+          specificationHash,
+          RESOURCE_CONTEXTS.GET_ALL_ECONOMIC_RESOURCES
+        ),
+
+      getResourceHistory: (resourceHash) =>
+        wz<EconomicResource[]>(
+          'get_resource_history',
+          resourceHash,
+          RESOURCE_CONTEXTS.GET_ECONOMIC_RESOURCE
+        ),
+
+      deleteResourceSpecification: (hash) =>
+        wz<ActionHash>(
+          'delete_resource_specification',
+          hash,
+          RESOURCE_CONTEXTS.DELETE_RESOURCE_SPECIFICATION
+        ),
+
+      archiveEconomicResource: (hash) =>
+        wz<ActionHash>(
+          'archive_economic_resource',
+          hash,
+          RESOURCE_CONTEXTS.UPDATE_ECONOMIC_RESOURCE
+        )
+    } satisfies ResourceService;
+  })
+);
+
+/** Fully-resolved layer for direct use (no further dependencies needed). */
+export const ResourceServiceResolved: Layer.Layer<ResourceServiceTag> = ResourceServiceLive.pipe(
+  Layer.provide(HolochainClientServiceLive)
+);

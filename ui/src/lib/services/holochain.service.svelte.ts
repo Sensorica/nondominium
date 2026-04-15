@@ -1,4 +1,5 @@
 import { type AppInfoResponse, AppWebsocket } from '@holochain/client';
+import { Context, Layer } from 'effect';
 
 export type ZomeName = 'zome_person' | 'zome_resource' | 'zome_gouvernance';
 export type RoleName = 'nondominium';
@@ -152,3 +153,16 @@ function createHolochainClientService(): HolochainClientService {
 
 const holochainClientService = createHolochainClientService();
 export default holochainClientService;
+
+// ─── Effect DI Layer ─────────────────────────────────────────────────────────
+
+export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
+  HolochainClientServiceTag,
+  HolochainClientService
+>() {}
+
+/** Wraps the singleton in a Layer so services can be composed with E.provide. */
+export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> = Layer.succeed(
+  HolochainClientServiceTag,
+  holochainClientService
+);

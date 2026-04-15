@@ -1,26 +1,13 @@
-import { Effect as E } from 'effect';
+import { Context, Effect as E, Layer } from 'effect';
 import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
-import holochainService from '../holochain.service.svelte';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '../holochain.service.svelte';
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import { GovernanceError } from '$lib/errors/governance.errors';
 import { GOVERNANCE_CONTEXTS } from '$lib/errors/error-contexts';
 import type { Commitment, EconomicEvent } from '@nondominium/shared-types';
-
-// ─── Helper ──────────────────────────────────────────────────────────────────
-
-const wz = <T>(
-  fnName: string,
-  payload: unknown,
-  context: string
-): E.Effect<T, GovernanceError> =>
-  wrapZomeCallWithErrorFactory<T, GovernanceError>(
-    holochainService,
-    'zome_gouvernance',
-    fnName,
-    payload,
-    context,
-    GovernanceError.fromError
-  );
 
 // ─── Service interface ────────────────────────────────────────────────────────
 
@@ -73,89 +60,133 @@ export interface GovernanceService {
   ) => E.Effect<ActionHash, GovernanceError>;
 }
 
-// ─── Implementation ───────────────────────────────────────────────────────────
+// ─── Context Tag ─────────────────────────────────────────────────────────────
 
-export const governanceService: GovernanceService = {
-  createCommitment: (commitment) =>
-    wz<ActionHash>('create_commitment', commitment, GOVERNANCE_CONTEXTS.CREATE_COMMITMENT),
+export class GovernanceServiceTag extends Context.Tag('GovernanceService')<
+  GovernanceServiceTag,
+  GovernanceService
+>() {}
 
-  getCommitment: (hash) =>
-    wz<Commitment>('get_commitment', hash, GOVERNANCE_CONTEXTS.GET_COMMITMENT),
+// ─── Live Layer ───────────────────────────────────────────────────────────────
 
-  fulfillCommitment: (hash) =>
-    wz<ActionHash>('fulfill_commitment', hash, GOVERNANCE_CONTEXTS.FULFILL_COMMITMENT),
+export const GovernanceServiceLive: Layer.Layer<
+  GovernanceServiceTag,
+  never,
+  HolochainClientServiceTag
+> = Layer.effect(
+  GovernanceServiceTag,
+  E.gen(function* () {
+    const holochainClient = yield* HolochainClientServiceTag;
 
-  createEconomicEvent: (event) =>
-    wz<ActionHash>('create_economic_event', event, GOVERNANCE_CONTEXTS.CREATE_ECONOMIC_EVENT),
+    const wz = <T>(
+      fnName: string,
+      payload: unknown,
+      context: string
+    ): E.Effect<T, GovernanceError> =>
+      wrapZomeCallWithErrorFactory<T, GovernanceError>(
+        holochainClient,
+        'zome_gouvernance',
+        fnName,
+        payload,
+        context,
+        GovernanceError.fromError
+      );
 
-  getEconomicEvent: (hash) =>
-    wz<EconomicEvent>('get_economic_event', hash, GOVERNANCE_CONTEXTS.GET_ECONOMIC_EVENT),
+    return {
+      createCommitment: (commitment) =>
+        wz<ActionHash>('create_commitment', commitment, GOVERNANCE_CONTEXTS.CREATE_COMMITMENT),
 
-  getEventsByAgent: (agent) =>
-    wz<EconomicEvent[]>('get_events_by_agent', agent, GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT),
+      getCommitment: (hash) =>
+        wz<Commitment>('get_commitment', hash, GOVERNANCE_CONTEXTS.GET_COMMITMENT),
 
-  getCommitmentsByProvider: (provider) =>
-    wz<Commitment[]>(
-      'get_commitments_by_provider',
-      provider,
-      GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
-    ),
+      fulfillCommitment: (hash) =>
+        wz<ActionHash>('fulfill_commitment', hash, GOVERNANCE_CONTEXTS.FULFILL_COMMITMENT),
 
-  getCommitmentsByReceiver: (receiver) =>
-    wz<Commitment[]>(
-      'get_commitments_by_receiver',
-      receiver,
-      GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
-    ),
+      createEconomicEvent: (event) =>
+        wz<ActionHash>('create_economic_event', event, GOVERNANCE_CONTEXTS.CREATE_ECONOMIC_EVENT),
 
-  getPendingCommitments: () =>
-    wz<Commitment[]>('get_pending_commitments', null, GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS),
+      getEconomicEvent: (hash) =>
+        wz<EconomicEvent>('get_economic_event', hash, GOVERNANCE_CONTEXTS.GET_ECONOMIC_EVENT),
 
-  cancelCommitment: (hash, reason) =>
-    wz<ActionHash>('cancel_commitment', { hash, reason }, GOVERNANCE_CONTEXTS.CANCEL_COMMITMENT),
+      getEventsByAgent: (agent) =>
+        wz<EconomicEvent[]>('get_events_by_agent', agent, GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT),
 
-  updateCommitment: (hash, updatedCommitment) =>
-    wz<ActionHash>(
-      'update_commitment',
-      { hash, commitment: updatedCommitment },
-      GOVERNANCE_CONTEXTS.GET_COMMITMENT
-    ),
+      getCommitmentsByProvider: (provider) =>
+        wz<Commitment[]>(
+          'get_commitments_by_provider',
+          provider,
+          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+        ),
 
-  getEventsByType: (eventType) =>
-    wz<EconomicEvent[]>('get_events_by_type', eventType, GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT),
+      getCommitmentsByReceiver: (receiver) =>
+        wz<Commitment[]>(
+          'get_commitments_by_receiver',
+          receiver,
+          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+        ),
 
-  getEventsInTimeRange: (startTime, endTime) =>
-    wz<EconomicEvent[]>(
-      'get_events_in_time_range',
-      { start_time: startTime, end_time: endTime },
-      GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT
-    ),
+      getPendingCommitments: () =>
+        wz<Commitment[]>(
+          'get_pending_commitments',
+          null,
+          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+        ),
 
-  getResourceFlow: (resourceHash) =>
-    wz<{ events: EconomicEvent[]; commitments: Commitment[] }>(
-      'get_resource_flow',
-      resourceHash,
-      GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
-    ),
+      cancelCommitment: (hash, reason) =>
+        wz<ActionHash>('cancel_commitment', { hash, reason }, GOVERNANCE_CONTEXTS.CANCEL_COMMITMENT),
 
-  validateGovernanceRules: (resourceHash, operation, agent) =>
-    wz<boolean>(
-      'validate_governance_rules',
-      { resource_hash: resourceHash, operation, agent },
-      GOVERNANCE_CONTEXTS.EVALUATE_STATE_TRANSITION
-    ),
+      updateCommitment: (hash, updatedCommitment) =>
+        wz<ActionHash>(
+          'update_commitment',
+          { hash, commitment: updatedCommitment },
+          GOVERNANCE_CONTEXTS.GET_COMMITMENT
+        ),
 
-  createDispute: (commitment, complainant, description) =>
-    wz<ActionHash>(
-      'create_dispute',
-      { commitment, complainant, description },
-      GOVERNANCE_CONTEXTS.CREATE_COMMITMENT
-    ),
+      getEventsByType: (eventType) =>
+        wz<EconomicEvent[]>(
+          'get_events_by_type',
+          eventType,
+          GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT
+        ),
 
-  voteOnDispute: (disputeHash, vote, agent) =>
-    wz<ActionHash>(
-      'vote_on_dispute',
-      { dispute_hash: disputeHash, vote, agent },
-      GOVERNANCE_CONTEXTS.EVALUATE_STATE_TRANSITION
-    )
-};
+      getEventsInTimeRange: (startTime, endTime) =>
+        wz<EconomicEvent[]>(
+          'get_events_in_time_range',
+          { start_time: startTime, end_time: endTime },
+          GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT
+        ),
+
+      getResourceFlow: (resourceHash) =>
+        wz<{ events: EconomicEvent[]; commitments: Commitment[] }>(
+          'get_resource_flow',
+          resourceHash,
+          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+        ),
+
+      validateGovernanceRules: (resourceHash, operation, agent) =>
+        wz<boolean>(
+          'validate_governance_rules',
+          { resource_hash: resourceHash, operation, agent },
+          GOVERNANCE_CONTEXTS.EVALUATE_STATE_TRANSITION
+        ),
+
+      createDispute: (commitment, complainant, description) =>
+        wz<ActionHash>(
+          'create_dispute',
+          { commitment, complainant, description },
+          GOVERNANCE_CONTEXTS.CREATE_COMMITMENT
+        ),
+
+      voteOnDispute: (disputeHash, vote, agent) =>
+        wz<ActionHash>(
+          'vote_on_dispute',
+          { dispute_hash: disputeHash, vote, agent },
+          GOVERNANCE_CONTEXTS.EVALUATE_STATE_TRANSITION
+        )
+    } satisfies GovernanceService;
+  })
+);
+
+/** Fully-resolved layer for direct use (no further dependencies needed). */
+export const GovernanceServiceResolved: Layer.Layer<GovernanceServiceTag> =
+  GovernanceServiceLive.pipe(Layer.provide(HolochainClientServiceLive));
