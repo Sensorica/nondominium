@@ -686,6 +686,7 @@ Two implementation sub-scopes with different delivery ordering:
 
 **NDO DNA extensions (zome_gouvernance) — plan after Governance-as-Operator (#41–#44) lands:**
 - [ ] `NdoHardLink` entry type + `NdoToHardLinks` / `HardLinkByType` link types — immutable, requires AccountableAgent + valid EconomicEvent fulfillment (REQ-NDO-EXT-01–06)
+  - *Stage 2 (pre-Lobby, single cell):* `to_ndo_dna_hash` equals the shared DNA hash (same cell for source and target). *Stage 3 (per-NDO clone):* `to_ndo_dna_hash` is the target cell's unique hash. Same struct, no breaking change. See lobby-architecture.md §6.1.
 - [ ] `Contribution` entry type + `NdoToContributions` / `AgentToContributions` / `ContributionToEvent` link types — requires at least one AccountableAgent validator (REQ-NDO-EXT-07–11)
 - [ ] `Agreement` entry type (VF: `vf:Agreement`) + `NdoToAgreement` / `AgreementUpdates` link types — versioned, AccountableAgent-controlled (REQ-NDO-EXT-12–16)
 

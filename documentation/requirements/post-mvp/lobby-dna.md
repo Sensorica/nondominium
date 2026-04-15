@@ -257,6 +257,26 @@ For the comparative table and worked example, see
 - **REQ-NDO-EXT-06**: Hard links are publicly discoverable on the NDO DHT via
   `NdoToHardLinks` anchor links and filterable by type.
 
+#### Design note — two-stage NdoHardLink deployment
+
+`NdoHardLink` uses the same struct in both stages. No breaking change occurs between Stage 2
+and Stage 3. The fields `to_ndo_dna_hash: DnaHash` and `to_ndo_identity_hash: ActionHash`
+change only in value, not in meaning:
+
+**Stage 2 (pre-Lobby DNA, `clone_limit: 0`):** Both the source and target NDOs live in the
+same `nondominium` cell. `to_ndo_dna_hash` equals the shared `nondominium` DNA hash.
+`to_ndo_identity_hash` is the target NDO's `NondominiumIdentity` action hash. Resolving the
+link requires no cross-cell call — both hashes are local to the same DHT.
+
+**Stage 3 (post-Lobby DNA, `clone_limit: 1024`):** Each NDO has its own cloned cell with a
+unique `DnaHash` (because each clone has a unique `network_seed`). `to_ndo_dna_hash` is the
+target NDO cell's unique hash. The UI resolves the link by connecting to
+`CellId(to_ndo_dna_hash, agent_pubkey)` and calling `get_ndo(to_ndo_identity_hash)`. The
+Lobby's `NdoDescriptor` provides a human-readable index but is not required for resolution.
+
+See `documentation/specifications/post-mvp/lobby-architecture.md §6.1` for the full entry
+struct and §7.1 for the incorporation pipeline.
+
 ### 6.2 Contributions
 
 - **REQ-NDO-EXT-07**: The NDO DNA shall support a `Contribution` entry type representing a
