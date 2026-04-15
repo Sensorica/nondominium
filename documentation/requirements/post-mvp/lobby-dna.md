@@ -237,14 +237,14 @@ Lobby (no governance, permissionless registry)
 
 ### 6.3 Smart agreements
 
-- **REQ-NDO-EXT-12**: The NDO DNA shall support a `SmartAgreement` entry type defining
+- **REQ-NDO-EXT-12**: The NDO DNA shall support a `Agreement` entry type defining
   benefit distribution rules for the NDO. Smart agreements are created and updated only by
   agents holding the `AccountableAgent` role.
-- **REQ-NDO-EXT-13**: A `SmartAgreement` contains a list of `BenefitRule` entries, each
+- **REQ-NDO-EXT-13**: A `Agreement` contains a list of `BenefitClause` entries, each
   specifying a beneficiary (agent or component NDO), a share percentage, and a benefit type
   (`Monetary`, `GovernanceWeight`, or `AccessRight`).
 - **REQ-NDO-EXT-14**: Smart agreements are versioned. Each update creates a new entry linked
-  to the previous via `SmartAgreementUpdates`. The full version history is preserved for
+  to the previous via `AgreementUpdates`. The full version history is preserved for
   audit purposes.
 - **REQ-NDO-EXT-15**: When a `NdoHardLink` of type `Component` is created, the originating
   NDO's smart agreement should be updated to include a cascade benefit rule to the component
@@ -327,7 +327,7 @@ an actual deployed DNA (discoverable by peers who attempt to connect).
 
 ### 9.2 Unyt (post-MVP)
 
-- **REQ-LOBBY-INT-03**: Post-MVP, `SmartAgreement` rules with `BenefitType::Monetary` shall
+- **REQ-LOBBY-INT-03**: Post-MVP, `Agreement` rules with `BenefitType::Monetary` shall
   be activated via Unyt: validated Contributions trigger RAVE events, and NdoHardLink
   creation triggers benefit cascade through the NDO composition graph.
 - **REQ-LOBBY-INT-04**: The Lobby shall support monetary contributions to NDOs via Unyt
@@ -349,7 +349,7 @@ As of the Nondominium MVP codebase:
 - Lobby DNA, Group DNA, and NDO DNA extensions are **not yet implemented**.
 - The existing NDO DNA (`zome_person`, `zome_resource`, `zome_gouvernance`) provides the
   constitutional layer for a single NDO DHT; the multi-network federation layer is absent.
-- `NdoHardLink`, `Contribution`, and `SmartAgreement` entry types are **specified but not
+- `NdoHardLink`, `Contribution`, and `Agreement` entry types are **specified but not
   yet present** in the WASM.
 - The companion architecture specification
   (`documentation/specifications/post-mvp/lobby-architecture.md`) provides the full schema,

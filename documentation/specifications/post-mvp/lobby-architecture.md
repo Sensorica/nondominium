@@ -152,8 +152,8 @@ dnas/
     zomes/
       coordinator/zome_gouvernance/src/hard_link.rs   # NEW file
       coordinator/zome_gouvernance/src/contribution.rs  # NEW file
-      coordinator/zome_gouvernance/src/smart_agreement.rs  # NEW file
-      integrity/zome_gouvernance/src/lib.rs        # +NdoHardLink, +Contribution, +SmartAgreement
+      coordinator/zome_gouvernance/src/agreement.rs       # NEW file (VF: vf:Agreement)
+      integrity/zome_gouvernance/src/lib.rs        # +NdoHardLink, +Contribution, +Agreement
 ```
 
 ---
@@ -289,38 +289,46 @@ pub struct NdoPubkeyEntry {
 }
 
 /// Informal work record. Lives in Group DHT only. Invisible to target NDO.
+/// VF alignment: maps to vf:Intent (expressed desire to perform work before committing).
+///   `provider`     = VF provider (the intending agent)
+///   `action`       = VF action (Work, Modify, Use, etc.)
+///   `effort_quantity` = VF effortQuantity (hours as numeric value)
+///   `note`         = VF note (human-readable description)
+///   `input_of`     = VF inputOf (string label for MVP; ActionHash of vf:Process post-MVP)
 #[hdk_entry_helper]
 pub struct WorkLog {
-    pub author: AgentPubKey,               // must equal action.author
+    pub provider: AgentPubKey,             // VF: provider; must equal action.author
+    pub action: VfAction,                  // VF: action (typically Work, Modify, Use)
     pub ndo_dna_hash: DnaHash,
     pub ndo_identity_hash: ActionHash,
-    pub process_context: Option<String>,   // e.g. "maintenance", "development"
-    pub description: String,               // max 2000 chars
-    pub effort_hours: Option<f64>,         // 0.0 to 10000.0
+    pub input_of: Option<String>,          // VF: inputOf — process label ("maintenance", "development")
+                                           // Post-MVP: becomes Option<ActionHash> referencing vf:Process
+    pub note: String,                      // VF: note — max 2000 chars
+    pub effort_quantity: Option<f64>,      // VF: effortQuantity — hours; range [0.0, 10000.0]
     pub attachments: Vec<String>,
-    pub logged_at: Timestamp,
+    pub has_point_in_time: Timestamp,      // VF: hasPointInTime
 }
 
 /// Soft link: group-level planning relationship to an NDO. Permissionless.
 /// Invisible to target NDO. Subject to group governance only.
+/// VF alignment: maps to a group-side record of a vf:Intent toward an NDO.
+///   `planned_action` = the VF action being planned (Combine, Use, Cite).
+///   `fulfills`       = optional reference to a vf:Commitment on the NDO DHT once created.
 #[hdk_entry_helper]
 pub struct SoftLink {
     pub from_ndo_dna_hash: Option<DnaHash>,
     pub from_ndo_identity_hash: Option<ActionHash>,
     pub to_ndo_dna_hash: DnaHash,
     pub to_ndo_identity_hash: ActionHash,
-    pub link_purpose: SoftLinkPurpose,
-    pub commitment_hash: Option<ActionHash>, // optional NDO DHT Commitment reference
-    pub created_by: AgentPubKey,             // must equal action.author
+    /// VF action this link is planning toward:
+    ///   Combine  — structural incorporation (Incorporation intent)
+    ///   Use      — tool/equipment use
+    ///   Cite     — lifecycle monitoring only
+    pub planned_action: VfAction,
+    pub fulfills: Option<ActionHash>,      // VF: fulfills — NDO DHT Commitment hash when created
+    pub created_by: AgentPubKey,           // must equal action.author
     pub created_at: Timestamp,
-    pub note: Option<String>,
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum SoftLinkPurpose {
-    Incorporation,  // planning to incorporate to_ndo structurally into from_ndo
-    Use,            // using to_ndo as a tool or equipment
-    Monitoring,     // observing to_ndo lifecycle only
+    pub note: Option<String>,              // VF: note
 }
 
 /// Group governance rule (flat string MVP; typed enum post-MVP).
@@ -392,14 +400,16 @@ create GroupMembership:
   agent_pubkey == action.author
 
 create WorkLog:
-  author == action.author
-  description non-empty, max 2000 chars
-  effort_hours if present in [0.0, 10000.0]
+  provider == action.author
+  note non-empty, max 2000 chars
+  effort_quantity if present in [0.0, 10000.0]
+  action must be a valid VfAction (Work, Modify, Use, etc.)
 
 create SoftLink:
   created_by == action.author
   to_ndo_dna_hash non-empty
-  if Incorporation: from_ndo_* fields must both be Some
+  planned_action must be Combine | Use | Cite
+  if planned_action == Combine: from_ndo_* fields must both be Some
 
 delete SoftLink:
   author == original.created_by OR author == progenitor
@@ -440,38 +450,52 @@ pub enum NdoLinkType {
 }
 
 /// Peer-validated work contribution. Created after AccountableAgent acceptance.
+/// VF alignment: a validated vf:EconomicEvent (action: Work or Modify) with NDO-specific
+/// validation metadata. Field names follow VF vocabulary directly:
+///   `provider`        = VF provider (contributing agent)
+///   `action`          = VF action (Work, Modify, etc.)
+///   `effort_quantity` = VF effortQuantity
+///   `note`            = VF note
+///   `input_of`        = VF inputOf (Process ActionHash)
+///   `fulfills`        = VF fulfills (Commitment ActionHash, when applicable)
 #[hdk_entry_helper]
 pub struct Contribution {
-    pub contributor: AgentPubKey,
-    pub work_log_group_dna_hash: Option<DnaHash>, // off-chain reference (informational)
-    pub work_log_action_hash: Option<ActionHash>,
+    pub provider: AgentPubKey,             // VF: provider (the contributing agent)
+    pub action: VfAction,                  // VF: action — typically Work or Modify
+    pub work_log_group_dna_hash: Option<DnaHash>,  // NDO extension: off-chain WorkLog reference
+    pub work_log_action_hash: Option<ActionHash>,  // NDO extension: off-chain WorkLog reference
     pub ndo_identity_hash: ActionHash,
-    pub process_context: Option<String>,
-    pub description: String,
-    pub effort_hours: Option<f64>,
-    pub validated_by: Vec<AgentPubKey>,    // at least one AccountableAgent required
-    pub fulfillment_hash: Option<ActionHash>,
-    pub contributed_at: Timestamp,
-    pub validated_at: Timestamp,
+    pub input_of: Option<ActionHash>,      // VF: inputOf — Process ActionHash (NDO DHT)
+    pub note: String,                      // VF: note
+    pub effort_quantity: Option<f64>,      // VF: effortQuantity (hours)
+    pub validated_by: Vec<AgentPubKey>,    // NDO extension: AccountableAgent validators (min 1)
+    pub fulfills: Option<ActionHash>,      // VF: fulfills — Commitment ActionHash if applicable
+    pub has_point_in_time: Timestamp,      // VF: hasPointInTime (when work was done)
+    pub validated_at: Timestamp,           // NDO extension: when AccountableAgents accepted
 }
 
 /// Benefit redistribution agreement. AccountableAgent-controlled. Versioned.
+/// VF alignment: extends vf:Agreement. The `clauses` field is an NDO extension —
+/// VF Agreement does not prescribe internal structure; NDO uses typed clauses for
+/// benefit distribution, which Unyt will execute as RAVE flows post-MVP.
 #[hdk_entry_helper]
-pub struct SmartAgreement {
+pub struct Agreement {                     // VF: vf:Agreement
     pub ndo_identity_hash: ActionHash,
-    pub version: u32,
-    pub rules: Vec<BenefitRule>,
-    pub accountable_agents: Vec<AgentPubKey>,
+    pub version: u32,                      // NDO extension: monotonic version counter
+    pub clauses: Vec<BenefitClause>,       // NDO extension: typed benefit distribution rules
+    pub primary_accountable: Vec<AgentPubKey>, // VF: primaryAccountable (who governs this agreement)
     pub created_by: AgentPubKey,
     pub created_at: Timestamp,
 }
 
+/// One benefit distribution clause within an Agreement.
+/// NDO extension on VF — not in VF core. Executed via Unyt RAVE post-MVP.
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
-pub struct BenefitRule {
-    pub beneficiary: BeneficiaryRef,
-    pub share_percent: f64,                // 0.0 to 100.0
-    pub benefit_type: BenefitType,
-    pub conditions: Option<String>,
+pub struct BenefitClause {
+    pub receiver: BeneficiaryRef,          // VF: receiver (agent or component NDO)
+    pub share_percent: f64,                // 0.0 to 100.0 (NDO: proportion of total benefit)
+    pub benefit_type: BenefitType,         // NDO extension: Monetary | GovernanceWeight | AccessRight
+    pub note: Option<String>,              // VF: note (conditions, rationale)
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -495,10 +519,10 @@ pub enum BenefitType {
 NdoToHardLinks,         // from_ndo_identity_hash -> NdoHardLink
 HardLinkByType,         // Path("ndo.hardlink.{NdoLinkType}") -> NdoHardLink
 NdoToContributions,     // ndo_identity_hash -> Contribution
-AgentToContributions,   // AgentPubKey -> Contribution
-ContributionToEvent,    // Contribution -> EconomicEvent
-NdoToSmartAgreement,    // ndo_identity_hash -> SmartAgreement (latest)
-SmartAgreementUpdates,  // SmartAgreement -> SmartAgreement (version chain)
+AgentToContributions,   // VF: provider AgentPubKey -> Contribution
+ContributionToEvent,    // VF: Contribution -> EconomicEvent (the fulfilling event)
+NdoToAgreement,         // ndo_identity_hash -> Agreement (latest)  [VF: vf:Agreement]
+AgreementUpdates,       // Agreement -> Agreement (version chain)
 ```
 
 ### 6.3 New coordinator functions
@@ -512,12 +536,12 @@ pub fn get_ndo_hard_links_by_type(link_type: NdoLinkType) -> ExternResult<Vec<Nd
 // contribution.rs
 pub fn validate_contribution(input: ValidateContributionInput) -> ExternResult<ActionHash>;
 pub fn get_ndo_contributions(_: ()) -> ExternResult<Vec<ContributionRecord>>;
-pub fn get_agent_contributions(agent: AgentPubKey) -> ExternResult<Vec<ContributionRecord>>;
+pub fn get_agent_contributions(provider: AgentPubKey) -> ExternResult<Vec<ContributionRecord>>;
 
-// smart_agreement.rs
-pub fn create_smart_agreement(input: CreateSmartAgreementInput) -> ExternResult<ActionHash>;
-pub fn update_smart_agreement(input: UpdateSmartAgreementInput) -> ExternResult<ActionHash>;
-pub fn get_current_smart_agreement(_: ()) -> ExternResult<Option<SmartAgreementRecord>>;
+// agreement.rs  (VF: vf:Agreement — renamed from smart_agreement.rs)
+pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<ActionHash>;
+pub fn update_agreement(input: UpdateAgreementInput) -> ExternResult<ActionHash>;
+pub fn get_current_agreement(_: ()) -> ExternResult<Option<AgreementRecord>>;
 ```
 
 ### 6.4 Validation rules
@@ -533,13 +557,15 @@ update NdoHardLink: INVALID (hard links are immutable)
 delete NdoHardLink: INVALID (hard links are permanent, OVN license requirement)
 
 create Contribution:
-  validated_by must be non-empty
-  description non-empty
-  effort_hours if present in [0.0, 10000.0]
+  validated_by must be non-empty (at least one AccountableAgent)
+  provider == action.author OR a delegated AccountableAgent
+  note non-empty
+  effort_quantity if present in [0.0, 10000.0]
+  action must be Work | Modify | Combine | Produce
 
-create SmartAgreement:
-  accountable_agents non-empty
-  all share_percents in [0.0, 100.0]
+create Agreement:
+  primary_accountable non-empty
+  all clause.share_percent in [0.0, 100.0]
 ```
 
 ---
@@ -555,11 +581,11 @@ sequenceDiagram
     participant ND as NDO DHT (Device)
     participant AA as Accountable Agent
 
-    GM->>GD: create_soft_link(Incorporation, PowerSupplyNdo)
-    Note over GD: Soft link created (dashed in UI)
+    GM->>GD: create_soft_link(planned_action: Combine, PowerSupplyNdo)
+    Note over GD: SoftLink created (dashed in UI)
 
-    GM->>ND: create_commitment(Work, DeviceNdo, PowerSupplyRef)
-    GM->>GD: update soft_link.commitment_hash
+    GM->>ND: create_commitment(action: Combine, DeviceNdo, PowerSupplyRef)
+    GM->>GD: update soft_link.fulfills = commitment_hash
 
     GM->>ND: propose EconomicEvent (like a pull request)
 
@@ -569,8 +595,8 @@ sequenceDiagram
     AA->>ND: create_ndo_hard_link(PowerSupplyNdo, fulfillment_hash)
     Note over ND: NdoHardLink created (solid, OVN-licensed, immutable)
 
-    AA->>ND: update_smart_agreement (cascade rule to PowerSupplyNdo)
-    Note over ND: BenefitRule: PowerSupplyNdo receives X% of device benefits
+    AA->>ND: update_agreement (add BenefitClause: receiver = PowerSupplyNdo, X%)
+    Note over ND: Agreement updated: cascade clause to PowerSupplyNdo
 
     GM->>GD: delete_soft_link (promoted)
 ```
@@ -647,7 +673,7 @@ GroupView.svelte
   NdoLinkList.svelte
     SoftLinkCard.svelte       { border-dashed, purpose badge, commitment status }
     PromotedLinkCard.svelte   { border-solid green, hard link confirmed }
-    AddNdoLinkModal.svelte    { purpose: Incorporation | Use | Monitoring }
+    AddNdoLinkModal.svelte    { planned_action: Combine | Use | Cite }
   WorkLogFeed.svelte
     WorkLogCard.svelte        { author, NDO, hours, status: pending|submitted|validated }
     LogWorkModal.svelte
@@ -660,7 +686,7 @@ NdoView.svelte
     HardLinkEdge.svelte       { solid line, NdoLinkType label }
   ProcessTimeline.svelte      { EconomicEvents, state transitions }
   ContributorList.svelte      { validated agents, contribution counts }
-  SmartAgreementPanel.svelte  { benefit rules, read-only for non-AccountableAgents }
+  AgreementPanel.svelte       { benefit clauses (VF: Agreement), read-only for non-AccountableAgents }
   GovernancePanel.svelte      { AccountableAgents, rules, create hard link action }
 ```
 
@@ -798,20 +824,20 @@ breaking existing records.
 **Rationale:** OVN license semantics: if a power supply was incorporated into a device at
 time T, that historical fact is permanent even if the device is later disassembled. Allowing
 deletion would enable retroactive manipulation of contribution history and benefit attribution.
-The SmartAgreement can be updated to change future benefit flows; the historical link stands.
+The Agreement can be updated to change future benefit flows; the historical link stands.
 
 ---
 
-### ADR-07: SmartAgreement is versioned, not replaced
+### ADR-07: Agreement is versioned, not replaced
 
 **Status:** Accepted
 
-**Decision:** SmartAgreement updates create a new versioned entry linked via
-`SmartAgreementUpdates`. Full history preserved. `version: u32` enables fast "is this latest?"
+**Decision:** Agreement (VF: `vf:Agreement`) updates create a new versioned entry linked via
+`AgreementUpdates`. Full history preserved. `version: u32` enables fast "is this latest?"
 checks without full chain traversal.
 
-**Rationale:** Contribution attribution at time T should reference the SmartAgreement version
-active at T. Full audit history supports OVN accounting and Unyt integration.
+**Rationale:** Contribution attribution at time T should reference the Agreement version
+active at T. Full audit history supports OVN accounting and Unyt RAVE integration.
 
 ---
 
@@ -827,10 +853,10 @@ See `documentation/requirements/post-mvp/flowsta-integration.md`.
 
 ### Unyt integration (benefit cascade)
 
-`SmartAgreement.rules` with `BenefitType::Monetary` activate via Unyt:
+`Agreement.clauses` with `BenefitType::Monetary` activate via Unyt:
 - Validated `Contribution` triggers a RAVE event in the Unyt cell
 - `NdoHardLink` of type `Component` triggers cascade: parent NDO RAVE distributions include
-  a percentage flowing to the component NDO's SmartAgreement
+  a percentage flowing to the component NDO's `Agreement`
 - Monetary contributions routed via Lobby: `donate_to_ndo(ndo_dna_hash, amount)`
 
 See `documentation/requirements/post-mvp/unyt-integration.md`.
