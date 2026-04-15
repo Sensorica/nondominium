@@ -46,7 +46,7 @@ lives in `documentation/specifications/post-mvp/lobby-architecture.md`.
 The MVP NDO hApp operates as a single DHT: all agents, resources, and governance events share
 one network. As OVN (Open Value Network) communities grow, several problems emerge:
 
-- An agent participating in multiple OVN communities (Sensorica, Thingiverse Commons, etc.)
+- An agent participating in multiple OVN communities (Sensorica, Open Source Ecology, etc.)
   must manage separate identities and has no unified workspace for coordinating across them.
 - A Project NDO (e.g. an electronic device) needs to formally incorporate component NDOs
   (power supply, enclosure) in a way that is intrinsic to the DHT and OVN-license compliant.
