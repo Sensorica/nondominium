@@ -115,14 +115,14 @@ export const GovernanceServiceLive: Layer.Layer<
         wz<Commitment[]>(
           'get_commitments_by_provider',
           provider,
-          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+          GOVERNANCE_CONTEXTS.GET_COMMITMENTS_BY_PROVIDER
         ),
 
       getCommitmentsByReceiver: (receiver) =>
         wz<Commitment[]>(
           'get_commitments_by_receiver',
           receiver,
-          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+          GOVERNANCE_CONTEXTS.GET_COMMITMENTS_BY_RECEIVER
         ),
 
       getPendingCommitments: () =>
@@ -139,28 +139,28 @@ export const GovernanceServiceLive: Layer.Layer<
         wz<ActionHash>(
           'update_commitment',
           { hash, commitment: updatedCommitment },
-          GOVERNANCE_CONTEXTS.GET_COMMITMENT
+          GOVERNANCE_CONTEXTS.UPDATE_COMMITMENT
         ),
 
       getEventsByType: (eventType) =>
         wz<EconomicEvent[]>(
           'get_events_by_type',
           eventType,
-          GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT
+          GOVERNANCE_CONTEXTS.GET_EVENTS_BY_TYPE
         ),
 
       getEventsInTimeRange: (startTime, endTime) =>
         wz<EconomicEvent[]>(
           'get_events_in_time_range',
           { start_time: startTime, end_time: endTime },
-          GOVERNANCE_CONTEXTS.GET_EVENTS_BY_AGENT
+          GOVERNANCE_CONTEXTS.GET_EVENTS_IN_TIME_RANGE
         ),
 
       getResourceFlow: (resourceHash) =>
         wz<{ events: EconomicEvent[]; commitments: Commitment[] }>(
           'get_resource_flow',
           resourceHash,
-          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS
+          GOVERNANCE_CONTEXTS.GET_RESOURCE_FLOW
         ),
 
       validateGovernanceRules: (resourceHash, operation, agent) =>
@@ -174,14 +174,14 @@ export const GovernanceServiceLive: Layer.Layer<
         wz<ActionHash>(
           'create_dispute',
           { commitment, complainant, description },
-          GOVERNANCE_CONTEXTS.CREATE_COMMITMENT
+          GOVERNANCE_CONTEXTS.CREATE_DISPUTE
         ),
 
       voteOnDispute: (disputeHash, vote, agent) =>
         wz<ActionHash>(
           'vote_on_dispute',
           { dispute_hash: disputeHash, vote, agent },
-          GOVERNANCE_CONTEXTS.EVALUATE_STATE_TRANSITION
+          GOVERNANCE_CONTEXTS.VOTE_ON_DISPUTE
         )
     } satisfies GovernanceService;
   })

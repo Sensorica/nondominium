@@ -43,12 +43,18 @@ export const RESOURCE_CONTEXTS = {
 export const GOVERNANCE_CONTEXTS = {
   CREATE_COMMITMENT: 'Failed to create commitment',
   GET_COMMITMENT: 'Failed to get commitment',
+  UPDATE_COMMITMENT: 'Failed to update commitment',
   GET_PENDING_COMMITMENTS: 'Failed to get pending commitments',
+  GET_COMMITMENTS_BY_PROVIDER: 'Failed to get commitments by provider',
+  GET_COMMITMENTS_BY_RECEIVER: 'Failed to get commitments by receiver',
   FULFILL_COMMITMENT: 'Failed to fulfill commitment',
   CANCEL_COMMITMENT: 'Failed to cancel commitment',
   CREATE_ECONOMIC_EVENT: 'Failed to create economic event',
   GET_ECONOMIC_EVENT: 'Failed to get economic event',
   GET_EVENTS_BY_AGENT: 'Failed to get events by agent',
+  GET_EVENTS_BY_TYPE: 'Failed to get events by type',
+  GET_EVENTS_IN_TIME_RANGE: 'Failed to get events in time range',
+  GET_RESOURCE_FLOW: 'Failed to get resource flow',
   CREATE_CLAIM: 'Failed to create claim',
   VALIDATE_NEW_RESOURCE: 'Failed to validate new resource',
   VALIDATE_AGENT_IDENTITY: 'Failed to validate agent identity',
@@ -57,7 +63,9 @@ export const GOVERNANCE_CONTEXTS = {
   CHECK_VALIDATION_STATUS: 'Failed to check validation status',
   GET_VALIDATION_HISTORY: 'Failed to get validation history',
   EVALUATE_STATE_TRANSITION: 'Failed to evaluate state transition',
-  LOG_INITIAL_TRANSFER: 'Failed to log initial transfer'
+  LOG_INITIAL_TRANSFER: 'Failed to log initial transfer',
+  CREATE_DISPUTE: 'Failed to create dispute',
+  VOTE_ON_DISPUTE: 'Failed to vote on dispute'
 } as const;
 
 export const PPR_CONTEXTS = {

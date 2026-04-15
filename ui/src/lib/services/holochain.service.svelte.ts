@@ -69,15 +69,6 @@ function createHolochainClientService(): HolochainClientService {
   }
 
   /**
-   * Calls a zome function on the Holochain client.
-   * @param {ZomeName} zomeName - The name of the zome.
-   * @param {string} fnName - The name of the function within the zome.
-   * @param {unknown} payload - The payload to send with the function call.
-   * @param {Uint8Array | null} capSecret - The capability secret for authorization.
-   * @param {RoleName} roleName - The name of the role to call the function on. Defaults to 'requests_and_offers'.
-   * @returns {Promise<unknown>} - The result of the zome function call.
-   */
-  /**
    * Verifies if the client is truly connected and working
    */
   async function verifyConnection(): Promise<boolean> {

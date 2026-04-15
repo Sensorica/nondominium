@@ -178,7 +178,7 @@ No domain-specific UI components exist yet. The following are tracked as open is
 
 - Person management components (#8)
 - Resource management components (#9)
-- Effect-TS service layer (#7) — current services use plain TypeScript
+- ~~Effect-TS service layer (#7)~~ — **complete** (PR #97: all three zome services and stores converted to Context.Tag/Layer/E.gen pattern with `boolean isLoading` + `string|null errorMessage` loading state)
 - Capability-based private data sharing UI (#39)
 - PPR reputation visualization (#22)
 
@@ -241,7 +241,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | Governance-as-Operator architecture                    | ❌ Not started |
 | Agent promotion + role validation workflows            | 🔄 Partial     |
 | Frontend UI components                                 | ❌ Not started |
-| Effect-TS service layer                                | ❌ Not started |
+| Effect-TS service layer                                | ✅ Complete (PR #97) |
 | hREA Phase 2–4                                         | ❌ Not started |
 | NondominiumIdentity (Layer 0 identity anchor)          | ✅ Complete    |
 
