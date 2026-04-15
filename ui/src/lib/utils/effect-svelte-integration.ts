@@ -24,7 +24,8 @@ export function useEffectOnMount<A, E>(
       if (Exit.isFailure(exit)) {
         const failure = Cause.failureOption(exit.cause);
         if (failure._tag === 'Some' && onError) onError(failure.value);
-        else if (onError === undefined) console.error('useEffectOnMount failure:', exit.cause);
+        else if (failure._tag === 'Some') console.error('useEffectOnMount failure:', exit.cause);
+        else console.error('useEffectOnMount defect/interrupt:', exit.cause);
       }
     });
   });
@@ -46,7 +47,8 @@ export function useEffectWithCallback<A extends () => void, E>(
       else {
         const failure = Cause.failureOption(exit.cause);
         if (failure._tag === 'Some' && onError) onError(failure.value);
-        else if (onError === undefined) console.error('useEffectWithCallback failure:', exit.cause);
+        else if (failure._tag === 'Some') console.error('useEffectWithCallback failure:', exit.cause);
+        else console.error('useEffectWithCallback defect/interrupt:', exit.cause);
       }
     });
   });
