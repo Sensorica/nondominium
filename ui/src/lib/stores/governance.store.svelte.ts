@@ -92,6 +92,9 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
     let isLoading: boolean = $state(false);
     let errorMessage: string | null = $state(null);
 
+    // TODO: allCommitments and allEconomicEvents are never populated — no store method writes to them.
+    // Either wire a fetchAll* method here or remove these getters from the public type before
+    // connecting UI components so consumers are not misled by always-empty arrays.
     const allCommitments: Commitment[] = $state([]);
     const allEconomicEvents: EconomicEvent[] = $state([]);
     let myCommitmentsAsProvider: Commitment[] = $state([]);
@@ -170,6 +173,10 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
       return event;
     }
 
+    // Background cache-refresh helpers — do NOT manage isLoading/errorMessage intentionally.
+    // These are called internally after mutating operations to keep caches consistent.
+    // For user-triggered fetches that should show loading state, use fetchMyCommitmentsAsProvider /
+    // fetchMyCommitmentsAsReceiver / fetchMyEconomicEvents, which go through run().
     async function fetchCommitmentsByProvider(provider: AgentPubKey): Promise<Commitment[]> {
       const exit = await E.runPromiseExit(governanceService.getCommitmentsByProvider(provider));
       if (Exit.isSuccess(exit)) {

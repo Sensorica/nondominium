@@ -64,6 +64,9 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     let isLoading: boolean = $state(false);
     let errorMessage: string | null = $state(null);
     let allResourceSpecifications: ResourceSpecification[] = $state([]);
+    // TODO: allEconomicResources is never populated — no store method writes to it.
+    // Either wire fetchAllEconomicResources here or remove this getter from the public type before
+    // connecting UI components so consumers are not misled by an always-empty array.
     const allEconomicResources: EconomicResource[] = $state([]);
     let myResources: EconomicResource[] = $state([]);
     let selectedSpecification: ResourceSpecification | null = $state(null);
