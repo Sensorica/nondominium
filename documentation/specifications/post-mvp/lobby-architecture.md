@@ -315,7 +315,6 @@ create NdoDescriptor:
   registered_by == action.author
   ndo_name non-empty
   lifecycle_stage not Deprecated or EndOfLife at registration
-  successor_ndo_hash and hibernation_origin must be None
 
 update NdoDescriptor:
   author == original.registered_by
@@ -636,8 +635,17 @@ create Contribution:
   action must be Work | Modify | Combine | Produce
 
 create Agreement:
+  author must hold AccountableAgent or PrimaryAccountableAgent role (cross-zome check)
   primary_accountable non-empty
   all clause.share_percent in [0.0, 100.0]
+  sum of clause.share_percent <= 100.0
+
+update Agreement:
+  author must hold AccountableAgent or PrimaryAccountableAgent role (cross-zome check)
+  version must equal previous.version + 1
+  ndo_identity_hash immutable
+
+delete Agreement: INVALID (versioned history must be preserved; supersede via update)
 ```
 
 ---
