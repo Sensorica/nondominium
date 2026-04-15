@@ -189,13 +189,11 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
     }
 
     async function fetchMyCommitmentsAsProvider(myAgentPubKey: AgentPubKey): Promise<void> {
-      const commitments = await run(governanceService.getCommitmentsByProvider(myAgentPubKey));
-      if (commitments) myCommitmentsAsProvider = commitments;
+      myCommitmentsAsProvider = await fetchCommitmentsByProvider(myAgentPubKey);
     }
 
     async function fetchMyCommitmentsAsReceiver(myAgentPubKey: AgentPubKey): Promise<void> {
-      const commitments = await run(governanceService.getCommitmentsByReceiver(myAgentPubKey));
-      if (commitments) myCommitmentsAsReceiver = commitments;
+      myCommitmentsAsReceiver = await fetchCommitmentsByReceiver(myAgentPubKey);
     }
 
     async function fetchEventsByAgent(agent: AgentPubKey): Promise<EconomicEvent[]> {
@@ -208,8 +206,7 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
     }
 
     async function fetchMyEconomicEvents(myAgentPubKey: AgentPubKey): Promise<void> {
-      const events = await run(governanceService.getEventsByAgent(myAgentPubKey));
-      if (events) myEconomicEvents = events;
+      myEconomicEvents = await fetchEventsByAgent(myAgentPubKey);
     }
 
     async function fetchPendingCommitments(): Promise<void> {

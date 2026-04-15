@@ -167,7 +167,7 @@ export const GovernanceServiceLive: Layer.Layer<
         wz<boolean>(
           'validate_governance_rules',
           { resource_hash: resourceHash, operation, agent },
-          GOVERNANCE_CONTEXTS.EVALUATE_STATE_TRANSITION
+          GOVERNANCE_CONTEXTS.VALIDATE_GOVERNANCE_RULES
         ),
 
       createDispute: (commitment, complainant, description) =>

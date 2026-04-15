@@ -63,6 +63,7 @@ export const GOVERNANCE_CONTEXTS = {
   CHECK_VALIDATION_STATUS: 'Failed to check validation status',
   GET_VALIDATION_HISTORY: 'Failed to get validation history',
   EVALUATE_STATE_TRANSITION: 'Failed to evaluate state transition',
+  VALIDATE_GOVERNANCE_RULES: 'Failed to validate governance rules',
   LOG_INITIAL_TRANSFER: 'Failed to log initial transfer',
   CREATE_DISPUTE: 'Failed to create dispute',
   VOTE_ON_DISPUTE: 'Failed to vote on dispute'

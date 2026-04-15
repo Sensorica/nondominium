@@ -137,8 +137,7 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     }
 
     async function fetchMyResources(myAgentPubKey: AgentPubKey): Promise<void> {
-      const resources = await run(resourceService.getResourcesByCustodian(myAgentPubKey));
-      if (resources) myResources = resources;
+      myResources = await fetchResourcesByCustodian(myAgentPubKey);
     }
 
     async function transferResourceCustody(
