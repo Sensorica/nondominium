@@ -55,6 +55,78 @@ powers both standalone and Moss-hosted modes.
 
 ## 2. Container Architecture (C4 L2)
 
+### Agent identity layers
+
+One physical agent has **multiple pubkeys** — one per DHT they join. The three-layer model
+produces three distinct identity records for the same person, bridged by the Group DHT:
+
+```
+Lobby DHT               Group DHT                    NDO DHT
+────────────────────    ─────────────────────────    ────────────────────
+LobbyAgentProfile       GroupMembership              Person (zome_person)
+lobby_pubkey  ────────→ ndo_pubkey_map          ───→ (key that authored
+(handle, avatar, bio)   [{ndo_dna_hash,               Person entry)
+                          ndo_pubkey}]
+```
+
+| | LobbyAgentProfile | Person |
+|---|---|---|
+| **Where** | Lobby DHT (one global) | Per-NDO DHT (one per community joined) |
+| **Pubkey** | `lobby_pubkey` | Fresh key per NDO DHT |
+| **Purpose** | Cross-NDO public face | Constitutional identity within one NDO |
+| **Governs** | Ecosystem-wide handle | Roles, PPRs, private data in that NDO |
+
+`GroupMembership.ndo_pubkey_map` is the MVP bridge: it records `lobby_pubkey → ndo_pubkey`
+for each NDO so the group can resolve cross-DHT identity without Flowsta.
+Post-MVP, Flowsta `IsSamePersonEntry` replaces this with a cryptographic attestation
+(REQ-LOBBY-INT-01; see `flowsta-integration.md`).
+
+**Implication for implementers:** joining an NDO always produces a new `AgentPubKey` in that
+DHT and a new `Person` entry. The `LobbyAgentProfile` is never modified by NDO joins — it
+is the stable public handle. `GroupMembership` is what links the two.
+
+---
+
+### Groups vs organization-NDOs
+
+Groups and organization-NDOs are **distinct concepts at different layers** and must not be
+conflated:
+
+| | Group | Organization-NDO |
+|---|---|---|
+| **What it is** | Lobby-layer coordination space | A `NondominiumIdentity` representing a collective entity |
+| **Has Layer 0 identity** | No | Yes — lifecycle, property regime, governance |
+| **Governs** | Agents: membership, work logs, soft links | Resources and collective economic activity |
+| **Can hold custody** | No | Yes — `primary_accountable` on `Agreement`, `EconomicResource` custodian (post-MVP) |
+| **Accumulates reputation** | No | Yes — Contributions and EconomicEvents accrue to its `NondominiumIdentity` |
+| **Governance layer** | Flat group rules (coordination, cultural) | Full NDO governance (AccountableAgents, lifecycle, Agreement) |
+| **Permanent** | No — can be abandoned | Yes — `NondominiumIdentity` is immutable and permanent |
+
+A group typically **creates and coordinates around** an organization-NDO but does not become it:
+
+```
+Group (coordination layer)
+  ├── members: [Alice, Bob, Carol]
+  ├── soft links: planned_action=Combine → [SensoricanNDO, LabSpaceNDO]
+  └── work logs → SensoricanNDO
+
+SensoricanNDO (org-NDO, its own DHT)
+  ├── NondominiumIdentity { regime: Collective, lifecycle: Active }
+  ├── AccountableAgents: [Alice, Bob]
+  ├── Agreement { clauses: [...] }
+  └── Contributions from Carol, Dave, and other agents (not necessarily group members)
+```
+
+**Key architectural rule:** an agent does not need to be in a group to contribute to an
+organization-NDO. Group membership governs group-layer coordination only. NDO membership
+(joining the NDO DHT) is governed by the NDO's own rules and is independent of any group.
+
+**Post-MVP gap (REQ-AGENT-02):** `EconomicResource.custodian: AgentPubKey` currently accepts
+only individual agents. An organization-NDO acting as collective custodian requires the
+`AgentContext` extension from `requirements.md §4.4`.
+
+---
+
 ### Three-layer DHT model
 
 ```mermaid

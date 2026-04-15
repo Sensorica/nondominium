@@ -98,6 +98,43 @@ Lobby (no governance, permissionless registry)
 - Intrinsic to the NDO, OVN-license compliant
 - Immutable and permanent
 
+### Agent identity layers
+
+One physical agent produces **multiple pubkeys** across DHT layers. The Lobby, Group, and NDO
+layers each hold a distinct identity record for the same person:
+
+- `LobbyAgentProfile` (Lobby DHT) — ecosystem-wide public handle. One per agent, never
+  modified by NDO joins. Stable cross-community identity anchor.
+- `Person` (NDO DHT, `zome_person`) — constitutional identity within one specific NDO.
+  A fresh `AgentPubKey` is created per NDO join; the `Person` entry records roles, PPRs,
+  and private data for that community.
+- `GroupMembership.ndo_pubkey_map` (Group DHT) — the MVP bridge linking `lobby_pubkey`
+  to the per-NDO pubkeys, enabling cross-DHT identity resolution without Flowsta.
+  Post-MVP, Flowsta `IsSamePersonEntry` supersedes this (REQ-LOBBY-INT-01).
+
+For the full identity-layer diagram and implementer guidance, see
+`documentation/specifications/post-mvp/lobby-architecture.md §2 "Agent identity layers"`.
+
+### Groups vs organization-NDOs
+
+Groups and organization-NDOs are **distinct concepts** that must not be conflated:
+
+- A **Group** (Lobby layer) is a coordination space for agents. It has no `NondominiumIdentity`,
+  no Layer 0 lifecycle, no PPRs, and cannot hold resource custody. It governs agents only:
+  membership, work logs, and soft links.
+- An **organization-NDO** (NDO layer) is a `NondominiumIdentity` representing a collective
+  entity. It has its own lifecycle, `Agreement`, `AccountableAgents`, and can accumulate
+  Contributions and reputation. Post-MVP it can hold resource custody (`AgentContext`,
+  REQ-AGENT-02).
+- A group typically **creates and coordinates around** an organization-NDO but does not
+  become it. The two are always separate entities at separate DHT layers.
+- An agent does not need to be in a group to contribute to an organization-NDO. Group
+  membership governs group-layer coordination only; NDO participation is governed by
+  the NDO's own rules.
+
+For the comparative table and worked example, see
+`documentation/specifications/post-mvp/lobby-architecture.md §2 "Groups vs organization-NDOs"`.
+
 ---
 
 ## 4. Lobby DNA Requirements
