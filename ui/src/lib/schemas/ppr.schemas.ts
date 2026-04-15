@@ -5,6 +5,13 @@ import { Schema } from 'effect';
  * `zome_gouvernance`. Mirrors all 16 `ParticipationClaimType` Rust variants
  * and the bilateral `PerformanceMetrics` weights
  * (timeliness=0.25, quality=0.30, reliability=0.25, communication=0.20).
+ *
+ * Holochain primitive types (`ActionHash`, `AgentPubKey`, `Timestamp`) are
+ * represented as `Schema.Any` because they are opaque binary types
+ * (`Uint8Array` or numeric microsecond timestamps) that flow through the
+ * client untyped. Runtime validation is provided by Holochain itself.
+ * TODO(#91): replace Schema.Any fields with typed HolochainBytes schemas
+ * once the service layer is available for mock injection.
  */
 
 export const ParticipationClaimTypeSchema = Schema.Literal(

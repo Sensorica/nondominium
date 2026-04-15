@@ -5,6 +5,13 @@ import { Schema } from 'effect';
  *
  * `VfActionSchema` enumerates every variant of the Rust `VfAction` enum
  * (13 standard ValueFlows actions + 3 nondominium-specific extensions).
+ *
+ * Holochain primitive types (`ActionHash`, `AgentPubKey`, `Timestamp`) are
+ * represented as `Schema.Any` because they are opaque binary types
+ * (`Uint8Array` or numeric microsecond timestamps) that flow through the
+ * client untyped. Runtime validation is provided by Holochain itself.
+ * TODO(#91): replace Schema.Any fields with typed HolochainBytes schemas
+ * once the service layer is available for mock injection.
  */
 
 export const VfActionSchema = Schema.Literal(

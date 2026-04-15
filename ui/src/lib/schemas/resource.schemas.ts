@@ -2,6 +2,13 @@ import { Schema } from 'effect';
 
 /**
  * Resource and NDO schema definitions for `zome_resource`.
+ *
+ * Holochain primitive types (`ActionHash`, `AgentPubKey`, `Timestamp`) are
+ * represented as `Schema.Any` because they are opaque binary types
+ * (`Uint8Array` or numeric microsecond timestamps) that flow through the
+ * client untyped. Runtime validation is provided by Holochain itself.
+ * TODO(#91): replace Schema.Any fields with typed HolochainBytes schemas
+ * once the service layer is available for mock injection.
  */
 
 export const ResourceStateSchema = Schema.Literal(
