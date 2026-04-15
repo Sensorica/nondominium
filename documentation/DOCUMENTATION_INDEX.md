@@ -111,12 +111,14 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | **[UI Design](documentation/requirements/ui_design.md)**                                                  | User interface design specifications               | ✅ Complete |
 | **[PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md)** | Security model for reputation system               | ✅ Complete |
 | **[ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md)**                             | ValueFlows implementation with governance examples | ✅ Complete |
+| **[Lobby DNA Requirements](documentation/requirements/post-mvp/lobby-dna.md)**                            | Multi-network federation: Lobby DNA, Group DNA, NDO extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) | 🔄 Post-MVP |
 
 ### Architecture & Roadmap
 
 | Document                                                                                       | Description                                                                          | Status    |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------- |
 | **[NDO v1.0 Architecture Design](documentation/specifications/ndo-v1-architecture-design.md)** | Dual-DNA architecture, VF 1.0 class mapping, entry type specs, ADRs, migration notes | ✅ Active |
+| **[Lobby DNA Architecture](documentation/specifications/post-mvp/lobby-architecture.md)**      | Full design: Lobby + Group DNAs, NDO extensions, entry types, coordinator APIs, pipelines, UI, Moss contract, 7 ADRs | 🔄 Post-MVP |
 | **[hREA Integration Strategy](documentation/hREA/integration-strategy.md)**                    | Cross-DNA call architecture, zome-level integration pattern, migration plan          | ✅ Active |
 | **[hREA VF 1.0 Compliance Analysis](documentation/hREA/valueflows-1.0-compliance.md)**         | Field-by-field audit of hREA main-0.6 against VF 1.0 ontology (~65% compliance)      | ✅ Active |
 | **[hREA Strategic Roadmap](documentation/hREA/strategic-roadmap.md)**                          | Phase 1+2 maintainership proposal: VF 1.0 gap closure and JSON-LD API                | ✅ Active |

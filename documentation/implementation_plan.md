@@ -20,6 +20,7 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 | [post-mvp/digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md) | Manifests and verifiable digital assets; aligns with Layer 1 `DigitalAsset` capability slots (prima materia §9.2) |
 | [post-mvp/resource-transport-flow-protocol.md](requirements/post-mvp/resource-transport-flow-protocol.md) | Multi-dimensional transport/flow semantics over economic events |
 | [post-mvp/valueflows-dsl.md](requirements/post-mvp/valueflows-dsl.md) | DSL for recipes, bulk bootstrap, scripted coordination (operational tooling track) |
+| [post-mvp/lobby-dna.md](requirements/post-mvp/lobby-dna.md) | Multi-network federation: Lobby DNA (public registry), Group DNA (per-group coordination), NDO DNA extensions (`NdoHardLink`, `Contribution`, `Agreement`); dual deployment (standalone + Moss applet) — REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-* |
 | [archives/resources.md](archives/resources.md), [archives/governance.md](archives/governance.md) | Ontology and gap-analysis context (non-normative for REQ IDs) |
 
 ---
@@ -71,7 +72,7 @@ Work below is grouped into **parallel tracks** so MVP delivery, NDO migration, a
 | **NDO model and migration** | `NondominiumIdentity`, `NDOToSpecification` / `NDOToProcess`, holonic links, `CapabilitySlot`, lifecycle plus operational split, faceted discovery links, one-time migration (REQ-NDO-MIG-*) | [ndo_prima_materia.md](requirements/ndo_prima_materia.md) §§8–10, §9 |
 | **Agent ontology** | REQ-AGENT-* / REQ-NDO-AGENT-* items under Phases 2–4 | [requirements.md §4.4](requirements/requirements.md); [archives/agent.md](archives/agent.md) for OVN background |
 | **Unyt / Flowsta** | Phased integration; governance enforcement in later phases | Section 12.2–12.3; REQ-NDO-CS-07–CS-15 |
-| **Extended post-MVP** | Many-to-many flows, versioning, digital integrity, RTP-FP, VF DSL — reference and ordering only in Section 12.5 | `documentation/requirements/post-mvp/*.md` |
+| **Extended post-MVP** | Many-to-many flows, versioning, digital integrity, RTP-FP, VF DSL, **Lobby DNA federation layer** — reference and ordering only in Section 12.5–12.6 | `documentation/requirements/post-mvp/*.md` |
 
 **Phase 2.2 and the NDO track:** Checklists for `LifecycleStage` / `OperationalState`, split discovery links, and process-aware resource work **implement REQ-NDO-LC-*, REQ-NDO-OS-*, and parts of REQ-NDO-L2-*** once `NondominiumIdentity` and NDO links exist; until then, some items remain preparatory. Full L0-first creation and migration follow Section 12.1 and REQ-NDO-MIG-*.
 
@@ -668,6 +669,32 @@ High-level ordering and dependencies (detailed requirements live in each file):
 - **[digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md):** Content-addressed manifests and hierarchical verification — attach via Layer 1 **DigitalAsset** capability slots (prima materia §9.2); aligns with distributed storage expectations for specs.
 - **[resource-transport-flow-protocol.md](requirements/post-mvp/resource-transport-flow-protocol.md):** Multi-dimensional transport and flow semantics — builds on mature **EconomicEvent** metadata and process modeling; cross-link to operational state and RTP-style location/custody dimensions.
 - **[valueflows-dsl.md](requirements/post-mvp/valueflows-dsl.md):** Scriptable network bootstrap and recipe definition — operational tooling; depends on stable VF entry types and governance evaluation surfaces in the DNA.
+- **[lobby-dna.md](requirements/post-mvp/lobby-dna.md):** Multi-network federation — see §12.6 below.
+
+### 12.6 Lobby DNA — multi-network federation
+
+Requirements: [lobby-dna.md](requirements/post-mvp/lobby-dna.md) (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*)
+Architecture: [specifications/post-mvp/lobby-architecture.md](specifications/post-mvp/lobby-architecture.md)
+
+Two implementation sub-scopes with different delivery ordering:
+
+**New DNAs (Lobby + Group) — plan after NDO governance-as-operator stabilizes:**
+- [ ] Lobby DNA: `zome_lobby_integrity` + `zome_lobby_coordinator` — `LobbyAgentProfile`, `NdoDescriptor`, faceted discovery links
+- [ ] Group DNA: `zome_group_integrity` + `zome_group_coordinator` — `GroupDescriptor`, `GroupMembership`, `WorkLog`, `SoftLink`, `GroupGovernanceRule`
+- [ ] `happ.yaml` roles: `lobby` (fixed `network_seed: "nondominium-lobby-v1"`), `group` (cloning_limit 255), `nondominium` (cloning_limit 1024)
+- [ ] Moss WeApplet contract (`ui/src/we-applet.ts`) — `search`, `getAssetInfo`, `openAsset`
+
+**NDO DNA extensions (zome_gouvernance) — plan after Governance-as-Operator (#41–#44) lands:**
+- [ ] `NdoHardLink` entry type + `NdoToHardLinks` / `HardLinkByType` link types — immutable, requires AccountableAgent + valid EconomicEvent fulfillment (REQ-NDO-EXT-01–06)
+  - *Stage 2 (pre-Lobby, single cell):* `to_ndo_dna_hash` equals the shared DNA hash (same cell for source and target). *Stage 3 (per-NDO clone):* `to_ndo_dna_hash` is the target cell's unique hash. Same struct, no breaking change. See lobby-architecture.md §6.1.
+- [ ] `Contribution` entry type + `NdoToContributions` / `AgentToContributions` / `ContributionToEvent` link types — requires at least one AccountableAgent validator (REQ-NDO-EXT-07–11)
+- [ ] `Agreement` entry type (VF: `vf:Agreement`) + `NdoToAgreement` / `AgreementUpdates` link types — versioned, AccountableAgent-controlled (REQ-NDO-EXT-12–16)
+
+**Dependencies:**
+- Lobby + Group DNAs: NDO Layer 0 complete ✅, Sweettest patterns established ✅
+- NDO DNA extensions: Governance-as-Operator (#41–#44) for AccountableAgent cross-zome role check
+- Unyt integration (§12.2) activates `Agreement.clauses` with `BenefitType::Monetary`
+- Flowsta Phase 3 (§12.3) replaces `GroupMembership.ndo_pubkey_map` with `IsSamePersonEntry` attestations (REQ-LOBBY-INT-01)
 
 ---
 

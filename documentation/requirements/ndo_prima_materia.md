@@ -3,7 +3,7 @@
 **Status**: Post-MVP Design Document  
 **Created**: 2026-03-10  
 **Authors**: Nondominium project  
-**Relates to**: `many-to-many-flows.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`, `flowsta-integration.md`
+**Relates to**: `many-to-many-flows.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`, `flowsta-integration.md`, `lobby-dna.md`
 
 ---
 
@@ -1451,6 +1451,21 @@ The PPR system and Unyt credit limits form a feedback loop: agents' `ReputationS
 The NDO three-layer model and Flowsta are architecturally complementary: the NDO tracks *who does what* (participation, custody, quality, reputation via PPRs); Flowsta tracks *who is who* (cross-app identity, DID, recovery). The capability slot mechanism is the bridge that connects an agent's local DHT identity to their portable, cross-app identity without requiring any core entry schema changes.
 
 Flowsta Vault's BIP39 recovery and auto-backup mechanisms address a gap in the current NDO architecture: agent key recovery. The non-deletable, append-only nature of `Person` entries and PPRs assumes the agent retains access to their signing key. Vault's deterministic key regeneration from a 24-word mnemonic ensures that the permanent records the NDO creates remain accessible to their authors across device loss and hardware failure.
+
+### 11.7 Lobby DNA Integration
+
+`lobby-dna.md` defines the multi-network federation layer that sits above the NDO DHT: a public Lobby DHT (permissionless agent and NDO descriptor registry), per-group Group DHTs (invite-only coordination spaces), and three extensions to the existing NDO DNA (`zome_gouvernance`).
+
+The Lobby layer connects to the NDO three-layer model at specific points:
+
+- **Layer 0 (`NondominiumIdentity`) as the NDO's public identity anchor**: The `NdoDescriptor` entry in the Lobby DHT mirrors the Layer 0 identity fields (`name`, `lifecycle_stage`, `property_regime`, `resource_nature`) and references the Layer 0 hash (`ndo_identity_hash`). The Lobby provides the discovery surface; Layer 0 is the authoritative source of truth.
+- **Layer 2 (`EconomicEvent`/`Commitment`/`Claim`) as the hard-link gate**: `NdoHardLink` entries are created only on validated `EconomicEvent` fulfillment — the same Layer 2 cycle that governs all NDO state changes. The Lobby's soft links (planning intent) become NDO-level hard links only through the existing governance-as-operator path.
+- **`Agreement` as Layer 2 benefit-distribution governance**: The `Agreement` entry type added to `zome_gouvernance` extends the NDO's Layer 2 process layer with benefit-distribution rules, activated post-MVP by Unyt RAVEs (see §11.5).
+- **`Contribution` as a peer-validated Layer 2 work record**: Validated `Contribution` entries record work done on the NDO at the Layer 2 observation level, with optional cross-DHT references to informal Group-level `WorkLog` entries for audit purposes.
+
+**Deployment modes**: The Lobby DNA is designed for dual deployment — standalone hApp (Lobby DNA + Group DNA + NDO DNA, all managed by one conductor) and Moss/Weave Tool applet (Moss handles agent invites and identity at the surface; Nondominium owns the NDO layer). The NDO DNA is identical in both modes.
+
+See `lobby-dna.md` for normative requirements (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) and `specifications/post-mvp/lobby-architecture.md` for full schema, coordinator APIs, pipelines, UI, Moss contract, and 7 ADRs.
 
 ---
 
