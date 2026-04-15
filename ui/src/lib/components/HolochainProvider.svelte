@@ -94,7 +94,7 @@
         {#if !autoConnect}
           <button
             onclick={() => holochainService.connectClient()}
-            class="bg-green-60d0 ml-2 rounded px-3 py-1 text-white transition-colors hover:bg-green-700"
+            class="bg-green-600 ml-2 rounded px-3 py-1 text-white transition-colors hover:bg-green-700"
           >
             Connect
           </button>
