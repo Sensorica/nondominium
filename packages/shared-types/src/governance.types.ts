@@ -20,6 +20,37 @@ export interface EconomicEvent {
   occurred_at: Timestamp;
 }
 
+/** ValueFlows action labels as returned by `zome_gouvernance` (serde on `VfAction`). */
+export type VfAction =
+  | 'Transfer'
+  | 'Move'
+  | 'Use'
+  | 'Consume'
+  | 'Produce'
+  | 'Work'
+  | 'Modify'
+  | 'Combine'
+  | 'Separate'
+  | 'Raise'
+  | 'Lower'
+  | 'Cite'
+  | 'Accept'
+  | 'InitialTransfer'
+  | 'AccessForUse'
+  | 'TransferCustody';
+
+/** Economic event entry shape in `zome_gouvernance` (distinct from legacy `EconomicEvent` above). */
+export interface VfEconomicEvent {
+  action: VfAction;
+  provider: AgentPubKey;
+  receiver: AgentPubKey;
+  resource_inventoried_as: ActionHash;
+  affects: ActionHash;
+  resource_quantity: number;
+  event_time: Timestamp;
+  note?: string | null;
+}
+
 // Zome Function Types
 export interface GovernanceZomeFunctions {
   create_commitment: (commitment: Omit<Commitment, 'created_at'>) => Promise<ActionHash>;
@@ -28,4 +59,6 @@ export interface GovernanceZomeFunctions {
   create_economic_event: (event: Omit<EconomicEvent, 'occurred_at'>) => Promise<ActionHash>;
   get_economic_event: (hash: ActionHash) => Promise<EconomicEvent>;
   get_events_by_agent: (agent: AgentPubKey) => Promise<EconomicEvent[]>;
+  get_events_for_resource: (resourceHash: ActionHash) => Promise<VfEconomicEvent[]>;
+  get_all_economic_events: () => Promise<VfEconomicEvent[]>;
 }

@@ -262,6 +262,8 @@ pub fn update_resource_specification(
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetAllResourceSpecificationsOutput {
   pub specifications: Vec<ResourceSpecification>,
+  /// Same length and order as `specifications`: the `ActionHash` of each spec’s latest create/update record.
+  pub action_hashes: Vec<ActionHash>,
 }
 
 #[hdk_extern]
@@ -275,18 +277,23 @@ pub fn get_all_resource_specifications(_: ()) -> ExternResult<GetAllResourceSpec
   let links = get_links(links_query, GetStrategy::default())?;
 
   let mut specifications = Vec::new();
+  let mut action_hashes = Vec::new();
 
   for link in links {
     if let Some(action_hash) = link.target.into_action_hash() {
-      if let Some(record) = get(action_hash, GetOptions::default())? {
+      if let Some(record) = get(action_hash.clone(), GetOptions::default())? {
         if let Ok(Some(spec)) = record.entry().to_app_option::<ResourceSpecification>() {
           specifications.push(spec);
+          action_hashes.push(action_hash);
         }
       }
     }
   }
 
-  Ok(GetAllResourceSpecificationsOutput { specifications })
+  Ok(GetAllResourceSpecificationsOutput {
+    specifications,
+    action_hashes,
+  })
 }
 
 #[derive(Serialize, Deserialize, Debug)]

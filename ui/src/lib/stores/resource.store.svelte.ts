@@ -6,7 +6,11 @@ import {
   type ResourceService
 } from '../services/zomes/resource.service.js';
 import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-helpers/core';
-import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
+import type {
+  ResourceSpecification,
+  EconomicResource,
+  ResourceSpecificationListing
+} from '@nondominium/shared-types';
 
 // ─── Store type ────────────────────────────────────────────────────────────────
 
@@ -14,6 +18,7 @@ export type ResourceStore = {
   readonly isLoading: boolean;
   readonly errorMessage: string | null;
   readonly allResourceSpecifications: ResourceSpecification[];
+  readonly resourceSpecificationListings: ResourceSpecificationListing[];
   readonly allEconomicResources: EconomicResource[];
   readonly myResources: EconomicResource[];
   readonly selectedSpecification: ResourceSpecification | null;
@@ -64,6 +69,7 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     let isLoading: boolean = $state(false);
     let errorMessage: string | null = $state(null);
     let allResourceSpecifications: ResourceSpecification[] = $state([]);
+    let resourceSpecificationListings: ResourceSpecificationListing[] = $state([]);
     // TODO: allEconomicResources is never populated — no store method writes to it.
     // Either wire fetchAllEconomicResources here or remove this getter from the public type before
     // connecting UI components so consumers are not misled by an always-empty array.
@@ -99,11 +105,16 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     }
 
     async function fetchAllResourceSpecifications(): Promise<void> {
-      const specifications = await run(resourceService.getAllResourceSpecifications());
-      if (specifications) {
-        allResourceSpecifications = specifications;
-        specifications.forEach((spec) => {
-          specificationCache.set(`${spec.name}-${spec.created_by.toString()}`, spec);
+      const listings = await run(resourceService.getAllResourceSpecifications());
+      if (listings) {
+        resourceSpecificationListings = listings;
+        allResourceSpecifications = listings.map((l) => l.specification);
+        listings.forEach((listing) => {
+          specificationCache.set(listing.action_hash.toString(), listing.specification);
+          specificationCache.set(
+            `${listing.specification.name}-${listing.specification.category ?? ''}`,
+            listing.specification
+          );
         });
       }
     }
@@ -221,6 +232,7 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
       get isLoading() { return isLoading; },
       get errorMessage() { return errorMessage; },
       get allResourceSpecifications() { return allResourceSpecifications; },
+      get resourceSpecificationListings() { return resourceSpecificationListings; },
       get allEconomicResources() { return allEconomicResources; },
       get myResources() { return myResources; },
       get selectedSpecification() { return selectedSpecification; },

@@ -2,7 +2,7 @@ import { type AppInfoResponse, AppWebsocket } from '@holochain/client';
 import { Context, Layer } from 'effect';
 
 export type ZomeName = 'zome_person' | 'zome_resource' | 'zome_gouvernance';
-export type RoleName = 'nondominium';
+export type RoleName = 'nondominium' | 'lobby' | `group_${string}`;
 
 export interface HolochainClientService {
   readonly appId: string;

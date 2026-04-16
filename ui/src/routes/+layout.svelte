@@ -3,6 +3,7 @@
   import 'virtual:uno.css';
   import favicon from '$lib/assets/favicon.svg';
   import HolochainProvider from '$lib/components/HolochainProvider.svelte';
+  import AppShell from '$lib/components/shell/AppShell.svelte';
 
   let { children } = $props();
 </script>
@@ -13,5 +14,7 @@
 </svelte:head>
 
 <HolochainProvider autoConnect={true}>
-  {@render children()}
+  <AppShell>
+    {@render children()}
+  </AppShell>
 </HolochainProvider>
