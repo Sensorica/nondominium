@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
+  import { appContext } from '$lib/stores/app.context.svelte';
   import ResourcesTab from './ResourcesTab.svelte';
   import GovernanceTab from './GovernanceTab.svelte';
   import ActivityTab from './ActivityTab.svelte';
@@ -20,9 +21,12 @@
     try {
       specActionHash = decodeHashFromBase64(decodeURIComponent(specHashB64)) as ActionHash;
       parseError = null;
+      appContext.currentView = 'ndo';
+      appContext.selectedNdoId = specActionHash;
     } catch {
       specActionHash = null;
       parseError = 'Could not decode resource specification hash from the URL.';
+      appContext.selectedNdoId = null;
     }
   });
 

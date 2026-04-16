@@ -2,12 +2,21 @@
   import { onMount } from 'svelte';
   import { Effect as E, Exit, pipe } from 'effect';
   import { GroupServiceTag, GroupServiceResolved } from '$lib/services/zomes/group.service';
+  import { appContext } from '$lib/stores/app.context.svelte';
+  import MemberList from './MemberList.svelte';
+  import WorkLogFeed from './WorkLogFeed.svelte';
+  import SoftLinkList from './SoftLinkList.svelte';
 
   interface Props {
     groupId: string;
   }
 
   let { groupId }: Props = $props();
+
+  $effect(() => {
+    appContext.currentView = 'group';
+    appContext.selectedGroupId = groupId;
+  });
 
   let members = $state<{ id: string; name: string }[]>([]);
   let worklogs = $state<{ id: string; title: string }[]>([]);
@@ -38,44 +47,7 @@
   <h1 class="text-2xl font-bold text-gray-900">Group</h1>
   <p class="mt-1 font-mono text-sm text-gray-500">{groupId}</p>
 
-  <section class="mt-8">
-    <h2 class="mb-2 text-lg font-semibold text-gray-800">Members</h2>
-    {#if members.length === 0}
-      <p class="border border-dashed border-gray-400 rounded p-4 text-sm text-gray-500">No members (stub).</p>
-    {:else}
-      <ul class="space-y-2">
-        {#each members as m (m.id)}
-          <li class="rounded border border-gray-200 bg-white p-3 text-sm">{m.name}</li>
-        {/each}
-      </ul>
-    {/if}
-  </section>
-
-  <section class="mt-8">
-    <h2 class="mb-2 text-lg font-semibold text-gray-800">Work log</h2>
-    {#if worklogs.length === 0}
-      <p class="border border-dashed border-gray-400 rounded p-4 text-sm text-gray-500">No work log entries (stub).</p>
-    {:else}
-      <ul class="space-y-2">
-        {#each worklogs as w (w.id)}
-          <li class="rounded border border-gray-200 bg-white p-3 text-sm">{w.title}</li>
-        {/each}
-      </ul>
-    {/if}
-  </section>
-
-  <section class="mt-8">
-    <h2 class="mb-2 text-lg font-semibold text-gray-800">Soft links</h2>
-    {#if softlinks.length === 0}
-      <p class="border border-dashed border-gray-400 rounded p-4 text-sm text-gray-500">
-        No soft links (stub). Planning-only links will use dashed styling when enabled.
-      </p>
-    {:else}
-      <ul class="space-y-2">
-        {#each softlinks as s (s.id)}
-          <li class="rounded border border-dashed border-gray-400 p-3 text-sm">{s.label}</li>
-        {/each}
-      </ul>
-    {/if}
-  </section>
+  <MemberList {members} />
+  <WorkLogFeed {worklogs} />
+  <SoftLinkList {softlinks} />
 </div>

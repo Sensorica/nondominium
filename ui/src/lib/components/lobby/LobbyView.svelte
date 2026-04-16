@@ -1,11 +1,23 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
+  import { resourceStore } from '$lib/stores/resource.store.svelte';
+  import { appContext } from '$lib/stores/app.context.svelte';
   import GroupSidebar from './GroupSidebar.svelte';
   import NdoBrowser from './NdoBrowser.svelte';
 
+  /** Issue #96: NdoBrowser is populated from `resourceService.getAllResourceSpecifications()` (via `resourceStore`). */
   onMount(() => {
-    void lobbyStore.loadLobby();
+    void (async () => {
+      await resourceStore.fetchAllResourceSpecifications();
+      await lobbyStore.loadLobby();
+    })();
+  });
+
+  $effect(() => {
+    appContext.myPerson = lobbyStore.myPerson;
+    appContext.myAgentPubKey = lobbyStore.myPerson?.agent_pub_key ?? null;
+    appContext.currentView = 'lobby';
   });
 </script>
 
