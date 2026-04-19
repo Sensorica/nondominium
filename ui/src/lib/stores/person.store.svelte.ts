@@ -6,12 +6,15 @@ import {
   type PersonService
 } from '../services/zomes/person.service.js';
 import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-helpers/core';
-import type { Person, EncryptedProfile, PersonRole } from '@nondominium/shared-types';
+import type {
+  Person,
+  PersonProfileOutput,
+  PersonRole,
+  PrivatePersonDataInput,
+  UpdatePersonInput
+} from '@nondominium/shared-types';
 
-export interface PersonProfile {
-  person: Person | null;
-  private_data: EncryptedProfile | null;
-}
+export type PersonProfile = PersonProfileOutput;
 
 // ─── Store type ────────────────────────────────────────────────────────────────
 
@@ -27,20 +30,19 @@ export type PersonStore = {
     personData: Omit<Person, 'agent_pub_key' | 'created_at'>
   ) => Promise<ActionHash | null>;
   fetchAllPersons: () => Promise<void>;
-  fetchPerson: (hash: ActionHash) => Promise<Person | null>;
+  fetchLatestPerson: (originalActionHash: ActionHash) => Promise<Person | null>;
   getPersonFromCache: (agentPubKey: AgentPubKey) => Promise<Person | null>;
-  fetchMyProfile: () => Promise<void>;
-  createEncryptedProfile: (
-    profileData: Omit<EncryptedProfile, 'agent_pub_key' | 'created_at'>
+  fetchMyPersonProfile: () => Promise<void>;
+  storePrivatePersonData: (input: PrivatePersonDataInput) => Promise<ActionHash | null>;
+  assignPersonRole: (
+    agent: AgentPubKey,
+    roleName: string,
+    description?: string
   ) => Promise<ActionHash | null>;
-  assignRole: (agent: AgentPubKey, role: string) => Promise<ActionHash | null>;
   fetchPersonRoles: (agent: AgentPubKey) => Promise<PersonRole[]>;
-  checkRoleCapability: (agent: AgentPubKey, role: string) => Promise<boolean>;
-  getCapabilityLevel: (agent: AgentPubKey) => Promise<string>;
-  updatePerson: (
-    hash: ActionHash,
-    updatedPerson: Omit<Person, 'agent_pub_key' | 'created_at'>
-  ) => Promise<ActionHash | null>;
+  hasPersonRoleCapability: (agent: AgentPubKey, roleName: string) => Promise<boolean>;
+  getPersonCapabilityLevel: (agent: AgentPubKey) => Promise<string>;
+  updatePerson: (input: UpdatePersonInput) => Promise<ActionHash | null>;
   selectPerson: (person: Person) => void;
   clearSelectedPerson: () => void;
   clearError: () => void;
@@ -64,8 +66,12 @@ const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceTag> =>
 
     // ─── Loading state setters ────────────────────────────────────────────────
     const setters = createLoadingStateSetter(
-      (v) => { isLoading = v; },
-      (v) => { errorMessage = v; }
+      (v) => {
+        isLoading = v;
+      },
+      (v) => {
+        errorMessage = v;
+      }
     );
 
     // ─── Internal run helper ──────────────────────────────────────────────────
@@ -82,7 +88,7 @@ const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceTag> =>
       const hash = await run(personService.createPerson(personData));
       if (hash) {
         await fetchAllPersons();
-        await fetchMyProfile();
+        await fetchMyPersonProfile();
       }
       return hash;
     }
@@ -95,8 +101,8 @@ const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceTag> =>
       }
     }
 
-    async function fetchPerson(hash: ActionHash): Promise<Person | null> {
-      const person = await run(personService.getPerson(hash));
+    async function fetchLatestPerson(originalActionHash: ActionHash): Promise<Person | null> {
+      const person = await run(personService.getLatestPerson(originalActionHash));
       if (person) personCache.set(person.agent_pub_key.toString(), person);
       return person;
     }
@@ -112,27 +118,31 @@ const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceTag> =>
       return null;
     }
 
-    async function fetchMyProfile(): Promise<void> {
-      const profile = await run(personService.getMyProfile());
+    async function fetchMyPersonProfile(): Promise<void> {
+      const profile = await run(personService.getMyPersonProfile());
       if (profile) myProfile = profile;
     }
 
-    async function createEncryptedProfile(
-      profileData: Omit<EncryptedProfile, 'agent_pub_key' | 'created_at'>
-    ): Promise<ActionHash | null> {
-      const hash = await run(personService.createEncryptedProfile(profileData));
-      if (hash) await fetchMyProfile();
+    async function storePrivatePersonData(input: PrivatePersonDataInput): Promise<ActionHash | null> {
+      const hash = await run(personService.storePrivatePersonData(input));
+      if (hash) await fetchMyPersonProfile();
       return hash;
     }
 
-    async function assignRole(agent: AgentPubKey, role: string): Promise<ActionHash | null> {
-      const hash = await run(personService.assignRole(agent, role));
+    async function assignPersonRole(
+      agent: AgentPubKey,
+      roleName: string,
+      description?: string
+    ): Promise<ActionHash | null> {
+      const hash = await run(
+        personService.assignPersonRole({ agent_pubkey: agent, role_name: roleName, description })
+      );
       if (hash) await fetchPersonRoles(agent);
       return hash;
     }
 
     async function fetchPersonRoles(agent: AgentPubKey): Promise<PersonRole[]> {
-      const exit = await E.runPromiseExit(personService.getRoles(agent));
+      const exit = await E.runPromiseExit(personService.getPersonRoles(agent));
       if (Exit.isSuccess(exit)) {
         personRoles.set(agent.toString(), exit.value);
         return exit.value;
@@ -140,51 +150,69 @@ const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceTag> =>
       return [];
     }
 
-    async function checkRoleCapability(agent: AgentPubKey, role: string): Promise<boolean> {
-      const exit = await E.runPromiseExit(personService.hasRoleCapability(agent, role));
+    async function hasPersonRoleCapability(agent: AgentPubKey, roleName: string): Promise<boolean> {
+      const exit = await E.runPromiseExit(personService.hasPersonRoleCapability(agent, roleName));
       return Exit.isSuccess(exit) ? exit.value : false;
     }
 
-    async function getCapabilityLevel(agent: AgentPubKey): Promise<string> {
-      const exit = await E.runPromiseExit(personService.getCapabilityLevel(agent));
+    async function getPersonCapabilityLevel(agent: AgentPubKey): Promise<string> {
+      const exit = await E.runPromiseExit(personService.getPersonCapabilityLevel(agent));
       return Exit.isSuccess(exit) ? exit.value : 'MEMBER';
     }
 
-    async function updatePerson(
-      hash: ActionHash,
-      updatedPerson: Omit<Person, 'agent_pub_key' | 'created_at'>
-    ): Promise<ActionHash | null> {
-      const updateHash = await run(personService.updatePerson(hash, updatedPerson));
+    async function updatePerson(input: UpdatePersonInput): Promise<ActionHash | null> {
+      const updateHash = await run(personService.updatePerson(input));
       if (updateHash) {
         await fetchAllPersons();
-        if (myProfile?.person) await fetchMyProfile();
+        if (myProfile?.person) await fetchMyPersonProfile();
       }
       return updateHash;
     }
 
-    function selectPerson(person: Person) { selectedPerson = person; }
-    function clearSelectedPerson() { selectedPerson = null; }
-    function clearError() { errorMessage = null; }
-    async function initialize() { await fetchAllPersons(); await fetchMyProfile(); }
+    function selectPerson(person: Person) {
+      selectedPerson = person;
+    }
+    function clearSelectedPerson() {
+      selectedPerson = null;
+    }
+    function clearError() {
+      errorMessage = null;
+    }
+    async function initialize() {
+      await fetchAllPersons();
+      await fetchMyPersonProfile();
+    }
 
     return {
-      get isLoading() { return isLoading; },
-      get errorMessage() { return errorMessage; },
-      get allPersons() { return allPersons; },
-      get myProfile() { return myProfile; },
-      get selectedPerson() { return selectedPerson; },
-      get personRoles() { return personRoles; },
+      get isLoading() {
+        return isLoading;
+      },
+      get errorMessage() {
+        return errorMessage;
+      },
+      get allPersons() {
+        return allPersons;
+      },
+      get myProfile() {
+        return myProfile;
+      },
+      get selectedPerson() {
+        return selectedPerson;
+      },
+      get personRoles() {
+        return personRoles;
+      },
 
       createPerson,
       fetchAllPersons,
-      fetchPerson,
+      fetchLatestPerson,
       getPersonFromCache,
-      fetchMyProfile,
-      createEncryptedProfile,
-      assignRole,
+      fetchMyPersonProfile,
+      storePrivatePersonData,
+      assignPersonRole,
       fetchPersonRoles,
-      checkRoleCapability,
-      getCapabilityLevel,
+      hasPersonRoleCapability,
+      getPersonCapabilityLevel,
       updatePerson,
       selectPerson,
       clearSelectedPerson,
@@ -193,7 +221,7 @@ const createPersonStore = (): E.Effect<PersonStore, never, PersonServiceTag> =>
     };
   });
 
-// ─── Store instance ────────────────────────────────────────────────────────────
+// ─── Store instance ───────────────────────────────────────────────────────────
 
 export const personStore: PersonStore = pipe(
   createPersonStore(),

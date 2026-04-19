@@ -65,9 +65,9 @@ const createLobbyStore = (): E.Effect<
     async function loadMyPerson(): Promise<void> {
       const exit = await E.runPromiseExit(
         withLoadingState(() =>
-          personService.getMyProfile().pipe(
+          personService.getMyPersonProfile().pipe(
             E.tap((p) => {
-              myPerson = p.person;
+              myPerson = p.person ?? null;
             })
           )
         )(setters)

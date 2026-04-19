@@ -31,7 +31,7 @@
 
       const profileProgram = E.gen(function* () {
         const p = yield* PersonServiceTag;
-        return yield* p.getMyProfile();
+        return yield* p.getMyPersonProfile();
       });
       const profExit = await E.runPromiseExit(
         pipe(profileProgram, E.provide(PersonServiceResolved))
@@ -45,7 +45,7 @@
 
       const rolesProgram = E.gen(function* () {
         const p = yield* PersonServiceTag;
-        return yield* p.getRoles(profExit.value.person!.agent_pub_key);
+        return yield* p.getPersonRoles(profExit.value.person!.agent_pub_key);
       });
       const rolesExit = await E.runPromiseExit(pipe(rolesProgram, E.provide(PersonServiceResolved)));
       roles = Exit.isSuccess(rolesExit) ? rolesExit.value : [];
