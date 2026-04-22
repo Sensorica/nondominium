@@ -998,6 +998,90 @@ pub struct CreateValidationWithPrivateDataInput {
 
 ---
 
+### NDO Federation Extensions
+
+Added in PR #103. Implements REQ-NDO-EXT-01–16 from `post-mvp/lobby-dna.md`.
+
+#### `create_ndo_hard_link(input: CreateNdoHardLinkInput) -> ExternResult<ActionHash>`
+**Purpose**: Create a permanent, immutable OVN-licensed structural link between two NDOs
+**Authorization**: Any agent (immutability enforced at integrity layer)
+**Input**:
+```rust
+pub struct CreateNdoHardLinkInput {
+    pub from_ndo_identity_hash: ActionHash,
+    pub to_ndo_dna_hash: DnaHash,
+    pub to_ndo_identity_hash: ActionHash,
+    pub link_type: NdoLinkType, // Component | DerivedFrom | Supersedes
+    pub fulfillment_hash: ActionHash,
+}
+```
+**Returns**: `ActionHash` of the new `NdoHardLink` entry
+**Use Case**: Recording that one NDO is a component of, fork of, or supersedes another NDO
+
+#### `get_ndo_hard_links(ndo_identity_hash: ActionHash) -> ExternResult<Vec<NdoHardLinkRecord>>`
+**Purpose**: Retrieve all hard links originating from an NDO
+**Authorization**: Any agent (public DHT)
+**Returns**: `Vec<NdoHardLinkRecord>` via `NdoToHardLinks` anchor
+
+#### `get_ndo_hard_links_by_type(input: GetNdoHardLinksByTypeInput) -> ExternResult<Vec<NdoHardLinkRecord>>`
+**Purpose**: Retrieve hard links filtered by `NdoLinkType`
+**Authorization**: Any agent (public DHT)
+**Returns**: Filtered `Vec<NdoHardLinkRecord>`
+
+#### `validate_contribution(input: ValidateContributionInput) -> ExternResult<ActionHash>`
+**Purpose**: Record and peer-validate a work contribution (`Work | Modify | Cite`) on an NDO
+**Authorization**: Any agent; calling agent becomes first validator
+**Input**:
+```rust
+pub struct ValidateContributionInput {
+    pub provider: AgentPubKey,
+    pub action: VfAction,      // Work | Modify | Cite only
+    pub ndo_identity_hash: ActionHash,
+    pub note: String,
+    pub effort_quantity: Option<f64>,
+    pub has_point_in_time: Timestamp,
+    // ... optional work log / process / fulfillment references
+}
+```
+**Returns**: `ActionHash` of the `Contribution` entry
+**Use Case**: Recording that an agent performed design, development, or citation work on an NDO
+
+#### `get_ndo_contributions(ndo_identity_hash: ActionHash) -> ExternResult<Vec<ContributionRecord>>`
+**Purpose**: Retrieve all contributions for a given NDO
+**Authorization**: Any agent (public DHT)
+**Returns**: `Vec<ContributionRecord>` via `NdoToContributions` anchor
+
+#### `get_agent_contributions(provider: AgentPubKey) -> ExternResult<Vec<ContributionRecord>>`
+**Purpose**: Retrieve all contributions from a given provider agent
+**Authorization**: Any agent (public DHT)
+**Returns**: `Vec<ContributionRecord>` via `AgentToContributions` anchor
+
+#### `create_agreement(input: CreateAgreementInput) -> ExternResult<ActionHash>`
+**Purpose**: Create the first benefit redistribution Agreement (v1) for an NDO
+**Authorization**: Any agent; `primary_accountable` list declares governance signatories
+**Input**:
+```rust
+pub struct CreateAgreementInput {
+    pub ndo_identity_hash: ActionHash,
+    pub clauses: Vec<BenefitClause>,
+    pub primary_accountable: Vec<AgentPubKey>,
+}
+```
+**Returns**: `ActionHash` of the `Agreement` entry
+**Use Case**: Defining how economic benefits (monetary, governance weight, access rights) are distributed among NDO contributors
+
+#### `update_agreement(input: UpdateAgreementInput) -> ExternResult<ActionHash>`
+**Purpose**: Update an existing Agreement, incrementing version monotonically
+**Authorization**: Any agent; integrity enforces `version = previous + 1`
+**Returns**: `ActionHash` of the updated `Agreement` entry
+
+#### `get_current_agreement(ndo_identity_hash: ActionHash) -> ExternResult<Option<AgreementRecord>>`
+**Purpose**: Retrieve the latest version of the Agreement for an NDO
+**Authorization**: Any agent (public DHT)
+**Returns**: `Option<AgreementRecord>` resolving the full update chain
+
+---
+
 ## 🔗 Cross-Zome Integration Functions
 
 ### Agent Capability Assessment

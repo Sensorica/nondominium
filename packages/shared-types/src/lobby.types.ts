@@ -1,4 +1,5 @@
 import type { ActionHash, DnaHash, AgentPubKey, Timestamp } from '@holochain/client';
+import type { LifecycleStage, PropertyRegime, ResourceNature } from './resource.types.js';
 
 export interface LobbyAgentProfile {
   handle: string;
@@ -19,9 +20,9 @@ export interface NdoAnnouncement {
   ndo_dna_hash: DnaHash;
   network_seed: string;
   ndo_identity_hash: ActionHash;
-  lifecycle_stage: string;
-  property_regime: string;
-  resource_nature: string;
+  lifecycle_stage: LifecycleStage;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
   description?: string;
   registered_by: AgentPubKey;
   registered_at: Timestamp;
@@ -32,9 +33,9 @@ export interface AnnounceNdoInput {
   ndo_dna_hash: DnaHash;
   network_seed: string;
   ndo_identity_hash: ActionHash;
-  lifecycle_stage: string;
-  property_regime: string;
-  resource_nature: string;
+  lifecycle_stage: LifecycleStage;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
   description?: string;
 }
 

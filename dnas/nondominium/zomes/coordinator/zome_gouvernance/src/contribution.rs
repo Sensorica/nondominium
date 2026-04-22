@@ -1,5 +1,6 @@
 use hdk::prelude::*;
 use zome_gouvernance_integrity::*;
+use nondominium_utils::external_local_call;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ValidateContributionInput {
@@ -26,10 +27,23 @@ pub struct ContributionRecord {
 #[hdk_extern]
 pub fn validate_contribution(input: ValidateContributionInput) -> ExternResult<ActionHash> {
   let validator = agent_info()?.agent_initial_pubkey;
+
+  // Only AccountableAgent or higher may act as a contribution validator
+  let has_role: bool = external_local_call(
+    "has_person_role_capability",
+    "zome_person",
+    (validator.clone(), "Accountable Agent".to_string()),
+  )?;
+  if !has_role {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "only an AccountableAgent may validate contributions".to_string()
+    )));
+  }
+
   let now = sys_time()?;
 
   let contribution = Contribution {
-    provider: input.provider,
+    provider: input.provider.clone(),
     action: input.action,
     work_log_group_dna_hash: input.work_log_group_dna_hash,
     work_log_action_hash: input.work_log_action_hash,
@@ -55,7 +69,7 @@ pub fn validate_contribution(input: ValidateContributionInput) -> ExternResult<A
 
   // Agent-centric discovery (provider)
   create_link(
-    input.provider.clone(),
+    input.provider,
     action_hash.clone(),
     LinkTypes::AgentToContributions,
     (),

@@ -31,3 +31,7 @@ path = "src/person/mod.rs"
 [[test]]
 name = "resource"
 path = "src/resource/mod.rs"
+
+[[test]]
+name = "governance"
+path = "src/governance/mod.rs"

@@ -146,7 +146,11 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           }
         }
         EntryTypes::NdoAnnouncement(_ann) => {
-          // lifecycle_stage update allowed; other field immutability checked in StoreRecord
+          // Author check for NdoAnnouncement updates is done in the StoreRecord arm below,
+          // not here. StoreEntry validates entry content; StoreRecord validates action metadata
+          // (author, signatures). Both arms run on every update — this split is intentional
+          // per Holochain's dual-validation design.
+          // lifecycle_stage update is allowed; other field immutability is enforced in StoreRecord.
         }
       },
       _ => {}

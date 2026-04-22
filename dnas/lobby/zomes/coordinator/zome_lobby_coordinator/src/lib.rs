@@ -63,7 +63,9 @@ pub fn upsert_lobby_agent_profile(input: LobbyAgentProfileInput) -> ExternResult
     created_at: now,
   };
 
-  // Check for existing profile via agent link
+  // Discovery stays anchored on the original action hash (via AllLobbyAgents link from agent key).
+  // Updates are chained via AgentProfileUpdates links and walked by resolve_update_chain().
+  // This avoids modifying the anchor link on every update.
   let existing_links = get_links(LinkQuery::try_new(agent.clone(), LinkTypes::AllLobbyAgents)?, GetStrategy::default())?;
 
   if let Some(link) = existing_links.into_iter().max_by_key(|l| l.timestamp) {

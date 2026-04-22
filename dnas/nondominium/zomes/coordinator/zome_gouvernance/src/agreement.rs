@@ -1,5 +1,6 @@
 use hdk::prelude::*;
 use zome_gouvernance_integrity::*;
+use nondominium_utils::external_local_call;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateAgreementInput {
@@ -24,7 +25,20 @@ pub struct AgreementRecord {
 /// Create the first Agreement for an NDO. Only AccountableAgents may call this.
 #[hdk_extern]
 pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<ActionHash> {
-  let agent = agent_info()?.agent_initial_pubkey;
+  let caller = agent_info()?.agent_initial_pubkey;
+
+  // Only AccountableAgent or higher may create an Agreement
+  let has_role: bool = external_local_call(
+    "has_person_role_capability",
+    "zome_person",
+    (caller.clone(), "Accountable Agent".to_string()),
+  )?;
+  if !has_role {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "caller must hold AccountableAgent or higher to create an Agreement".to_string()
+    )));
+  }
+
   let now = sys_time()?;
 
   let agreement = Agreement {
@@ -32,7 +46,7 @@ pub fn create_agreement(input: CreateAgreementInput) -> ExternResult<ActionHash>
     version: 1,
     clauses: input.clauses,
     primary_accountable: input.primary_accountable,
-    created_by: agent,
+    created_by: caller,
     created_at: now,
   };
 
@@ -65,6 +79,26 @@ pub fn update_agreement(input: UpdateAgreementInput) -> ExternResult<ActionHash>
   };
 
   let agent = agent_info()?.agent_initial_pubkey;
+
+  // Guard 1: caller must be AccountableAgent or higher
+  let has_role: bool = external_local_call(
+    "has_person_role_capability",
+    "zome_person",
+    (agent.clone(), "Accountable Agent".to_string()),
+  )?;
+  if !has_role {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "caller must hold AccountableAgent or higher to update an Agreement".to_string()
+    )));
+  }
+
+  // Guard 2: caller must be one of the primary_accountable agents for this Agreement
+  if !original_entry.primary_accountable.contains(&agent) {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "only a primary_accountable agent may update this Agreement".to_string()
+    )));
+  }
+
   let now = sys_time()?;
 
   let updated = Agreement {

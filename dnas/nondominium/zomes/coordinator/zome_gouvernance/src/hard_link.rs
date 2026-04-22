@@ -26,12 +26,20 @@ pub struct GetNdoHardLinksByTypeInput {
 /// Requires a valid EconomicEvent fulfillment hash in this DHT.
 #[hdk_extern]
 pub fn create_ndo_hard_link(input: CreateNdoHardLinkInput) -> ExternResult<ActionHash> {
-  // Verify the fulfillment_hash resolves to a valid EconomicEvent
-  let Some(_event_record) = get(input.fulfillment_hash.clone(), GetOptions::default())? else {
+  // Verify the fulfillment_hash resolves to a valid record
+  let Some(event_record) = get(input.fulfillment_hash.clone(), GetOptions::default())? else {
     return Err(wasm_error!(WasmErrorInner::Guest(
       "fulfillment_hash does not resolve to a valid record".to_string()
     )));
   };
+  // Verify the record actually holds an EconomicEvent entry
+  let _ = event_record
+    .entry()
+    .to_app_option::<EconomicEvent>()
+    .map_err(|e| wasm_error!(WasmErrorInner::Serialize(e)))?
+    .ok_or_else(|| wasm_error!(WasmErrorInner::Guest(
+      "fulfillment_hash must reference an EconomicEvent entry".to_string()
+    )))?;
 
   let agent = agent_info()?.agent_initial_pubkey;
   let now = sys_time()?;

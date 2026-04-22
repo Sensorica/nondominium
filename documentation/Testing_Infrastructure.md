@@ -4,7 +4,7 @@
 
 The nondominium hApp employs a comprehensive, multi-layered testing strategy covering all three zomes across two parallel test suites that are active simultaneously during migration.
 
-**Current status**: Sweettest scaffold is in place (workspace config, conductor helpers, `misc` ping test). Per-zome tests will be co-evolved alongside the NDO refactor (see `documentation/requirements/ndo_prima_materia.md` §10). Tryorama (TypeScript) remains the active test suite in the meantime.
+**Current status**: Sweettest is in place for `misc` (ping), `person` (hREA bridge), and `governance` (federation extensions from #103). The `lobby_sweettest` crate covers the Lobby DNA. Per-zome tests continue to be co-evolved alongside the NDO refactor (see `documentation/requirements/ndo_prima_materia.md` §10). Tryorama (TypeScript) remains active for UI-layer tests.
 
 ## Sweettest (Rust) — Primary
 
@@ -21,20 +21,28 @@ bun run sweettest:verbose     # same + --nocapture for test output
 bun run sweettest:only        # skip build:happ (use when .dna is already built)
 ```
 
-### Test crate location
+### Test crate locations
 
 ```
-dnas/nondominium/tests/
-├── Cargo.toml               # [[test]] targets: misc, person, resource
-└── src/
-    ├── common/
-    │   └── conductors.rs    # setup_two_agents(), setup_three_agents(), setup_dual_dna_two_agents()
-    ├── misc/                # ping test — validates full build chain end-to-end
-    ├── person/              # zome_person tests: profile, roles, capability grants, hREA bridge
-    └── resource/            # zome_resource tests: get_all_resource_specifications (action_hashes field)
+dnas/
+├── nondominium/tests/        # package: nondominium_sweettest
+│   ├── Cargo.toml            # [[test]] targets: misc, person, resource, governance
+│   └── src/
+│       ├── common/
+│       │   └── conductors.rs # setup_two_agents(), setup_three_agents(), setup_dual_dna_two_agents()
+│       ├── misc/mod.rs       # ping test — validates full build chain end-to-end
+│       ├── person/mod.rs     # Person zome + hREA bridge tests
+│       ├── resource/mod.rs   # zome_resource tests: get_all_resource_specifications (action_hashes field)
+│       └── governance/mod.rs # Agreement, Contribution, NdoHardLink tests (#103)
+└── lobby/tests/              # package: lobby_sweettest
+    ├── Cargo.toml
+    └── src/
+        ├── common/
+        │   └── conductors.rs # setup_two_lobby_agents()
+        └── lobby/mod.rs      # announce_ndo, upsert_lobby_agent_profile, get_my_groups tests
 ```
 
-Per-zome test modules are written alongside the NDO refactor. Each implementation PR for the NDO three-layer model adds tests for the new API it introduces. `governance/` tests will be added when `zome_gouvernance` NDO refactor PRs land.
+Per-zome test modules are co-evolved alongside implementation PRs. Each PR that adds new `#[hdk_extern]` functions adds corresponding tests in the relevant module.
 
 ### Environment requirement for Sweettest
 
