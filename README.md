@@ -45,8 +45,8 @@ nondominium implements a modular governance-as-operator architecture that separa
 **Technology Stack:**
 
 - Backend: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0) compiled to WASM
-- Frontend: Svelte 5.0 + TypeScript + Vite 6.2.5
-- Testing: Vitest 3.1.3 + @holochain/tryorama 0.18.2
+- Frontend: SvelteKit 2 + Svelte 5 + TypeScript + Vite 6.2.5 + UnoCSS + Melt UI next-gen + Effect-TS
+- Testing: Sweettest (Rust, primary) — Tryorama (TypeScript) is deprecated
 - Client: @holochain/client 0.19.0
 
 **Documentation map:** See [documentation/DOCUMENTATION_INDEX.md](documentation/DOCUMENTATION_INDEX.md). Post-MVP **NDO** model and optional **Unyt** / **Flowsta** integrations are specified in [documentation/requirements/ndo_prima_materia.md](documentation/requirements/ndo_prima_materia.md) and the stubs under [documentation/requirements/post-mvp/](documentation/requirements/post-mvp/).
@@ -83,13 +83,15 @@ AGENTS=3 bun run network    # Bootstrap custom agent network (replace 3 with des
 ### Testing
 
 ```bash
-bun run test                    # Run full test suite
-npm run test:foundation         # Basic zome connectivity tests
-npm run test:integration        # Multi-agent interaction tests
-npm run test:scenarios          # Complete workflow simulations
-npm run test:person             # Person management test suite
-npm run test:debug              # Verbose test output
+# Sweettest (Rust) — primary test runner
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
+
+# Test suites
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest person
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest -- --nocapture  # verbose
 ```
+
+> **Note**: Tryorama (TypeScript) tests in `tests/` are **deprecated**. See `tests/DEPRECATED.md`. Do not write new tests there.
 
 ### Build Pipeline
 
@@ -114,6 +116,7 @@ bun run --filter tests test    # Backend test execution
 - **ValueFlows Compliance**: EconomicResource, EconomicEvent, Commitment data structures
 - **Privacy by Design**: Public profiles with encrypted private data
 - **Capability-Based Security**: Role-based access using Holochain capability tokens
+- **NDO Layer 0**: `NondominiumIdentity` is a permanent identity anchor for any resource (name, initiator, `LifecycleStage`, `PropertyRegime`, `ResourceNature`). Only `lifecycle_stage` may change post-creation. Implemented in PR #80.
 
 ### Entry Patterns
 
@@ -127,18 +130,17 @@ All zomes follow consistent patterns for:
 
 ## Testing Architecture
 
-**4-Layer Strategy:**
+**Primary: Sweettest (Rust)**
 
-1. **Foundation**: Basic zome function calls and connectivity
-2. **Integration**: Cross-zome interactions and multi-agent scenarios
-3. **Scenarios**: Complete user journeys and workflows
-4. **Performance**: Load and stress testing (planned)
+All new tests are written in Sweettest (`dnas/nondominium/tests/src/`). Shared setup utilities:
 
-**Test Configuration:**
+- `setup_two_agents()` — two conductors, nondominium DNA
+- `setup_three_agents()` — three conductors, nondominium DNA
+- `setup_dual_dna_two_agents()` — two conductors, nondominium + hREA DNAs
 
-- Timeout: 4 minutes for complex multi-agent scenarios
-- Concurrency: Single fork execution for DHT consistency
-- Agent Simulation: Supports 2+ distributed agents per test
+**Deprecated: Tryorama (TypeScript)**
+
+Tests in `tests/` are deprecated. See `tests/DEPRECATED.md`. Do not write new tests there.
 
 ## Distribution
 
@@ -155,8 +157,10 @@ This generates:
 
 ## Development Status
 
-- ✅ **Phase 1**: Person management with role-based access control
-- 🔄 **Phase 2**: Resource lifecycle and governance implementation
+- ✅ **Phase 1 (Backend)**: Person management, resource specifications, economic resources, governance foundation, PPR data structures, hREA Person/ReaAgent bridge, NDO Layer 0 identity anchor
+- ✅ **MVP UI**: Lobby → Group → NDO three-level hierarchy with three-level identity model, NDO creation, lifecycle transitions, filter browser, fork friction modal
+- 🔄 **Phase 2 (In Progress)**: Economic processes (Use/Transport/Storage/Repair), PPR receipt generation, governance-as-operator architecture, agent promotion workflows
+- 📋 **Post-MVP**: Group DNA backend, NDO cell cloning, PPR reputation UI, Unyt/Flowsta integrations
 
 ## Documentation
 

@@ -13,7 +13,15 @@ import type {
   GetAllResourceSpecificationsOutput,
   ResourceSpecificationListing,
   GetResourceSpecWithRulesOutput,
-  GetAllNdosOutput
+  GetAllNdosOutput,
+  NdoInput,
+  NdoOutput,
+  NondominiumIdentity,
+  UpdateLifecycleStageInput,
+  NdoTransitionHistoryEvent,
+  LifecycleStage,
+  ResourceNature,
+  PropertyRegime
 } from '@nondominium/shared-types';
 import type { Record as HoloRecord } from '@holochain/client';
 import {
@@ -59,6 +67,14 @@ export interface ResourceService {
   getResourceHistory: (resourceHash: ActionHash) => E.Effect<EconomicResource[], ResourceError>;
   deleteResourceSpecification: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
   archiveEconomicResource: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
+  createNdo: (input: NdoInput) => E.Effect<NdoOutput, ResourceError>;
+  getNdo: (hash: ActionHash) => E.Effect<NondominiumIdentity | null, ResourceError>;
+  updateLifecycleStage: (input: UpdateLifecycleStageInput) => E.Effect<ActionHash, ResourceError>;
+  getMyNdos: () => E.Effect<GetAllNdosOutput, ResourceError>;
+  getNdosByLifecycleStage: (stage: LifecycleStage) => E.Effect<GetAllNdosOutput, ResourceError>;
+  getNdosByNature: (nature: ResourceNature) => E.Effect<GetAllNdosOutput, ResourceError>;
+  getNdosByPropertyRegime: (regime: PropertyRegime) => E.Effect<GetAllNdosOutput, ResourceError>;
+  getNdoTransitionHistory: (ndoHash: ActionHash) => E.Effect<NdoTransitionHistoryEvent[], ResourceError>;
 }
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
@@ -219,7 +235,47 @@ export const ResourceServiceLive: Layer.Layer<
           'archive_economic_resource',
           hash,
           RESOURCE_CONTEXTS.ARCHIVE_ECONOMIC_RESOURCE
-        )
+        ),
+
+      createNdo: (input) =>
+        wz<NdoOutput>('create_ndo', input, RESOURCE_CONTEXTS.CREATE_NDO),
+
+      getNdo: (hash) =>
+        wz<NondominiumIdentity | null>('get_ndo', hash, RESOURCE_CONTEXTS.GET_NDO),
+
+      updateLifecycleStage: (input) =>
+        wz<ActionHash>('update_lifecycle_stage', input, RESOURCE_CONTEXTS.UPDATE_LIFECYCLE_STAGE),
+
+      getMyNdos: () =>
+        wz<GetAllNdosOutput>('get_my_ndos', null, RESOURCE_CONTEXTS.GET_MY_NDOS),
+
+      getNdosByLifecycleStage: (stage) =>
+        wz<GetAllNdosOutput>(
+          'get_ndos_by_lifecycle_stage',
+          stage,
+          RESOURCE_CONTEXTS.GET_NDOS_BY_LIFECYCLE_STAGE
+        ),
+
+      getNdosByNature: (nature) =>
+        wz<GetAllNdosOutput>(
+          'get_ndos_by_nature',
+          nature,
+          RESOURCE_CONTEXTS.GET_NDOS_BY_NATURE
+        ),
+
+      getNdosByPropertyRegime: (regime) =>
+        wz<GetAllNdosOutput>(
+          'get_ndos_by_property_regime',
+          regime,
+          RESOURCE_CONTEXTS.GET_NDOS_BY_PROPERTY_REGIME
+        ),
+
+      getNdoTransitionHistory: (ndoHash) =>
+        wz<NdoTransitionHistoryEvent[]>(
+          'get_ndo_transition_history',
+          ndoHash,
+          RESOURCE_CONTEXTS.GET_NDO_TRANSITION_HISTORY
+        ).pipe(E.catchAll(() => E.succeed([])))
     } satisfies ResourceService;
   })
 );
