@@ -5,6 +5,7 @@
   import { Effect as E, Exit, pipe } from 'effect';
   import { PersonServiceTag, PersonServiceResolved } from '$lib/services/zomes/person.service';
   import { ResourceServiceTag, ResourceServiceResolved } from '$lib/services/zomes/resource.service';
+  import holochainClientService from '$lib/services/holochain.service.svelte';
 
   interface Props {
     specActionHash: ActionHash;
@@ -18,6 +19,7 @@
 
   onMount(() => {
     void (async () => {
+      // Fetch governance rules for this specification
       const specProgram = E.gen(function* () {
         const r = yield* ResourceServiceTag;
         return yield* r.getResourceSpecificationWithRules(specActionHash);
@@ -29,23 +31,21 @@
         rules = specExit.value.governance_rules;
       }
 
-      const profileProgram = E.gen(function* () {
-        const p = yield* PersonServiceTag;
-        return yield* p.getMyPersonProfile();
-      });
-      const profExit = await E.runPromiseExit(
-        pipe(profileProgram, E.provide(PersonServiceResolved))
-      );
-      if (!Exit.isSuccess(profExit) || !profExit.value.person) {
-        roles = [];
+      // Get agent pub key from conductor — Person entry does not serialize this field
+      try {
+        myAgent = await holochainClientService.getMyAgentPubKey();
+      } catch {
         myAgent = null;
+      }
+
+      if (!myAgent) {
+        roles = [];
         return;
       }
-      myAgent = profExit.value.person.agent_pub_key;
 
       const rolesProgram = E.gen(function* () {
         const p = yield* PersonServiceTag;
-        return yield* p.getPersonRoles(profExit.value.person!.agent_pub_key);
+        return yield* p.getPersonRoles(myAgent!);
       });
       const rolesExit = await E.runPromiseExit(pipe(rolesProgram, E.provide(PersonServiceResolved)));
       roles = Exit.isSuccess(rolesExit) ? rolesExit.value : [];

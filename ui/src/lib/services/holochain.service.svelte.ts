@@ -1,4 +1,4 @@
-import { type AppInfoResponse, AppWebsocket } from '@holochain/client';
+import { type AgentPubKey, type AppInfoResponse, AppWebsocket } from '@holochain/client';
 import { Context, Layer } from 'effect';
 
 export type ZomeName = 'zome_person' | 'zome_resource' | 'zome_gouvernance';
@@ -12,6 +12,8 @@ export interface HolochainClientService {
   connectClient(): Promise<void>;
 
   getAppInfo(): Promise<AppInfoResponse>;
+
+  getMyAgentPubKey(): Promise<AgentPubKey>;
 
   callZome(
     zomeName: ZomeName,
@@ -66,6 +68,15 @@ function createHolochainClientService(): HolochainClientService {
       throw new Error('Client not connected');
     }
     return await client.appInfo();
+  }
+
+  /**
+   * Returns the calling agent's own public key from the conductor's AppInfo.
+   * Preferred over reading it from a Person entry (which does not serialize this field).
+   */
+  async function getMyAgentPubKey(): Promise<AgentPubKey> {
+    const info = await getAppInfo();
+    return info.agent_pub_key;
   }
 
   /**
@@ -137,6 +148,7 @@ function createHolochainClientService(): HolochainClientService {
     // Methods
     connectClient,
     getAppInfo,
+    getMyAgentPubKey,
     callZome,
     verifyConnection
   };

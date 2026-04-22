@@ -262,7 +262,7 @@ pub fn update_resource_specification(
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetAllResourceSpecificationsOutput {
   pub specifications: Vec<ResourceSpecification>,
-  /// Same length and order as `specifications`: the `ActionHash` of each spec’s latest create/update record.
+  /// Same length and order as `specifications`: the original creation `ActionHash` of each spec (from the anchor link target).
   pub action_hashes: Vec<ActionHash>,
 }
 

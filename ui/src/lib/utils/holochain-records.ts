@@ -1,3 +1,4 @@
+import { decode } from '@msgpack/msgpack';
 import type { ActionHash, Record as HoloRecord } from '@holochain/client';
 import type { EconomicResource } from '@nondominium/shared-types';
 
@@ -22,7 +23,13 @@ export interface EconomicResourceRow {
   resource: EconomicResource;
 }
 
-/** Resolves `EconomicResource` entries plus their create `ActionHash` from conductor `Record[]`. */
+/** Resolves `EconomicResource` entries plus their create `ActionHash` from conductor `Record[]`.
+ *
+ * Holochain `Record.entry` is a discriminated union `{ Present: Entry } | { Hidden: void } | ...`.
+ * For app entries, `Entry` uses Rust's externally-tagged enum serialization: `{ App: Uint8Array }`
+ * where the Uint8Array contains msgpack-encoded entry bytes. This function decodes those bytes
+ * and type-guards the result before adding to the output list.
+ */
 export function economicResourceRowsFromRecords(data: unknown): EconomicResourceRow[] {
   if (!Array.isArray(data)) return [];
   const out: EconomicResourceRow[] = [];
@@ -36,9 +43,14 @@ export function economicResourceRowsFromRecords(data: unknown): EconomicResource
     const entry = rec.entry;
     if (!entry || typeof entry !== 'object') continue;
     if (!('Present' in entry)) continue;
-    const present = (entry as { Present?: { entry: unknown } }).Present;
-    if (present?.entry !== undefined && isEconomicResource(present.entry)) {
-      out.push({ actionHash, resource: present.entry });
+    const present = (entry as { Present: unknown }).Present;
+    if (!present || typeof present !== 'object') continue;
+    // Rust externally-tagged enum: { App: Uint8Array } for app entries
+    const appBytes = (present as Record<string, unknown>)['App'];
+    if (!(appBytes instanceof Uint8Array)) continue;
+    const decoded = decode(appBytes);
+    if (isEconomicResource(decoded)) {
+      out.push({ actionHash, resource: decoded });
     }
   }
   return out;

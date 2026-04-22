@@ -1,6 +1,7 @@
 # editors
 /.idea
 /.vscode
+/.cursor
 
 # system files
 .DS_Store

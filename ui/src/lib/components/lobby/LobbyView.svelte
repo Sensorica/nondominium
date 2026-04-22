@@ -3,6 +3,7 @@
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { resourceStore } from '$lib/stores/resource.store.svelte';
   import { appContext } from '$lib/stores/app.context.svelte';
+  import holochainClientService from '$lib/services/holochain.service.svelte';
   import GroupSidebar from './GroupSidebar.svelte';
   import NdoBrowser from './NdoBrowser.svelte';
 
@@ -11,12 +12,17 @@
     void (async () => {
       await resourceStore.fetchAllResourceSpecifications();
       await lobbyStore.loadLobby();
+      // Get agent pub key from conductor — Person entry does not serialize this field
+      try {
+        appContext.myAgentPubKey = await holochainClientService.getMyAgentPubKey();
+      } catch {
+        appContext.myAgentPubKey = null;
+      }
     })();
   });
 
   $effect(() => {
     appContext.myPerson = lobbyStore.myPerson;
-    appContext.myAgentPubKey = lobbyStore.myPerson?.agent_pub_key ?? null;
     appContext.currentView = 'lobby';
   });
 </script>
