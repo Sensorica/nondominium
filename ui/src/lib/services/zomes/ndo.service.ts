@@ -1,7 +1,7 @@
 import { Context, Effect as E, Layer, pipe } from 'effect';
 import type { ActionHash } from '@holochain/client';
 import { encodeHashToBase64 } from '@holochain/client';
-import type { NdoDescriptor, NdoOutput } from '@nondominium/shared-types';
+import type { NdoDescriptor, NdoOutput, NondominiumIdentity } from '@nondominium/shared-types';
 import { NdoNotFoundError } from '$lib/errors/ndo.errors';
 import { ResourceError } from '$lib/errors/resource.errors';
 import {
@@ -19,21 +19,43 @@ export interface NdoService {
 
 export class NdoServiceTag extends Context.Tag('NdoService')<NdoServiceTag, NdoService>() {}
 
+function ndoToDescriptorFields(
+  entry: NondominiumIdentity
+): Omit<NdoDescriptor, 'hash' | 'name'> {
+  return {
+    lifecycle_stage: String(entry.lifecycle_stage),
+    property_regime: String(entry.property_regime),
+    resource_nature: String(entry.resource_nature),
+    description: entry.description ?? null,
+    initiator: encodeHashToBase64(entry.initiator),
+    created_at: Number(entry.created_at),
+    successor_ndo_hash: entry.successor_ndo_hash
+      ? encodeHashToBase64(entry.successor_ndo_hash)
+      : null,
+    hibernation_origin: entry.hibernation_origin ? String(entry.hibernation_origin) : null
+  };
+}
+
+const NULL_NDO_FIELDS: Omit<NdoDescriptor, 'hash' | 'name'> = {
+  lifecycle_stage: null,
+  property_regime: null,
+  resource_nature: null,
+  description: null,
+  initiator: null,
+  created_at: null,
+  successor_ndo_hash: null,
+  hibernation_origin: null
+};
+
 function mapListingToDescriptor(
-  listing: { action_hash: ActionHash; specification: { name: string; is_active?: boolean; category?: string } },
-  ndoByName: Map<string, { property_regime: string; lifecycle_stage: string }>
+  listing: { action_hash: ActionHash; specification: { name: string } },
+  ndoByName: Map<string, NondominiumIdentity>
 ): NdoDescriptor {
-  const ndo = ndoByName.get(listing.specification.name);
-  const lifecycleStage =
-    ndo?.lifecycle_stage ??
-    (listing.specification.is_active === false ? 'EndOfLife' : 'Ideation');
-  const propertyRegime =
-    ndo?.property_regime ?? listing.specification.category ?? 'Planning';
+  const entry = ndoByName.get(listing.specification.name);
   return {
     hash: encodeHashToBase64(listing.action_hash),
     name: listing.specification.name,
-    lifecycle_stage: lifecycleStage,
-    property_regime: propertyRegime
+    ...(entry ? ndoToDescriptorFields(entry) : NULL_NDO_FIELDS)
   };
 }
 
@@ -45,14 +67,8 @@ const lobbyDescriptors = (
       concurrency: 'unbounded'
     }),
     E.map(([listings, ndosOut]) => {
-      const ndoByName = new Map(
-        ndosOut.ndos.map((n) => [
-          n.entry.name,
-          {
-            property_regime: String(n.entry.property_regime),
-            lifecycle_stage: String(n.entry.lifecycle_stage)
-          }
-        ])
+      const ndoByName = new Map<string, NondominiumIdentity>(
+        ndosOut.ndos.map((n) => [n.entry.name, n.entry])
       );
       return listings.map((listing) => mapListingToDescriptor(listing, ndoByName));
     })
@@ -72,14 +88,8 @@ export const NdoServiceLive: Layer.Layer<NdoServiceTag, never, ResourceServiceTa
             return yield* E.fail(new NdoNotFoundError({ hash: encodeHashToBase64(hash) }));
           }
           const ndosOut = yield* resource.getAllNdos();
-          const ndoByName = new Map<string, { property_regime: string; lifecycle_stage: string }>(
-            ndosOut.ndos.map((n: NdoOutput) => [
-              n.entry.name,
-              {
-                property_regime: String(n.entry.property_regime),
-                lifecycle_stage: String(n.entry.lifecycle_stage)
-              }
-            ])
+          const ndoByName = new Map<string, NondominiumIdentity>(
+            ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
           );
           return mapListingToDescriptor(found, ndoByName);
         })

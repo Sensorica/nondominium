@@ -103,8 +103,14 @@ export interface ResourceSpecificationListing {
 export interface NdoDescriptor {
   hash: string;
   name: string;
-  lifecycle_stage: string;
-  property_regime: string;
+  lifecycle_stage: string | null;
+  property_regime: string | null;
+  resource_nature: string | null;
+  description: string | null;
+  initiator: string | null;
+  created_at: number | null;
+  successor_ndo_hash: string | null;
+  hibernation_origin: string | null;
 }
 
 export interface GroupDescriptor {
