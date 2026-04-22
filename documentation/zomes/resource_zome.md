@@ -287,7 +287,9 @@ Retrieves the latest version of a resource specification.
 Discovers all resource specifications in the network.
 
 **Discovery Pattern**: Queries the `resource_specifications` anchor path
-**Output**: Array of all active resource specifications
+**Output**: `GetAllResourceSpecificationsOutput` — two parallel vectors of the same length and order:
+- `specifications: Vec<ResourceSpecification>` — all active resource specifications
+- `action_hashes: Vec<ActionHash>` — the original creation `ActionHash` of each spec (from the anchor link target); stable identity for routing (e.g. `/ndo/[id]`)
 
 #### `get_resource_specifications_by_category(category: String) -> ExternResult<Vec<Record>>`
 

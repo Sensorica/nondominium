@@ -7,7 +7,19 @@ import {
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import { ResourceError } from '$lib/errors/resource.errors';
 import { RESOURCE_CONTEXTS } from '$lib/errors/error-contexts';
-import type { ResourceSpecification, EconomicResource } from '@nondominium/shared-types';
+import type {
+  ResourceSpecification,
+  EconomicResource,
+  GetAllResourceSpecificationsOutput,
+  ResourceSpecificationListing,
+  GetResourceSpecWithRulesOutput,
+  GetAllNdosOutput
+} from '@nondominium/shared-types';
+import type { Record as HoloRecord } from '@holochain/client';
+import {
+  economicResourceRowsFromRecords,
+  type EconomicResourceRow
+} from '$lib/utils/holochain-records';
 
 // ─── Service interface ────────────────────────────────────────────────────────
 
@@ -16,7 +28,12 @@ export interface ResourceService {
     spec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
   ) => E.Effect<ActionHash, ResourceError>;
   getResourceSpecification: (hash: ActionHash) => E.Effect<ResourceSpecification, ResourceError>;
-  getAllResourceSpecifications: () => E.Effect<ResourceSpecification[], ResourceError>;
+  getAllResourceSpecifications: () => E.Effect<ResourceSpecificationListing[], ResourceError>;
+  getResourceSpecificationWithRules: (
+    specHash: ActionHash
+  ) => E.Effect<GetResourceSpecWithRulesOutput, ResourceError>;
+  getResourcesBySpecification: (specHash: ActionHash) => E.Effect<EconomicResourceRow[], ResourceError>;
+  getAllNdos: () => E.Effect<GetAllNdosOutput, ResourceError>;
   createEconomicResource: (
     resource: Omit<EconomicResource, 'created_at'>
   ) => E.Effect<ActionHash, ResourceError>;
@@ -92,11 +109,47 @@ export const ResourceServiceLive: Layer.Layer<
         ),
 
       getAllResourceSpecifications: () =>
-        wz<ResourceSpecification[]>(
+        wz<GetAllResourceSpecificationsOutput>(
           'get_all_resource_specifications',
           null,
           RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
+        ).pipe(
+          E.flatMap((out) => {
+            const { specifications, action_hashes } = out;
+            if (!action_hashes || action_hashes.length !== specifications.length) {
+              return E.fail(
+                ResourceError.create(
+                  'get_all_resource_specifications: action_hashes missing or length mismatch',
+                  RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
+                )
+              );
+            }
+            const listings: ResourceSpecificationListing[] = specifications.map(
+              (specification: ResourceSpecification, i: number) => ({
+                action_hash: action_hashes[i],
+                specification
+              })
+            );
+            return E.succeed(listings);
+          })
         ),
+
+      getResourceSpecificationWithRules: (specHash) =>
+        wz<GetResourceSpecWithRulesOutput>(
+          'get_resource_specification_with_rules',
+          specHash,
+          RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION_WITH_RULES
+        ),
+
+      getResourcesBySpecification: (specHash) =>
+        wz<HoloRecord[]>(
+          'get_resources_by_specification',
+          specHash,
+          RESOURCE_CONTEXTS.GET_RESOURCES_BY_SPECIFICATION
+        ).pipe(E.map(economicResourceRowsFromRecords)),
+
+      getAllNdos: () =>
+        wz<GetAllNdosOutput>('get_all_ndos', null, RESOURCE_CONTEXTS.GET_ALL_NDOS),
 
       createEconomicResource: (resource) =>
         wz<ActionHash>(

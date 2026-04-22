@@ -7,7 +7,7 @@ import {
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import { GovernanceError } from '$lib/errors/governance.errors';
 import { GOVERNANCE_CONTEXTS } from '$lib/errors/error-contexts';
-import type { Commitment, EconomicEvent } from '@nondominium/shared-types';
+import type { Commitment, EconomicEvent, VfEconomicEvent } from '@nondominium/shared-types';
 
 // ─── Service interface ────────────────────────────────────────────────────────
 
@@ -58,6 +58,9 @@ export interface GovernanceService {
     vote: 'approve' | 'reject' | 'abstain',
     agent: AgentPubKey
   ) => E.Effect<ActionHash, GovernanceError>;
+  /** ValueFlows economic events linked from an `EconomicResource` action hash (`get_events_for_resource`). */
+  getEventsByResource: (resourceHash: ActionHash) => E.Effect<VfEconomicEvent[], GovernanceError>;
+  getAllEconomicEvents: () => E.Effect<VfEconomicEvent[], GovernanceError>;
 }
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
@@ -182,7 +185,17 @@ export const GovernanceServiceLive: Layer.Layer<
           'vote_on_dispute',
           { dispute_hash: disputeHash, vote, agent },
           GOVERNANCE_CONTEXTS.VOTE_ON_DISPUTE
-        )
+        ),
+
+      getEventsByResource: (resourceHash) =>
+        wz<VfEconomicEvent[]>(
+          'get_events_for_resource',
+          resourceHash,
+          GOVERNANCE_CONTEXTS.GET_EVENTS_FOR_RESOURCE
+        ),
+
+      getAllEconomicEvents: () =>
+        wz<VfEconomicEvent[]>('get_all_economic_events', null, GOVERNANCE_CONTEXTS.GET_ALL_ECONOMIC_EVENTS)
     } satisfies GovernanceService;
   })
 );

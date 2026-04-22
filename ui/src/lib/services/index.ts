@@ -15,3 +15,10 @@ export {
   GovernanceServiceLive,
   GovernanceServiceResolved
 } from './zomes/governance.service';
+export { NdoServiceTag, NdoServiceLive, NdoServiceResolved } from './zomes/ndo.service';
+export { LobbyServiceTag, LobbyServiceLive, LobbyServiceResolved } from './zomes/lobby.service';
+export { GroupServiceTag, GroupServiceLive, GroupServiceResolved } from './zomes/group.service';
+export {
+  getLobbyCellHandle,
+  getGroupCellHandle
+} from './cell.manager';

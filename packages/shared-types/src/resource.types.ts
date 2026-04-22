@@ -1,4 +1,4 @@
-import type { ActionHash, AgentPubKey, EntryHash, Timestamp } from '@holochain/client';
+import type { ActionHash, AgentPubKey, EntryHash, Record, Timestamp } from '@holochain/client';
 
 // Resource State Types
 export type ResourceState =
@@ -89,6 +89,82 @@ export interface CreateEconomicResourceOutput {
 
 export interface GetAllResourceSpecificationsOutput {
   specifications: ResourceSpecification[];
+  /** Same length and order as `specifications` — stable identity for routing (e.g. `/ndo/[id]`). */
+  action_hashes: ActionHash[];
+}
+
+/** One resource specification as listed from the DHT anchor, with its action hash. */
+export interface ResourceSpecificationListing {
+  action_hash: ActionHash;
+  specification: ResourceSpecification;
+}
+
+/** NDO card / lobby descriptor (UI layer; mirrors Effect schema `NdoDescriptor`). */
+export interface NdoDescriptor {
+  hash: string;
+  name: string;
+  lifecycle_stage: string | null;
+  property_regime: string | null;
+  resource_nature: string | null;
+  description: string | null;
+  initiator: string | null;
+  created_at: number | null;
+  successor_ndo_hash: string | null;
+  hibernation_origin: string | null;
+}
+
+export interface GroupDescriptor {
+  id: string;
+  name: string;
+}
+
+/** Layer 0 identity entry (zome_resource `NondominiumIdentity`). */
+export type PropertyRegime =
+  | "Private"
+  | "Commons"
+  | "Collective"
+  | "Pool"
+  | "CommonPool"
+  | "Nondominium";
+
+export type ResourceNature =
+  | "Physical"
+  | "Digital"
+  | "Service"
+  | "Hybrid"
+  | "Information";
+
+export type LifecycleStage =
+  | "Ideation"
+  | "Specification"
+  | "Development"
+  | "Prototype"
+  | "Stable"
+  | "Distributed"
+  | "Active"
+  | "Hibernating"
+  | "Deprecated"
+  | "EndOfLife";
+
+export interface NondominiumIdentity {
+  name: string;
+  initiator: AgentPubKey;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  lifecycle_stage: LifecycleStage;
+  created_at: Timestamp;
+  description?: string;
+  successor_ndo_hash?: ActionHash;
+  hibernation_origin?: LifecycleStage;
+}
+
+export interface NdoOutput {
+  action_hash: ActionHash;
+  entry: NondominiumIdentity;
+}
+
+export interface GetAllNdosOutput {
+  ndos: NdoOutput[];
 }
 
 export interface GetAllEconomicResourcesOutput {
@@ -120,7 +196,12 @@ export interface ResourceZomeFunctions {
     spec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
   ) => Promise<ActionHash>;
   get_resource_specification: (hash: ActionHash) => Promise<ResourceSpecification>;
-  get_all_resource_specifications: () => Promise<ResourceSpecification[]>;
+  get_all_resource_specifications: () => Promise<GetAllResourceSpecificationsOutput>;
+  get_resource_specification_with_rules: (
+    specHash: ActionHash
+  ) => Promise<GetResourceSpecWithRulesOutput>;
+  get_resources_by_specification: (specHash: ActionHash) => Promise<Record[]>;
+  get_all_ndos: () => Promise<GetAllNdosOutput>;
   create_economic_resource: (resource: Omit<EconomicResource, 'created_at'>) => Promise<ActionHash>;
   get_economic_resource: (hash: ActionHash) => Promise<EconomicResource>;
   get_resources_by_custodian: (custodian: AgentPubKey) => Promise<EconomicResource[]>;

@@ -63,6 +63,13 @@ export interface PersonInput {
   bio?: string;
 }
 
+/** Matches `zome_person::update_person` input. */
+export interface UpdatePersonInput {
+  original_action_hash: ActionHash;
+  previous_action_hash: ActionHash;
+  updated_person: PersonInput;
+}
+
 export interface PrivatePersonDataInput {
   legal_name: string;
   email: string;

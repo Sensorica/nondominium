@@ -6,7 +6,7 @@ Quick reference for running tests from the project root.
 
 Runs Holochain in-process. Faster, no WebSocket round-trip, direct Rust types.
 
-Currently contains the `misc` ping test and shared conductor infrastructure.
+Currently contains the `misc` ping test, `person` zome tests, `resource` zome tests, and shared conductor infrastructure.
 Per-zome tests are written alongside the NDO refactor (see `ndo_prima_materia.md` §10).
 
 ```bash
@@ -25,6 +25,11 @@ Cargo commands directly (inside `nix develop`):
 # Requires LIBCLANG_PATH and BINDGEN_EXTRA_CLANG_ARGS to be set (exported by nix develop)
 CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest
 CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest -- --nocapture
+
+# Run a specific test module
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test misc
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test resource
 ```
 
 ## 📋 **Tryorama (TypeScript) — Active**

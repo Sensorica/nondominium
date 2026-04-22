@@ -25,14 +25,16 @@ bun run sweettest:only        # skip build:happ (use when .dna is already built)
 
 ```
 dnas/nondominium/tests/
-├── Cargo.toml               # [[test]] target: misc (per-zome targets added with NDO refactor)
+├── Cargo.toml               # [[test]] targets: misc, person, resource
 └── src/
     ├── common/
     │   └── conductors.rs    # setup_two_agents(), setup_three_agents(), setup_dual_dna_two_agents()
-    └── misc/                # ping test — validates full build chain end-to-end
+    ├── misc/                # ping test — validates full build chain end-to-end
+    ├── person/              # zome_person tests: profile, roles, capability grants, hREA bridge
+    └── resource/            # zome_resource tests: get_all_resource_specifications (action_hashes field)
 ```
 
-Per-zome test modules (`person/`, `resource/`, `governance/`) are written alongside the NDO refactor. Each implementation PR for the NDO three-layer model adds tests for the new API it introduces.
+Per-zome test modules are written alongside the NDO refactor. Each implementation PR for the NDO three-layer model adds tests for the new API it introduces. `governance/` tests will be added when `zome_gouvernance` NDO refactor PRs land.
 
 ### Environment requirement for Sweettest
 

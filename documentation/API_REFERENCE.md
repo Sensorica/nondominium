@@ -655,7 +655,7 @@ pub struct UpdateResourceSpecificationInput {
 #### `get_all_resource_specifications(()) -> ExternResult<GetAllResourceSpecificationsOutput>`
 **Purpose**: Discover all resource specifications in network
 **Authorization**: Public access
-**Returns**: Array of all resource specifications for browsing
+**Returns**: `GetAllResourceSpecificationsOutput { specifications, action_hashes }` — parallel vectors of same length and order. `action_hashes[i]` is the original creation `ActionHash` for `specifications[i]`, suitable for use as a stable route identifier (e.g. `/ndo/[id]`).
 
 #### `get_resource_specification_profile(action_hash: ActionHash) -> ExternResult<ResourceSpecificationProfile>`
 **Purpose**: Get comprehensive specification profile with metadata

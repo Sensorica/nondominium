@@ -44,6 +44,7 @@
   "dependencies": {
     "@effect/platform": "^0.79.0",
     "@holochain/client": "^0.20.0",
+    "@msgpack/msgpack": "^3.0.0",
     "@nondominium/shared-types": "workspace:*",
     "effect": "^3.15.0",
     "melt": "^0.44.0"
