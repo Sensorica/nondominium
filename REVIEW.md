@@ -82,7 +82,8 @@ This hApp implements the ValueFlows economic ontology. Flag if any of these are 
       — not ad-hoc conductor setup
 - [ ] Multi-agent tests call `await_consistency(&[&cell_a, &cell_b]).await.unwrap()`
       before asserting cross-agent state
-- [ ] New test modules are declared in `dnas/nondominium/tests/src/lib.rs`
+- [ ] New test modules are registered as a `[[test]]` target in `dnas/nondominium/tests/Cargo.toml`
+      (the established pattern — `lib.rs` only declares `pub mod common;`)
 
 ### Do NOT flag
 
