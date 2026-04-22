@@ -1,89 +1,69 @@
-import { Context, Layer, Effect as E } from 'effect';
-import type { GroupDescriptor, NdoDescriptor } from '@nondominium/shared-types';
-import type { DomainError } from '$lib/errors';
+import { Context, Effect as E, Layer } from 'effect';
+import type {
+  GroupDescriptor,
+  NdoAnnouncement,
+  AnnounceNdoInput,
+  LobbyAgentProfile,
+  LobbyAgentProfileInput
+} from '@nondominium/shared-types';
+import { HolochainClientServiceTag, HolochainClientServiceLive } from '../holochain.service.svelte';
+import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
+import { LobbyError } from '$lib/errors/lobby.errors';
 
-const GROUPS_KEY = 'ndo_groups_v1';
-
-function loadGroupsFromStorage(): GroupDescriptor[] {
-  try {
-    const raw = localStorage.getItem(GROUPS_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as GroupDescriptor[];
-  } catch {
-    return [];
-  }
-}
-
-function saveGroupsToStorage(groups: GroupDescriptor[]): void {
-  try {
-    localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
-  } catch {
-    // localStorage not available
-  }
-}
-
-function generateId(): string {
-  return `grp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
+// ─── Service interface ────────────────────────────────────────────────────────
 
 export interface LobbyService {
-  getMyGroups: () => E.Effect<GroupDescriptor[], DomainError>;
-  getAllNdoDescriptors: () => E.Effect<NdoDescriptor[], DomainError>;
-  createGroup: (name: string, createdBy?: string) => E.Effect<GroupDescriptor, DomainError>;
-  joinGroup: (inviteCode: string) => E.Effect<GroupDescriptor, DomainError>;
-  generateInviteLink: (groupId: string) => E.Effect<string, DomainError>;
+  getMyGroups: () => E.Effect<GroupDescriptor[], LobbyError>;
+  getAllNdoDescriptors: () => E.Effect<NdoAnnouncement[], LobbyError>;
+  announceNdo: (input: AnnounceNdoInput) => E.Effect<Uint8Array, LobbyError>;
+  upsertLobbyAgentProfile: (input: LobbyAgentProfileInput) => E.Effect<Uint8Array, LobbyError>;
+  getLobbyAgentProfile: (agentPubKey: Uint8Array) => E.Effect<LobbyAgentProfile | null, LobbyError>;
 }
 
-export class LobbyServiceTag extends Context.Tag('LobbyService')<
-  LobbyServiceTag,
-  LobbyService
->() {}
+// ─── Context Tag ─────────────────────────────────────────────────────────────
 
-export const LobbyServiceLive = Layer.succeed(LobbyServiceTag, {
-  getMyGroups: () => E.sync(loadGroupsFromStorage),
+export class LobbyServiceTag extends Context.Tag('LobbyService')<LobbyServiceTag, LobbyService>() {}
 
-  getAllNdoDescriptors: () => E.succeed([]),
+// ─── Live Layer ───────────────────────────────────────────────────────────────
 
-  createGroup: (name, createdBy) =>
-    E.sync(() => {
-      const groups = loadGroupsFromStorage();
-      const newGroup: GroupDescriptor = {
-        id: generateId(),
-        name: name.trim(),
-        createdBy,
-        createdAt: Date.now(),
-        ndoHashes: []
-      };
-      saveGroupsToStorage([...groups, newGroup]);
-      return newGroup;
-    }),
+export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClientServiceTag> =
+  Layer.effect(
+    LobbyServiceTag,
+    E.gen(function* () {
+      const holochainClient = yield* HolochainClientServiceTag;
 
-  joinGroup: (inviteCode) =>
-    E.try({
-      try: () => {
-        const encoded = inviteCode.includes('?group=')
-          ? inviteCode.split('?group=')[1]
-          : inviteCode;
-        const decoded = atob(encoded);
-        const groupData: GroupDescriptor = JSON.parse(decoded);
-        const groups = loadGroupsFromStorage();
-        if (groups.some((g) => g.id === groupData.id)) return groupData;
-        saveGroupsToStorage([...groups, { ...groupData, ndoHashes: groupData.ndoHashes ?? [] }]);
-        return groupData;
-      },
-      catch: (e) => {
-        throw new Error(`Invalid invite code: ${String(e)}`);
-      }
-    }) as E.Effect<GroupDescriptor, DomainError>,
+      const wz = <T>(fnName: string, payload: unknown, context: string): E.Effect<T, LobbyError> =>
+        wrapZomeCallWithErrorFactory<T, LobbyError>(
+          holochainClient,
+          'zome_lobby',
+          fnName,
+          payload,
+          context,
+          LobbyError.fromError
+        );
 
-  generateInviteLink: (groupId) =>
-    E.sync(() => {
-      const groups = loadGroupsFromStorage();
-      const group = groups.find((g) => g.id === groupId);
-      if (!group) return '';
-      const encoded = btoa(JSON.stringify(group));
-      return `${window.location.origin}?group=${encoded}`;
+      return {
+        getMyGroups: () => wz<GroupDescriptor[]>('get_my_groups', null, 'GET_MY_GROUPS'),
+
+        getAllNdoDescriptors: () =>
+          wz<NdoAnnouncement[]>('get_all_ndo_announcements', null, 'GET_ALL_NDO_ANNOUNCEMENTS'),
+
+        announceNdo: (input) => wz<Uint8Array>('announce_ndo', input, 'ANNOUNCE_NDO'),
+
+        upsertLobbyAgentProfile: (input) =>
+          wz<Uint8Array>('upsert_lobby_agent_profile', input, 'UPSERT_LOBBY_AGENT_PROFILE'),
+
+        getLobbyAgentProfile: (agentPubKey) =>
+          wz<LobbyAgentProfile | null>(
+            'get_lobby_agent_profile',
+            agentPubKey,
+            'GET_LOBBY_AGENT_PROFILE'
+          )
+      } satisfies LobbyService;
     })
-});
+  );
 
-export const LobbyServiceResolved = LobbyServiceLive;
+/** Fully-resolved layer for direct use (no further dependencies needed). */
+export const LobbyServiceResolved: Layer.Layer<LobbyServiceTag> = LobbyServiceLive.pipe(
+  Layer.provide(HolochainClientServiceLive)
+);

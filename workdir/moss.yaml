@@ -1,0 +1,11 @@
+manifest_version: "1"
+name: nondominium
+description: Nondominium OVN resource sharing network with Lobby federation layer
+icon: ../ui/src/assets/favicon.png
+source:
+  type: local
+  path: ./nondominium.happ
+ui:
+  port_assignment: dynamic
+lobby:
+  network_seed: "nondominium-lobby-v1"

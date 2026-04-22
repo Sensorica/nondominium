@@ -15,6 +15,9 @@ export * from "./governance.types.js";
 // PPR (Private Participation Receipt) types
 export * from "./ppr.types.js";
 
+// Lobby DNA types
+export * from "./lobby.types.js";
+
 // Complete Holochain App Interface
 import type { PersonZomeFunctions } from "./person.types.js";
 import type { ResourceZomeFunctions } from "./resource.types.js";

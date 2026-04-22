@@ -1,4 +1,5 @@
 export { PersonError } from './person.errors';
+export { LobbyError } from './lobby.errors';
 export { ResourceError } from './resource.errors';
 export { GovernanceError, WorkflowError } from './governance.errors';
 export { PPRError } from './ppr.errors';

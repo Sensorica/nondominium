@@ -9,6 +9,7 @@ export {
 
 // Zome service tags and layers
 export { PersonServiceTag, PersonServiceLive, PersonServiceResolved } from './zomes/person.service';
+export { LobbyServiceTag, LobbyServiceLive, LobbyServiceResolved } from './zomes/lobby.service';
 export { ResourceServiceTag, ResourceServiceLive, ResourceServiceResolved } from './zomes/resource.service';
 export {
   GovernanceServiceTag,

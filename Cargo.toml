@@ -16,10 +16,11 @@ members = [
     "dnas/nondominium/zomes/integrity/zome_gouvernance",
     "crates/utils",
     "dnas/nondominium/tests",
+    "dnas/lobby/tests",
 ]
-# default-members excludes the Sweettest crate so that
+# default-members excludes Sweettest crates so that
 # `cargo build --target wasm32-unknown-unknown` only compiles WASM zomes.
-# nondominium_sweettest has native-only deps (holochain, tokio, mio) that
+# Sweettest crates have native-only deps (holochain, tokio, mio) that
 # cannot compile to WASM.
 # NOTE: Globs in `members` above do not carry through to `default-members`.
 # New zomes added via the glob must be listed here explicitly as well.
@@ -32,6 +33,8 @@ default-members = [
     "dnas/nondominium/zomes/integrity/zome_gouvernance",
     "dnas/nondominium/zomes/coordinator/misc",
     "crates/utils",
+    "dnas/lobby/zomes/coordinator/zome_lobby_coordinator",
+    "dnas/lobby/zomes/integrity/zome_lobby_integrity",
 ]
 resolver = "2"
 
