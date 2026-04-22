@@ -48,6 +48,13 @@ struct ResourceSpecification {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct CreateResourceSpecificationOutput {
+    pub spec_hash: ActionHash,
+    pub spec: ResourceSpecification,
+    pub governance_rule_hashes: Vec<ActionHash>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct GetAllResourceSpecificationsOutput {
     pub specifications: Vec<ResourceSpecification>,
     pub action_hashes: Vec<ActionHash>,
@@ -81,12 +88,12 @@ async fn get_all_resource_specifications_returns_parallel_hashes() {
         governance_rules: vec![],
     };
 
-    // Create both specs (returns CreateResourceSpecificationOutput — we discard it)
-    let _: Record = conductors[0]
+    // Create both specs — discard the output, we only care about get_all below
+    let _: CreateResourceSpecificationOutput = conductors[0]
         .call(&alice.zome("zome_resource"), "create_resource_specification", spec1)
         .await;
 
-    let _: Record = conductors[0]
+    let _: CreateResourceSpecificationOutput = conductors[0]
         .call(&alice.zome("zome_resource"), "create_resource_specification", spec2)
         .await;
 
