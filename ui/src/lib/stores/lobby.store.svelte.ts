@@ -78,13 +78,10 @@ const createLobbyStore = (): E.Effect<
     }
 
     async function loadLobby(): Promise<void> {
-      // Manage isLoading at the aggregate level — each sub-call uses withLoadingState
-      // which would set isLoading=false as soon as it finishes (premature). Instead we
-      // bypass per-op loading state and own the flag here across the full Promise.all.
       isLoading = true;
       errorMessage = null;
       try {
-        await Promise.all([
+        const [groupsExit, ndosExit, personExit] = await Promise.all([
           E.runPromiseExit(
             lobbyService.getMyGroups().pipe(E.tap((g) => { groups = g; }))
           ),
@@ -97,6 +94,10 @@ const createLobbyStore = (): E.Effect<
             )
           )
         ]);
+        const failed = [groupsExit, ndosExit, personExit].filter(Exit.isFailure);
+        if (failed.length > 0) {
+          errorMessage = 'Failed to load lobby data. Please try again.';
+        }
       } finally {
         isLoading = false;
       }

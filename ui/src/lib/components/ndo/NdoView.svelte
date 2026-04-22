@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { ActionHash } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
-  import { onMount } from 'svelte';
   import { Effect as E, Exit, pipe } from 'effect';
   import type { NdoDescriptor } from '@nondominium/shared-types';
   import { appContext } from '$lib/stores/app.context.svelte';
@@ -36,14 +35,15 @@
     }
   });
 
-  onMount(() => {
+  $effect(() => {
+    if (!specActionHash) return;
+    const hash = specActionHash;
     void (async () => {
-      if (!specActionHash) return;
       const exit = await E.runPromiseExit(
         pipe(
           E.gen(function* () {
             const svc = yield* NdoServiceTag;
-            return yield* svc.getNdoDescriptorForSpecActionHash(specActionHash!);
+            return yield* svc.getNdoDescriptorForSpecActionHash(hash);
           }),
           E.provide(NdoServiceResolved)
         )
