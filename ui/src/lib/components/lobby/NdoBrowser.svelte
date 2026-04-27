@@ -1,5 +1,10 @@
 <script lang="ts">
-  import type { LifecycleStage, NdoDescriptor, PropertyRegime, ResourceNature } from '@nondominium/shared-types';
+  import type {
+    LifecycleStage,
+    NdoDescriptor,
+    PropertyRegime,
+    ResourceNature
+  } from '@nondominium/shared-types';
   import type { ActiveFilters } from '$lib/stores/lobby.store.svelte';
   import NdoCard from './NdoCard.svelte';
 
@@ -22,11 +27,26 @@
   }: Props = $props();
 
   const allStages: LifecycleStage[] = [
-    'Ideation', 'Specification', 'Development', 'Prototype',
-    'Stable', 'Distributed', 'Active', 'Hibernating', 'Deprecated', 'EndOfLife'
+    'Ideation',
+    'Specification',
+    'Development',
+    'Prototype',
+    'Stable',
+    'Distributed',
+    'Active',
+    'Hibernating',
+    'Deprecated',
+    'EndOfLife'
   ];
   const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
-  const allRegimes: PropertyRegime[] = ['Private', 'Commons', 'Collective', 'Pool', 'CommonPool', 'Nondominium'];
+  const allRegimes: PropertyRegime[] = [
+    'Private',
+    'Commons',
+    'Collective',
+    'Pool',
+    'CommonPool',
+    'Nondominium'
+  ];
 
   const stageColors: Record<LifecycleStage, string> = {
     Ideation: 'bg-gray-100 text-gray-600 border-gray-300',
@@ -78,8 +98,8 @@
 
   const hasFilters = $derived(
     activeFilters.stages.length > 0 ||
-    activeFilters.natures.length > 0 ||
-    activeFilters.regimes.length > 0
+      activeFilters.natures.length > 0 ||
+      activeFilters.regimes.length > 0
   );
 </script>
 
@@ -92,7 +112,11 @@
         <button
           type="button"
           onclick={() => toggleStage(s)}
-          class="rounded border px-2 py-0.5 text-xs font-medium transition-opacity {stageColors[s]} {activeFilters.stages.includes(s) ? 'ring-2 ring-offset-1 ring-current' : 'opacity-60 hover:opacity-100'}"
+          class="rounded border px-2 py-0.5 text-xs font-medium transition-opacity {stageColors[
+            s
+          ]} {activeFilters.stages.includes(s)
+            ? 'ring-2 ring-offset-1 ring-current'
+            : 'opacity-60 hover:opacity-100'}"
         >
           {s}
         </button>
@@ -105,7 +129,11 @@
         <button
           type="button"
           onclick={() => toggleNature(n)}
-          class="rounded border px-2 py-0.5 text-xs font-medium transition-opacity {natureColors[n]} {activeFilters.natures.includes(n) ? 'ring-2 ring-offset-1 ring-current' : 'opacity-60 hover:opacity-100'}"
+          class="rounded border px-2 py-0.5 text-xs font-medium transition-opacity {natureColors[
+            n
+          ]} {activeFilters.natures.includes(n)
+            ? 'ring-2 ring-offset-1 ring-current'
+            : 'opacity-60 hover:opacity-100'}"
         >
           {n}
         </button>
@@ -118,7 +146,11 @@
         <button
           type="button"
           onclick={() => toggleRegime(r)}
-          class="rounded border border-dashed px-2 py-0.5 text-xs font-medium transition-opacity {regimeColors[r]} {activeFilters.regimes.includes(r) ? 'ring-2 ring-offset-1 ring-current' : 'opacity-60 hover:opacity-100'}"
+          class="rounded border border-dashed px-2 py-0.5 text-xs font-medium transition-opacity {regimeColors[
+            r
+          ]} {activeFilters.regimes.includes(r)
+            ? 'ring-2 ring-offset-1 ring-current'
+            : 'opacity-60 hover:opacity-100'}"
         >
           {r}
         </button>
@@ -153,12 +185,16 @@
     </div>
 
     {#if errorMessage}
-      <p class="mb-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{errorMessage}</p>
+      <p class="mb-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+        {errorMessage}
+      </p>
     {/if}
 
     {#if descriptors.length === 0 && !isLoading}
       <p class="text-sm text-gray-500">
-        {hasFilters ? 'No NDOs match the selected filters.' : 'No NDOs yet. Create one from within a group.'}
+        {hasFilters
+          ? 'No NDOs match the selected filters.'
+          : 'No NDOs yet. Create one from within a group.'}
       </p>
     {:else}
       <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

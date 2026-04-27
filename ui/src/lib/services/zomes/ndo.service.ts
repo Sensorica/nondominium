@@ -72,6 +72,15 @@ function mapListingToDescriptor(
   };
 }
 
+/** Descriptor when Layer 0 exists but no ResourceSpecification listing — `hash` is NDO identity. */
+function ndoOutputToIdentityDescriptor(ndo: NdoOutput): NdoDescriptor {
+  return {
+    hash: encodeHashToBase64(ndo.action_hash),
+    name: ndo.entry.name,
+    ...ndoToDescriptorFields(ndo.entry)
+  };
+}
+
 const lobbyDescriptors = (
   resource: ResourceService
 ): E.Effect<NdoDescriptor[], ResourceError> =>
@@ -103,6 +112,18 @@ export const NdoServiceLive: Layer.Layer<NdoServiceTag, never, ResourceServiceTa
       }
     }
 
+    function getAllGroupNdoHashes(): Set<string> {
+      try {
+        const raw = localStorage.getItem(GROUPS_KEY);
+        if (!raw) return new Set();
+        const groups: { id: string; ndoHashes?: string[] }[] = JSON.parse(raw);
+        const all = groups.flatMap((g) => g.ndoHashes ?? []);
+        return new Set(all);
+      } catch {
+        return new Set();
+      }
+    }
+
     function addNdoHashToGroup(groupId: string, hashB64: string): void {
       try {
         const raw = localStorage.getItem(GROUPS_KEY);
@@ -118,27 +139,78 @@ export const NdoServiceLive: Layer.Layer<NdoServiceTag, never, ResourceServiceTa
     }
 
     return {
-      getLobbyNdoDescriptors: () => lobbyDescriptors(resource),
+      getLobbyNdoDescriptors: () =>
+        E.gen(function* () {
+          const allGroupHashes = getAllGroupNdoHashes();
+          if (allGroupHashes.size === 0) return [];
+
+          const [listings, ndosOut] = yield* E.all(
+            [resource.getAllResourceSpecifications(), resource.getAllNdos()],
+            { concurrency: 'unbounded' }
+          );
+
+          const ndoIdentityB64ByName = new Map(
+            ndosOut.ndos.map((n: NdoOutput) => [
+              n.entry.name,
+              encodeHashToBase64(n.action_hash)
+            ])
+          );
+          const ndoByActionHashB64 = new Map(
+            ndosOut.ndos.map((n: NdoOutput) => [encodeHashToBase64(n.action_hash), n])
+          );
+          const ndoByName = new Map<string, NondominiumIdentity>(
+            ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
+          );
+
+          const fromSpecs = listings
+            .filter((listing) => {
+              const idB64 = ndoIdentityB64ByName.get(listing.specification.name);
+              return idB64 !== undefined && allGroupHashes.has(idB64);
+            })
+            .map((listing) => mapListingToDescriptor(listing, ndoByName));
+
+          const coveredNames = new Set(fromSpecs.map((d) => d.name));
+
+          const orphans: NdoDescriptor[] = [];
+          for (const hb64 of allGroupHashes) {
+            const ndo = ndoByActionHashB64.get(hb64);
+            if (!ndo) continue;
+            if (!coveredNames.has(ndo.entry.name)) {
+              orphans.push(ndoOutputToIdentityDescriptor(ndo));
+              coveredNames.add(ndo.entry.name);
+            }
+          }
+
+          return [...fromSpecs, ...orphans];
+        }),
 
       getNdoDescriptorForSpecActionHash: (hash) =>
         E.gen(function* () {
           const listings = yield* resource.getAllResourceSpecifications();
           const found = listings.find((l) => l.action_hash.toString() === hash.toString());
-          if (!found) {
-            return yield* E.fail(new NdoNotFoundError({ hash: encodeHashToBase64(hash) }));
+          if (found) {
+            const ndosOut = yield* resource.getAllNdos();
+            const ndoByName = new Map<string, NondominiumIdentity>(
+              ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
+            );
+            return mapListingToDescriptor(found, ndoByName);
           }
           const ndosOut = yield* resource.getAllNdos();
-          const ndoByName = new Map<string, NondominiumIdentity>(
-            ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
+          const ndo = ndosOut.ndos.find(
+            (n: NdoOutput) => n.action_hash.toString() === hash.toString()
           );
-          return mapListingToDescriptor(found, ndoByName);
+          if (ndo) {
+            return ndoOutputToIdentityDescriptor(ndo);
+          }
+          return yield* E.fail(new NdoNotFoundError({ hash: encodeHashToBase64(hash) }));
         }),
 
       createNdo: (input, groupId) =>
         resource.createNdo(input).pipe(
-          E.tap((hash) =>
-            E.sync(() => addNdoHashToGroup(groupId, encodeHashToBase64(hash)))
-          )
+          E.tap((ndoOut) =>
+            E.sync(() => addNdoHashToGroup(groupId, encodeHashToBase64(ndoOut.action_hash)))
+          ),
+          E.map((ndoOut) => ndoOut.action_hash)
         ),
 
       updateLifecycleStage: (input) => resource.updateLifecycleStage(input),
@@ -149,9 +221,46 @@ export const NdoServiceLive: Layer.Layer<NdoServiceTag, never, ResourceServiceTa
         E.gen(function* () {
           const { ndoHashes } = getGroupData(groupId);
           if (ndoHashes.length === 0) return [];
-          const allDescriptors = yield* lobbyDescriptors(resource);
-          const groupHashSet = new Set(ndoHashes);
-          return allDescriptors.filter((d) => groupHashSet.has(d.hash));
+          const groupSet = new Set(ndoHashes);
+
+          const [listings, ndosOut] = yield* E.all(
+            [resource.getAllResourceSpecifications(), resource.getAllNdos()],
+            { concurrency: 'unbounded' }
+          );
+
+          const ndoIdentityB64ByName = new Map(
+            ndosOut.ndos.map((n: NdoOutput) => [
+              n.entry.name,
+              encodeHashToBase64(n.action_hash)
+            ])
+          );
+          const ndoByActionHashB64 = new Map(
+            ndosOut.ndos.map((n: NdoOutput) => [encodeHashToBase64(n.action_hash), n])
+          );
+          const ndoByName = new Map<string, NondominiumIdentity>(
+            ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
+          );
+
+          const fromSpecs = listings
+            .filter((listing) => {
+              const idB64 = ndoIdentityB64ByName.get(listing.specification.name);
+              return idB64 !== undefined && groupSet.has(idB64);
+            })
+            .map((listing) => mapListingToDescriptor(listing, ndoByName));
+
+          const coveredNames = new Set(fromSpecs.map((d) => d.name));
+
+          const orphans: NdoDescriptor[] = [];
+          for (const hb64 of groupSet) {
+            const ndo = ndoByActionHashB64.get(hb64);
+            if (!ndo) continue;
+            if (!coveredNames.has(ndo.entry.name)) {
+              orphans.push(ndoOutputToIdentityDescriptor(ndo));
+              coveredNames.add(ndo.entry.name);
+            }
+          }
+
+          return [...fromSpecs, ...orphans];
         })
     } satisfies NdoService;
   })
