@@ -79,6 +79,56 @@ An agent system designed only for the 1% (assuming high engagement, rich profile
 
 ## 2. Current Implementation (MVP)
 
+### 2.0 Three-Level Identity Model (UI)
+
+The MVP UI introduces three distinct identity layers that reflect the Lobby → Group → NDO hierarchy defined in `ui_design.md`. These layers are intentionally separate: they allow progressive disclosure of personal information and defer DHT costs until the agent acts.
+
+#### Level 1 — Lobby (UI-only, `localStorage`)
+
+**`LobbyUserProfile`** is the outermost, lightest identity layer. It is never written to the DHT.
+
+| Field | Required | Notes |
+|---|---|---|
+| `nickname` | Yes | Displayed in the Lobby profile bar and Group profile |
+| `realName` | No | Optional; user controls whether it is shared in groups |
+| `bio` | No | Optional |
+| `email` | No | Optional |
+| `phone` | No | Optional |
+| `address` | No | Optional |
+
+- Stored in `localStorage` under the key `ndo_lobby_profile_v1`.
+- Written to `app.context.lobbyUserProfile` (Svelte `$state`) on every page load.
+- Created via `UserProfileForm.svelte` (modal on first launch; page-mode for editing).
+- Exists before any `Person` DHT entry is created. An agent can browse the Lobby anonymously (no profile) or under a pseudonym (nickname only).
+
+#### Level 2 — Group (UI-only, `localStorage`)
+
+**`GroupMemberProfile`** is a per-group presentation choice derived from `LobbyUserProfile`. It is also never written to the DHT (Groups are localStorage-persisted shells for the MVP; Group DNA is a post-MVP deliverable).
+
+| Field | Type | Notes |
+|---|---|---|
+| `isAnonymous` | `boolean` | If true, the agent appears only by pseudonym |
+| `shownFields` | `(keyof LobbyUserProfile)[]` | Fields from `LobbyUserProfile` the agent explicitly consents to share |
+
+- Stored alongside the `GroupDescriptor` in `localStorage` under `ndo_groups_v1`.
+- Prompted via `GroupProfileModal.svelte` on first entry to each group.
+- No consensus or DHT record required; this is a purely local choice.
+
+#### Level 3 — NDO / Agent (DHT, `zome_person`)
+
+**`Person`** is the public, on-chain agent profile. It is created when the agent performs their first DHT-active action — creating an NDO or accepting a commitment. This layer corresponds to the "person-type identity" described in §1.3.
+
+- Written to the DHT via `create_person` in `zome_person`.
+- Linked to the agent's `AgentPubKey` through Holochain's source chain.
+- Required for governance participation, custodianship, and specialised service provision.
+- Discoverable by other agents via the `all_persons` anchor.
+
+This three-level model enables permissionless browsing (Level 1 not required), group participation under a pseudonym (Level 2), and full economic participation (Level 3), without conflating disclosure requirements across contexts.
+
+> Cross-reference: `ui_design.md` MVP section describes the intended UI flow. Implementation lives in `app.context.svelte.ts` (`lobbyUserProfile`), `lobby.service.ts` (`GroupDescriptor.memberProfile`), `UserProfileForm.svelte`, `GroupProfileModal.svelte`, and `GroupSidebar.svelte`.
+
+---
+
 ### 2.1 The Two-Layer Identity Model in Code
 
 The NDO MVP implements the individual/person distinction at the data model level:
