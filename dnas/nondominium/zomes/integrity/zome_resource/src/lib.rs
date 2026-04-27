@@ -43,20 +43,20 @@ impl std::fmt::Display for ResourceState {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum LifecycleStage {
   // --- Emergence Phase ---
-  Ideation,       // Placeholder: name and intent only. Layer 0 alone.
-  Specification,  // Design/requirements being written. Layer 1 activating.
-  Development,    // Active construction, prototyping. Layers 0+1+2 active.
-  Prototype,      // PoC exists, not production-ready. Layers 0+1+2 active.
+  Ideation,      // Placeholder: name and intent only. Layer 0 alone.
+  Specification, // Design/requirements being written. Layer 1 activating.
+  Development,   // Active construction, prototyping. Layers 0+1+2 active.
+  Prototype,     // PoC exists, not production-ready. Layers 0+1+2 active.
   // --- Maturity Phase ---
-  Stable,         // Production-ready, design is replicable. All layers active.
-  Distributed,    // Being actively fabricated/used across the network.
+  Stable,      // Production-ready, design is replicable. All layers active.
+  Distributed, // Being actively fabricated/used across the network.
   // --- Operation Phase ---
-  Active,         // In normal use. All layers active.
+  Active, // In normal use. All layers active.
   // --- Suspension (REQ-NDO-LC-04: reversible) ---
-  Hibernating,    // Dormant but recoverable. Layers 1+2 dormant, Layer 0 active.
+  Hibernating, // Dormant but recoverable. Layers 1+2 dormant, Layer 0 active.
   // --- Terminal (REQ-NDO-LC-04: not reactivatable) ---
-  Deprecated,     // Superseded. Successor NDO required (REQ-NDO-LC-06).
-  EndOfLife,      // Concluded. Layer 0 tombstone; fully terminal.
+  Deprecated, // Superseded. Successor NDO required (REQ-NDO-LC-06).
+  EndOfLife,  // Concluded. Layer 0 tombstone; fully terminal.
 }
 
 // NDO Layer 0 — PropertyRegime (REQ-NDO-L0-02)
@@ -100,7 +100,7 @@ pub struct ResourceSpecification {
   pub category: String, // For efficient categorized queries (like ServiceType)
   pub image_url: Option<String>,
   pub tags: Vec<String>, // For flexible discovery and filtering
-  pub is_active: bool, // For filtering active vs inactive specs
+  pub is_active: bool,   // For filtering active vs inactive specs
 }
 
 #[hdk_entry_helper]
@@ -192,10 +192,10 @@ pub enum LinkTypes {
   NdoByPropertyRegime, // Path("ndo.regime.{regime}")   → NondominiumIdentity action hashes
 
   // NDO Layer 0 lifecycle links
-  NdoToSuccessor,        // deprecated NDO action hash → successor NondominiumIdentity (REQ-NDO-LC-06)
-  NdoToTransitionEvent,  // NDO action hash → EconomicEvent that triggered the transition (REQ-NDO-L0-05)
-                         // Link only; full event validation deferred (integrity cannot
-                         // cross-zome call to zome_gouvernance)
+  NdoToSuccessor, // deprecated NDO action hash → successor NondominiumIdentity (REQ-NDO-LC-06)
+  NdoToTransitionEvent, // NDO action hash → EconomicEvent that triggered the transition (REQ-NDO-L0-05)
+  // Link only; full event validation deferred (integrity cannot
+  // cross-zome call to zome_gouvernance)
 
   // Hierarchical linking for efficient queries
   SpecificationToResource,       // ResourceSpec -> EconomicResource
@@ -268,8 +268,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         EntryTypes::NondominiumIdentity(new_ndi) => {
           // Fetch original entry to enforce immutability of all fields except lifecycle_stage
           // (REQ-NDO-L0-03, REQ-NDO-L0-04)
-          let original_record =
-            must_get_valid_record(action.original_action_address.clone())?;
+          let original_record = must_get_valid_record(action.original_action_address.clone())?;
           let original: NondominiumIdentity = original_record
             .entry()
             .to_app_option()
@@ -587,9 +586,11 @@ fn validate_update_nondominium_identity(
   if *from == LifecycleStage::Hibernating {
     let origin = match original.hibernation_origin.as_ref() {
       Some(o) => o,
-      None => return Ok(ValidateCallbackResult::Invalid(
-        "Hibernating entry is missing hibernation_origin — data integrity error".to_string(),
-      )),
+      None => {
+        return Ok(ValidateCallbackResult::Invalid(
+          "Hibernating entry is missing hibernation_origin — data integrity error".to_string(),
+        ))
+      }
     };
     if to != origin {
       return Ok(ValidateCallbackResult::Invalid(format!(
@@ -614,14 +615,14 @@ fn validate_update_nondominium_identity(
 
   // Forward maturity chain (monotonic, no skipping)
   let allowed_next = match from {
-    LifecycleStage::Ideation      => Some(LifecycleStage::Specification),
+    LifecycleStage::Ideation => Some(LifecycleStage::Specification),
     LifecycleStage::Specification => Some(LifecycleStage::Development),
-    LifecycleStage::Development   => Some(LifecycleStage::Prototype),
-    LifecycleStage::Prototype     => Some(LifecycleStage::Stable),
-    LifecycleStage::Stable        => Some(LifecycleStage::Distributed),
-    LifecycleStage::Distributed   => Some(LifecycleStage::Active),
-    LifecycleStage::Active        => None, // Active exits only via Hibernating/terminal (above)
-    LifecycleStage::Deprecated    => None, // Deprecated exits only via EndOfLife (above)
+    LifecycleStage::Development => Some(LifecycleStage::Prototype),
+    LifecycleStage::Prototype => Some(LifecycleStage::Stable),
+    LifecycleStage::Stable => Some(LifecycleStage::Distributed),
+    LifecycleStage::Distributed => Some(LifecycleStage::Active),
+    LifecycleStage::Active => None, // Active exits only via Hibernating/terminal (above)
+    LifecycleStage::Deprecated => None, // Deprecated exits only via EndOfLife (above)
     _ => None,
   };
 

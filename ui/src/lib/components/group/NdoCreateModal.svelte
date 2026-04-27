@@ -1,5 +1,11 @@
 <script lang="ts">
-  import type { LifecycleStage, NdoDescriptor, NdoInput, PropertyRegime, ResourceNature } from '@nondominium/shared-types';
+  import type {
+    LifecycleStage,
+    NdoDescriptor,
+    NdoInput,
+    PropertyRegime,
+    ResourceNature
+  } from '@nondominium/shared-types';
   import { goto } from '$app/navigation';
   import { groupStore } from '$lib/stores/group.store.svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
@@ -10,8 +16,15 @@
 
   let { onclose }: Props = $props();
 
-  const initialStages: LifecycleStage[] = ['Ideation', 'Specification', 'Development', 'Prototype'];
-  const allRegimes: PropertyRegime[] = ['Private', 'Commons', 'Collective', 'Pool', 'CommonPool', 'Nondominium'];
+  const initialStages: LifecycleStage[] = ['Ideation', 'Specification', 'Development', 'Stable', 'Hibernating'];
+  const allRegimes: PropertyRegime[] = [
+    'Private',
+    'Commons',
+    'Collective',
+    'Pool',
+    'CommonPool',
+    'Nondominium'
+  ];
   const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
 
   let name = $state('');
@@ -24,7 +37,7 @@
 
   const nameWarning = $derived(
     name.trim() &&
-    lobbyStore.ndos.some((d: NdoDescriptor) => d.name.toLowerCase() === name.trim().toLowerCase())
+      lobbyStore.ndos.some((d: NdoDescriptor) => d.name.toLowerCase() === name.trim().toLowerCase())
       ? 'An NDO with this name already exists in the Lobby.'
       : ''
   );
@@ -169,7 +182,9 @@
       </div>
 
       {#if errorMessage}
-        <p class="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{errorMessage}</p>
+        <p class="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+          {errorMessage}
+        </p>
       {/if}
     </div>
 

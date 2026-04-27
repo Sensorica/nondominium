@@ -54,27 +54,21 @@
   }
 
   const formattedDate = $derived(
-    descriptor?.created_at
-      ? new Date(descriptor.created_at / 1000).toLocaleString()
-      : null
+    descriptor?.created_at ? new Date(descriptor.created_at / 1000).toLocaleString() : null
   );
 
   const isInitiator = $derived(
     descriptor?.initiator != null &&
-    appContext.myAgentPubKey != null &&
-    descriptor.initiator === encodeHashToBase64(appContext.myAgentPubKey)
+      appContext.myAgentPubKey != null &&
+      descriptor.initiator === encodeHashToBase64(appContext.myAgentPubKey)
   );
 
   const canTransition = $derived(
-    isInitiator &&
-    descriptor?.lifecycle_stage != null &&
-    descriptor.lifecycle_stage !== 'EndOfLife'
+    isInitiator && descriptor?.lifecycle_stage != null && descriptor.lifecycle_stage !== 'EndOfLife'
   );
 
   const ndoActionHash = $derived(
-    descriptor?.hash
-      ? (decodeHashFromBase64(descriptor.hash) as ActionHash)
-      : null
+    descriptor?.hash ? (decodeHashFromBase64(descriptor.hash) as ActionHash) : null
   );
 
   $effect(() => {
@@ -94,9 +88,7 @@
         )
       );
       if (Exit.isSuccess(exit)) {
-        const match = exit.value.find(
-          (p) => encodeHashToBase64(p.agent_pub_key) === initiatorB64
-        );
+        const match = exit.value.find((p) => encodeHashToBase64(p.agent_pub_key) === initiatorB64);
         initiatorName = match?.name ?? null;
       }
     })();
@@ -106,8 +98,12 @@
 {#if showTransitionModal && descriptor}
   <LifecycleTransitionModal
     {descriptor}
-    onclose={() => { showTransitionModal = false; }}
-    onadvanced={() => { onrefresh?.(); }}
+    onclose={() => {
+      showTransitionModal = false;
+    }}
+    onadvanced={() => {
+      onrefresh?.();
+    }}
   />
 {/if}
 
@@ -119,17 +115,23 @@
       <!-- Badges row -->
       <div class="flex flex-wrap items-center gap-2">
         {#if descriptor.lifecycle_stage}
-          <span class={`rounded px-2 py-0.5 text-xs font-semibold ${badgeClass(lifecycleColorMap, descriptor.lifecycle_stage)}`}>
+          <span
+            class={`rounded px-2 py-0.5 text-xs font-semibold ${badgeClass(lifecycleColorMap, descriptor.lifecycle_stage)}`}
+          >
             {descriptor.lifecycle_stage}
           </span>
         {/if}
         {#if descriptor.property_regime}
-          <span class={`rounded border border-dashed px-2 py-0.5 text-xs font-medium ${badgeClass(regimeColorMap, descriptor.property_regime)}`}>
+          <span
+            class={`rounded border border-dashed px-2 py-0.5 text-xs font-medium ${badgeClass(regimeColorMap, descriptor.property_regime)}`}
+          >
             {descriptor.property_regime}
           </span>
         {/if}
         {#if descriptor.resource_nature}
-          <span class={`rounded px-2 py-0.5 text-xs font-medium ${badgeClass(natureColorMap, descriptor.resource_nature)}`}>
+          <span
+            class={`rounded px-2 py-0.5 text-xs font-medium ${badgeClass(natureColorMap, descriptor.resource_nature)}`}
+          >
             {descriptor.resource_nature}
           </span>
         {/if}
@@ -143,10 +145,12 @@
             {#if initiatorName}
               <a
                 href="/agent/{encodeURIComponent(descriptor.initiator)}"
-                class="font-medium text-blue-600 hover:underline"
-              >{initiatorName}</a>
+                class="font-medium text-blue-600 hover:underline">{initiatorName}</a
+              >
             {:else}
-              <span class="font-mono" title={descriptor.initiator}>{descriptor.initiator.slice(0, 10)}…</span>
+              <span class="font-mono" title={descriptor.initiator}
+                >{descriptor.initiator.slice(0, 10)}…</span
+              >
             {/if}
           </span>
         {/if}
@@ -157,7 +161,9 @@
         {#if canTransition}
           <button
             type="button"
-            onclick={() => { showTransitionModal = true; }}
+            onclick={() => {
+              showTransitionModal = true;
+            }}
             class="rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
           >
             {descriptor.lifecycle_stage === 'Active' ? 'Suspend (Hibernate) →' : 'Advance stage →'}
@@ -172,22 +178,31 @@
 
     <!-- Conditional state rows -->
     {#if descriptor.lifecycle_stage === 'Hibernating' && descriptor.hibernation_origin}
-      <div class="mt-2 flex items-center gap-2 rounded bg-yellow-50 px-3 py-1.5 text-xs text-yellow-700">
+      <div
+        class="mt-2 flex items-center gap-2 rounded bg-yellow-50 px-3 py-1.5 text-xs text-yellow-700"
+      >
         <span class="font-medium">Hibernating</span>
         <span class="text-yellow-500">·</span>
-        <span>Will resume from: <span class="font-semibold">{descriptor.hibernation_origin}</span></span>
+        <span
+          >Will resume from: <span class="font-semibold">{descriptor.hibernation_origin}</span
+          ></span
+        >
       </div>
     {/if}
 
     {#if descriptor.lifecycle_stage === 'Deprecated' && descriptor.successor_ndo_hash}
-      <div class="mt-2 flex items-center gap-2 rounded bg-orange-50 px-3 py-1.5 text-xs text-orange-700">
+      <div
+        class="mt-2 flex items-center gap-2 rounded bg-orange-50 px-3 py-1.5 text-xs text-orange-700"
+      >
         <span class="font-medium">Deprecated</span>
         <span class="text-orange-400">·</span>
-        <span>Succeeded by:
+        <span
+          >Succeeded by:
           <a
             href="/ndo/{encodeURIComponent(descriptor.successor_ndo_hash)}"
             class="font-mono underline hover:text-orange-900"
-          >{descriptor.successor_ndo_hash.slice(0, 12)}…</a>
+            >{descriptor.successor_ndo_hash.slice(0, 12)}…</a
+          >
         </span>
       </div>
     {/if}

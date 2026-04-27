@@ -66,7 +66,7 @@ export interface ResourceService {
   getResourceHistory: (resourceHash: ActionHash) => E.Effect<EconomicResource[], ResourceError>;
   deleteResourceSpecification: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
   archiveEconomicResource: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
-  createNdo: (input: NdoInput) => E.Effect<ActionHash, ResourceError>;
+  createNdo: (input: NdoInput) => E.Effect<NdoOutput, ResourceError>;
   getNdo: (hash: ActionHash) => E.Effect<NdoOutput, ResourceError>;
   updateLifecycleStage: (input: UpdateLifecycleStageInput) => E.Effect<ActionHash, ResourceError>;
   getMyNdos: () => E.Effect<GetAllNdosOutput, ResourceError>;
@@ -237,7 +237,7 @@ export const ResourceServiceLive: Layer.Layer<
         ),
 
       createNdo: (input) =>
-        wz<ActionHash>('create_ndo', input, RESOURCE_CONTEXTS.CREATE_NDO),
+        wz<NdoOutput>('create_ndo', input, RESOURCE_CONTEXTS.CREATE_NDO),
 
       getNdo: (hash) =>
         wz<NdoOutput>('get_ndo', hash, RESOURCE_CONTEXTS.GET_NDO),
