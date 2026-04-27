@@ -10,6 +10,7 @@
   import ActivityTab from './ActivityTab.svelte';
   import CompositionTab from './CompositionTab.svelte';
   import NdoIdentityLayer from './NdoIdentityLayer.svelte';
+  import ForkNdoModal from './ForkNdoModal.svelte';
 
   interface Props {
     specHashB64: string;
@@ -21,6 +22,7 @@
   let parseError = $state<string | null>(null);
   let tab = $state<'resources' | 'governance' | 'composition' | 'activity'>('resources');
   let ndoDescriptor = $state<NdoDescriptor | null>(null);
+  let showForkModal = $state(false);
 
   $effect(() => {
     try {
@@ -35,22 +37,28 @@
     }
   });
 
+  async function loadDescriptor(hash: ActionHash) {
+    const exit = await E.runPromiseExit(
+      pipe(
+        E.gen(function* () {
+          const svc = yield* NdoServiceTag;
+          return yield* svc.getNdoDescriptorForSpecActionHash(hash);
+        }),
+        E.provide(NdoServiceResolved)
+      )
+    );
+    if (Exit.isSuccess(exit)) ndoDescriptor = exit.value;
+  }
+
   $effect(() => {
     if (!specActionHash) return;
     const hash = specActionHash;
-    void (async () => {
-      const exit = await E.runPromiseExit(
-        pipe(
-          E.gen(function* () {
-            const svc = yield* NdoServiceTag;
-            return yield* svc.getNdoDescriptorForSpecActionHash(hash);
-          }),
-          E.provide(NdoServiceResolved)
-        )
-      );
-      if (Exit.isSuccess(exit)) ndoDescriptor = exit.value;
-    })();
+    void loadDescriptor(hash);
   });
+
+  function handleRefresh() {
+    if (specActionHash) void loadDescriptor(specActionHash);
+  }
 
   const tabs = [
     { id: 'resources' as const, label: 'Resources' },
@@ -58,6 +66,8 @@
     { id: 'composition' as const, label: 'Composition' },
     { id: 'activity' as const, label: 'Activity' }
   ];
+
+  const isAuthenticated = $derived(appContext.myAgentPubKey != null);
 </script>
 
 {#if parseError}
@@ -65,9 +75,26 @@
     <p class="text-red-600">{parseError}</p>
   </div>
 {:else if specActionHash}
+  {#if showForkModal && ndoDescriptor}
+    <ForkNdoModal descriptor={ndoDescriptor} onclose={() => { showForkModal = false; }} />
+  {/if}
+
   <div class="border-b border-gray-200 bg-white px-6 pt-4">
-    <h1 class="text-xl font-bold text-gray-900">{ndoDescriptor?.name ?? 'NDO'}</h1>
-    <p class="mt-1 font-mono text-xs text-gray-500">{specHashB64}</p>
+    <div class="flex items-start justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-gray-900">{ndoDescriptor?.name ?? 'NDO'}</h1>
+        <p class="mt-1 font-mono text-xs text-gray-500">{specHashB64}</p>
+      </div>
+      {#if isAuthenticated}
+        <button
+          type="button"
+          onclick={() => { showForkModal = true; }}
+          class="ml-4 shrink-0 rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+        >
+          Fork this NDO
+        </button>
+      {/if}
+    </div>
     <nav class="mt-4 flex gap-2" aria-label="NDO sections">
       {#each tabs as t}
         <button
@@ -85,7 +112,7 @@
     </nav>
   </div>
 
-  <NdoIdentityLayer descriptor={ndoDescriptor} />
+  <NdoIdentityLayer descriptor={ndoDescriptor} onrefresh={handleRefresh} />
 
   <div class="p-6">
     {#if tab === 'resources'}

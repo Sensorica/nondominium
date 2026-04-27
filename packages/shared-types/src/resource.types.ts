@@ -116,6 +116,51 @@ export interface NdoDescriptor {
 export interface GroupDescriptor {
   id: string;
   name: string;
+  createdBy?: string;
+  createdAt?: number;
+  ndoHashes?: string[];
+  memberProfile?: GroupMemberProfile;
+}
+
+// ─── UI-only identity types (localStorage, no DHT entry) ─────────────────────
+
+export interface LobbyUserProfile {
+  nickname: string;
+  realName?: string;
+  bio?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface GroupMemberProfile {
+  isAnonymous: boolean;
+  shownFields: (keyof Omit<LobbyUserProfile, 'nickname'>)[];
+}
+
+// ─── NDO input/output types ───────────────────────────────────────────────────
+
+export interface NdoInput {
+  name: string;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  lifecycle_stage: LifecycleStage;
+  description?: string;
+}
+
+export interface UpdateLifecycleStageInput {
+  original_action_hash: ActionHash;
+  new_stage: LifecycleStage;
+  successor_ndo_hash?: ActionHash;
+  transition_event_hash?: ActionHash;
+}
+
+export interface NdoTransitionHistoryEvent {
+  from_stage: string;
+  to_stage: string;
+  agent: string;
+  timestamp: number;
+  event_hash: string;
 }
 
 /** Layer 0 identity entry (zome_resource `NondominiumIdentity`). */

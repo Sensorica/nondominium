@@ -169,18 +169,68 @@ Resource lifecycle, governance/PPR wiring, and production hardening via hREA are
 
 - SvelteKit + UnoCSS + Melt UI next-gen project scaffolded (`vite.config.ts`, `svelte.config.js`, `uno.config.ts`)
 - `HolochainProvider.svelte` — Holochain client connection management
-- Service layer stubs: `person.service.ts`, `resource.service.ts`, `governance.service.ts`
-- Store layer stubs: `person.store.svelte.ts`, `resource.store.svelte.ts`, `governance.store.svelte.ts`
+- Effect-TS service layer (PR #97): all three zome services and stores converted to `Context.Tag` / `Layer` / `E.gen` pattern with `isLoading` + `errorMessage` state
+- `wrapZomeCallWithErrorFactory` utility for consistent zome call error handling
 
-### UI Components ❌ Not implemented
+### MVP UI — Lobby → Group → NDO ✅ Implemented
 
-No domain-specific UI components exist yet. The following are tracked as open issues:
+Full three-level hierarchical UI as specified in `documentation/requirements/ui_design.md` and `documentation/specifications/ui_architecture.md`.
 
-- Person management components (#8)
-- Resource management components (#9)
-- ~~Effect-TS service layer (#7)~~ — **complete** (PR #97: all three zome services and stores converted to Context.Tag/Layer/E.gen pattern with `boolean isLoading` + `string|null errorMessage` loading state)
-- Capability-based private data sharing UI (#39)
-- PPR reputation visualization (#22)
+#### Shared Types
+
+- `NdoDescriptor`, `NdoInput`, `UpdateLifecycleStageInput`, `NdoTransitionHistoryEvent` — `packages/shared-types/src/resource.types.ts`
+- `LobbyUserProfile`, `GroupMemberProfile` — three-level identity model
+- Extended `GroupDescriptor` with `ndoHashes`, `memberProfile`, `createdBy`, `createdAt`
+
+#### Service Layer
+
+- `resource.service.ts` — `createNdo`, `getNdo`, `updateLifecycleStage`, `getMyNdos`, `getNdosByLifecycleStage/Nature/Regime`, `getNdoTransitionHistory`
+- `ndo.service.ts` — `getLobbyNdoDescriptors`, `createNdo(input, groupId)`, `getGroupNdoDescriptors`, `getNdoTransitionHistory`
+- `lobby.service.ts` — localStorage-backed: `getMyGroups`, `createGroup`, `joinGroup`, `generateInviteLink`
+
+#### Store Layer
+
+- `app.context.svelte.ts` — `lobbyUserProfile` state with localStorage hydration + persistence
+- `lobby.store.svelte.ts` — `ndos`, `filteredNdos`, `activeFilters`, `groups`, `createGroup`, `joinGroup`
+- `group.store.svelte.ts` *(new)* — `group`, `groupNdos`, `loadGroupData`, `createNdo`
+
+#### Components — Lobby Level
+
+- `LobbyView.svelte` — profile bar, first-launch `UserProfileForm` modal, wired filter browser
+- `UserProfileForm.svelte` *(new)* — Lobby profile create/edit (modal + page modes; nickname required)
+- `GroupSidebar.svelte` — functional Create Group / Join Group inline forms + "My Profile" link
+- `NdoBrowser.svelte` — multi-select filter chips: LifecycleStage × ResourceNature × PropertyRegime (OR within, AND across)
+- `NdoCard.svelte` — NDO summary card with lifecycle/nature/regime badges
+
+#### Components — Group Level
+
+- `GroupView.svelte` — group header, "Create NDO" button, group-scoped `NdoBrowser`
+- `NdoCreateModal.svelte` *(new)* — 5-field form (name, regime, nature, stage, description), uniqueness check, Effect-TS errors, navigates to new NDO on success
+- `GroupProfileModal.svelte` *(new)* — per-group profile disclosure preferences (first visit)
+
+#### Components — NDO Level
+
+- `NdoIdentityLayer.svelte` — initiator profile link (resolves `Person.name`), lifecycle transition button (initiator-only), `TransitionHistoryPanel`
+- `LifecycleTransitionModal.svelte` *(new)* — full state machine (mirrors Rust), Deprecated + Hibernating special cases
+- `TransitionHistoryPanel.svelte` *(new)* — collapsible history: from/to stage, agent, timestamp, event_hash + copy-to-clipboard
+- `ForkNdoModal.svelte` *(new)* — informational fork friction modal with copy-initiator-pubkey CTA
+- `NdoView.svelte` — Fork button (all authenticated users), refresh callback after lifecycle transitions
+
+#### Shell + Routing
+
+- `Sidebar.svelte` — context-aware "New NDO" link, "My Profile" entry
+- `/ndo/new` — redirects to active group or shows instruction screen
+- `/group/[id]` — passes `?createNdo=1` to `GroupView.autoOpenCreateModal`
+
+### Not Yet Implemented (UI)
+
+- Person management components (issue #8)
+- Resource management components (issue #9)
+- Capability-based private data sharing UI (issue #39)
+- PPR reputation visualization (issue #22)
+- Economic Process workflow UI (issues #28–#32)
+- Role management / agent progression UI (issues #33–#34)
+- Group DNA backend (post-MVP; currently localStorage shell — `implementation_plan.md §12.6`)
 
 ---
 
@@ -234,16 +284,25 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | Commitments and claims                                 | ✅ Complete    |
 | PPR data structures + cryptographic auth               | ✅ Complete    |
 | hREA Phase 1 (Person/ReaAgent bridge)                  | ✅ Complete    |
-| SvelteKit + UnoCSS + Melt UI next-gen setup            | ⏳ In Progress |
+| SvelteKit + UnoCSS + Melt UI next-gen setup            | ✅ Complete    |
+| Effect-TS service layer                                | ✅ Complete (PR #97) |
+| NondominiumIdentity (Layer 0 identity anchor)          | ✅ Complete    |
+| MVP UI — Lobby → Group → NDO hierarchy                 | ✅ Complete    |
+| MVP UI — Three-level identity (Lobby/Group/Agent)      | ✅ Complete    |
+| MVP UI — NDO creation within Group context             | ✅ Complete    |
+| MVP UI — NDO filter browser (3-dimension chips)        | ✅ Complete    |
+| MVP UI — Lifecycle transition + history panel          | ✅ Complete    |
+| MVP UI — Fork friction modal                           | ✅ Complete    |
 | Sweettest scaffold + person tests                      | ✅ Complete    |
 | Economic processes (Use/Transport/Storage/Repair)      | ❌ Not started |
 | PPR receipt generation and EOL workflows               | ❌ Not started |
 | Governance-as-Operator architecture                    | ❌ Not started |
 | Agent promotion + role validation workflows            | 🔄 Partial     |
-| Frontend UI components                                 | ❌ Not started |
-| Effect-TS service layer                                | ✅ Complete (PR #97) |
+| Person management UI components                        | ❌ Not started |
+| Economic Process UI                                    | ❌ Not started |
+| PPR reputation visualization                           | ❌ Not started |
+| Group DNA backend (currently localStorage shell)       | ❌ Not started |
 | hREA Phase 2–4                                         | ❌ Not started |
-| NondominiumIdentity (Layer 0 identity anchor)          | ✅ Complete    |
 
 ---
 

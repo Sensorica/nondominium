@@ -1,11 +1,23 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { Effect as E, Exit, pipe } from 'effect';
   import type { NdoDescriptor } from '@nondominium/shared-types';
+  import type { ActionHash } from '@holochain/client';
+  import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
+  import { appContext } from '$lib/stores/app.context.svelte';
+  import { PersonServiceTag, PersonServiceResolved } from '$lib/services/zomes/person.service';
+  import LifecycleTransitionModal from './LifecycleTransitionModal.svelte';
+  import TransitionHistoryPanel from './TransitionHistoryPanel.svelte';
 
   interface Props {
     descriptor: NdoDescriptor | null;
+    onrefresh?: () => void;
   }
 
-  let { descriptor }: Props = $props();
+  let { descriptor, onrefresh }: Props = $props();
+
+  let initiatorName = $state<string | null>(null);
+  let showTransitionModal = $state(false);
 
   const lifecycleColorMap: Record<string, string> = {
     Ideation: 'bg-gray-100 text-gray-600',
@@ -46,7 +58,58 @@
       ? new Date(descriptor.created_at / 1000).toLocaleString()
       : null
   );
+
+  const isInitiator = $derived(
+    descriptor?.initiator != null &&
+    appContext.myAgentPubKey != null &&
+    descriptor.initiator === encodeHashToBase64(appContext.myAgentPubKey)
+  );
+
+  const canTransition = $derived(
+    isInitiator &&
+    descriptor?.lifecycle_stage != null &&
+    descriptor.lifecycle_stage !== 'EndOfLife'
+  );
+
+  const ndoActionHash = $derived(
+    descriptor?.hash
+      ? (decodeHashFromBase64(descriptor.hash) as ActionHash)
+      : null
+  );
+
+  $effect(() => {
+    if (!descriptor?.initiator) {
+      initiatorName = null;
+      return;
+    }
+    const initiatorB64 = descriptor.initiator;
+    void (async () => {
+      const exit = await E.runPromiseExit(
+        pipe(
+          E.gen(function* () {
+            const svc = yield* PersonServiceTag;
+            return yield* svc.getAllPersons();
+          }),
+          E.provide(PersonServiceResolved)
+        )
+      );
+      if (Exit.isSuccess(exit)) {
+        const match = exit.value.find(
+          (p) => encodeHashToBase64(p.agent_pub_key) === initiatorB64
+        );
+        initiatorName = match?.name ?? null;
+      }
+    })();
+  });
 </script>
+
+{#if showTransitionModal && descriptor}
+  <LifecycleTransitionModal
+    {descriptor}
+    onclose={() => { showTransitionModal = false; }}
+    onadvanced={() => { onrefresh?.(); }}
+  />
+{/if}
 
 <div class="border-b border-gray-100 bg-gray-50 px-6 py-4">
   {#if !descriptor}
@@ -75,12 +138,30 @@
       <!-- Meta row -->
       <div class="ml-auto flex flex-wrap items-center gap-4 text-xs text-gray-500">
         {#if descriptor.initiator}
-          <span title={descriptor.initiator}>
-            By <span class="font-mono">{descriptor.initiator.slice(0, 10)}…</span>
+          <span>
+            By
+            {#if initiatorName}
+              <a
+                href="/agent/{encodeURIComponent(descriptor.initiator)}"
+                class="font-medium text-blue-600 hover:underline"
+              >{initiatorName}</a>
+            {:else}
+              <span class="font-mono" title={descriptor.initiator}>{descriptor.initiator.slice(0, 10)}…</span>
+            {/if}
           </span>
         {/if}
         {#if formattedDate}
           <span>{formattedDate}</span>
+        {/if}
+
+        {#if canTransition}
+          <button
+            type="button"
+            onclick={() => { showTransitionModal = true; }}
+            class="rounded border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+          >
+            {descriptor.lifecycle_stage === 'Active' ? 'Suspend (Hibernate) →' : 'Advance stage →'}
+          </button>
         {/if}
       </div>
     </div>
@@ -109,6 +190,11 @@
           >{descriptor.successor_ndo_hash.slice(0, 12)}…</a>
         </span>
       </div>
+    {/if}
+
+    <!-- Lifecycle history panel -->
+    {#if ndoActionHash}
+      <TransitionHistoryPanel ndoHash={ndoActionHash} />
     {/if}
   {/if}
 </div>
