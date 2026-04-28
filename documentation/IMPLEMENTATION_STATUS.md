@@ -75,7 +75,7 @@ Each zome follows the integrity/coordinator pattern.
 `NondominiumIdentity` provides a permanent identity anchor for any resource from conception through end-of-life. Implemented in PR #80.
 
 - **Entry type**: `NondominiumIdentity` with `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `description`, `successor_ndo_hash`
-- **Enums**: `LifecycleStage` (10 stages: Ideation→Specification→Development→Prototype→Stable→Distributed→Active→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (6 variants), `ResourceNature` (5 variants: Physical, Digital, Service, Hybrid, Information — extends spec's 3-variant definition with Service and Information)
+- **Enums**: `LifecycleStage` (10 stages: Ideation→Specification→Development→Prototype→Stable→Distributed→Active→Hibernating→Deprecated→EndOfLife), `PropertyRegime` (4 variants: Private, Commons, Nondominium, CommonPool — Collective and Pool removed after design review), `ResourceNature` (5 variants: Physical, Digital, Service, Hybrid, Information — extends spec's 3-variant definition with Service and Information)
 - **Immutability**: Only `lifecycle_stage` may change post-creation; `successor_ndo_hash` set exactly once on Deprecated transition; deletes are always invalid
 - **Authorization**: Only the `initiator` may call `update_lifecycle_stage` (MVP simplification; full role-based authorization per REQ-NDO-LC-07 deferred to governance zome integration)
 - **Discovery links**: `AllNdos` (global `"ndo_identities"` path anchor), `AgentToNdo` (per-initiator), `NdoByLifecycleStage` / `NdoByNature` / `NdoByPropertyRegime` (categorization anchors — PR #84)
@@ -174,56 +174,67 @@ Resource lifecycle, governance/PPR wiring, and production hardening via hREA are
 
 ### MVP UI — Lobby → Group → NDO ✅ Implemented
 
-Full three-level hierarchical UI as specified in `documentation/requirements/ui_design.md` and `documentation/specifications/ui_architecture.md`.
+Full three-level hierarchical UI as specified in `documentation/requirements/ui_design.md` (MVP section) and `documentation/specifications/ui_architecture.md`. The UI was substantially restructured in the UI-restructure sprint to make the Lobby the persistent outer shell with a permanent sidebar, and to fix NDO data display.
 
 #### Shared Types
 
 - `NdoDescriptor`, `NdoInput`, `UpdateLifecycleStageInput`, `NdoTransitionHistoryEvent` — `packages/shared-types/src/resource.types.ts`
+- `PropertyRegime` — 4 variants: Private, Commons, Nondominium, CommonPool (Collective and Pool removed)
 - `LobbyUserProfile`, `GroupMemberProfile` — three-level identity model
 - Extended `GroupDescriptor` with `ndoHashes`, `memberProfile`, `createdBy`, `createdAt`
 
 #### Service Layer
 
-- `resource.service.ts` — `createNdo`, `getNdo`, `updateLifecycleStage`, `getMyNdos`, `getNdosByLifecycleStage/Nature/Regime`, `getNdoTransitionHistory`
-- `ndo.service.ts` — `getLobbyNdoDescriptors`, `createNdo(input, groupId)`, `getGroupNdoDescriptors`, `getNdoTransitionHistory`
+- `resource.service.ts` — `createNdo`, `getNdo` (returns `NondominiumIdentity | null`, matching Rust's `Option<NondominiumIdentity>`), `updateLifecycleStage`, `getMyNdos`, `getNdosByLifecycleStage/Nature/Regime`, `getNdoTransitionHistory`
+- `ndo.service.ts` — `getLobbyNdoDescriptors`, `createNdo(input, groupId)`, `getGroupNdoDescriptors`, `getNdoTransitionHistory`; `getNdoDescriptorForSpecActionHash` uses `getMyNdos → getAllNdos → ResourceSpec` lookup chain with reliable base64 hash comparison
 - `lobby.service.ts` — localStorage-backed: `getMyGroups`, `createGroup`, `joinGroup`, `generateInviteLink`
 
 #### Store Layer
 
 - `app.context.svelte.ts` — `lobbyUserProfile` state with localStorage hydration + persistence
-- `lobby.store.svelte.ts` — `ndos`, `filteredNdos`, `activeFilters`, `groups`, `createGroup`, `joinGroup`
-- `group.store.svelte.ts` *(new)* — `group`, `groupNdos`, `loadGroupData`, `createNdo`
+- `lobby.store.svelte.ts` — `ndos`, `filteredNdos`, `activeFilters`, `groups`, `createGroup`, `joinGroup`; `loadLobby()` now called from root layout
+- `group.store.svelte.ts` — `group`, `groupNdos`, `loadGroupData`, `createNdo`, `associateNdoWithGroup`
+- `ndo-cache.ts` *(new)* — in-memory `Map<hashB64, NdoDescriptor>` populated on card click so the NDO detail page renders immediately without a DHT round-trip
+
+#### Components — Shell / Layout
+
+- `+layout.svelte` (root) — `onMount` calls `getMyAgentPubKey()` + `loadLobby()` + shows first-time `UserProfileForm` if no lobby profile exists; ensures sidebar has data on every route
+- `Sidebar.svelte` — **rewritten as persistent LobbySidebar**: Browse NDOs link, live groups list with `/group/:id` links, inline "+ New Group" form, inline "→ Join Group" form, "My Profile / Edit profile" at bottom; "New NDO" global link removed (NDO creation lives only inside Group)
+- `AppShell.svelte` — unchanged layout wrapper
 
 #### Components — Lobby Level
 
-- `LobbyView.svelte` — profile bar, first-launch `UserProfileForm` modal, wired filter browser
-- `UserProfileForm.svelte` *(new)* — Lobby profile create/edit (modal + page modes; nickname required)
-- `GroupSidebar.svelte` — functional Create Group / Join Group inline forms + "My Profile" link
-- `NdoBrowser.svelte` — multi-select filter chips: LifecycleStage × ResourceNature × PropertyRegime (OR within, AND across)
-- `NdoCard.svelte` — NDO summary card with lifecycle/nature/regime badges
+- `LobbyView.svelte` — **simplified**: removed GroupSidebar and onMount data loading (both moved to root); keeps only page header and `NdoBrowser`
+- `UserProfileForm.svelte` — Lobby profile create/edit (modal + page modes; nickname required)
+- `NdoBrowser.svelte` — multi-select filter chips: LifecycleStage × ResourceNature × PropertyRegime (4 variants); "No NDOs yet" empty state
+- `NdoCard.svelte` — NDO summary card with lifecycle/nature/regime badges; populates `ndo-cache` before navigating
 
 #### Components — Group Level
 
-- `GroupView.svelte` — group header, "Create NDO" button, group-scoped `NdoBrowser`
-- `NdoCreateModal.svelte` *(new)* — 5-field form (name, regime, nature, stage, description), uniqueness check, Effect-TS errors, navigates to new NDO on success
-- `GroupProfileModal.svelte` *(new)* — per-group profile disclosure preferences (first visit)
+- `GroupView.svelte` — group header, "Create NDO" button, group-scoped `NdoBrowser`; **fixed**: uses `$effect` instead of `onMount` so group data reloads correctly when navigating between groups
+- `NdoCreateModal.svelte` — 5-field form (name, 4-variant regime, nature, stage, description), uniqueness check, Effect-TS errors, navigates to NDO page on success
+- `GroupProfileModal.svelte` — per-group profile disclosure preferences (first visit only)
 
 #### Components — NDO Level
 
-- `NdoIdentityLayer.svelte` — initiator profile link (resolves `Person.name`), lifecycle transition button (initiator-only), `TransitionHistoryPanel`
-- `LifecycleTransitionModal.svelte` *(new)* — full state machine (mirrors Rust), Deprecated + Hibernating special cases
-- `TransitionHistoryPanel.svelte` *(new)* — collapsible history: from/to stage, agent, timestamp, event_hash + copy-to-clipboard
-- `ForkNdoModal.svelte` *(new)* — informational fork friction modal with copy-initiator-pubkey CTA
-- `NdoView.svelte` — Fork button (all authenticated users), refresh callback after lifecycle transitions
+- `NdoView.svelte` — **extended**: detail card with labeled Description / Property Regime / Resource Nature / Lifecycle Stage / Created fields; loading skeleton and retry-able error banner; Join NDO placeholder button ("Coming soon" tooltip); Associate with group button (always visible); Fork button (visible when Holochain connected); descriptor seeded from `ndo-cache` immediately, then refreshed from DHT
+- `AssociateNdoModal.svelte` *(new)* — group-picker modal: lists user's groups from `lobbyStore`, multi-select checkboxes, writes NDO hash to target group's `ndoHashes` in localStorage via `groupStore.associateNdoWithGroup`
+- `NdoIdentityLayer.svelte` — initiator profile link, lifecycle transition button (initiator-only), `TransitionHistoryPanel`; updated to 4-variant `PropertyRegime` color map
+- `LifecycleTransitionModal.svelte` — full state machine (mirrors Rust), Deprecated + Hibernating special cases
+- `TransitionHistoryPanel.svelte` — collapsible history: from/to stage, agent, timestamp, event_hash + copy-to-clipboard
+- `ForkNdoModal.svelte` — informational fork friction modal with copy-initiator-pubkey CTA
 
-#### Shell + Routing
+#### Routing
 
-- `Sidebar.svelte` — context-aware "New NDO" link, "My Profile" entry
-- `/ndo/new` — redirects to active group or shows instruction screen
-- `/group/[id]` — passes `?createNdo=1` to `GroupView.autoOpenCreateModal`
+- `/` (`LobbyView`) — NDO browser across all user groups
+- `/group/[id]` (`GroupView`) — group-scoped NDO list + Create NDO; `?createNdo=1` auto-opens modal
+- `/ndo/[id]` (`NdoView`) — full NDO detail page with detail card, actions, and tabs
 
 ### Not Yet Implemented (UI)
 
+- Multi-member groups: invite-link generation and redemption (issue related to group backend)
+- Group member list display (GroupView stub shows empty `MemberList`)
+- "Join NDO" backend implementation (button is a placeholder)
 - Person management components (issue #8)
 - Resource management components (issue #9)
 - Capability-based private data sharing UI (issue #39)
@@ -287,12 +298,18 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | SvelteKit + UnoCSS + Melt UI next-gen setup            | ✅ Complete    |
 | Effect-TS service layer                                | ✅ Complete (PR #97) |
 | NondominiumIdentity (Layer 0 identity anchor)          | ✅ Complete    |
+| MVP UI — Persistent Lobby sidebar (all routes)         | ✅ Complete    |
 | MVP UI — Lobby → Group → NDO hierarchy                 | ✅ Complete    |
 | MVP UI — Three-level identity (Lobby/Group/Agent)      | ✅ Complete    |
 | MVP UI — NDO creation within Group context             | ✅ Complete    |
+| MVP UI — NDO detail page (name, description, fields)   | ✅ Complete    |
 | MVP UI — NDO filter browser (3-dimension chips)        | ✅ Complete    |
 | MVP UI — Lifecycle transition + history panel          | ✅ Complete    |
 | MVP UI — Fork friction modal                           | ✅ Complete    |
+| MVP UI — Associate NDO with group modal                | ✅ Complete    |
+| MVP UI — Join NDO (placeholder)                        | ✅ Complete (placeholder) |
+| MVP UI — First-time user profile modal (root layout)   | ✅ Complete    |
+| PropertyRegime reduced to 4 canonical variants         | ✅ Complete    |
 | Sweettest scaffold + person tests                      | ✅ Complete    |
 | Economic processes (Use/Transport/Storage/Repair)      | ❌ Not started |
 | PPR receipt generation and EOL workflows               | ❌ Not started |
