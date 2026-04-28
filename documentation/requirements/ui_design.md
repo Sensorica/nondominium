@@ -1,42 +1,115 @@
 # Nondominium UI Design Vision
 
 ## MVP
-This secton is about a minimalistic UI for MVP for Layer 0 — Identity (stable anchor, tombstone at end of life), only lifecycle_stage evolves after creation (REQ-NDO-L0-*)." as mentioned in `implementation_plan.md`. 
 
-This inital MVP UI implements the ideas of **Lobby** and **Groups**.
-- The Lobby is a permissionless digital environment that anyone can join. 
-> Implement UI to match `lobby-architecture.md`
+This section describes the minimalistic UI for MVP Layer 0 — NDO Identity (stable anchor; only `lifecycle_stage` evolves after creation; REQ-NDO-L0-*). The MVP UI implements the concepts of **Lobby**, **Groups**, and **NDO view**.
 
-- Once a user enters the Lobby, he can create a Group. The user can also join an existing Group. Groups are the organizational and economic side of NDOs. They will be fully developed during the implementaton of Layer 1 — Specification: Activated by NDOToSpecification → ResourceSpecification (governance rules, discoverable form); may be dormant/archived while L0 remains (REQ-NDO-L1-*). They allow users to work together on lists on NDOs, to do planning for example. Groups have group-level Governance, which will be developed later. This governance could specify for example rules to link to other existing NDOs, to create new NDOs. Once the user creates a Group, he will be the only user in that Group. This group is called a solo Group. The user can invite other users in his solo Group, thus this Group will not be a solo Group anymore.
-> Todo for MVP, once in the Lobby, a button to *Create* and *Join* Group. Once pressed, a form is exposed where the user can specify Group name to *create*, or provide an invite link to *join*. The newly created solo Group will have listed the creator user as a group creator. The joined Group will display group members and a list of NDOs that this group has created or has linked to (NDOs created by other groups). See more below. 
+---
 
-- The user can create an new NDO from his solo Group. The NDO will exist as a stand-alone entity, with its own DHT, forming its own network, since any other user from any group can interact with any NDO. The creation of a new NDO is done by cloning the Nondominium cell (See Holochain documentation about setting cloning limit option in the hApp manifest). The user will be seen as the progenitor of this new NDO, belonging to the Group from which the action of creating a new NDO has been triggered. The new NDO will be governed by its own Governance Zome, which is templetized, depending on the nature or type of the NDO (physical or digital, property regime, etc.). A link between the progenitor and the group from which he operates and the new NDO will be created. The progenitor has control rights over the NDO only if the NDO is created under the private property regime. The private property regime can also apply to a Group, if the Group represents or is created by a moral entity (some form of incorporated organization). So as we can see, the property regime associated with the new NDO will have consequences over its own Governance and the Governance of the Group. If the new NDO is created under commons or nondominium property regime, the projenitor and the Group (organizational context) don't have assymetrical rights over it, in this case any user has the same rights per the NDO's own Governance. This is well documented in foundational documents that speak about the uncapturability of NDOs. 
-> Todo for MVP, a button to create an NDO in the context of a Group, a solo Group or another Group, as specified in Issue 102: 
+### Lobby
 
-```
-NDO Fields: 
-- name: required text input, uniqueness warning if a spec with same name exists
-- property_regime: <select> with all 6 enum variants; tooltip per option explaining the regime
-- resource_nature: <select> with all 5 enum variants; tooltip per option
-- lifecycle_stage: <select> restricted to valid initial stages (Ideation, Specification, Development, Prototype); no - - terminal or suspended stages at creation
-- description: optional textarea
-```
+The Lobby is a permissionless digital environment that anyone can join. It is the persistent outer shell of the application, always visible regardless of which route is active.
 
-- After joining an existing Group, the user can search existing NDOs that are listed within that Group. The Group-level Governance, which will be implemented in the post-MVP version, will govern what actions the user can perform on NDOs, on top of the NDOs'own Governance, which is more about group coordination and planning, economic logic, etc.
-> Todo for MVP, brows NDO function exposed through the UI, in the context of a Group.
+**Implemented:**
+- Persistent left sidebar present on all routes, containing:
+  - **Browse NDOs** link → root page (`/`) listing all unique NDOs across all the user's groups, with filter chips (Lifecycle Stage, Resource Nature, Property Regime)
+  - **Groups list** — links to each group the user has created or joined (`/group/:id`)
+  - **+ New Group** — inline form: user enters a group name and confirms; they become the group creator
+  - **→ Join Group** — inline form: user pastes an invite code or link
+  - **My Profile / Edit profile** — at the bottom of the sidebar; opens the profile modal
+- **First-time profile modal** — triggered automatically on first app launch when no lobby profile exists; requires at least a nickname; all other fields (real name, bio, email) are optional and stored in `localStorage`
 
-- The user can fork an existing project-NDO (NDOs of type Project, or those that represent a resource in development), but forking is subject to friction, subject to NDO's own Governance, asking for negociations and an attempt to reach concensus, with the idea of preserving the integrity of the collaborative network, and forking as an ultimate measure if concensus is not reached. Forking may also require payment, which will be governed by Unyt integration, smart agreements, with cascade payments to past contributors, down the tree of affiliates NDOs. This will be implemented later. Therfore, friction has two main functions, to reduce undesirable proliferation of projet-NDOs and reward past contributors. 
-> Todo for the MVP, we can expose a button for forking an existing NDO, opening a new tab / page / popup (to be determined) stating the above.
+---
 
+### Groups
 
-**About User / Agent**
+Groups are organizational contexts for NDOs. A user can create a solo Group or join an existing one. At MVP, group membership and NDO associations are tracked in `localStorage` (no DHT-backed group entries yet).
 
-At the Lobby level, we speak about User, which can be anyone. At this level, the User can create a User Profile, which is only stored in the UI store.
-At the Group level, the User also has a profile, which is linked to his profile at the Lobby level, but customized.
-As the User interacts with NDOs, as he created a new NDO or linked to an existing NDO from a group, the User's profile is distilled into an Agent, in the sense of Nondominium person, as implemented in the zome_person.
-Since NDOs are public and permissionless, private data related to the identity of the individual sits on the private chain (private person data). No personal information is revealed at the NDO level, only a number or address psedeunemously representing the individual can be seen. Access to personal data, for example data from PPR (Personal Participation Receipts) can be selectivelly accessed during interactions between Agents and Resources, which is used by the Governance zome for example. 
-At the Group level, since Groups can be invitation only and private, more personal information can be revealed, by the Group Governance, for example if the Group is a private one, if it represents a traditional organization, or if the Group members require a higher level of social integration, non-anonymous collaboration. But Groups where the anonymity of members are also possible, again, this is per Group culture and Governance.
->Todo update the `agent.md` foundational document with this info. Implement User Profile in Lobby with all possible fields, as optional: real name, address, description, email, phone number, etc. Only a nickname is required. The user can at any time update or complete the profile. As the user creates or joines a Group, he is prompted to chose how to present himself in that Group. A simple option is anonymous, where only a pseudonyme is filled. The user can also opt to chose or eliminate any other field from his profile. 
+**Implemented:**
+- **Group panel** (`/group/:id`): shows group name, list of NDO cards, and a "Create NDO" button
+- **Group profile prompt**: on first visit to a group the user is asked how they wish to present themselves (anonymous / custom); stored in `localStorage`
+- **NDO cards** in group: each card shows name, lifecycle-stage badge, property-regime badge, resource-nature badge, and description excerpt; clicking a card navigates to the NDO detail page
+- **Switching groups**: navigating from one group to another correctly reloads the group name and NDO list
+
+**Not yet implemented:**
+- Invite other users to a group (multi-member groups; sharing an invite link)
+- Displaying group members from DHT
+- Group-level governance
+
+---
+
+### NDO Creation
+
+NDOs can only be created from within a Group. The "Create NDO" button in a Group panel opens a creation form. NDO identity data is stored on the Holochain DHT as a `NondominiumIdentity` (Layer 0) entry; the `action_hash` of that entry is the NDO's permanent stable identity.
+
+**Implemented fields:**
+
+| Field | Control | Notes |
+|---|---|---|
+| `name` | text input | required; uniqueness warning shown if name already exists in the lobby |
+| `property_regime` | select | 4 variants: **Private**, **Commons**, **Nondominium**, **CommonPool**; tooltip per option |
+| `resource_nature` | select | 5 variants: Physical, Digital, Service, Hybrid, Information; tooltip per option |
+| `lifecycle_stage` | select | restricted to initial stages: Ideation, Specification, Development, Stable, Hibernating |
+| `description` | textarea | optional |
+
+> Note: the original spec listed 6 property-regime variants (including Collective and Pool) and 4 initial lifecycle stages (including Prototype). Both have been revised — see the Rust `PropertyRegime` enum and `LifecycleStage` for current canonical values.
+
+---
+
+### NDO View
+
+Clicking an NDO card navigates to `/ndo/:hash`.
+
+**Implemented:**
+- NDO name displayed in header (populated immediately from in-memory cache on card click; refreshed from DHT in the background)
+- Truncated hash shown below the name
+- **Detail card**: labeled fields for Description, Property Regime, Resource Nature, Lifecycle Stage, and Created date
+- **Identity badges**: lifecycle-stage color badge, property-regime badge, resource-nature badge
+- **Lifecycle transition button** (visible to NDO initiator only): advances the lifecycle stage
+- **Join NDO** button — placeholder; shows "Coming soon" tooltip; no backend call yet
+- **Associate with group** button — opens a modal listing the user's groups; the user can select one or more groups and the NDO hash is appended to their `ndoHashes` in `localStorage`
+- **Fork this NDO** button — opens the fork form; visible only when the Holochain conductor is connected
+- Tabs: Resources, Governance, Composition, Activity (stubs for post-MVP content)
+
+---
+
+### Browse NDOs
+
+**Implemented:**
+- "Browse NDOs" in sidebar → root page showing all unique NDOs from all groups the user has created or joined
+- Filter chips by Lifecycle Stage, Resource Nature, and Property Regime (4 variants)
+- NDO cards with name, badges, description excerpt, and truncated hash
+- "No NDOs yet" state when the user has no groups or no NDOs
+
+---
+
+### User / Agent Identity
+
+At the Lobby level the User can be anyone. At this level the User creates a Lobby Profile, stored in `localStorage`. At the Group level the User also has a profile, linked to the Lobby profile but customizable per group. As the User creates or links to an NDO, their identity is distilled into a Holochain Agent (as implemented in `zome_person`). Since NDOs are public and permissionless, no personal information is revealed at the NDO level — only a pseudonymous agent key address is shown. Access to personal data (e.g. PPR — Personal Participation Receipts) is selective and governed by the Governance zome.
+
+**Implemented:**
+- First-time Lobby profile modal: `nickname` required; `realName`, `bio`, `email` optional; stored in `localStorage`
+- "Edit profile" in sidebar for returning users
+- Group profile prompt on first group visit: user can choose how to present themselves (anonymous or with selected fields from their Lobby profile)
+- Agent public key shown on the NDO initiator line when Holochain is connected
+
+---
+
+### MVP ToDos
+
+1. **Multi-member groups — invite link**: implement invite-link generation and redemption so a group creator can share a link with other agents, who can then join the group and see its NDO list.
+
+2. **NDO fork friction**: the "Fork this NDO" button opens a form but currently has no governance friction. Per spec, forking should present a notice about negotiation, consensus, and eventual payment (Unyt integration); the MVP version should at minimum display this notice before proceeding.
+
+3. **Join NDO**: the "Join NDO" button is a placeholder ("Coming soon"). Define and implement the DHT-level action for an agent to register interest or membership in an existing NDO.
+
+4. **NDO detail page — DHT refresh reliability**: the NDO detail page seeds its display from an in-memory card cache and then attempts a background DHT refresh. The DHT refresh path (`getMyNdos` → `getAllNdos`) should be validated end-to-end; if it consistently fails, the root cause in `get_ndo` / `get_all_ndos` zome calls should be investigated.
+
+5. **Group member list**: the Group panel has a `MemberList` stub that currently shows an empty list. Implement fetching and displaying group members (requires the invite/join flow from ToDo 1).
+
+6. **Browse NDOs onboarding**: when the user has no groups, the NDO browser shows nothing. Add a visible call-to-action ("Create or join a group to see NDOs") to guide new users.
+
+7. **Update `agent.md`**: foundational document should be updated to reflect the three-tier identity model — Lobby profile (localStorage) → Group profile (localStorage, per-group) → DHT Agent (`zome_person`), including the pseudonymity guarantees at the NDO level.
 
 
 ## Post MVP
