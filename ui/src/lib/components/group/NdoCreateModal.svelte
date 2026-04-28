@@ -17,14 +17,7 @@
   let { onclose }: Props = $props();
 
   const initialStages: LifecycleStage[] = ['Ideation', 'Specification', 'Development', 'Stable', 'Hibernating'];
-  const allRegimes: PropertyRegime[] = [
-    'Private',
-    'Commons',
-    'Collective',
-    'Pool',
-    'CommonPool',
-    'Nondominium'
-  ];
+  const allRegimes: PropertyRegime[] = ['Private', 'Commons', 'Nondominium', 'CommonPool'];
   const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
 
   let name = $state('');
@@ -45,10 +38,8 @@
   const regimeTooltips: Record<PropertyRegime, string> = {
     Private: 'Owned and controlled by a single agent.',
     Commons: 'Shared, self-governed resource open to a defined community.',
-    Collective: 'Jointly owned by a defined group with shared governance.',
-    Pool: 'Resource pooled across agents, rules set by pool agreement.',
-    CommonPool: 'A commons with a defined boundary and subtractable access.',
-    Nondominium: 'Cannot be captured or exclusively owned; maximally open.'
+    Nondominium: 'Cannot be captured or exclusively owned; maximally open.',
+    CommonPool: 'A commons with a defined boundary and subtractable access.'
   };
 
   const natureTooltips: Record<ResourceNature, string> = {

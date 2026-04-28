@@ -186,23 +186,40 @@ export const NdoServiceLive: Layer.Layer<NdoServiceTag, never, ResourceServiceTa
 
       getNdoDescriptorForSpecActionHash: (hash) =>
         E.gen(function* () {
-          const listings = yield* resource.getAllResourceSpecifications();
-          const found = listings.find((l) => l.action_hash.toString() === hash.toString());
-          if (found) {
-            const ndosOut = yield* resource.getAllNdos();
-            const ndoByName = new Map<string, NondominiumIdentity>(
-              ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
-            );
-            return mapListingToDescriptor(found, ndoByName);
-          }
-          const ndosOut = yield* resource.getAllNdos();
-          const ndo = ndosOut.ndos.find(
-            (n: NdoOutput) => n.action_hash.toString() === hash.toString()
+          const hashB64 = encodeHashToBase64(hash);
+
+          // getMyNdos returns GetAllNdosOutput { ndos: NdoOutput[] } — the same shape
+          // getAllNdos uses, so deserialization is reliable. Check own NDOs first (fast path).
+          const myNdosOut = yield* resource.getMyNdos().pipe(
+            E.catchAll(() => E.succeed({ ndos: [] as NdoOutput[] }))
           );
-          if (ndo) {
-            return ndoOutputToIdentityDescriptor(ndo);
-          }
-          return yield* E.fail(new NdoNotFoundError({ hash: encodeHashToBase64(hash) }));
+          const myNdo = myNdosOut.ndos.find(
+            (n: NdoOutput) => encodeHashToBase64(n.action_hash) === hashB64
+          );
+          if (myNdo) return ndoOutputToIdentityDescriptor(myNdo);
+
+          // Fallback: fetch everything for NDOs created by other agents or old ResourceSpec flow
+          const [listings, ndosOut] = yield* E.all(
+            [resource.getAllResourceSpecifications(), resource.getAllNdos()],
+            { concurrency: 'unbounded' }
+          );
+          const ndoByName = new Map<string, NondominiumIdentity>(
+            ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
+          );
+
+          // Match by ResourceSpec action hash (old ResourceSpec-backed flow)
+          const foundSpec = listings.find(
+            (l) => encodeHashToBase64(l.action_hash) === hashB64
+          );
+          if (foundSpec) return mapListingToDescriptor(foundSpec, ndoByName);
+
+          // Match by Layer-0 action hash (new flow, any agent's NDO)
+          const foundNdo = ndosOut.ndos.find(
+            (n: NdoOutput) => encodeHashToBase64(n.action_hash) === hashB64
+          );
+          if (foundNdo) return ndoOutputToIdentityDescriptor(foundNdo);
+
+          return yield* E.fail(new NdoNotFoundError({ hash: hashB64 }));
         }),
 
       createNdo: (input, groupId) =>

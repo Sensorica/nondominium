@@ -39,14 +39,7 @@
     'EndOfLife'
   ];
   const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
-  const allRegimes: PropertyRegime[] = [
-    'Private',
-    'Commons',
-    'Collective',
-    'Pool',
-    'CommonPool',
-    'Nondominium'
-  ];
+  const allRegimes: PropertyRegime[] = ['Private', 'Commons', 'Nondominium', 'CommonPool'];
 
   const stageColors: Record<LifecycleStage, string> = {
     Ideation: 'bg-gray-100 text-gray-600 border-gray-300',
@@ -70,12 +63,10 @@
   };
 
   const regimeColors: Record<PropertyRegime, string> = {
-    Nondominium: 'bg-emerald-100 text-emerald-700 border-emerald-300',
+    Private: 'bg-gray-100 text-gray-600 border-gray-300',
     Commons: 'bg-cyan-100 text-cyan-700 border-cyan-300',
-    Collective: 'bg-violet-100 text-violet-700 border-violet-300',
-    Pool: 'bg-amber-100 text-amber-700 border-amber-300',
-    CommonPool: 'bg-rose-100 text-rose-700 border-rose-300',
-    Private: 'bg-gray-100 text-gray-600 border-gray-300'
+    Nondominium: 'bg-emerald-100 text-emerald-700 border-emerald-300',
+    CommonPool: 'bg-rose-100 text-rose-700 border-rose-300'
   };
 
   function toggleStage(s: LifecycleStage) {

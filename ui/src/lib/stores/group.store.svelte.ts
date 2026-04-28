@@ -24,6 +24,7 @@ export type GroupStore = {
   readonly errorMessage: string | null;
   loadGroupData: (groupId: string) => Promise<void>;
   createNdo: (input: NdoInput) => Promise<string | null>;
+  associateNdoWithGroup: (ndoHashB64: string, targetGroupId: string) => void;
 };
 
 function createGroupStore(): GroupStore {
@@ -89,6 +90,25 @@ function createGroupStore(): GroupStore {
     }
   }
 
+  function associateNdoWithGroup(ndoHashB64: string, targetGroupId: string): void {
+    try {
+      const raw = localStorage.getItem(GROUPS_KEY);
+      const groups: GroupDescriptor[] = raw ? (JSON.parse(raw) as GroupDescriptor[]) : [];
+      const idx = groups.findIndex((g) => g.id === targetGroupId);
+      if (idx === -1) return;
+      const existing = (groups[idx].ndoHashes ?? []) as string[];
+      if (!existing.includes(ndoHashB64)) {
+        groups[idx] = { ...groups[idx], ndoHashes: [...existing, ndoHashB64] } as GroupDescriptor;
+        localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+        if (currentGroupId === targetGroupId) {
+          void loadGroupData(targetGroupId);
+        }
+      }
+    } catch {
+      // silently ignore localStorage errors
+    }
+  }
+
   return {
     get groupNdos() {
       return groupNdos;
@@ -103,7 +123,8 @@ function createGroupStore(): GroupStore {
       return errorMessage;
     },
     loadGroupData,
-    createNdo
+    createNdo,
+    associateNdoWithGroup
   };
 }
 
