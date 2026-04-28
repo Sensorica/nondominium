@@ -16,6 +16,7 @@ import type {
   GetAllNdosOutput,
   NdoInput,
   NdoOutput,
+  NondominiumIdentity,
   UpdateLifecycleStageInput,
   NdoTransitionHistoryEvent,
   LifecycleStage,
@@ -67,7 +68,7 @@ export interface ResourceService {
   deleteResourceSpecification: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
   archiveEconomicResource: (hash: ActionHash) => E.Effect<ActionHash, ResourceError>;
   createNdo: (input: NdoInput) => E.Effect<NdoOutput, ResourceError>;
-  getNdo: (hash: ActionHash) => E.Effect<NdoOutput, ResourceError>;
+  getNdo: (hash: ActionHash) => E.Effect<NondominiumIdentity | null, ResourceError>;
   updateLifecycleStage: (input: UpdateLifecycleStageInput) => E.Effect<ActionHash, ResourceError>;
   getMyNdos: () => E.Effect<GetAllNdosOutput, ResourceError>;
   getNdosByLifecycleStage: (stage: LifecycleStage) => E.Effect<GetAllNdosOutput, ResourceError>;
@@ -240,7 +241,7 @@ export const ResourceServiceLive: Layer.Layer<
         wz<NdoOutput>('create_ndo', input, RESOURCE_CONTEXTS.CREATE_NDO),
 
       getNdo: (hash) =>
-        wz<NdoOutput>('get_ndo', hash, RESOURCE_CONTEXTS.GET_NDO),
+        wz<NondominiumIdentity | null>('get_ndo', hash, RESOURCE_CONTEXTS.GET_NDO),
 
       updateLifecycleStage: (input) =>
         wz<ActionHash>('update_lifecycle_stage', input, RESOURCE_CONTEXTS.UPDATE_LIFECYCLE_STAGE),

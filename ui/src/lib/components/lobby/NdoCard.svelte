@@ -1,11 +1,19 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import type { NdoDescriptor } from '@nondominium/shared-types';
+  import { ndoDescriptorCache } from '$lib/stores/ndo-cache';
 
   interface Props {
     descriptor: NdoDescriptor;
   }
 
   let { descriptor }: Props = $props();
+
+  function navigate(e: MouseEvent) {
+    e.preventDefault();
+    ndoDescriptorCache.set(descriptor.hash, descriptor);
+    void goto(`/ndo/${encodeURIComponent(descriptor.hash)}`);
+  }
 
   const activeStages = new Set(['Active', 'Stable', 'Distributed', 'Development', 'Prototype']);
 
@@ -32,6 +40,7 @@
 
 <a
   href="/ndo/{encodeURIComponent(descriptor.hash)}"
+  onclick={navigate}
   class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
 >
   <div class="mb-2 flex flex-wrap items-center gap-2">

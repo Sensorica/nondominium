@@ -33,12 +33,10 @@
   };
 
   const regimeColorMap: Record<string, string> = {
-    Nondominium: 'bg-emerald-100 text-emerald-700',
+    Private: 'bg-gray-100 text-gray-600',
     Commons: 'bg-cyan-100 text-cyan-700',
-    Collective: 'bg-violet-100 text-violet-700',
-    Pool: 'bg-amber-100 text-amber-700',
-    CommonPool: 'bg-rose-100 text-rose-700',
-    Private: 'bg-gray-100 text-gray-600'
+    Nondominium: 'bg-emerald-100 text-emerald-700',
+    CommonPool: 'bg-rose-100 text-rose-700'
   };
 
   const natureColorMap: Record<string, string> = {

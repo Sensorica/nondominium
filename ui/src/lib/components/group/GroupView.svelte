@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { GroupMemberProfile } from '@nondominium/shared-types';
   import { appContext } from '$lib/stores/app.context.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
@@ -57,21 +56,18 @@
     markVisited(groupId);
   }
 
-  onMount(() => {
+  $effect(() => {
     appContext.currentView = 'group';
     appContext.selectedGroupId = groupId;
     void groupStore.loadGroupData(groupId);
     if (!hasVisited(groupId)) {
       showProfileModal = true;
     }
-    if (autoOpenCreateModal) {
-      showCreateModal = true;
-    }
   });
 
   $effect(() => {
-    if (groupId) {
-      appContext.selectedGroupId = groupId;
+    if (autoOpenCreateModal) {
+      showCreateModal = true;
     }
   });
 </script>

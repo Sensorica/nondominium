@@ -167,10 +167,8 @@ export interface NdoTransitionHistoryEvent {
 export type PropertyRegime =
   | "Private"
   | "Commons"
-  | "Collective"
-  | "Pool"
-  | "CommonPool"
-  | "Nondominium";
+  | "Nondominium"
+  | "CommonPool";
 
 export type ResourceNature =
   | "Physical"
