@@ -18,8 +18,7 @@ a fabrication queue) would require modifying the core NDO entry type. With capab
 - External hApps can attach to any NDO without coordination
 - The NDO system never needs to anticipate specific governance tools
 - The system's actual capability space is richer than its source code describes
-- Follows Benkler's P2P information advantage: richer coordination than any central authority
-  could design
+- Follows Benkler's P2P information advantage: richer coordination than any central authority could design
 
 ## Slot Structure (Planned, not yet implemented in MVP)
 
