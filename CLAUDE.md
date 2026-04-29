@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Use as reference the following foundatonal documents: 
+* @pai/TELOS.md
 * @documentation/requirements/requirements.md 
 * @documentation/requirements/agent.md
 * @documentation/requirements/resources.md

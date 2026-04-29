@@ -51,6 +51,23 @@ nondominium implements a modular governance-as-operator architecture that separa
 
 **Documentation map:** See [documentation/DOCUMENTATION_INDEX.md](documentation/DOCUMENTATION_INDEX.md). Post-MVP **NDO** model and optional **Unyt** / **Flowsta** integrations are specified in [documentation/requirements/ndo_prima_materia.md](documentation/requirements/ndo_prima_materia.md) and the stubs under [documentation/requirements/post-mvp/](documentation/requirements/post-mvp/).
 
+## AI Tooling
+
+Nondominium supports two AI coding assistants out of the box.
+
+**Claude Code** — Configured via `.claude/`. A `SessionStart` hook loads the project TELOS
+and six requirements/specification documents as session context. A Holochain-specific skill
+(`holochain-agent-skill`) and a Nondominium-domain skill (`nondominium-domain`) are available.
+
+**Cursor** — Rules are generated automatically when you enter `nix develop`. The `pai/`
+directory contains source files for both tools:
+- `pai/TELOS.md` — Project purpose, philosophy, and operating principles
+- `pai/conventions.md` — Coding conventions, branch model, PR checklist
+- `pai/cursor-rules/` — Architecture, Rust, Svelte, and test patterns (Cursor-specific)
+
+To update rules after editing `pai/` files: re-enter `nix develop`. The `.cursor/`
+directory is gitignored and generated fresh each session.
+
 ## Environment Setup
 
 > **PREREQUISITE**: Set up the [Holochain development environment](https://developer.holochain.org/docs/install/).
