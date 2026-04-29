@@ -42,13 +42,14 @@
           rsync -a --delete ${cursorPAI}/ .cursor/rules/
           chmod -R u+w .cursor 2>/dev/null || true
 
-          # Materialize Open Agent Skills (.agents/skills/ — primary discovery path
-          # for Cursor, VS Code Copilot, and all Open Agent Skill compatible editors)
-          mkdir -p .agents/skills
+          # Materialize Open Agent Skills into both Cursor-native and editor-agnostic paths
+          mkdir -p .cursor/skills .agents/skills
           if [ -d ".claude/skills/holochain-agent-skill" ]; then
+            rsync -a --delete .claude/skills/holochain-agent-skill/ .cursor/skills/holochain/
             rsync -a --delete .claude/skills/holochain-agent-skill/ .agents/skills/holochain/
           fi
           if [ -d ".claude/skills/nondominium-domain" ]; then
+            rsync -a --delete .claude/skills/nondominium-domain/ .cursor/skills/nondominium-domain/
             rsync -a --delete .claude/skills/nondominium-domain/ .agents/skills/nondominium-domain/
           fi
         '';
