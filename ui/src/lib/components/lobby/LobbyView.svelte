@@ -6,6 +6,7 @@
   $effect(() => {
     appContext.myPerson = lobbyStore.myPerson;
     appContext.currentView = 'lobby';
+    void lobbyStore.loadNdos();
   });
 </script>
 
