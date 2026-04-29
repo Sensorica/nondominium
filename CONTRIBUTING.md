@@ -161,7 +161,7 @@ Running `nix develop` materializes two AI asset directories (both gitignored):
 
 | Source | Drives | When to edit |
 |---|---|---|
-| `pai/TELOS.md` | `.cursor/rules/00-telos.mdc` + Claude Code session context | Project purpose / operating principles changed |
+| `documentation/TELOS.md` | `.cursor/rules/00-telos.mdc` + Claude Code session context | Project purpose / operating principles changed |
 | `pai/conventions.md` | `.cursor/rules/10-conventions.mdc` | Coding/process conventions changed |
 | `pai/cursor-rules/*.md` | `.cursor/rules/20-50-*.mdc` | Architecture, Rust, Svelte, or test patterns changed |
 | `.claude/skills/nondominium-domain/` | `.agents/skills/nondominium-domain/` + Claude Code | NDO domain knowledge updated (no rebuild needed) |

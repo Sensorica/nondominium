@@ -29,6 +29,7 @@ bun install              # Install dependencies
 
 **Key Documentation:**
 
+- [🎯 TELOS](TELOS.md) - Project vision, mission, philosophy, and AI operating principles
 - [📋 Main README](../README.md) - Complete project overview & setup guide
 - [🔧 Development Environment](../CLAUDE.md) - Development patterns & commands
 

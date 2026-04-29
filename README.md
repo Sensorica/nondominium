@@ -75,7 +75,7 @@ primary discovery path) on every `nix develop`. `.agents/` is gitignored.
 | `50-tests` | `dnas/**/tests/**/*.rs` | Sweettest setup, multi-agent DHT sync |
 
 **Source files** (edit these; tools update on next `nix develop`):
-- `pai/TELOS.md` — Project purpose and operating principles
+- `documentation/TELOS.md` — Project purpose and operating principles
 - `pai/conventions.md` — Coding and process conventions
 - `pai/cursor-rules/` — Architecture, Rust, Svelte, test patterns
 - `.claude/skills/nondominium-domain/` — Claude Code skill (no rebuild needed)
