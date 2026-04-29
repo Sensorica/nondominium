@@ -151,6 +151,23 @@ Tibi: standard `git checkout` workflow works fine — worktrees are optional.
 
 ---
 
+## AI Tooling Conventions
+
+The `pai/` directory contains source files for AI assistant context:
+
+- **`pai/TELOS.md`** — Loaded into Claude Code sessions at startup (via `.claude/hooks/`) and
+  compiled into Cursor's `00-telos.mdc` rule on `nix develop`. Edit here; both tools update.
+- **`pai/conventions.md`** — Same dual-source pattern for coding conventions.
+- **`pai/cursor-rules/*.md`** — Cursor-only source files (architecture, Rust, Svelte, tests).
+  Updated on next `nix develop`.
+- **`.claude/skills/nondominium-domain/*.md`** — Claude Code skill files. No rebuild needed;
+  Claude reads them directly.
+
+When editing any file in `pai/`: run `nix develop` (or `exit` and re-enter) to materialize
+updated Cursor rules into `.cursor/rules/`. The `.cursor/` directory is gitignored.
+
+---
+
 ## Questions?
 
 Open an issue or ping in the team channel.
