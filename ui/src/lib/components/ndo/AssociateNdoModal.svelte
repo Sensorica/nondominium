@@ -27,6 +27,7 @@
     for (const gid of selected) {
       groupStore.associateNdoWithGroup(ndoHashB64, gid);
     }
+    void lobbyStore.loadNdos();
     saved = true;
     setTimeout(onclose, 600);
   }

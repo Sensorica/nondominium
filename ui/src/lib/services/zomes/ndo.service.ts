@@ -238,46 +238,61 @@ export const NdoServiceLive: Layer.Layer<NdoServiceTag, never, ResourceServiceTa
         E.gen(function* () {
           const { ndoHashes } = getGroupData(groupId);
           if (ndoHashes.length === 0) return [];
-          const groupSet = new Set(ndoHashes);
 
-          const [listings, ndosOut] = yield* E.all(
-            [resource.getAllResourceSpecifications(), resource.getAllNdos()],
-            { concurrency: 'unbounded' }
+          // getMyNdos reads from the agent's own source chain — guaranteed to
+          // include NDOs created by this agent regardless of DHT anchor timing.
+          const myNdosOut = yield* resource.getMyNdos().pipe(
+            E.catchAll(() => E.succeed({ ndos: [] as NdoOutput[] }))
+          );
+          const myNdoByHashB64 = new Map(
+            myNdosOut.ndos.map((n: NdoOutput) => [encodeHashToBase64(n.action_hash), n])
           );
 
-          const ndoIdentityB64ByName = new Map(
-            ndosOut.ndos.map((n: NdoOutput) => [
-              n.entry.name,
-              encodeHashToBase64(n.action_hash)
-            ])
-          );
-          const ndoByActionHashB64 = new Map(
-            ndosOut.ndos.map((n: NdoOutput) => [encodeHashToBase64(n.action_hash), n])
-          );
-          const ndoByName = new Map<string, NondominiumIdentity>(
-            ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
-          );
+          const seen = new Set<string>();
+          const descriptors: NdoDescriptor[] = [];
 
-          const fromSpecs = listings
-            .filter((listing) => {
-              const idB64 = ndoIdentityB64ByName.get(listing.specification.name);
-              return idB64 !== undefined && groupSet.has(idB64);
-            })
-            .map((listing) => mapListingToDescriptor(listing, ndoByName));
-
-          const coveredNames = new Set(fromSpecs.map((d) => d.name));
-
-          const orphans: NdoDescriptor[] = [];
-          for (const hb64 of groupSet) {
-            const ndo = ndoByActionHashB64.get(hb64);
-            if (!ndo) continue;
-            if (!coveredNames.has(ndo.entry.name)) {
-              orphans.push(ndoOutputToIdentityDescriptor(ndo));
-              coveredNames.add(ndo.entry.name);
+          for (const hb64 of ndoHashes) {
+            const ndo = myNdoByHashB64.get(hb64);
+            if (ndo && !seen.has(hb64)) {
+              seen.add(hb64);
+              descriptors.push(ndoOutputToIdentityDescriptor(ndo));
             }
           }
 
-          return [...fromSpecs, ...orphans];
+          // For hashes not found in own NDOs (NDOs from other agents associated
+          // to this group via the "Associate with group" flow), fall back to the
+          // DHT-wide scan so associated NDOs from peers also appear.
+          const unresolved = ndoHashes.filter((h) => !seen.has(h));
+          if (unresolved.length > 0) {
+            const unresolvedSet = new Set(unresolved);
+            const [listings, ndosOut] = yield* E.all(
+              [resource.getAllResourceSpecifications(), resource.getAllNdos()],
+              { concurrency: 'unbounded' }
+            );
+            const ndoByHashB64 = new Map(
+              ndosOut.ndos.map((n: NdoOutput) => [encodeHashToBase64(n.action_hash), n])
+            );
+            const ndoByName = new Map<string, NondominiumIdentity>(
+              ndosOut.ndos.map((n: NdoOutput) => [n.entry.name, n.entry])
+            );
+
+            for (const hb64 of unresolvedSet) {
+              const ndo = ndoByHashB64.get(hb64);
+              if (ndo && !seen.has(hb64)) {
+                seen.add(hb64);
+                descriptors.push(ndoOutputToIdentityDescriptor(ndo));
+                continue;
+              }
+              // Legacy: hash may be a ResourceSpec action hash
+              const spec = listings.find((l) => encodeHashToBase64(l.action_hash) === hb64);
+              if (spec && !seen.has(hb64)) {
+                seen.add(hb64);
+                descriptors.push(mapListingToDescriptor(spec, ndoByName));
+              }
+            }
+          }
+
+          return descriptors;
         })
     } satisfies NdoService;
   })

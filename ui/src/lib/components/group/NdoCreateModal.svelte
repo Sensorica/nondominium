@@ -17,7 +17,7 @@
 
   let { groupId, onclose }: Props = $props();
 
-  const initialStages: LifecycleStage[] = ['Ideation', 'Specification', 'Development', 'Stable', 'Hibernating'];
+  const initialStages: LifecycleStage[] = ['Ideation', 'Specification', 'Development', 'Prototype'];
   const allRegimes: PropertyRegime[] = ['Private', 'Commons', 'Nondominium', 'CommonPool'];
   const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
 

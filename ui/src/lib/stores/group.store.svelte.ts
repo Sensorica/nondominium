@@ -100,9 +100,7 @@ function createGroupStore(): GroupStore {
       if (!existing.includes(ndoHashB64)) {
         groups[idx] = { ...groups[idx], ndoHashes: [...existing, ndoHashB64] } as GroupDescriptor;
         localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
-        if (currentGroupId === targetGroupId) {
-          void loadGroupData(targetGroupId);
-        }
+        void loadGroupData(targetGroupId);
       }
     } catch {
       // silently ignore localStorage errors
