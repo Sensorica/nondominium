@@ -2,6 +2,3 @@
 	path = vendor/hrea
 	url = git@github.com:Sensorica/hREA.git
 	branch = main-0.6
-[submodule ".claude/skills/holochain-agent-skill"]
-	path = .claude/skills/holochain-agent-skill
-	url = git@github.com:Soushi888/holochain-agent-skill.git
