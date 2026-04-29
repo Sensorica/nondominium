@@ -53,20 +53,32 @@ nondominium implements a modular governance-as-operator architecture that separa
 
 ## AI Tooling
 
-Nondominium supports two AI coding assistants out of the box.
+Nondominium supports Claude Code, Cursor, VS Code Copilot, and any
+[Open Agent Skill](https://agentskills.io)-compatible editor out of the box.
+All AI assets are generated automatically when you run `nix develop`.
 
-**Claude Code** — Configured via `.claude/`. A `SessionStart` hook loads the project TELOS
-and six requirements/specification documents as session context. A Holochain-specific skill
-(`holochain-agent-skill`) and a Nondominium-domain skill (`nondominium-domain`) are available.
+**Skills** (Open Agent Skill format — progressively disclosed on activation):
+- `holochain` — Holochain HDK patterns, architecture, testing, TypeScript client
+- `nondominium-domain` — NDO three-layer model, PPR system, capability slots, ValueFlows alignment
 
-**Cursor** — Rules are generated automatically when you enter `nix develop`. The `pai/`
-directory contains source files for both tools:
-- `pai/TELOS.md` — Project purpose, philosophy, and operating principles
-- `pai/conventions.md` — Coding conventions, branch model, PR checklist
-- `pai/cursor-rules/` — Architecture, Rust, Svelte, and test patterns (Cursor-specific)
+Skills are materialized from `.claude/skills/` into `.agents/skills/` (the editor-agnostic
+primary discovery path) on every `nix develop`. `.agents/` is gitignored.
 
-To update rules after editing `pai/` files: re-enter `nix develop`. The `.cursor/`
-directory is gitignored and generated fresh each session.
+**Cursor rules** (always-loaded project context, generated from `pai/`):
+| Rule | Scope | Content |
+|---|---|---|
+| `00-telos` | always | Project TELOS — vision, philosophy, AI operating principles |
+| `10-conventions` | always | Branch model, commits, Rust/TS/Svelte conventions |
+| `20-architecture` | always | Three-zome structure, NDO layers, lifecycle state machine |
+| `30-rust-zomes` | `**/*.rs` | HDK entry patterns, cross-zome calls, validation |
+| `40-svelte-ui` | `**/*.svelte` | Svelte 5 runes, UnoCSS, Effect-TS patterns |
+| `50-tests` | `dnas/**/tests/**/*.rs` | Sweettest setup, multi-agent DHT sync |
+
+**Source files** (edit these; tools update on next `nix develop`):
+- `pai/TELOS.md` — Project purpose and operating principles
+- `pai/conventions.md` — Coding and process conventions
+- `pai/cursor-rules/` — Architecture, Rust, Svelte, test patterns
+- `.claude/skills/nondominium-domain/` — Claude Code skill (no rebuild needed)
 
 ## Environment Setup
 

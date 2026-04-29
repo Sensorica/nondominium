@@ -153,18 +153,23 @@ Tibi: standard `git checkout` workflow works fine — worktrees are optional.
 
 ## AI Tooling Conventions
 
-The `pai/` directory contains source files for AI assistant context:
+Running `nix develop` materializes two AI asset directories (both gitignored):
+- `.cursor/rules/` — Cursor always-loaded rules from `pai/`
+- `.agents/skills/` — Open Agent Skills for Cursor, VS Code Copilot, and compatible editors
 
-- **`pai/TELOS.md`** — Loaded into Claude Code sessions at startup (via `.claude/hooks/`) and
-  compiled into Cursor's `00-telos.mdc` rule on `nix develop`. Edit here; both tools update.
-- **`pai/conventions.md`** — Same dual-source pattern for coding conventions.
-- **`pai/cursor-rules/*.md`** — Cursor-only source files (architecture, Rust, Svelte, tests).
-  Updated on next `nix develop`.
-- **`.claude/skills/nondominium-domain/*.md`** — Claude Code skill files. No rebuild needed;
-  Claude reads them directly.
+### Source files and what they drive
 
-When editing any file in `pai/`: run `nix develop` (or `exit` and re-enter) to materialize
-updated Cursor rules into `.cursor/rules/`. The `.cursor/` directory is gitignored.
+| Source | Drives | When to edit |
+|---|---|---|
+| `pai/TELOS.md` | `.cursor/rules/00-telos.mdc` + Claude Code session context | Project purpose / operating principles changed |
+| `pai/conventions.md` | `.cursor/rules/10-conventions.mdc` | Coding/process conventions changed |
+| `pai/cursor-rules/*.md` | `.cursor/rules/20-50-*.mdc` | Architecture, Rust, Svelte, or test patterns changed |
+| `.claude/skills/nondominium-domain/` | `.agents/skills/nondominium-domain/` + Claude Code | NDO domain knowledge updated (no rebuild needed) |
+| `.claude/skills/holochain-agent-skill/` | `.agents/skills/holochain/` | Submodule update only — don't edit directly |
+
+After editing any `pai/` file: `exit` the nix shell and `nix develop` to regenerate.
+Skill changes (`.claude/skills/nondominium-domain/`) take effect immediately in Claude Code.
+The `.cursor/` and `.agents/` directories are gitignored.
 
 ---
 
