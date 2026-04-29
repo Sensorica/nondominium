@@ -175,7 +175,7 @@ The most significant architectural change. Replaces the flat `ResourceSpecificat
 - **Layer 1 — ResourceSpecification** (activated by `NDOToSpecification` link): The form of the resource — design, governance rules, assets, digital integrity manifests. Activated when the resource has a form worth sharing.
 - **Layer 2 — Process** (activated by `NDOToProcess` link): The activity around the resource — EconomicEvents, Commitments, Claims, PPRs. Activated when multi-agent coordination begins.
 
-This model directly implements the complexity matching principle: coordination overhead grows with actual social complexity, not at resource creation. The three-layer structure is also used for collective agent identities (organisations, projects, working groups) — see `agent.md §3.1` for the Agent-as-NDO pattern.
+This model directly implements the complexity matching principle: coordination overhead grows with actual social complexity, not at resource creation. The three-layer structure describes the **resource face** of any entity — including collective entities. When a collective (project-organisation, cooperative, network) has an associated NDO, that NDO is its digital twin as a Resource: its permanent identity, lifecycle, specification, and governance. The collective also has an **agent face** (`AgentContext`) through which it participates in economic events. These are distinct — see `agent.md §3.1` for the dual-face model.
 
 ### 3.2 Property Regime and Resource Nature
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import '../app.css';
   import 'virtual:uno.css';
   import favicon from '$lib/assets/favicon.svg';
@@ -13,8 +12,13 @@
   let { children } = $props();
 
   let showProfileModal = $state(false);
+  let profileCheckDone = $state(false);
 
-  onMount(() => {
+  // Only run after Holochain connection is established, not on first mount.
+  $effect(() => {
+    if (!holochainClientService.isConnected || profileCheckDone) return;
+    profileCheckDone = true;
+
     void (async () => {
       try {
         appContext.myAgentPubKey = await holochainClientService.getMyAgentPubKey();
@@ -34,15 +38,14 @@
   <title>Nondominium - ValueFlows Resource Sharing</title>
 </svelte:head>
 
-{#if showProfileModal}
-  <UserProfileForm
-    mode="modal"
-    onclose={() => { showProfileModal = false; }}
-    onsave={() => { showProfileModal = false; }}
-  />
-{/if}
-
 <HolochainProvider autoConnect={true}>
+  {#if showProfileModal}
+    <UserProfileForm
+      mode="modal"
+      onclose={() => { showProfileModal = false; }}
+      onsave={() => { showProfileModal = false; }}
+    />
+  {/if}
   <AppShell>
     {@render children()}
   </AppShell>
