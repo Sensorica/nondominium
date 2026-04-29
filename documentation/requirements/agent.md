@@ -256,19 +256,36 @@ This is a forward-looking implementation: one person may use Nondominium from a 
 
 ## 3. Post-MVP Roadmap
 
-### 3.1 Agent as NDO
+### 3.1 Collective Agents and Their Digital Twins
 
-The most elegant solution to the missing collective agent type is architectural: **an organisation, project, or working group is itself an NDO**. The NDO's three-layer structure (Identity + Specification + Process) maps naturally to a collective agent:
+A collective entity — a project-as-organisation, a cooperative, an open value network — has **two distinct ontological faces** in the Nondominium model. These faces are different roles the same real-world entity plays, and they must not be collapsed into one.
 
-- NDO **Identity layer** = the organisation's public identity (name, mission, membership anchor)
-- NDO **Specification layer** = the organisation's capabilities and resource access agreements
-- NDO **Process layer** = the organisation's active commitments and economic events
+**The agent face** is the `AgentContext` carrying the relevant `AgentEntityType` variant (`Collective`, `Project`, `Network`). Through this face the collective participates in economic events as provider or receiver, holds commitments, accumulates reputation, and may be the `primary_accountable` on shared resources. Collective agents of this kind are **composed agents** or **group agents**: their actions may require N-of-M authorisation from individual member agents (multi-signature pattern — forward design, post-MVP). This is how REA-ontology-compliant collective economic agency works — it is distinct from the physical thing the collective creates or represents.
 
-An individual agent can hold a `PersonRole` in both their own profile and in an organisational NDO's governance. Cross-agent capability grants enable the organisational NDO to act on behalf of its members (with appropriate authorisation).
+**The resource face** is the `NondominiumIdentity` — the collective's digital twin as a Nondominium Object. NDOs are Resources, and the resource face of a collective carries its permanent identity anchor, property regime, lifecycle stage, specification (what the collective IS — its mission, assets, rules of participation), and governance rules (how agents interact with it). The resource face does not have agency; it records which agents are associated and under what terms.
 
-This means the generic NDO's agent model does not need a separate "organisation agent" type — it needs organisational NDOs and a clear mapping between individual agents and the NDOs they participate in.
+The `ActionHash` inside `AgentEntityType::Project(ActionHash)` and `AgentEntityType::Network(ActionHash)` **links the agent face to the resource face**: it points to the `NondominiumIdentity` that is the collective's digital twin. The two faces are thus connected by this hash reference.
 
-Agent-NDOs use the same three-layer structure as resource-NDOs (see `resources.md §3.1`) but may use a subset of `LifecycleStage` values — a working group does not go through `Prototype` or `Distributed`, for example. The `PropertyRegime` and `ResourceNature` fields on `NondominiumIdentity` remain applicable: a working group's shared knowledge base is a `Commons`/`Digital` NDO; a collectively owned workshop is a `Collective`/`Physical` NDO.
+| | Agent face | Resource face |
+|---|---|---|
+| Entry type | `AgentContext` | `NondominiumIdentity` |
+| Role in economic events | Provider / receiver | — (no agency) |
+| Accumulates | Reputation (PPRs, EconomicEvents) | Contribution records (individual agents who contributed) |
+| Can hold custody | Yes — via `AgentContext` as `primary_accountable` | No |
+| Has lifecycle/spec/governance | — | Yes — LifecycleStage, ResourceSpecification, GovernanceRules |
+| Permanent / immutable | No | Yes — NondominiumIdentity is permanent |
+
+An individual agent can hold a `PersonRole` in both their own profile and in a collective's governance. Cross-agent capability grants enable a collective's `AgentContext` to act on behalf of its members (with appropriate authorisation).
+
+A `Collective(String)` agent (e.g. a working group or committee) may not yet have an associated NDO — its agent face exists independently of any resource face. Attaching a resource face (creating an associated `NondominiumIdentity`) is optional and done when the collective's digital representation as a Resource becomes useful.
+
+When a collective does have an associated NDO, the NDO's three-layer structure (Identity + Specification + Process) applies **to the collective's resource face** — not to the collective as an agent:
+
+- NDO **Identity layer** = the collective's permanent identity anchor (name, regime, nature, creation record)
+- NDO **Specification layer** = the collective's documented form (mission, assets, governance rules for how agents interact with it)
+- NDO **Process layer** = the economic activity *around* the collective as a resource (contributions, agreements, events involving the collective-as-resource)
+
+The NDO may use a subset of `LifecycleStage` values — a working group does not go through `Prototype` or `Distributed`. The `PropertyRegime` and `ResourceNature` fields on `NondominiumIdentity` remain applicable to the collective's resource face: a working group's shared knowledge base is a `Commons`/`Digital` NDO; a collectively owned workshop is a `Collective`/`Physical` NDO.
 
 ### 3.2 CapabilitySlot on Agent Identity
 

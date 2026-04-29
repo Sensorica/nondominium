@@ -11,10 +11,11 @@
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
 
   interface Props {
+    groupId: string;
     onclose: () => void;
   }
 
-  let { onclose }: Props = $props();
+  let { groupId, onclose }: Props = $props();
 
   const initialStages: LifecycleStage[] = ['Ideation', 'Specification', 'Development', 'Stable', 'Hibernating'];
   const allRegimes: PropertyRegime[] = ['Private', 'Commons', 'Nondominium', 'CommonPool'];
@@ -68,7 +69,7 @@
     isSubmitting = false;
     if (hashB64) {
       onclose();
-      await goto(`/ndo/${encodeURIComponent(hashB64)}`);
+      await goto(`/group/${encodeURIComponent(groupId)}`);
     } else {
       errorMessage = groupStore.errorMessage ?? 'Failed to create NDO.';
     }

@@ -1,7 +1,8 @@
 <script lang="ts">
-  import type { GroupMemberProfile } from '@nondominium/shared-types';
+  import type { GroupMemberProfile, LifecycleStage, NdoDescriptor, PropertyRegime, ResourceNature } from '@nondominium/shared-types';
   import { appContext } from '$lib/stores/app.context.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
+  import type { ActiveFilters } from '$lib/stores/lobby.store.svelte';
   import NdoBrowser from '$lib/components/lobby/NdoBrowser.svelte';
   import NdoCreateModal from './NdoCreateModal.svelte';
   import GroupProfileModal from './GroupProfileModal.svelte';
@@ -13,6 +14,44 @@
   }
 
   let { groupId, autoOpenCreateModal = false }: Props = $props();
+
+  let activeFilters = $state<ActiveFilters>({ stages: [], natures: [], regimes: [] });
+
+  function setFilters(partial: Partial<ActiveFilters>): void {
+    activeFilters = { ...activeFilters, ...partial };
+  }
+
+  function clearFilters(): void {
+    activeFilters = { stages: [], natures: [], regimes: [] };
+  }
+
+  const members = $derived.by(() => {
+    const creatorName = groupStore.group?.createdBy;
+    const myNickname = appContext.lobbyUserProfile?.nickname;
+    const result: { id: string; name: string; role?: string }[] = [];
+
+    if (creatorName) {
+      result.push({ id: `creator-${groupId}`, name: creatorName, role: 'Creator' });
+    }
+
+    if (myNickname && myNickname !== creatorName) {
+      result.push({ id: `me-${groupId}`, name: myNickname, role: 'Member' });
+    }
+
+    return result;
+  });
+
+  const filteredNdos = $derived.by(() => {
+    const { stages, natures, regimes } = activeFilters;
+    const noFilter = stages.length === 0 && natures.length === 0 && regimes.length === 0;
+    if (noFilter) return groupStore.groupNdos;
+    return groupStore.groupNdos.filter((d: NdoDescriptor) => {
+      const stageOk = stages.length === 0 || (d.lifecycle_stage !== null && stages.includes(d.lifecycle_stage as LifecycleStage));
+      const natureOk = natures.length === 0 || (d.resource_nature !== null && natures.includes(d.resource_nature as ResourceNature));
+      const regimeOk = regimes.length === 0 || (d.property_regime !== null && regimes.includes(d.property_regime as PropertyRegime));
+      return stageOk && natureOk && regimeOk;
+    });
+  });
 
   let showCreateModal = $state(false);
   let showProfileModal = $state(false);
@@ -73,7 +112,7 @@
 </script>
 
 {#if showCreateModal}
-  <NdoCreateModal onclose={() => { showCreateModal = false; }} />
+  <NdoCreateModal {groupId} onclose={() => { showCreateModal = false; }} />
 {/if}
 
 {#if showProfileModal}
@@ -110,12 +149,15 @@
 
   <!-- Group-scoped NDO browser -->
   <NdoBrowser
-    descriptors={groupStore.groupNdos}
+    descriptors={filteredNdos}
+    {activeFilters}
+    onfilterchange={(f) => setFilters(f)}
+    onclearfilters={() => clearFilters()}
     isLoading={groupStore.isLoading}
   />
 
   <!-- Member list stub -->
   <div class="mt-6">
-    <MemberList members={[]} />
+    <MemberList {members} />
   </div>
 </div>
