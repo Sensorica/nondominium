@@ -14,7 +14,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(__dirname, "../..");
 
 const DOCS = [
-  "pai/TELOS.md",
+  "documentation/TELOS.md",
   "documentation/requirements/requirements.md",
   "documentation/requirements/agent.md",
   "documentation/requirements/resources.md",
