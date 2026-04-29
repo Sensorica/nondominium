@@ -12,7 +12,7 @@ ValueFlows defines three ontology layers. Nondominium uses all three:
 | **Plan** | Intent | `Commitment` |
 | **Observation** | What happened | `EconomicEvent`, `Claim` |
 
-## VfAction Enum (19 actions)
+## VfAction Enum (16 actions)
 
 **Standard ValueFlows:**
 `Transfer`, `Move`, `Use`, `Consume`, `Produce`, `Work`, `Modify`, `Combine`, `Separate`,

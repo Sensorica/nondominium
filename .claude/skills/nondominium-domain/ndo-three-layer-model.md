@@ -139,9 +139,11 @@ pub enum PropertyRegime {
 
 ```rust
 pub enum ResourceNature {
-    Digital,  // Software, data, design files, documents
-    Physical, // Material objects, equipment, spaces
-    Hybrid,   // Digital twin of a physical resource
+    Physical,     // Material objects, equipment, spaces
+    Digital,      // Software, data, design files, documents
+    Service,      // Software services, knowledge assets (OVN/VF)
+    Hybrid,       // Digital twin of a physical resource
+    Information,  // Knowledge assets, data sets
 }
 // Post-MVP: Space, Method, Currency
 ```

@@ -46,7 +46,7 @@ Services: `MaintenanceCommitmentAccepted`, `MaintenanceFulfillmentCompleted`,
 Governance: `DisputeResolutionParticipation`, `ValidationActivity`, `RuleCompliance`
 End-of-Life: `EndOfLifeDeclaration`, `EndOfLifeValidation`
 
-### ValueFlows Actions (19 total)
+### ValueFlows Actions (16 total)
 Standard VF: `Transfer`, `Move`, `Use`, `Consume`, `Produce`, `Work`, `Modify`,
   `Combine`, `Separate`, `Raise`, `Lower`, `Cite`, `Accept`
 NDO extensions: `InitialTransfer`, `AccessForUse`, `TransferCustody`

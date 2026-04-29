@@ -62,13 +62,12 @@ pub struct PrivateParticipationClaim {
 
 ```rust
 pub struct PerformanceMetrics {
-    pub timeliness_score: f64,       // 0.0–1.0, weight 0.25
-    pub quality_score: f64,          // 0.0–1.0, weight 0.30
-    pub reliability_score: f64,      // 0.0–1.0, weight 0.25
-    pub communication_score: f64,    // 0.0–1.0, weight 0.20
-    pub completion_rate: f64,        // Overall completion percentage
-    pub resource_condition_maintained: Option<bool>,
-    pub additional_metrics: Option<String>,  // JSON
+    pub timeliness: f64,           // 0.0–1.0, weight 0.25
+    pub quality: f64,              // 0.0–1.0, weight 0.30
+    pub reliability: f64,          // 0.0–1.0, weight 0.25
+    pub communication: f64,        // 0.0–1.0, weight 0.20
+    pub overall_satisfaction: f64, // 0.0–1.0, overall counterparty satisfaction
+    pub notes: Option<String>,
 }
 ```
 
