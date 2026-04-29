@@ -1,6 +1,11 @@
 # Sweettest Patterns (Nondominium)
 
+> **Navigation index.** Sources of truth are in `CLAUDE.md — Testing Commands` and
+> `documentation/Testing_Infrastructure.md`. For review requirements, read `REVIEW.md §4`.
+
 ## Setup
+Source: `dnas/nondominium/tests/src/common/conductors.rs` (authoritative)
+
 ```rust
 // dnas/nondominium/tests/src/common/conductors.rs
 pub async fn setup_two_agents() -> (SweetConductor, SweetConductor, SweetCell, SweetCell)
@@ -9,6 +14,8 @@ pub async fn setup_dual_dna_two_agents() -> (...)  // nondominium + hREA DNAs
 ```
 
 ## Test Structure
+Source: `CLAUDE.md — Testing Commands`, `documentation/Testing_Infrastructure.md`
+
 ```rust
 // dnas/nondominium/tests/src/person/mod.rs
 #[tokio::test]
@@ -33,6 +40,8 @@ async fn test_create_person_populates_anchor() {
 ```
 
 ## Cargo.toml Registration
+Source: `dnas/nondominium/tests/Cargo.toml` (authoritative)
+
 ```toml
 [[test]]
 name = "person"
@@ -44,6 +53,8 @@ path = "tests/src/resource/mod.rs"
 ```
 
 ## Run Commands
+Source: `CLAUDE.md — Testing Commands`
+
 ```bash
 # Prerequisites
 bun run build:happ
@@ -58,12 +69,16 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest 
 CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person person_create_populates_hrea_agent_hash
 ```
 
-## What Each Test Must Cover (REVIEW.md §4)
+## What Each Test Must Cover
+Source: `REVIEW.md §4` — read before writing or reviewing tests
+
 - Every `#[hdk_extern]` needs a Sweettest test
 - Multi-agent scenarios: one creates, other reads after `await_consistency()`
 - Cross-zome calls: test the full flow end-to-end (resource → governance → event created)
 - `#[ignore]` for tests not yet ready
 
 ## Deprecated: Tryorama
+Source: `tests/DEPRECATED.md`
+
 `tests/` directory contains Tryorama (TypeScript) tests. All are deprecated per
 `tests/DEPRECATED.md`. Do not add new tests there. Reference only for migration context.
