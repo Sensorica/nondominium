@@ -78,5 +78,4 @@ Source: `REVIEW.md` — read before proposing any PR-shaped change
   Cursor (on next `nix develop`, symlinked or copied)
 - Edit `pai/conventions.md` → updates both Claude Code and Cursor
 - Edit `pai/cursor-rules/*.md` → updates Cursor rules only (on next `nix develop`)
-- Edit `.claude/skills/nondominium-domain/*` → updates Claude Code skills immediately
-  (no rebuild needed)
+- Edit `pai/claude/skills/nondominium-domain/` → re-enter `nix develop` to regenerate `.claude/`
