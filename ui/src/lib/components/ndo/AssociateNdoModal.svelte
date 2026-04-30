@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
 
@@ -12,6 +13,12 @@
 
   let selected = $state<Set<string>>(new Set());
   let saved = $state(false);
+
+  // Reload groups each time the modal opens — ensures the list is current even
+  // when the user arrived at this NDO page without passing through the lobby.
+  onMount(() => {
+    void lobbyStore.loadGroups();
+  });
 
   function toggle(id: string) {
     const next = new Set(selected);
