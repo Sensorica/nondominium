@@ -33,6 +33,23 @@ CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest -- --no
 CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test misc
 CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person
 CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test resource
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test governance
+```
+
+### Lobby DNA Sweettest
+
+```bash
+# Prerequisites: build:happ must have been run first
+bun run build:happ
+
+# Run all Lobby Sweettest tests
+CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby
+
+# With test output visible
+CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby -- --nocapture
+
+# Run a single test
+CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby announce_ndo_cross_conductor
 ```
 
 ### NDO Layer 0 tests (`--test nondominium`)

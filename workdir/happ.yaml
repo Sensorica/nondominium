@@ -3,6 +3,17 @@ manifest_version: "0"
 name: nondominium
 description: "A foundational hApp for commons-based ventures using ValueFlows."
 roles:
+  - name: lobby
+    provisioning:
+      strategy: create
+      deferred: false
+    dna:
+      path: "../dnas/lobby/workdir/lobby.dna"
+      modifiers:
+        network_seed: "nondominium-lobby-v1"
+        properties: ~
+        origin_time: 1716323893645
+      clone_limit: 0
   - name: nondominium
     provisioning:
       strategy: create
