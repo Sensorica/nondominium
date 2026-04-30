@@ -42,6 +42,51 @@ pub enum ResourceNature {
 }
 ```
 
+## LifecycleStage Enum (10 stages)
+Source: `documentation/requirements/ndo_prima_materia.md §5`, `zome_resource/src/lib.rs`
+
+```rust
+pub enum LifecycleStage {
+    // Emergence Phase
+    Ideation,       // Layer 0 only; name and intent, no spec or process yet
+    Specification,  // Layer 1 activating; design/requirements being written
+    Development,    // Layers 0+1+2 active; active construction, prototyping
+    Prototype,      // Layers 0+1+2 active; PoC exists, not production-ready
+    // Maturity Phase
+    Stable,         // All layers active; production-ready, replicable design
+    Distributed,    // All layers active; being actively fabricated/used
+    // Operation Phase
+    Active,         // All layers active; in normal use
+    // Suspension (reversible, REQ-NDO-LC-04)
+    Hibernating,    // Layer 0 active; Layers 1+2 dormant but recoverable
+    // Terminal (not reactivatable, REQ-NDO-LC-04)
+    Deprecated,     // Superseded; successor NDO required (REQ-NDO-LC-06)
+    EndOfLife,      // Layer 0 tombstone; fully terminal
+}
+```
+
+Transitions are governance-validated (governance zome as state transition operator).
+At `EndOfLife`, only Layer 0 survives as a permanent tombstone.
+
+## OperationalState Enum (7 states — planned, not yet in code)
+Source: `documentation/requirements/ndo_prima_materia.md §5`
+Note: currently `ResourceState` in `zome_resource/src/lib.rs` — refactor tracked as REQ-NDO-OS-06
+
+```rust
+pub enum OperationalState {
+    PendingValidation, // Newly created; awaiting peer validation
+    Available,         // Ready for use
+    Reserved,          // Committed to a pending process
+    InTransit,         // Active transport process
+    InStorage,         // Active storage process
+    InMaintenance,     // Active repair/maintenance process
+    InUse,             // Active use process
+}
+```
+
+Orthogonal to `LifecycleStage`: an `Active`-stage resource can be `InMaintenance`;
+a `Prototype` can be `InTransit`. The split fixes the current `ResourceState` conflation.
+
 ## VfAction Enum (16 actions)
 Source: `documentation/specifications/specifications.md §3.3.1`
 
