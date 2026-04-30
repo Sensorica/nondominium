@@ -79,56 +79,6 @@ An agent system designed only for the 1% (assuming high engagement, rich profile
 
 ## 2. Current Implementation (MVP)
 
-### 2.0 Three-Level Identity Model (UI)
-
-The MVP UI introduces three distinct identity layers that reflect the Lobby → Group → NDO hierarchy defined in `ui_design.md`. These layers are intentionally separate: they allow progressive disclosure of personal information and defer DHT costs until the agent acts.
-
-#### Level 1 — Lobby (UI-only, `localStorage`)
-
-**`LobbyUserProfile`** is the outermost, lightest identity layer. It is never written to the DHT.
-
-| Field | Required | Notes |
-|---|---|---|
-| `nickname` | Yes | Displayed in the Lobby profile bar and Group profile |
-| `realName` | No | Optional; user controls whether it is shared in groups |
-| `bio` | No | Optional |
-| `email` | No | Optional |
-| `phone` | No | Optional |
-| `address` | No | Optional |
-
-- Stored in `localStorage` under the key `ndo_lobby_profile_v1`.
-- Written to `app.context.lobbyUserProfile` (Svelte `$state`) on every page load.
-- Created via `UserProfileForm.svelte` (modal on first launch; page-mode for editing).
-- Exists before any `Person` DHT entry is created. An agent can browse the Lobby anonymously (no profile) or under a pseudonym (nickname only).
-
-#### Level 2 — Group (UI-only, `localStorage`)
-
-**`GroupMemberProfile`** is a per-group presentation choice derived from `LobbyUserProfile`. It is also never written to the DHT (Groups are localStorage-persisted shells for the MVP; Group DNA is a post-MVP deliverable).
-
-| Field | Type | Notes |
-|---|---|---|
-| `isAnonymous` | `boolean` | If true, the agent appears only by pseudonym |
-| `shownFields` | `(keyof LobbyUserProfile)[]` | Fields from `LobbyUserProfile` the agent explicitly consents to share |
-
-- Stored alongside the `GroupDescriptor` in `localStorage` under `ndo_groups_v1`.
-- Prompted via `GroupProfileModal.svelte` on first entry to each group.
-- No consensus or DHT record required; this is a purely local choice.
-
-#### Level 3 — NDO / Agent (DHT, `zome_person`)
-
-**`Person`** is the public, on-chain agent profile. It is created when the agent performs their first DHT-active action — creating an NDO or accepting a commitment. This layer corresponds to the "person-type identity" described in §1.3.
-
-- Written to the DHT via `create_person` in `zome_person`.
-- Linked to the agent's `AgentPubKey` through Holochain's source chain.
-- Required for governance participation, custodianship, and specialised service provision.
-- Discoverable by other agents via the `all_persons` anchor.
-
-This three-level model enables permissionless browsing (Level 1 not required), group participation under a pseudonym (Level 2), and full economic participation (Level 3), without conflating disclosure requirements across contexts.
-
-> Cross-reference: `ui_design.md` MVP section describes the intended UI flow. Implementation lives in `app.context.svelte.ts` (`lobbyUserProfile`), `lobby.service.ts` (`GroupDescriptor.memberProfile`), `UserProfileForm.svelte`, `GroupProfileModal.svelte`, and `GroupSidebar.svelte`.
-
----
-
 ### 2.1 The Two-Layer Identity Model in Code
 
 The NDO MVP implements the individual/person distinction at the data model level:
@@ -256,36 +206,19 @@ This is a forward-looking implementation: one person may use Nondominium from a 
 
 ## 3. Post-MVP Roadmap
 
-### 3.1 Collective Agents and Their Digital Twins
+### 3.1 Agent as NDO
 
-A collective entity — a project-as-organisation, a cooperative, an open value network — has **two distinct ontological faces** in the Nondominium model. These faces are different roles the same real-world entity plays, and they must not be collapsed into one.
+The most elegant solution to the missing collective agent type is architectural: **an organisation, project, or working group is itself an NDO**. The NDO's three-layer structure (Identity + Specification + Process) maps naturally to a collective agent:
 
-**The agent face** is the `AgentContext` carrying the relevant `AgentEntityType` variant (`Collective`, `Project`, `Network`). Through this face the collective participates in economic events as provider or receiver, holds commitments, accumulates reputation, and may be the `primary_accountable` on shared resources. Collective agents of this kind are **composed agents** or **group agents**: their actions may require N-of-M authorisation from individual member agents (multi-signature pattern — forward design, post-MVP). This is how REA-ontology-compliant collective economic agency works — it is distinct from the physical thing the collective creates or represents.
+- NDO **Identity layer** = the organisation's public identity (name, mission, membership anchor)
+- NDO **Specification layer** = the organisation's capabilities and resource access agreements
+- NDO **Process layer** = the organisation's active commitments and economic events
 
-**The resource face** is the `NondominiumIdentity` — the collective's digital twin as a Nondominium Object. NDOs are Resources, and the resource face of a collective carries its permanent identity anchor, property regime, lifecycle stage, specification (what the collective IS — its mission, assets, rules of participation), and governance rules (how agents interact with it). The resource face does not have agency; it records which agents are associated and under what terms.
+An individual agent can hold a `PersonRole` in both their own profile and in an organisational NDO's governance. Cross-agent capability grants enable the organisational NDO to act on behalf of its members (with appropriate authorisation).
 
-The `ActionHash` inside `AgentEntityType::Project(ActionHash)` and `AgentEntityType::Network(ActionHash)` **links the agent face to the resource face**: it points to the `NondominiumIdentity` that is the collective's digital twin. The two faces are thus connected by this hash reference.
+This means the generic NDO's agent model does not need a separate "organisation agent" type — it needs organisational NDOs and a clear mapping between individual agents and the NDOs they participate in.
 
-| | Agent face | Resource face |
-|---|---|---|
-| Entry type | `AgentContext` | `NondominiumIdentity` |
-| Role in economic events | Provider / receiver | — (no agency) |
-| Accumulates | Reputation (PPRs, EconomicEvents) | Contribution records (individual agents who contributed) |
-| Can hold custody | Yes — via `AgentContext` as `primary_accountable` | No |
-| Has lifecycle/spec/governance | — | Yes — LifecycleStage, ResourceSpecification, GovernanceRules |
-| Permanent / immutable | No | Yes — NondominiumIdentity is permanent |
-
-An individual agent can hold a `PersonRole` in both their own profile and in a collective's governance. Cross-agent capability grants enable a collective's `AgentContext` to act on behalf of its members (with appropriate authorisation).
-
-A `Collective(String)` agent (e.g. a working group or committee) may not yet have an associated NDO — its agent face exists independently of any resource face. Attaching a resource face (creating an associated `NondominiumIdentity`) is optional and done when the collective's digital representation as a Resource becomes useful.
-
-When a collective does have an associated NDO, the NDO's three-layer structure (Identity + Specification + Process) applies **to the collective's resource face** — not to the collective as an agent:
-
-- NDO **Identity layer** = the collective's permanent identity anchor (name, regime, nature, creation record)
-- NDO **Specification layer** = the collective's documented form (mission, assets, governance rules for how agents interact with it)
-- NDO **Process layer** = the economic activity *around* the collective as a resource (contributions, agreements, events involving the collective-as-resource)
-
-The NDO may use a subset of `LifecycleStage` values — a working group does not go through `Prototype` or `Distributed`. The `PropertyRegime` and `ResourceNature` fields on `NondominiumIdentity` remain applicable to the collective's resource face: a working group's shared knowledge base is a `Commons`/`Digital` NDO; a collectively owned workshop is a `Collective`/`Physical` NDO.
+Agent-NDOs use the same three-layer structure as resource-NDOs (see `resources.md §3.1`) but may use a subset of `LifecycleStage` values — a working group does not go through `Prototype` or `Distributed`, for example. The `PropertyRegime` and `ResourceNature` fields on `NondominiumIdentity` remain applicable: a working group's shared knowledge base is a `Commons`/`Digital` NDO; a collectively owned workshop is a `Collective`/`Physical` NDO.
 
 ### 3.2 CapabilitySlot on Agent Identity
 

@@ -43,15 +43,7 @@ export const RESOURCE_CONTEXTS = {
   CREATE_NDO_IDENTITY: 'Failed to create NDO identity',
   GET_NDO_IDENTITY: 'Failed to get NDO identity',
   GET_ALL_NDO_IDENTITIES: 'Failed to get all NDO identities',
-  UPDATE_NDO_LIFECYCLE_STAGE: 'Failed to update NDO lifecycle stage',
-  CREATE_NDO: 'Failed to create NDO',
-  GET_NDO: 'Failed to get NDO',
-  UPDATE_LIFECYCLE_STAGE: 'Failed to update lifecycle stage',
-  GET_MY_NDOS: 'Failed to get my NDOs',
-  GET_NDOS_BY_LIFECYCLE_STAGE: 'Failed to get NDOs by lifecycle stage',
-  GET_NDOS_BY_NATURE: 'Failed to get NDOs by nature',
-  GET_NDOS_BY_PROPERTY_REGIME: 'Failed to get NDOs by property regime',
-  GET_NDO_TRANSITION_HISTORY: 'Failed to get NDO transition history'
+  UPDATE_NDO_LIFECYCLE_STAGE: 'Failed to update NDO lifecycle stage'
 } as const;
 
 export const GOVERNANCE_CONTEXTS = {

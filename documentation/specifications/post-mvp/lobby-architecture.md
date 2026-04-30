@@ -90,21 +90,15 @@ is the stable public handle. `GroupMembership` is what links the two.
 ### Groups vs organization-NDOs
 
 Groups and organization-NDOs are **distinct concepts at different layers** and must not be
-conflated.
+conflated:
 
-A collective entity (cooperative, open value network, project-organisation) has two faces in
-the Nondominium model: an **agent face** (`AgentContext`) through which it participates in
-economic events, and a **resource face** (`NondominiumIdentity`) which is its digital twin as a
-Resource. The table below describes the resource face; see `agent.md §3.1` for the dual-face
-model and the role of the agent face.
-
-| | Group | Organization-NDO (resource face) |
+| | Group | Organization-NDO |
 |---|---|---|
-| **What it is** | Lobby-layer coordination space | The `NondominiumIdentity` that is the collective's digital twin as a Resource |
+| **What it is** | Lobby-layer coordination space | A `NondominiumIdentity` representing a collective entity |
 | **Has Layer 0 identity** | No | Yes — lifecycle, property regime, governance |
-| **Governs** | Agents: membership, work logs, soft links | How agents interact with the collective as a Resource |
-| **Can hold custody** | No | No — custody is held by the collective's **agent face** (`AgentContext` as `primary_accountable`, post-MVP) |
-| **Accumulates reputation** | No | No — reputation (EconomicEvents, PPRs) accrues to the agent face. Contribution links record individuals' association with the NDO. |
+| **Governs** | Agents: membership, work logs, soft links | Resources and collective economic activity |
+| **Can hold custody** | No | Yes — `primary_accountable` on `Agreement`, `EconomicResource` custodian (post-MVP) |
+| **Accumulates reputation** | No | Yes — Contributions and EconomicEvents accrue to its `NondominiumIdentity` |
 | **Governance layer** | Flat group rules (coordination, cultural) | Full NDO governance (AccountableAgents, lifecycle, Agreement) |
 | **Permanent** | No — can be abandoned | Yes — `NondominiumIdentity` is immutable and permanent |
 
@@ -116,13 +110,11 @@ Group (coordination layer)
   ├── soft links: planned_action=Combine → [SensoricanNDO, LabSpaceNDO]
   └── work logs → SensoricanNDO
 
-SensoricanNDO (org-NDO resource face, its own DHT)
+SensoricanNDO (org-NDO, its own DHT)
   ├── NondominiumIdentity { regime: Collective, lifecycle: Active }
-  ├── AccountableAgents: [Alice, Bob]       ← individual agents
+  ├── AccountableAgents: [Alice, Bob]
   ├── Agreement { clauses: [...] }
   └── Contributions from Carol, Dave, and other agents (not necessarily group members)
-
-AgentContext { agent_type: Network(sensorica_ndo_hash) }  ← agent face; participates in EconomicEvents
 ```
 
 **Key architectural rule:** an agent does not need to be in a group to contribute to an
@@ -130,8 +122,8 @@ organization-NDO. Group membership governs group-layer coordination only. NDO me
 (joining the NDO DHT) is governed by the NDO's own rules and is independent of any group.
 
 **Post-MVP gap (REQ-AGENT-02):** `EconomicResource.custodian: AgentPubKey` currently accepts
-only individual agent keys. Post-MVP, the `AgentContext` extension allows the collective's
-agent face to act as `primary_accountable` — collective custody, not NDO-as-resource custody.
+only individual agents. An organization-NDO acting as collective custodian requires the
+`AgentContext` extension from `requirements.md §4.4`.
 
 ---
 

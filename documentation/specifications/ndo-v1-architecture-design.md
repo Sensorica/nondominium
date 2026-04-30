@@ -204,7 +204,7 @@ pub struct Unit {
 pub struct NondominiumIdentity {
     pub name: String,
     pub description: Option<String>,
-    pub initiator: AgentPubKey,        // Post-v1.0: AgentContext — supports Bot agents and composed collective agents (dual-face model: agent face references this NDO as resource face)
+    pub initiator: AgentPubKey,        // Post-v1.0: AgentContext (collective agents)
     pub property_regime: PropertyRegime,
     pub resource_nature: ResourceNature,
     pub lifecycle_stage: LifecycleStage, // Only field mutable after creation
@@ -311,7 +311,7 @@ pub enum LinkTypes {
 pub struct Process {
     pub name: String,
     pub note: Option<String>,
-    pub in_scope_of: Option<AgentPubKey>, // Post-v1.0: AgentContext — collective variants carry NDO hash as resource-face reference (dual-face model)
+    pub in_scope_of: Option<AgentPubKey>, // Post-v1.0: AgentContext
     pub created_at: Timestamp,
     pub finished: bool,
 }
@@ -321,7 +321,7 @@ pub struct Process {
 pub struct Agreement {
     pub name: String,
     pub description: Option<String>,
-    pub parties: Vec<AgentPubKey>,   // Post-v1.0: Vec<AgentContext> — collective variants carry NDO hash as resource-face reference (dual-face model)
+    pub parties: Vec<AgentPubKey>,   // Post-v1.0: Vec<AgentContext>
     pub created_at: Timestamp,
     pub note: Option<String>,
 }
@@ -690,7 +690,7 @@ The PPR `PerformanceMetrics` struct (timeliness, quality, reliability, communica
 
 | Feature                                                             | Reason                                                                                            | Phase     |
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------- |
-| `AgentContext` union (collective, project, network, bot, external)  | Requires governance refactoring across all 3 zomes; collective variants use dual-face model — agent face (`AgentContext`) + resource face (`NondominiumIdentity`) linked by `ActionHash`; multi-sig collective actions post-v1.0 | Post-v1.0 |
+| `AgentContext` union (collective, project, network, bot)            | Requires governance refactoring across all 3 zomes                                                | Post-v1.0 |
 | `AffiliationRecord` + `AffiliationState` derivation                 | Depends on AgentContext                                                                           | Post-v1.0 |
 | Flowsta Phase 2/3 (governance enforcement of identity verification) | Stub in GovernanceRuleType; UI/governance integration separate                                    | Post-v1.0 |
 | Unyt Smart Agreement full integration                               | Stub in GovernanceRuleType + SlotType; RAVE proof validation separate                             | Post-v1.0 |

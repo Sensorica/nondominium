@@ -1,387 +1,689 @@
-# Nondominium UI Architecture
+# Nondominium UI Architecture - Effect-TS + Multi-Layer Design for Comprehensive Economic Processes & PPR System
 
-**Status:** MVP implemented (see `documentation/IMPLEMENTATION_STATUS.md` for current status).  
-**Cross-references:** `documentation/requirements/ui_design.md` (normative UI requirements), `documentation/requirements/requirements.md` (REQ-USER-* stories).
+## Analysis Summary
 
----
+### Enhanced Backend Architecture Analysis
 
-## 1. Overview
+The **Nondominium** project has evolved into a sophisticated, production-ready ecosystem requiring comprehensive UI support:
 
-The Nondominium frontend is a SvelteKit application using Svelte 5 runes, Effect-TS for async state management, and UnoCSS for styling. It exposes the three-zome Holochain backend through a typed service + store layer and renders a three-level navigational hierarchy:
+**Technology Stack:**
 
-```
-Lobby  →  Group  →  NDO
-```
+- SvelteKit + Svelte 5 + TypeScript + UnoCSS + Melt UI next-gen ✅
+- **Effect-TS** for functional programming paradigms with Economic Process and PPR state management
+- Comprehensive testing (Unit, Integration, E2E) including Economic Process workflows
+- Enhanced 7-layer architecture pattern supporting complex cross-zome interactions
 
-This hierarchy maps to the three concentric organizational scopes in `ui_design.md`:
-
-- **Lobby** — the entry point: all NDOs visible to any connected agent, Groups listed in sidebar.
-- **Group** — organizational context: NDOs scoped to a group, where new NDOs are created.
-- **NDO** — the resource identity detail view: Layer 0 metadata, lifecycle transitions, fork friction.
-
----
-
-## 2. Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | SvelteKit 2 + Svelte 5 runes (`$state`, `$derived`, `$effect`) |
-| Language | TypeScript (strict mode) |
-| Styling | UnoCSS (atomic CSS, preset-wind) |
-| Headless components | Melt UI next-gen (`melt`) |
-| Async / error handling | Effect-TS (`effect` package) — `Context.Tag`, `Layer`, `E.gen` |
-| Holochain client | `@holochain/client` 0.19.0 |
-| Shared types | `@nondominium/shared-types` (workspace package) |
-| Build | Vite 6.2.5 |
-
----
-
-## 3. Layer Architecture
+**Enhanced 7-Layer Architecture Pattern:**
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ ROUTES                                                            │
-│ /   (LobbyView)  /group/[id]  /ndo/[hash]  /ndo/new             │
-└──────────────────────────────────────────────────────────────────┘
-                                ↓
-┌──────────────────────────────────────────────────────────────────┐
-│ COMPONENTS                                                        │
-│ lobby/: LobbyView, GroupSidebar, NdoBrowser, NdoCard,            │
-│         UserProfileForm                                           │
-│ group/: GroupView, NdoCreateModal, GroupProfileModal, MemberList  │
-│ ndo/:   NdoView, NdoIdentityLayer, LifecycleTransitionModal,      │
-│         TransitionHistoryPanel, ForkNdoModal                      │
-│ shell/: Sidebar (global nav)                                      │
-└──────────────────────────────────────────────────────────────────┘
-                                ↓
-┌──────────────────────────────────────────────────────────────────┐
-│ STORES (Svelte 5 $state + Effect-TS)                              │
-│ app.context.svelte.ts   — cross-view app state                    │
-│ lobby.store.svelte.ts   — Lobby-level NDOs, groups, filters       │
-│ group.store.svelte.ts   — Group-scoped NDOs                       │
-│ resource.store.svelte.ts — ResourceSpecification list             │
-└──────────────────────────────────────────────────────────────────┘
-                                ↓
-┌──────────────────────────────────────────────────────────────────┐
-│ SERVICES (Effect-TS Context.Tag / Layer)                          │
-│ person.service.ts    — PersonServiceTag / PersonServiceLive        │
-│ resource.service.ts  — ResourceServiceTag / ResourceServiceLive   │
-│ governance.service.ts — GovernanceServiceTag / Live               │
-│ ndo.service.ts       — NdoServiceTag / NdoServiceLive             │
-│ lobby.service.ts     — LobbyServiceTag / LobbyServiceLive         │
-│ group.service.ts     — GroupServiceTag / GroupServiceLive (stub)  │
-└──────────────────────────────────────────────────────────────────┘
-                                ↓
-┌──────────────────────────────────────────────────────────────────┐
-│ HOLOCHAIN CLIENT                                                  │
-│ holochain.service.svelte.ts — HolochainClientServiceTag           │
-│ wrapZomeCallWithErrorFactory — wz<T>(fnName, payload, ctx)        │
-└──────────────────────────────────────────────────────────────────┘
-                                ↓
-┌──────────────────────────────────────────────────────────────────┐
-│ HOLOCHAIN CONDUCTOR (3-Zome DNA)                                  │
-│ zome_person · zome_resource · zome_gouvernance                    │
-└──────────────────────────────────────────────────────────────────┘
+DNA Layer (3-Zome Backend - Fully Implemented)
+  ↓ (Economic Processes, PPR System, Private Data Sharing)
+HolochainClientService (Connection layer with cross-zome coordination)
+  ↓ (Atomic transactions, PPR integration, role validation)
+Enhanced Zome Services (Economic Process & PPR business logic)
+  ↓ (PersonService, ResourceService, GovernanceService, ProcessService, ReputationService)
+Advanced Stores (State management with Economic Process & PPR tracking)
+  ↓ (PersonStore, ResourceStore, ProcessStore, ReputationStore, ValidationStore)
+Enhanced Composables (Economic Process workflows, PPR management, role progression)
+  ↓ (useEconomicProcess, usePPRTracking, useAgentProgression, usePrivateDataSharing)
+Process-Aware Components (UI for Economic Processes, reputation, role management)
+  ↓ (ProcessWorkflow, ReputationDashboard, RoleProgression, PrivateDataManager)
+Comprehensive Pages/Routes (Complete Economic Process and governance workflows)
 ```
 
----
+## Recommendation: **YES** to Enhanced Effect-TS + Multi-Layer Architecture
 
-## 4. Three-Level Identity Model (MVP)
+### Why Effect-TS is Critical for Enhanced Nondominium
 
-The MVP UI introduces three distinct identity layers that do **not** require DHT writes for the outer two, enabling permissionless browsing and progressive disclosure.
+**✅ Enhanced Advantages:**
 
-### Level 1 — Lobby (`LobbyUserProfile`, localStorage)
+1. **Complex Error Handling**: Comprehensive error types across Economic Processes, PPR operations, and cross-zome interactions
+2. **Economic Process Composition**: Clean composition of multi-step workflows (Transport → Repair → Transport)
+3. **PPR State Management**: Type-safe handling of private reputation data with selective disclosure
+4. **Cross-Zome Coordination**: Reliable coordination across person, resource, and governance zomes
+5. **Agent Progression Workflows**: Complex state management for Simple → Accountable → Primary Accountable Agent advancement
+6. **Production Scalability**: Supports sophisticated governance workflows and reputation system complexity
+
+**⚠️ Considerations:**
+
+- Learning curve for Effect-TS paradigms
+- More complex setup than vanilla reactive stores
+- Overkill for simple PoC features
+
+### Enhanced Architecture for Comprehensive Nondominium System
+
+```
+Multi-Layer Structure with Economic Processes & PPR:
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ PAGES/ROUTES (Enhanced)                                                         │
+│ /dashboard, /profile, /people, /processes, /reputation, /governance, /settings  │
+│ + Economic Process workflows, PPR tracking, role progression                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      ↓
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ COMPONENTS (Process-Aware)                                                      │
+│ PersonProfile, ProcessWorkflow, ReputationDashboard, RoleProgression,           │
+│ PrivateDataManager, ResourceLifecycle, ValidationInterface                      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      ↓
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ COMPOSABLES (Economic Process & PPR Integration)                                │
+│ useEconomicProcess, usePPRTracking, useAgentProgression, usePrivateDataSharing, │
+│ useReputationManagement, useValidationWorkflows, useRoleManagement              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      ↓
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ STORES (Advanced Effect-TS with Cross-Zome State)                               │
+│ personStore, resourceStore, processStore, reputationStore, governanceStore,     │
+│ validationStore, roleStore, authStore - with PPR integration                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────┐
+│ SERVICES                                        │
+│ PersonService, RoleService, PrivateDataService  |
+| ResourceService                                 |
+| GovernanceService                               │
+└─────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────┐
+│ HOLOCHAIN CLIENT SERVICE                        │
+│ Connection, callZome, error handling            │
+└─────────────────────────────────────────────────┘
+                         ↓
+┌───────────────────────────────────────────────────────────────┐
+│ DNA LAYER (Already Implemented)                               │
+│ zome_person: Person, PrivateData, PersonRole                  |
+| zome_resource: Resource, Resource specification               |
+| zome_governance: Rule, Commitments, claims, economic events   |
+└───────────────────────────────────────────────────────────────┘
+```
+
+## Enhanced Backend Analysis
+
+### Comprehensive Zome Structure (Phase 2 Complete)
+
+- **zome_person**: Enhanced agent identity, profiles, roles, private data sharing (request/grant workflows), capability progression, PPR integration
+- **zome_resource**: Resource specifications, Economic Resources, Economic Processes (Use, Transport, Storage, Repair), lifecycle management, custody transfers
+- **zome_gouvernance**: Commitments, claims, economic events, PPR system (16 categories), validation workflows, agent progression, VfAction enum
+
+### Enhanced Data Model
 
 ```typescript
-interface LobbyUserProfile {
-  nickname: string;       // required
-  realName?: string;
-  bio?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
+// Core entities reflecting comprehensive backend
+Person {
+  name: string,
+  avatar_url?: string,
+  bio?: string
+}
+
+PrivatePersonData {
+  legal_name: string,
+  email: string,
+  phone?: string,
+  address?: string,
+  emergency_contact?: string,
+  time_zone?: string,
+  location?: string
+}
+
+// Enhanced private data sharing system
+DataAccessRequest {
+  requested_from: AgentPubKey,
+  requested_by: AgentPubKey,
+  fields_requested: string[], // ["email", "phone", "location", etc.]
+  context: string,
+  resource_hash?: ActionHash,
+  justification: string,
+  status: RequestStatus, // Pending, Approved, Denied, Expired, Revoked
+  created_at: Timestamp
+}
+
+DataAccessGrant {
+  granted_to: AgentPubKey,
+  granted_by: AgentPubKey,
+  fields_granted: string[],
+  context: string,
+  resource_hash?: ActionHash,
+  expires_at: Timestamp,
+  created_at: Timestamp
+}
+
+PersonRole {
+  role_name: string, // RoleType enum
+  description?: string,
+  assigned_to: AgentPubKey,
+  assigned_by: AgentPubKey,
+  assigned_at: Timestamp
+}
+
+// Enhanced role hierarchy with Economic Process specializations
+RoleType =
+  | "SimpleAgent"           // Simple Agent capabilities
+  | "AccountableAgent"      // Accountable Agent level
+  | "PrimaryAccountableAgent"       // Primary Accountable Agent level
+
+  // Economic Process Specialized Roles
+  | "Transport"              // Transport process access
+  | "Repair"                 // Repair process access
+  | "Storage"                // Storage process access
+
+// Economic Process structures
+EconomicProcess {
+  process_type: string, // "Use", "Transport", "Storage", "Repair"
+  name: string,
+  description?: string,
+  required_role: string,
+  inputs: ActionHash[],
+  outputs: ActionHash[],
+  started_by: AgentPubKey,
+  started_at: Timestamp,
+  completed_at?: Timestamp,
+  location?: string,
+  status: ProcessStatus
+}
+
+ProcessStatus =
+  | "Planned" | "InProgress" | "Completed"
+  | "Suspended" | "Cancelled" | "Failed"
+
+// Private Participation Receipt system
+PrivateParticipationClaim {
+  fulfills: ActionHash,
+  fulfilled_by: ActionHash,
+  claimed_at: Timestamp,
+  claim_type: ParticipationClaimType,
+  counterparty: AgentPubKey,
+  performance_metrics: PerformanceMetrics,
+  bilateral_signature: CryptographicSignature,
+  interaction_context: string,
+  role_context?: string,
+  resource_reference?: ActionHash
+}
+
+ParticipationClaimType =
+  // Genesis Role - Network Entry
+  | "ResourceContribution" | "NetworkValidation"
+  // Core Usage Role - Custodianship
+  | "ResponsibleTransfer" | "CustodyAcceptance"
+  // Intermediate Roles - Specialized Services
+  | "ServiceCommitmentAccepted" | "GoodFaithTransfer"
+  | "ServiceFulfillmentCompleted" | "MaintenanceFulfillment"
+  | "StorageFulfillment" | "TransportFulfillment"
+  // Network Governance
+  | "DisputeResolutionParticipation" | "GovernanceCompliance"
+  | "EndOfLifeDeclaration" | "EndOfLifeValidation"
+
+PerformanceMetrics {
+  timeliness_score: number,     // 0.0-1.0
+  quality_score: number,        // 0.0-1.0
+  reliability_score: number,    // 0.0-1.0
+  communication_score: number,  // 0.0-1.0
+  completion_rate: number,      // 0.0-1.0
+  resource_condition_maintained?: boolean,
+  additional_metrics?: string   // JSON-encoded
+}
+
+ReputationSummary {
+  agent: AgentPubKey,
+  total_interactions: number,
+  average_timeliness: number,
+  average_quality: number,
+  average_reliability: number,
+  average_communication: number,
+  completion_rate: number,
+  role_performance: Record<string, RolePerformance>,
+  recent_activity: RecentInteraction[],
+  calculated_at: Timestamp
 }
 ```
 
-- Stored in `localStorage` key `ndo_lobby_profile_v1`.
-- Hydrated into `appContext.lobbyUserProfile` (`$state`) on first module load.
-- Created/edited via `UserProfileForm.svelte` (modal on first launch, page-mode for edits).
-- No DHT entry. Exists before any `Person` entry is created.
+### Comprehensive Zome Functions
 
-### Level 2 — Group (`GroupMemberProfile`, localStorage)
+```rust
+// Person management (enhanced)
+create_person(PersonInput) -> Record
+update_person(UpdatePersonInput) -> Record
+get_person_profile(AgentPubKey) -> PersonProfileOutput
+get_my_person_profile() -> PersonProfileOutput
+get_all_persons() -> GetAllPersonsOutput
+promote_agent_to_accountable(PromoteAgentInput) -> String
 
-```typescript
-interface GroupMemberProfile {
-  isAnonymous: boolean;
-  shownFields: (keyof Omit<LobbyUserProfile, 'nickname'>)[];
-}
+// Enhanced private data management
+store_private_person_data(PrivatePersonDataInput) -> Record
+update_private_person_data(UpdatePrivatePersonDataInput) -> Record
+get_my_private_person_data() -> Option<PrivatePersonData>
+
+// Private data sharing (NEW)
+request_private_data_access(DataAccessRequestInput) -> Record
+respond_to_data_request(RespondToDataRequestInput) -> Option<Record>
+grant_private_data_access(DataAccessGrantInput) -> Record
+get_granted_private_data(AgentPubKey) -> Option<SharedPrivateData>
+revoke_data_access_grant(ActionHash) -> ()
+get_pending_data_requests() -> Vec<DataAccessRequest>
+get_my_data_grants() -> Vec<DataAccessGrant>
+get_my_data_requests() -> Vec<DataAccessRequest>
+
+// Role management (enhanced)
+assign_person_role(PersonRoleInput) -> Record // + specialized role validation
+get_person_roles(AgentPubKey) -> GetPersonRolesOutput
+get_my_person_roles() -> GetPersonRolesOutput
+has_person_role_capability((AgentPubKey, String)) -> bool
+get_person_capability_level(AgentPubKey) -> String
+
+// Economic Process management (NEW)
+initiate_economic_process(EconomicProcessInput) -> CreateEconomicProcessOutput
+complete_economic_process(CompleteEconomicProcessInput) -> CompleteEconomicProcessOutput
+get_active_processes() -> Vec<EconomicProcess>
+get_process_by_resource(ActionHash) -> Vec<EconomicProcess>
+get_processes_by_type(String) -> Vec<EconomicProcess>
+get_my_economic_processes() -> Vec<Link>
+
+// Resource management (enhanced)
+create_economic_resource(EconomicResourceInput) -> CreateEconomicResourceOutput
+update_economic_resource(UpdateEconomicResourceInput) -> Record
+transfer_custody(TransferCustodyInput) -> TransferCustodyOutput
+// TODO: split into two calls per REQ-NDO-OS-01:
+//   update_lifecycle_stage(UpdateLifecycleStageInput) -> Record   // advances LifecycleStage on NondominiumIdentity
+//   update_operational_state(UpdateOperationalStateInput) -> Record // sets OperationalState on EconomicResource
+update_resource_state(UpdateResourceStateInput) -> Record  // pending split
+request_coordination_info(RequestCoordinationInfoInput) -> ()
+get_economic_resource_profile(ActionHash) -> EconomicResourceProfileOutput
+
+// PPR & Reputation management (NEW)
+get_my_participation_claims() -> Vec<PrivateParticipationClaim>
+derive_reputation_summary(DeriveReputationSummaryInput) -> ReputationSummary
+get_participation_claims_by_type(ParticipationClaimType) -> Vec<PrivateParticipationClaim>
+
+// Governance & validation (enhanced)
+create_validation_receipt(CreateValidationReceiptInput) -> CreateValidationReceiptOutput
+validate_new_resource(ValidateNewResourceInput) -> ValidateNewResourceOutput
+validate_agent_identity(ValidateAgentIdentityInput) -> ValidateAgentIdentityOutput
+validate_specialized_role(ValidateSpecializedRoleInput) -> ValidateSpecializedRoleOutput
+issue_participation_receipts(IssueParticipationReceiptsInput) -> IssueParticipationReceiptsOutput
+sign_participation_claim(SignParticipationClaimInput) -> SignParticipationClaimOutput
+validate_participation_claim_signature(ValidateParticipationClaimSignatureInput) -> bool
+get_validation_history(ActionHash) -> Vec<ValidationReceipt>
+check_validation_status(ActionHash) -> Option<ResourceValidation>
+
+// Economic events & commitments (enhanced)
+log_economic_event(LogEconomicEventInput) -> LogEconomicEventOutput
+log_initial_transfer(LogInitialTransferInput) -> LogInitialTransferOutput
+propose_commitment(ProposeCommitmentInput) -> ProposeCommitmentOutput
+claim_commitment(ClaimCommitmentInput) -> ClaimCommitmentOutput
+get_all_economic_events() -> Vec<EconomicEvent>
+get_events_for_resource(ActionHash) -> Vec<EconomicEvent>
+get_all_commitments() -> Vec<Commitment>
+get_all_claims() -> Vec<Claim>
 ```
 
-- Stored alongside `GroupDescriptor` in `localStorage` key `ndo_groups_v1`.
-- Prompted once per group via `GroupProfileModal.svelte` on first group entry.
-- Agent controls which `LobbyUserProfile` fields are visible to other group members.
+## Enhanced Implementation Strategy for Comprehensive System
 
-### Level 3 — NDO/Agent (`Person` entry, `zome_person` DHT)
+### Phase 1: Enhanced Foundation Setup
 
-- Written to the DHT when an agent performs their first DHT-active action (create NDO, accept commitment).
-- Linked to `AgentPubKey` on-chain.
-- Required for governance participation, custodianship, specialised process access.
-- Documented in `documentation/requirements/agent.md §2.1`.
+1. **Migrate to SvelteKit** - Convert from vanilla Svelte with Economic Process support
+2. **Add Effect-TS dependencies** - `effect` + related packages for complex state management
+3. **Setup UnoCSS + Melt UI next-gen** — design system supporting role-based UI and process workflows
+4. **Create Enhanced HolochainClientService** - Connection layer with cross-zome coordination and PPR integration
 
----
+### Phase 2: Comprehensive Service Layer
 
-## 5. Group Architecture (MVP Shell)
+1. **PersonService** - Enhanced CRUD operations + private data sharing + agent progression
+2. **ResourceService** - Resource management + Economic Process coordination + custody transfers
+3. **GovernanceService** - Validation workflows + PPR management + agent promotion
+4. **ProcessService** - Economic Process lifecycle management (initiate, track, complete)
+5. **ReputationService** - PPR retrieval + reputation calculation + selective disclosure
+6. **ValidationService** - Multi-reviewer validation + role validation + cross-zome coordination
+7. **Error handling** - Comprehensive error types across all Economic Process and PPR operations
 
-Groups are the mandatory context for NDO creation. In the MVP, Group DNA does not yet exist; groups are persisted as `GroupDescriptor[]` in `localStorage` (key `ndo_groups_v1`).
+### Phase 3: Advanced Store Layer (Effect-TS)
 
-```typescript
-interface GroupDescriptor {
-  id: string;          // generated: grp_<timestamp>_<random>
-  name: string;
-  createdBy?: string;  // LobbyUserProfile.nickname
-  createdAt?: number;
-  ndoHashes?: string[];        // ActionHash[]  (base64) of NDOs created in this group
-  memberProfile?: GroupMemberProfile;
-}
+1. **PersonStore** - Enhanced profiles + private data sharing + capability progression tracking
+2. **ResourceStore** - Resources + processes + custody + state transitions + process scheduling
+3. **GovernanceStore** - Validation workflows + PPR tracking + reputation summaries
+4. **ProcessStore** - Economic Process workflows + status tracking + performance metrics + chaining
+5. **ReputationStore** - PPR management + reputation calculation + selective sharing controls
+6. **ValidationStore** - Validation status + approval processes + audit trails + dispute resolution
+7. **AuthStore** - Authentication + progressive capability tracking + role-based permissions
+8. **Cross-Store Event System** - Complex workflow coordination across all stores
+
+### Phase 4: Process-Aware Composables + Components
+
+1. **Enhanced Composables** - Economic Process workflows, PPR tracking, agent progression, private data sharing
+2. **Process-Aware Components** - Economic Process UI, reputation dashboards, role progression, validation interfaces
+3. **Comprehensive Pages** - Complete Economic Process and governance workflows with role-based access
+
+## Enhanced Pages & Layout Design for Comprehensive System
+
+### Comprehensive Application Structure
+
+```
+/                          # Enhanced Dashboard (community overview + Economic Process summary)
+/profile                   # Enhanced Personal profile management
+/profile/edit             # Edit personal profile
+/profile/private          # Enhanced Private data management
+/profile/data-sharing     # Private data sharing management (NEW)
+/profile/reputation       # Personal reputation dashboard (NEW)
+/profile/progression      # Agent capability progression tracking (NEW)
+
+/people                   # Enhanced Community members directory
+/people/[id]              # Individual member profile + reputation context
+/people/[id]/data-request # Request private data access (NEW)
+
+/processes                # Economic Process management hub (NEW)
+/processes/use            # Use process workflows (NEW)
+/processes/transport      # Transport process workflows (NEW - role-gated)
+/processes/storage        # Storage process workflows (NEW - role-gated)
+/processes/repair         # Repair process workflows (NEW - role-gated)
+/processes/[id]           # Individual process tracking (NEW)
+/processes/[id]/complete  # Process completion interface (NEW)
+
+/resources                # Resource management hub (NEW)
+/resources/[id]           # Individual resource profile + process history
+/resources/[id]/custody   # Custody transfer interface (NEW)
+/resources/[id]/processes # Resource process history (NEW)
+
+/reputation               # Reputation system interface (NEW)
+/reputation/my-claims     # Personal PPR management (NEW)
+/reputation/summary       # Reputation summary + selective sharing (NEW)
+/reputation/analytics     # Performance analytics (NEW)
+
+/governance               # Governance workflows (enhanced)
+/governance/validation    # Resource + agent validation workflows (NEW)
+/governance/roles         # Role management + specialized role validation (enhanced)
+/governance/disputes      # Dispute resolution interface (NEW)
+/governance/audit         # Governance audit trails (NEW)
+
+/settings                 # Enhanced App settings + capability management
 ```
 
-**Invite links** encode the `GroupDescriptor` as `btoa(JSON.stringify(group))` in a URL query parameter.
+### Enhanced Component Architecture
 
-When Group DNA lands, only `LobbyService.createGroup` / `joinGroup` and the `GroupDescriptor` persistence need to change. All component and store logic remains identical.
+**Layout Components:**
 
----
+- `AppShell` - Main navigation + content area with Economic Process integration
+- `EnhancedNavigation` - Role-based menu items + process status indicators + reputation context
+- `Header` - User profile + notifications + capability progression indicators
+- `CapabilityGuard` - Enhanced role-based access control for Economic Processes
 
-## 6. Component Reference
+**Person Management (Enhanced):**
 
-### Lobby Level
+- `PersonProfile` - Profile view/edit + reputation summary + capability progression
+- `PersonCard` - Directory listing + reputation indicators + role badges
+- `RoleManager` - Role assignment + specialized role validation (governance only)
+- `PrivateDataForm` - Secure data entry + field-specific sharing controls
+- `PrivateDataManager` - Request/grant workflows + expiration management
+- `DataSharingInterface` - Private data coordination for Economic Processes
+- `AgentProgressionTracker` - Visual capability advancement tracking
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `LobbyView` | `lobby/LobbyView.svelte` | Root lobby layout: profile bar, sidebar, NdoBrowser |
-| `UserProfileForm` | `lobby/UserProfileForm.svelte` | Lobby profile create/edit (modal or page mode) |
-| `GroupSidebar` | `lobby/GroupSidebar.svelte` | Groups list, Create Group form, Join Group form, My Profile link |
-| `NdoBrowser` | `lobby/NdoBrowser.svelte` | Filter chip bar (3 groups × multi-select) + NdoCard grid |
-| `NdoCard` | `lobby/NdoCard.svelte` | Compact NDO summary card with lifecycle/nature/regime badges |
+**Economic Process Components (NEW):**
 
-### Group Level
+- `ProcessWorkflow` - Economic Process initiation + tracking + completion
+- `ProcessTypeSelector` - Role-based process type selection (Use, Transport, Storage, Repair)
+- `ProcessStatusTracker` - Real-time process status updates
+- `ProcessCompletionInterface` - Process completion with state validation
+- `ProcessChaining` - Multi-step process workflow management
+- `ProcessRoleValidation` - Role requirement validation for process access
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `GroupView` | `group/GroupView.svelte` | Group header, Create NDO button, group-scoped NdoBrowser, MemberList stub |
-| `NdoCreateModal` | `group/NdoCreateModal.svelte` | 5-field NDO creation form (name, regime, nature, stage, description) |
-| `GroupProfileModal` | `group/GroupProfileModal.svelte` | Per-group profile presentation choice (first entry only) |
+**Resource Management (Enhanced):**
 
-### NDO Level
+- `ResourceProfile` - Resource view + process history + custody tracking
+- `ResourceLifecycle` - Complete resource lifecycle management
+- `CustodyTransferInterface` - Custody transfer workflows with coordination
+- `ResourceStateManager` - Resource state transitions with validation
+  - TODO: split into `LifecycleStageManager` (maturity transitions, rare) and `OperationalStateManager` (process-driven transitions, frequent) per ndo_prima_materia.md Section 5
+- `ResourceProcessHistory` - Audit trail of all processes affecting resource
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `NdoView` | `ndo/NdoView.svelte` | NDO detail: header, tab navigation, Fork button |
-| `NdoIdentityLayer` | `ndo/NdoIdentityLayer.svelte` | Layer 0 identity panel: badges, initiator link, transition button, history |
-| `LifecycleTransitionModal` | `ndo/LifecycleTransitionModal.svelte` | State machine transitions with special Deprecated / Hibernating handling |
-| `TransitionHistoryPanel` | `ndo/TransitionHistoryPanel.svelte` | Collapsible history of lifecycle transitions |
-| `ForkNdoModal` | `ndo/ForkNdoModal.svelte` | Informational fork friction modal with copy-pubkey CTA |
+**Reputation & PPR Components (NEW):**
 
-### Shell
+- `ReputationDashboard` - Comprehensive reputation tracking + performance analytics
+- `PPRManager` - Private Participation Receipt management + selective disclosure
+- `PPRTracker` - Real-time PPR generation tracking
+- `ReputationSummary` - Aggregated reputation metrics with role-specific breakdowns
+- `PerformanceMetrics` - Detailed performance analytics + trend analysis
+- `SelectiveSharing` - Privacy-preserving reputation sharing controls
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `Sidebar` | `shell/Sidebar.svelte` | Global nav — "Browse NDOs", context-aware "New NDO" link |
+**Governance & Validation (Enhanced):**
 
----
+- `ValidationInterface` - Multi-reviewer validation workflows
+- `ValidationStatusTracker` - Real-time validation progress tracking
+- `AgentValidation` - Agent promotion validation workflows
+- `RoleValidation` - Specialized role validation with existing role holder approval
+- `DisputeResolution` - Edge-based conflict resolution interface
+- `GovernanceAuditTrail` - Complete governance decision tracking
 
-## 7. State Management
+**Core Features (Enhanced):**
 
-### `app.context.svelte.ts`
+- `AgentConnector` - Connection status + cross-zome coordination health
+- `RoleIndicator` - Visual role representation + specialization badges + capability level
+- `DataTable` - Enhanced listing components with process/reputation filtering
+- `SearchFilter` - Advanced search with role, process, and reputation filtering
+- `NotificationCenter` - Process updates + validation requests + PPR notifications
+- `ErrorBoundary` - Comprehensive error handling for complex workflows
 
-Cross-view singleton. All `$state` variables are module-level (Svelte 5 rune pattern):
+## Enhanced Role-Based UI Access Control
 
-| Field | Type | Persisted |
-|-------|------|-----------|
-| `myAgentPubKey` | `AgentPubKey \| null` | No |
-| `myPerson` | `Person \| null` | No |
-| `currentView` | `'lobby' \| 'group' \| 'ndo'` | No |
-| `selectedGroupId` | `string \| null` | No |
-| `selectedNdoId` | `ActionHash \| null` | No |
-| `lobbyUserProfile` | `LobbyUserProfile \| null` | Yes — `localStorage` |
-
-### `lobby.store.svelte.ts`
-
-Effect-TS `E.gen` store instantiated once at module load via `E.runSync`.
-
-| Reactive field | Derives from |
-|----------------|-------------|
-| `ndos` | `NdoServiceTag.getLobbyNdoDescriptors()` |
-| `filteredNdos` | `ndos` + `activeFilters` (client-side OR-within/AND-across) |
-| `groups` | `LobbyServiceTag.getMyGroups()` |
-| `activeFilters` | Mutations via `setFilters()` / `clearFilters()` |
-| `myPerson` | `PersonServiceTag.getMyPersonProfile()` |
-
-### `group.store.svelte.ts`
-
-Singleton per-session; `loadGroupData(groupId)` switches context:
-
-| Field | Source |
-|-------|--------|
-| `group` | `localStorage` (`ndo_groups_v1`) |
-| `groupNdos` | `NdoServiceTag.getGroupNdoDescriptors(groupId)` |
-
----
-
-## 8. Service Layer
-
-### Pattern
-
-All services use the `wz<T>` factory:
+### Enhanced Capability Levels & Agent Progression
 
 ```typescript
-const wz = <T>(fnName: string, payload: unknown, context: string) =>
-  wrapZomeCallWithErrorFactory<T, DomainError>(
-    holochainClient, 'zome_name', fnName, payload, context, DomainError.fromError
+type CapabilityLevel =
+  | "member" // Simple Agent: Basic profile management, can create resources
+  | "stewardship" // Accountable Agent: Community advocacy, resource stewardship, Use processes
+  | "coordination" // Primary Accountable Agent: Resource/community coordination, custody, specialized processes
+  | "governance"; // Primary Accountable Agent: Community founding, governance coordination, all capabilities
+
+type SpecializedRole =
+  | "Transport" // Transport process access (requires validation)
+  | "Repair" // Repair process access (requires validation)
+  | "Storage"; // Storage process access (requires validation)
+```
+
+### Comprehensive UI Permission Matrix
+
+| Feature                      | Simple Agent | Accountable Agent | Primary Accountable Agent | Governance |
+| ---------------------------- | ------------ | ----------------- | ------------------------- | ---------- |
+| **Profile Management**       |
+| View own profile             | ✅           | ✅                | ✅                        | ✅         |
+| Edit own profile             | ✅           | ✅                | ✅                        | ✅         |
+| Manage private data          | ✅           | ✅                | ✅                        | ✅         |
+| Share private data           | ❌           | ✅                | ✅                        | ✅         |
+| View reputation summary      | ❌           | ✅                | ✅                        | ✅         |
+| **Community Features**       |
+| View community directory     | ✅           | ✅                | ✅                        | ✅         |
+| View others' profiles        | ✅           | ✅                | ✅                        | ✅         |
+| Request private data access  | ❌           | ✅                | ✅                        | ✅         |
+| View reputation context      | ❌           | ✅                | ✅                        | ✅         |
+| **Resource Management**      |
+| Create resources             | ✅           | ✅                | ✅                        | ✅         |
+| View all resources           | ✅           | ✅                | ✅                        | ✅         |
+| Hold custody                 | ❌           | ❌                | ✅                        | ✅         |
+| Transfer custody             | ❌           | ❌                | ✅                        | ✅         |
+| **Economic Processes**       |
+| View processes               | ✅           | ✅                | ✅                        | ✅         |
+| Initiate Use process         | ❌           | ✅                | ✅                        | ✅         |
+| Initiate Transport process   | ❌           | Transport Role    | Transport Role            | ✅         |
+| Initiate Storage process     | ❌           | Storage Role      | Storage Role              | ✅         |
+| Initiate Repair process      | ❌           | Repair Role       | Repair Role               | ✅         |
+| Complete processes           | ❌           | ✅                | ✅                        | ✅         |
+| **Validation & Governance**  |
+| Participate in validation    | ❌           | ✅                | ✅                        | ✅         |
+| Validate resources           | ❌           | ✅                | ✅                        | ✅         |
+| Validate agents              | ❌           | ❌                | ✅                        | ✅         |
+| Validate specialized roles   | ❌           | ❌                | ✅                        | ✅         |
+| Assign basic roles           | ❌           | ❌                | ❌                        | ✅         |
+| Assign specialized roles     | ❌           | ❌                | ❌                        | ✅         |
+| Access governance workflows  | ❌           | ❌                | ❌                        | ✅         |
+| **PPR & Reputation**         |
+| Generate PPRs                | ❌           | ✅                | ✅                        | ✅         |
+| View own PPRs                | ❌           | ✅                | ✅                        | ✅         |
+| Derive reputation            | ❌           | ✅                | ✅                        | ✅         |
+| Share reputation selectively | ❌           | ✅                | ✅                        | ✅         |
+| View performance analytics   | ❌           | ✅                | ✅                        | ✅         |
+
+## Data Flow Strategy
+
+### Effect-TS Store Architecture
+
+```typescript
+// Example PersonStore structure
+export const createPersonStore = (): E.Effect<
+  PersonStore,
+  never,
+  PersonServiceTag
+> =>
+  E.gen(function* () {
+    const personService = yield* PersonServiceTag;
+
+    // Reactive state
+    let currentUser = $state<Person | null>(null);
+    let communityMembers = $state<Person[]>([]);
+    let loading = $state(false);
+    let error = $state<string | null>(null);
+
+    // Methods with Effect composition
+    const createProfile = (input: PersonInput): E.Effect<Person, PersonError> =>
+      pipe(
+        personService.createPerson(input),
+        E.tap((person) => E.sync(() => (currentUser = person))),
+        E.tap((person) => emitEvent("person:created", person)),
+      );
+
+    return {
+      get currentUser() {
+        return currentUser;
+      },
+      get communityMembers() {
+        return communityMembers;
+      },
+      get loading() {
+        return loading;
+      },
+      get error() {
+        return error;
+      },
+      createProfile,
+      // ... other methods
+    };
+  });
+```
+
+### State Management Patterns
+
+- **Holochain Stores**: Reactive stores for zome calls with Effect error handling
+- **Profile Store**: Current agent profile + roles with capability checking
+- **Community Store**: All persons + public data with search/filter
+- **UI State**: Navigation, modals, forms with local state
+- **Event Bus**: Cross-store communication for complex workflows
+
+## Enhanced Architecture Benefits for Comprehensive Nondominium
+
+**Immediate Benefits (Phase 1-2 Complete):**
+
+- Clean separation of concerns across Economic Processes and PPR system
+- Type-safe Holochain interactions with cross-zome coordination
+- Comprehensive error handling for complex workflows
+- Testable business logic including Economic Process and reputation workflows
+- Enhanced role-based access control with specialized process permissions
+- Progressive agent capability advancement tracking
+- Privacy-preserving reputation management with selective disclosure
+
+**Advanced Benefits (Phase 2-3):**
+
+- Complete Economic Process integration with role-based workflows
+- Sophisticated governance workflows with PPR-weighted validation
+- Multi-agent coordination across complex Economic Process chains
+- ValueFlows compliance with Economic Process extensions
+- Private Participation Receipt system with cryptographic integrity
+- Cross-zome transaction consistency and atomic operations
+- Advanced reputation analytics and performance tracking
+- Scalable testing infrastructure for production-ready governance workflows
+
+**Production-Ready Capabilities:**
+
+- Agent capability progression (Simple → Accountable → Primary Accountable Agent)
+- Economic Process management (Use, Transport, Storage, Repair) with specialized role access
+- Private data sharing with request/grant workflows and Economic Process coordination
+- Comprehensive reputation system with 16 PPR categories and selective disclosure
+- Multi-reviewer validation schemes with role-based access control
+- Cross-zome coordination ensuring atomic transactions and consistency
+- Advanced error handling and rollback mechanisms across all workflows
+
+## Technical Implementation Notes
+
+### Effect-TS Integration Patterns
+
+```typescript
+// Service layer with dependency injection
+export class PersonServiceTag extends Context.Tag("PersonService")<
+  PersonServiceTag,
+  PersonService
+>() {}
+
+// Error handling with context
+export const PersonError = Data.TaggedError("PersonError")<{
+  message: string;
+  context?: string;
+  cause?: unknown;
+}>();
+
+// Composable async operations
+const createAndLinkProfile = (
+  input: PersonInput,
+): E.Effect<Person, PersonError> =>
+  pipe(
+    personService.createPerson(input),
+    E.flatMap((person) => linkToAgent(person)),
+    E.flatMap((person) => updateCommunityDirectory(person)),
+    E.catchAll((error) =>
+      PersonError({ message: "Profile creation failed", cause: error }),
+    ),
   );
 ```
 
-### `ndo.service.ts` — NdoServiceTag
+### Holochain Integration Patterns
 
-| Method | Delegates to |
-|--------|-------------|
-| `getLobbyNdoDescriptors()` | `resource.getAllResourceSpecifications()` + `resource.getAllNdos()` joined by name |
-| `getNdoDescriptorForSpecActionHash(hash)` | Same join, filtered by hash |
-| `createNdo(input, groupId)` | `resource.createNdo(input)` + localStorage group link |
-| `updateLifecycleStage(input)` | `resource.updateLifecycleStage(input)` |
-| `getNdoTransitionHistory(hash)` | `resource.getNdoTransitionHistory(hash)` (returns `[]` gracefully) |
-| `getGroupNdoDescriptors(groupId)` | All descriptors filtered by group's `ndoHashes` |
+- Wrap zome calls in Effect for consistent error handling
+- Cache management with expiration policies
+- Reactive updates via Holochain signals
+- Capability-based access control in UI components
+- Private data encryption/decryption flows
 
-### `lobby.service.ts` — LobbyServiceTag (localStorage-backed)
+### Testing Strategy
 
-| Method | Storage |
-|--------|---------|
-| `getMyGroups()` | `localStorage[ndo_groups_v1]` |
-| `createGroup(name, createdBy)` | Appends to `localStorage[ndo_groups_v1]` |
-| `joinGroup(inviteCode)` | Decodes base64 invite, appends if not already present |
-| `generateInviteLink(groupId)` | `btoa(JSON.stringify(group))` → URL param |
+- **Unit Tests**: Services and stores with mocked dependencies
+- **Integration Tests**: Cross-layer interactions with test Holochain setup
+- **E2E Tests**: Complete user workflows (profile creation, role assignment)
+- **Component Tests**: UI components with mock stores
+- **Mock Services**: Isolated testing with Effect test utilities
 
----
+## Migration from Current Setup
 
-## 9. Routing
+### Current State
 
-| Route | Component | Notes |
-|-------|-----------|-------|
-| `/` | `LobbyView` | Lobby entry point; shows all NDOs |
-| `/group/[id]` | `GroupView` | Group-scoped view; `?createNdo=1` auto-opens modal |
-| `/ndo/[hashB64]` | `NdoView` | NDO detail (hash is base64-encoded `ActionHash`) |
-| `/ndo/new` | Redirect page | Redirects to active group or shows explanation |
+- Basic Svelte 5 setup with Holochain client connection
+- No UI components yet - minimal scaffolding only
+- TypeScript support configured
+- Missing: SvelteKit, UnoCSS, Melt UI next-gen, Effect-TS
 
-### Navigation Logic
+### Migration Steps
 
-- **"New NDO" link in Sidebar**: if `appContext.selectedGroupId` is set → `/group/{id}?createNdo=1`; else → `/ndo/new` (explanation screen).
-- **Group navigation**: `GroupSidebar.svelte` calls `goto('/group/{id}')` after create/join.
-- **Post-NDO-creation**: `NdoCreateModal.svelte` calls `goto('/ndo/{hashB64}')` on success.
+1. **Convert to SvelteKit**: Update build config and routing
+2. **Add dependencies**: Effect-TS, UnoCSS, Melt UI next-gen (`melt`)
+3. **Create service layer**: HolochainClientService with Effect integration
+4. **Implement stores**: PersonStore, RoleStore with Effect patterns
+5. **Build components**: Starting with PersonProfile and community directory
+6. **Add routing**: Pages for profile management and community features
 
----
+This enhanced architecture provides a comprehensive, production-ready foundation for the complete ValueFlows implementation with Economic Process management, Private Participation Receipt reputation system, and sophisticated governance workflows. The system demonstrates how decentralized, agent-centric architectures can support complex economic coordination while maintaining the core principles of nondominium resources: **organization-agnostic, capture-resistant, and permissionless access under transparent community governance**.
 
-## 10. NDO Lifecycle State Machine (Frontend Mirror)
+### **UI Architecture Summary for Production Deployment**
 
-`LifecycleTransitionModal.svelte` encodes the same state machine as the Rust validation in `zome_resource`. Allowed transitions:
+The Enhanced Nondominium UI Architecture successfully maps the comprehensive backend capabilities to a sophisticated user interface that supports:
 
-| From | Allowed next stages |
-|------|---------------------|
-| Ideation | Specification, Deprecated, EndOfLife |
-| Specification | Development, Deprecated, EndOfLife |
-| Development | Prototype, Deprecated, EndOfLife |
-| Prototype | Stable, Deprecated, EndOfLife |
-| Stable | Distributed, Deprecated, EndOfLife |
-| Distributed | Active, Deprecated, EndOfLife |
-| Active | Hibernating, Deprecated, EndOfLife |
-| Hibernating | `hibernation_origin` stage, Deprecated, EndOfLife |
-| Deprecated | EndOfLife |
+1. **Complete Agent Lifecycle**: From Simple Agent onboarding through Accountable Agent advancement to Primary Accountable Agent capabilities with visual progression tracking
+2. **Economic Process Workflows**: Native UI support for all four process types (Use, Transport, Storage, Repair) with role-based access control and real-time status tracking
+3. **Privacy-Preserving Reputation**: Complete PPR management with selective disclosure controls and comprehensive performance analytics
+4. **Cross-Zome Coordination**: Seamless UI integration across person, resource, and governance zomes with atomic transaction support
+5. **Advanced Governance**: Multi-reviewer validation workflows, specialized role management, and comprehensive audit trails
 
-Special handling:
-- **Deprecated**: requires successor NDO selection (autocomplete from `lobbyStore.ndos`).
-- **Hibernating**: confirmation message shown; `hibernation_origin` preserved in entry.
-- Transition button visible to **initiator only** (`descriptor.initiator === encodeHashToBase64(myAgentPubKey)`).
-- `transition_event_hash` is passed as `null` in MVP (automatic EconomicEvent generation is a post-MVP backend task).
-
----
-
-## 11. Filter Architecture (NdoBrowser)
-
-Three independent chip groups with multi-select:
-
-| Group | Options | Logic |
-|-------|---------|-------|
-| LifecycleStage | 10 variants | OR within group |
-| ResourceNature | 5 variants | OR within group |
-| PropertyRegime | 6 variants | OR within group |
-
-**Cross-group logic**: AND (an NDO must match at least one selection in every active group).
-**Default**: all filters empty = show all NDOs.
-**Chip colors**: match the badge colors in `NdoIdentityLayer.svelte` color maps.
-
----
-
-## 12. Fork Friction Pattern
-
-Fork requests are intentionally non-trivial by design (see `ui_design.md` Fork section). The MVP implements:
-
-- **Informational modal only** (`ForkNdoModal.svelte`): explains negotiation → consensus → Unyt stake (post-MVP) flow.
-- **CTA**: copy initiator's `AgentPubKey` (base64) to clipboard for out-of-band contact.
-- **Visibility**: Fork button visible to any authenticated user (anyone with `myAgentPubKey` set).
-- Full fork submission (claim, vote, Unyt stake) is post-MVP.
-
----
-
-## 13. Post-MVP UI Tracks
-
-The following UI capabilities are documented but not yet implemented:
-
-| Track | Trigger | Design reference |
-|-------|---------|-----------------|
-| Group DNA backend | When `zome_group` lands — replace `LobbyService` localStorage impl | `lobby-dna.md`, `lobby-architecture.md` |
-| NDO cell cloning | Per-NDO DHT once Holochain cloning stabilises | `ndo_prima_materia.md §4` |
-| PPR / Reputation dashboard | After PPR zome functions are complete (#14–#21) | `specifications/governance/private-participation-receipt.md` |
-| Economic Process workflows | After Phase 2.2 process infrastructure lands | `requirements.md §4.2`, `implementation_plan.md §5 Phase 2.2` |
-| Person management components | After enhanced private data sharing (#40) | `requirements.md §4.1`, issue #8 |
-| Role management UI | After agent promotion workflow (#33, #34) | `requirements.md §4.3` |
-| Moss WeApplet | Post-MVP deployment target | `implementation_plan.md §12.6` |
-| Unyt / Flowsta integration UI | Phases 12.2–12.3 in implementation plan | `post-mvp/unyt-integration.md`, `post-mvp/flowsta-integration.md` |
-
----
-
-## 14. Effect-TS Patterns
-
-### Service injection
-
-```typescript
-// Resolved layer for direct component use
-export const NdoServiceResolved: Layer.Layer<NdoServiceTag> =
-  NdoServiceLive.pipe(Layer.provide(ResourceServiceResolved));
-
-// Usage in a Svelte $effect or onMount
-const exit = await E.runPromiseExit(
-  pipe(
-    E.gen(function* () {
-      const svc = yield* NdoServiceTag;
-      return yield* svc.getLobbyNdoDescriptors();
-    }),
-    E.provide(NdoServiceResolved)
-  )
-);
-```
-
-### Store instantiation (Svelte 5 rune + Effect pattern)
-
-```typescript
-// Module-level $state variables (top-level only — Svelte 5 rune constraint)
-let ndos = $state<NdoDescriptor[]>([]);
-
-// Store created synchronously with E.runSync; Effect only provides dependencies
-export const lobbyStore = pipe(
-  createLobbyStore(),         // E.Effect<LobbyStore, never, Services>
-  E.provide(LobbyStoreServicesResolved),
-  E.runSync                   // services are pure/synchronous; no async at creation time
-);
-```
-
-### Error handling
-
-All zome errors are domain-tagged (`ResourceError`, `PersonError`, etc.) with `context` strings for debugging. Effects that may fail are run with `E.runPromiseExit`, and `Exit.isSuccess(exit)` guards all state mutations.
+The Effect-TS architecture ensures type safety, error handling, and scalability across all these sophisticated workflows, providing a robust foundation for decentralized commons-based resource management at scale.

@@ -145,7 +145,7 @@ The agent with physical possession (custodianship) of a material nondominium Res
 ### Agent Type Taxonomy
 
 - **REQ-AGENT-01: Agent Type Field**: Every agent context must carry an `AgentEntityType` discriminant: `Individual`, `Collective(String)`, `Project(ActionHash)`, `Network(ActionHash)`, `Bot { capabilities, operator }`, `ExternalOrganisation(String)`. The MVP supports `Individual` only; all other variants require post-MVP implementation.
-- **REQ-AGENT-02: Collective Agents — Dual-Face Model**: Groups, working groups, projects, and network-level entities are **composed agents**. Each has an **agent face** (`AgentContext` with the relevant `AgentEntityType` variant) through which it participates in economic events as provider/receiver, and may optionally have a **resource face** (`NondominiumIdentity`) as its digital twin. The `ActionHash` in `Project(ActionHash)` and `Network(ActionHash)` links the agent face to the resource face. These two faces are ontologically distinct — the `NondominiumIdentity` is a Resource; the `AgentContext` is an Agent — and neither replaces the other. Individual agents hold roles in both their own profile and in collective agents' governance. Collective agents may act through multi-signature patterns (N-of-M member authorisation) when performing economic events.
+- **REQ-AGENT-02: Collective Agents as NDOs**: Groups, working groups, projects, and network-level entities must be modelled as organisational NDOs (with their own `NondominiumIdentity`) rather than as a parallel agent type requiring new entry schemas. Individual agents hold roles in both their own profile and in organisational NDOs.
 - **REQ-AGENT-03: Bot/AI Delegation**: A `DelegatedAgent` relationship must allow a `Person` to authorise an AI agent or bot to act on their behalf within a defined scope of capabilities and for a defined duration.
 
 ### Affiliation Spectrum
@@ -172,44 +172,6 @@ The agent with physical possession (custodianship) of a material nondominium Res
 ### Promotion Workflow Integrity
 
 - **REQ-AGENT-16: Queryable Promotion Requests**: The `request_role_promotion` function must create a real, queryable `RolePromotionRequest` entry linked to both the requesting agent and an anchor for pending requests — not return a placeholder hash. Promotion requests must be discoverable by authorised approvers.
-
-## 4.5 MVP UI Requirements
-
-> **Status**: Implemented in the current codebase. See `documentation/specifications/ui_architecture.md` for design; `documentation/IMPLEMENTATION_STATUS.md` for status.
-
-These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `ui/` directory. They derive from `documentation/requirements/ui_design.md` and the reconciliation decisions documented in GitHub Issue #102 (where conflicts arose, `ui_design.md` is the source of truth).
-
-### Navigational Hierarchy
-
-- **REQ-UI-NAV-01: Three-Level Hierarchy**: The UI must implement Lobby → Group → NDO as the navigational hierarchy. Users enter via the Lobby, join or create Groups, and access NDOs within a Group context.
-- **REQ-UI-NAV-02: Group-Scoped NDO Creation**: NDOs may only be created from within a Group. There is no global "Create NDO" flow. The `/ndo/new` route must redirect to the relevant Group or provide an explanation.
-- **REQ-UI-NAV-03: Context-Aware Sidebar Link**: The "New NDO" Sidebar link must navigate to `/group/{id}?createNdo=1` when a Group is selected, or to `/ndo/new` (explanation) otherwise.
-
-### Lobby
-
-- **REQ-UI-LOBBY-01: NDO Browser**: The Lobby must display all known NDOs in a browse-and-filter grid. Filter chips must allow multi-select across `LifecycleStage`, `ResourceNature`, and `PropertyRegime` simultaneously. OR logic applies within each dimension; AND logic applies across dimensions.
-- **REQ-UI-LOBBY-02: Group Sidebar**: The Lobby must include a sidebar listing the agent's Groups, with "Create Group" and "Join Group" actions. New or joined Groups must appear immediately and navigate the agent to the Group view.
-- **REQ-UI-LOBBY-03: Lobby Profile Bar**: The Lobby must display the agent's `nickname` from `LobbyUserProfile`, or a "Set up profile" CTA if no profile exists.
-
-### Identity — Three Levels
-
-- **REQ-UI-ID-01: LobbyUserProfile (Level 1)**: Agents must be prompted to create a `LobbyUserProfile` (nickname required; real name, bio, email, phone, address optional) on first Lobby entry. This profile is stored in `localStorage` only and does not require a DHT write.
-- **REQ-UI-ID-02: GroupMemberProfile (Level 2)**: On first entry to each Group, agents must be prompted to choose how their `LobbyUserProfile` data is presented to other Group members (anonymous vs. selective disclosure). This choice is stored per-Group in `localStorage`.
-- **REQ-UI-ID-03: Person entry (Level 3)**: A `Person` entry in `zome_person` is created at most once — on the agent's first DHT-active action (e.g., NDO creation, acceptance of a Commitment). Lobby browsing and Group membership do not require a `Person` entry.
-
-### Groups (MVP Shell)
-
-- **REQ-UI-GRP-01: Group as localStorage shell**: In the MVP, Groups are persisted as `GroupDescriptor` entries in `localStorage` (no Group DNA). The `LobbyService` implementation must be replaceable with a Group DNA backend without requiring component changes.
-- **REQ-UI-GRP-02: Invite Links**: Groups must support invite links (base64-encoded `GroupDescriptor`) that allow another agent to join by pasting a link.
-- **REQ-UI-GRP-03: Group-scoped NdoBrowser**: The Group view must display only NDOs created within that Group, using the same filter chip UI as the Lobby NdoBrowser.
-
-### NDO Management
-
-- **REQ-UI-NDO-01: NDO Creation Form**: The NDO creation form must include: `name` (text), `property_regime` (select, 6 options with tooltips), `resource_nature` (select, 5 options with tooltips), `lifecycle_stage` (select, 10 options), `description` (textarea). Name uniqueness is checked client-side against existing lobby NDOs (warning, not block).
-- **REQ-UI-NDO-02: Initiator Display**: The NDO identity panel must display the initiator's `Person.name` as a profile link, or fall back to a truncated `AgentPubKey` if no `Person` entry exists.
-- **REQ-UI-NDO-03: Lifecycle Transition**: The initiator of an NDO must have access to a lifecycle transition button. The frontend must encode the full valid transition table (mirroring the Rust validation). Special cases: `Deprecated` requires successor NDO selection; `Hibernating` requires confirmation.
-- **REQ-UI-NDO-04: Transition History**: NDO identity panels must show a collapsible transition history panel listing `from_stage`, `to_stage`, `agent`, `timestamp`, and `event_hash` (with copy-to-clipboard) for each recorded transition.
-- **REQ-UI-NDO-05: Fork Button**: An informational "Fork this NDO" button must be accessible to all authenticated users. The fork modal must explain the fork friction concept (negotiation, consensus, post-MVP Unyt stake) and provide a copy-initiator-pubkey CTA. Actual fork submission is post-MVP.
 
 ## 5. Economic Process Requirements
 

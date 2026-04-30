@@ -60,7 +60,7 @@ export class ResourceSpecInput extends Schema.Class<ResourceSpecInput>('Resource
   image_url: Schema.optional(Schema.String),
   tags: Schema.Array(Schema.String),
   is_active: Schema.Boolean
-}) { }
+}) {}
 
 export class UIResourceSpec extends Schema.Class<UIResourceSpec>('UIResourceSpec')({
   name: Schema.String,
@@ -71,7 +71,7 @@ export class UIResourceSpec extends Schema.Class<UIResourceSpec>('UIResourceSpec
   is_active: Schema.Boolean,
   original_action_hash: Schema.optional(Schema.Any), // ActionHash
   created_at: Schema.optional(Schema.Number)
-}) { }
+}) {}
 
 export class EconomicResourceInput extends Schema.Class<EconomicResourceInput>(
   'EconomicResourceInput'
@@ -80,7 +80,7 @@ export class EconomicResourceInput extends Schema.Class<EconomicResourceInput>(
   quantity: Schema.Number,
   unit: Schema.String,
   current_location: Schema.optional(Schema.String)
-}) { }
+}) {}
 
 export class UIEconomicResource extends Schema.Class<UIEconomicResource>('UIEconomicResource')({
   quantity: Schema.Number,
@@ -91,13 +91,13 @@ export class UIEconomicResource extends Schema.Class<UIEconomicResource>('UIEcon
   conforms_to: Schema.optional(Schema.Any), // ActionHash
   original_action_hash: Schema.optional(Schema.Any),
   created_at: Schema.optional(Schema.Number)
-}) { }
+}) {}
 
 export class GovernanceRuleInput extends Schema.Class<GovernanceRuleInput>('GovernanceRuleInput')({
   rule_type: Schema.String,
   rule_data: Schema.String, // JSON-encoded
   enforced_by: Schema.optional(Schema.String)
-}) { }
+}) {}
 
 export class UIGovernanceRule extends Schema.Class<UIGovernanceRule>('UIGovernanceRule')({
   rule_type: Schema.String,
@@ -105,7 +105,7 @@ export class UIGovernanceRule extends Schema.Class<UIGovernanceRule>('UIGovernan
   enforced_by: Schema.optional(Schema.String),
   original_action_hash: Schema.optional(Schema.Any),
   created_at: Schema.optional(Schema.Number)
-}) { }
+}) {}
 
 export class NdoIdentityInput extends Schema.Class<NdoIdentityInput>('NdoIdentityInput')({
   name: Schema.String.pipe(Schema.minLength(1)),
@@ -113,7 +113,7 @@ export class NdoIdentityInput extends Schema.Class<NdoIdentityInput>('NdoIdentit
   property_regime: PropertyRegimeSchema,
   resource_nature: ResourceNatureSchema,
   lifecycle_stage: LifecycleStageSchema
-}) { }
+}) {}
 
 export class UINdoIdentity extends Schema.Class<UINdoIdentity>('UINdoIdentity')({
   name: Schema.String,
@@ -126,4 +126,4 @@ export class UINdoIdentity extends Schema.Class<UINdoIdentity>('UINdoIdentity')(
   successor_ndo_hash: Schema.optional(Schema.Any), // ActionHash
   hibernation_origin: Schema.optional(LifecycleStageSchema),
   original_action_hash: Schema.optional(Schema.Any)
-}) { }
+}) {}
