@@ -621,7 +621,7 @@ async fn ndo_cross_agent_discovery() {
         .await;
 
     // MANDATORY: wait for all ops to propagate before cross-agent reads
-    await_consistency(&[&alice, &bob]).await.unwrap();
+    await_consistency_20_s([&alice, &bob]).await.unwrap();
 
     // Bob sees all 3 NDOs via the global anchor
     let all_ndos: GetAllNdosOutput = conductors[1]

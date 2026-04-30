@@ -165,7 +165,7 @@ dnas/nondominium/tests/src/
 - `setup_three_agents()` — three conductors with nondominium DNA
 - `setup_dual_dna_two_agents()` — two conductors with nondominium + hREA DNAs (explicit role names)
 
-**DHT sync** between agents: `await_consistency(&[&cell_a, &cell_b]).await.unwrap()`
+**DHT sync** between agents: `await_consistency_20_s(&[&cell_a, &cell_b]).await.unwrap()` (holochain 0.6.0 requires a timeout arg; use the `_20_s` wrapper)
 
 ### Deprecated: Tryorama (TypeScript)
 
