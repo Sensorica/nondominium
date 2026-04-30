@@ -500,63 +500,86 @@ _Optimizing the system for large-scale network operation_
 
 ---
 
-## 7. UI Development Plan 🎨 **ENHANCED FOR COMPREHENSIVE BACKEND**
+## 7. UI Development Plan 🎨
 
 ### Current Frontend Status
 
-- **Base Setup**: Svelte 5.0 + TypeScript + Vite 6.2.5 development environment
-- **Holochain Client**: @holochain/client 0.19.0 integration ready
-- **Architecture Foundation**: Prepared for 7-layer Effect-TS architecture supporting Economic Processes and PPR
+- **MVP UI**: ✅ Implemented — persistent Lobby sidebar + Group panel + NDO detail page with full NDO lifecycle management, Associate with group, Join NDO placeholder, and reliable NDO data display via cache + DHT refresh
+- **Stack**: SvelteKit 2 + Svelte 5 runes + TypeScript + UnoCSS + Melt UI next-gen + Effect-TS
+- **Service Layer**: ✅ Complete (PR #97 + MVP UI work) — all three zome services + NDO/Lobby services with Effect-TS `Context.Tag` / `Layer` / `E.gen` pattern
+- **Architecture reference**: `documentation/specifications/ui_architecture.md`
 
-### Phase 1: Enhanced Foundation UI 🚀 **IMMEDIATE PRIORITY**
+### Phase 1: Foundation UI ✅ **COMPLETE**
 
-- [ ] **SvelteKit Migration**: Convert to full-stack framework with Economic Process support
-- [ ] **UnoCSS + Melt UI next-gen Integration**: Design system (UnoCSS preset-wind, preset-icons) and headless components supporting role-based UI and process workflows (see #83)
-- [ ] **Effect-TS Integration**: Functional programming layer for complex async state including PPR tracking
-- [ ] **Enhanced HolochainClientService**: Type-safe DHT connection with Economic Process and PPR integration
+- [x] **SvelteKit + UnoCSS + Melt UI next-gen**: Fully scaffolded (see `vite.config.ts`, `uno.config.ts`)
+- [x] **Effect-TS service layer**: All three zome services + NdoService + LobbyService (PR #97 + MVP UI)
+- [x] **HolochainClientService**: `wrapZomeCallWithErrorFactory` pattern, `Context.Tag` injection
 
-### Phase 2: Comprehensive Service Layer 🏗️
+### Phase 2: MVP UI — Lobby → Group → NDO ✅ **COMPLETE**
 
-- [ ] **PersonService**: Person + PrivateData + DataAccessRequest/Grant workflows
-- [ ] **ResourceService**: Resource + EconomicProcess + state management + custody transfers
-- [ ] **GovernanceService**: ValidationReceipt + EconomicEvent + PPR + reputation management
-- [ ] **RoleService**: Role assignment + capability progression + specialized role validation
-- [ ] **ProcessService**: Economic Process initiation, tracking, completion, and chaining
-- [ ] **ReputationService**: PPR retrieval, reputation calculation, and selective disclosure
+Implements `documentation/requirements/ui_design.md` MVP section and reconciled requirements from GitHub Issue #102. Includes UI-restructure sprint that made the Lobby the persistent outer shell and fixed NDO data display.
 
-### Phase 3: Advanced Store Architecture (Effect-TS) 📊
+#### Foundation (initial delivery)
 
-- [ ] **PersonStore**: Agent profiles + private data sharing + capability progression tracking
-- [ ] **ResourceStore**: Resources + processes + custody + state transitions + process scheduling
-- [ ] **GovernanceStore**: Validation workflows + PPR tracking + reputation summaries
-- [ ] **ProcessStore**: Economic Process workflows + status tracking + performance metrics + chaining
-- [ ] **ReputationStore**: PPR management + reputation calculation + selective sharing controls
-- [ ] **ValidationStore**: Validation status + approval processes + audit trails + dispute resolution
+- [x] **Three-level identity model**: `LobbyUserProfile` (localStorage), `GroupMemberProfile` (localStorage), `Person` (DHT on first action) — `documentation/requirements/agent.md §2`
+- [x] **Shared types**: `NdoInput`, `UpdateLifecycleStageInput`, `NdoTransitionHistoryEvent`, `LobbyUserProfile`, `GroupMemberProfile`, extended `GroupDescriptor` and `NdoDescriptor`; `PropertyRegime` reduced to 4 canonical variants (Private, Commons, Nondominium, CommonPool) — `packages/shared-types/src/resource.types.ts`
+- [x] **NDO service methods**: `createNdo`, `updateLifecycleStage`, `getNdoTransitionHistory`, `getGroupNdoDescriptors`, `getLobbyNdoDescriptors` — `ndo.service.ts`
+- [x] **Resource service methods**: `createNdo`, `getNdo` (return type corrected to `NondominiumIdentity | null` matching Rust `Option<NondominiumIdentity>`), `updateLifecycleStage`, filtered queries, history — `resource.service.ts`
+- [x] **Lobby service (localStorage)**: `getMyGroups`, `createGroup`, `joinGroup`, `generateInviteLink` — `lobby.service.ts`
+- [x] **app.context**: `lobbyUserProfile` state with localStorage hydration
+- [x] **lobby.store**: `activeFilters`, `filteredNdos`, `createGroup`, `joinGroup`; `loadLobby()` now invoked from root layout
+- [x] **group.store**: `group`, `groupNdos`, `loadGroupData`, `createNdo`, `associateNdoWithGroup`
+- [x] **ndo-cache.ts** *(new)*: in-memory descriptor cache keyed by hash; populated on card click to seed NDO page instantly
+- [x] **UserProfileForm.svelte**: Lobby profile create/edit, modal + page modes, nickname required
+- [x] **GroupProfileModal.svelte**: Per-group disclosure preferences (first visit only)
+- [x] **NdoBrowser.svelte**: Multi-select filter chips (LifecycleStage × ResourceNature × PropertyRegime 4 variants)
+- [x] **NdoCard.svelte**: Populates `ndo-cache` before navigating to NDO page
+- [x] **NdoCreateModal.svelte**: 5-field form (4-variant regime), uniqueness check, Effect-TS errors, navigation on success
+- [x] **NdoIdentityLayer.svelte**: Initiator profile link, lifecycle transition button (initiator-only), TransitionHistoryPanel; 4-variant regime color map
+- [x] **LifecycleTransitionModal.svelte**: Full state machine, Deprecated/Hibernating special cases
+- [x] **TransitionHistoryPanel.svelte**: Collapsible history panel with copy-to-clipboard
+- [x] **ForkNdoModal.svelte**: Informational fork friction modal, copy-pubkey CTA
 
-### Phase 4: Advanced UI Components & Process Workflows 🖼️
+#### UI-restructure sprint (persistent Lobby shell)
 
-- [ ] **Enhanced Person Management**: Profile + private data sharing + role progression + reputation display
-- [ ] **Economic Process Workflows**: Process initiation + tracking + completion + chaining interface
-- [ ] **Resource Lifecycle Management**: Creation + validation + processes + custody + end-of-life
+- [x] **`+layout.svelte`** (root): `onMount` initialises agent key, calls `loadLobby()`, triggers first-time profile modal if no lobby profile exists — ensures sidebar data available on every route
+- [x] **`Sidebar.svelte`** (rewritten as LobbySidebar): Browse NDOs link, live groups list (`/group/:id`), inline "+ New Group" form, inline "→ Join Group" form, "My Profile / Edit profile" at bottom; global "New NDO" link removed (creation is group-scoped only)
+- [x] **`LobbyView.svelte`** (simplified): removed GroupSidebar and onMount data loading; renders page header + NdoBrowser only
+- [x] **`GroupView.svelte`**: replaced `onMount` with `$effect` so group name and NDO list reload correctly when navigating between groups via the sidebar
+- [x] **`NdoView.svelte`** (extended): NDO detail card (Description, Property Regime, Resource Nature, Lifecycle Stage, Created); loading skeleton; retry-able error banner; Join NDO placeholder (always visible); Associate with group button (always visible); Fork button (auth-gated); descriptor seeded from `ndo-cache`, refreshed from DHT in background
+- [x] **`AssociateNdoModal.svelte`** *(new)*: group-picker modal, multi-select, writes to localStorage via `groupStore.associateNdoWithGroup`
+- [x] **`/group/[id]` route**: `?createNdo=1` query param still supported
+- [x] **`/ndo/new` route**: redirects to active group or shows instruction screen
+
+### Phase 3: Service Layer (Post-MVP) 🏗️
+
+- [ ] **PersonService extensions**: `DataAccessRequest` / `DataAccessGrant` workflows
+- [ ] **ResourceService**: Economic Process initiation + state management + custody transfers
+- [ ] **GovernanceService**: PPR management + reputation calculation
+- [ ] **ProcessService**: Economic Process lifecycle (initiate, track, complete, chain)
+- [ ] **ReputationService**: PPR retrieval + selective disclosure
+
+### Phase 4: Store Architecture Extensions 📊
+
+- [ ] **PersonStore**: Private data sharing + capability progression
+- [ ] **ProcessStore**: Economic Process workflows + status tracking
+- [ ] **ReputationStore**: PPR management + reputation calculation + selective sharing
+- [ ] **ValidationStore**: Validation status + approval processes
+
+### Phase 5: Advanced UI Components 🖼️
+
+- [ ] **Person management components**: Profile + private data sharing + role progression + reputation display (issue #8)
+- [ ] **Economic Process Workflows**: Process initiation + tracking + completion + chaining interface (issues #28–#32)
 - [ ] **Governance & Validation Interface**: Validation workflows + PPR generation + reputation context
 - [ ] **Role-Based Dynamic UI**: Progressive capability unlocking + specialized process access
-- [ ] **Reputation Dashboard**: PPR tracking + reputation summaries + selective disclosure controls
+- [ ] **Reputation Dashboard**: PPR tracking + summaries + selective disclosure controls (issue #22)
 
-### Phase 5: Advanced Features & Analytics 📈
+### Phase 6: Group DNA Backend & Post-MVP UI 🌐
 
-- [ ] **Process Analytics**: Performance tracking + efficiency metrics + optimization suggestions
-- [ ] **Network Health Dashboard**: Agent activity + resource utilization + process completion rates
-- [ ] **Reputation Insights**: Trend analysis + role performance + network trust metrics
-- [ ] **Advanced Workflow Management**: Multi-step process orchestration + automated agent matching
-
-### UI Architecture Benefits for Enhanced System
-
-- **Complete Backend Integration**: Full mapping to person, resource, and governance zomes
-- **Economic Process Support**: Native UI for all four process types with role-based access
-- **PPR Integration**: Real-time reputation tracking and selective disclosure interface
-- **Agent Progression UI**: Visual capability advancement and role acquisition workflows
-- **Type Safety**: End-to-end type safety from Rust entries through Economic Processes to UI
-- **Progressive Enhancement**: Phase 1 foundation supports immediate demonstration, Phase 2+ unlocks full capabilities
+- [ ] **Group DNA backend**: When `zome_group` lands, replace `LobbyService` localStorage with real DNA calls — all component + store logic remains identical (see `implementation_plan.md §12.6`)
+- [ ] **NDO cell cloning**: Per-NDO DHT, once Holochain cloning stabilises
+- [ ] **Fork submission flow**: Claim, vote, and Unyt stake (after Unyt integration §12.2)
+- [ ] **Moss WeApplet**: `ui/src/we-applet.ts` — `search`, `getAssetInfo`, `openAsset` (see §12.6)
 
 ---
 

@@ -4,7 +4,7 @@
 
 The nondominium hApp employs a comprehensive, multi-layered testing strategy covering all three zomes across two parallel test suites that are active simultaneously during migration.
 
-**Current status**: Sweettest scaffold is in place (workspace config, conductor helpers, `misc` ping test). Per-zome tests will be co-evolved alongside the NDO refactor (see `documentation/requirements/ndo_prima_materia.md` §10). Tryorama (TypeScript) remains the active test suite in the meantime.
+**Current status**: Three Sweettest binaries are active: `misc` (ping), `person` (Person zome + hREA bridge), and `nondominium` (NDO Layer 0 lifecycle tests, 8 scenarios). Tryorama (TypeScript) remains active and is being phased out as Sweettest coverage grows.
 
 ## Sweettest (Rust) — Primary
 
@@ -25,16 +25,18 @@ bun run sweettest:only        # skip build:happ (use when .dna is already built)
 
 ```
 dnas/nondominium/tests/
-├── Cargo.toml               # [[test]] targets: misc, person, resource
+├── Cargo.toml               # [[test]] targets: misc, person, resource, nondominium
 └── src/
     ├── common/
     │   └── conductors.rs    # setup_two_agents(), setup_three_agents(), setup_dual_dna_two_agents()
     ├── misc/                # ping test — validates full build chain end-to-end
     ├── person/              # zome_person tests: profile, roles, capability grants, hREA bridge
-    └── resource/            # zome_resource tests: get_all_resource_specifications (action_hashes field)
+    ├── resource/            # zome_resource tests
+    └── nondominium/
+        └── ndo_layer0/      # NondominiumIdentity lifecycle tests (8 scenarios, closes #76)
 ```
 
-Per-zome test modules are written alongside the NDO refactor. Each implementation PR for the NDO three-layer model adds tests for the new API it introduces. `governance/` tests will be added when `zome_gouvernance` NDO refactor PRs land.
+Per-zome test modules are added alongside their implementation PRs. `governance/` tests will be added when `zome_gouvernance` NDO refactor PRs land.
 
 ### Environment requirement for Sweettest
 
