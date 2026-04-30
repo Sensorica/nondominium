@@ -35,3 +35,7 @@ path = "src/resource/mod.rs"
 [[test]]
 name = "governance"
 path = "src/governance/mod.rs"
+
+[[test]]
+name = "nondominium"
+path = "src/nondominium/mod.rs"

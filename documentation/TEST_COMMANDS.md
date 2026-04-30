@@ -2,12 +2,15 @@
 
 Quick reference for running tests from the project root.
 
-## 🦀 **Sweettest (Rust) — Scaffold (tests added alongside NDO refactor)**
+## 🦀 **Sweettest (Rust) — Primary**
 
 Runs Holochain in-process. Faster, no WebSocket round-trip, direct Rust types.
 
-Currently contains the `misc` ping test, `person` zome tests, `resource` zome tests, and shared conductor infrastructure.
-Per-zome tests are written alongside the NDO refactor (see `ndo_prima_materia.md` §10).
+Four `[[test]]` binaries (targets for `cargo test --test <name>`):
+- `misc` — ping test, validates full build chain end-to-end
+- `person` — Person zome + hREA bridge tests
+- `resource` — Resource zome tests
+- `nondominium` — NDO Layer 0 (`NondominiumIdentity`) lifecycle tests (8 scenarios)
 
 ```bash
 # Build .dna bundle then run all Rust tests
@@ -49,7 +52,17 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test
 CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby announce_ndo_cross_conductor
 ```
 
-## 📋 **Tryorama (TypeScript) — Active**
+### NDO Layer 0 tests (`--test nondominium`)
+
+```bash
+# Run all NDO Layer 0 tests
+CARGO_TARGET_DIR=target/native-tests cargo test --test nondominium
+
+# Run a single scenario
+CARGO_TARGET_DIR=target/native-tests cargo test --test nondominium ndo_cross_agent_discovery
+```
+
+## 📋 **Tryorama (TypeScript) — Deprecated**
 
 Still the primary test suite until NDO refactor lands and Sweettest tests are co-evolved.
 
