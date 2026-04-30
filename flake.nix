@@ -20,7 +20,7 @@
     systems = builtins.attrNames inputs.holonix.devShells;
     perSystem = { inputs', pkgs, ... }:
     let
-      cursorPAI      = (pkgs.callPackage ./nix/cursor-pai.nix { }) { paiDir = ./pai; };
+      cursorPAI      = (pkgs.callPackage ./nix/cursor-pai.nix { }) { paiDir = ./pai; docsDir = ./documentation; };
       agentSkillsHook = pkgs.callPackage ./nix/agent-skills.nix { };
     in
     {

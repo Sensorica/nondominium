@@ -2,12 +2,13 @@
 # Generates .cursor/rules/*.mdc files from pai/ source files.
 # Called from flake.nix perSystem: (pkgs.callPackage ./nix/cursor-pai.nix { }) { paiDir = ./pai; }
 { lib, runCommand }:
-{ paiDir }:
+{ paiDir, docsDir }:
 
 let
   rules = [
     {
       name = "00-telos";
+      dir = docsDir;
       sourceFile = "TELOS.md";
       alwaysApply = true;
       globs = "";
@@ -15,6 +16,7 @@ let
     }
     {
       name = "10-conventions";
+      dir = paiDir;
       sourceFile = "conventions.md";
       alwaysApply = true;
       globs = "";
@@ -22,13 +24,23 @@ let
     }
     {
       name = "20-architecture";
+      dir = paiDir;
       sourceFile = "cursor-rules/20-architecture.md";
       alwaysApply = true;
       globs = "";
       description = "Three zome architecture and NDO three-layer model";
     }
     {
+      name = "25-domain-enums";
+      dir = paiDir;
+      sourceFile = "cursor-rules/10-domain-enums.md";
+      alwaysApply = true;
+      globs = "";
+      description = "Canonical enum reference: PropertyRegime, ResourceNature, LifecycleStage, OperationalState, VfAction, RoleType";
+    }
+    {
       name = "30-rust-zomes";
+      dir = paiDir;
       sourceFile = "cursor-rules/30-rust-zomes.md";
       alwaysApply = false;
       globs = "**/*.rs";
@@ -36,6 +48,7 @@ let
     }
     {
       name = "40-svelte-ui";
+      dir = paiDir;
       sourceFile = "cursor-rules/40-svelte-ui.md";
       alwaysApply = false;
       globs = "**/*.svelte";
@@ -43,6 +56,7 @@ let
     }
     {
       name = "50-tests";
+      dir = paiDir;
       sourceFile = "cursor-rules/50-tests.md";
       alwaysApply = false;
       globs = "dnas/**/tests/**/*.rs";
@@ -62,7 +76,7 @@ let
   mkBuildStep = rule: ''
     {
       printf '%s' ${lib.escapeShellArg (mkFrontmatter rule)}
-      cat "${paiDir}/${rule.sourceFile}"
+      cat "${rule.dir}/${rule.sourceFile}"
     } > "$out/${rule.name}.mdc"
   '';
 in
