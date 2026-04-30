@@ -632,6 +632,18 @@ async fn ndo_cross_agent_discovery() {
         3,
         "Bob should see all 3 NDOs via the global anchor after DHT sync"
     );
+    assert!(
+        all_ndos.ndos.iter().any(|n| n.entry.name == "Alice NDO 1"),
+        "get_all_ndos must include Alice NDO 1"
+    );
+    assert!(
+        all_ndos.ndos.iter().any(|n| n.entry.name == "Alice NDO 2"),
+        "get_all_ndos must include Alice NDO 2"
+    );
+    assert!(
+        all_ndos.ndos.iter().any(|n| n.entry.name == "Bob NDO"),
+        "get_all_ndos must include Bob NDO"
+    );
 
     // Bob filters by Ideation: Alice NDO 2 + Bob NDO (Alice NDO 1 moved to Specification)
     let at_ideation: GetAllNdosOutput = conductors[1]
@@ -645,6 +657,14 @@ async fn ndo_cross_agent_discovery() {
         at_ideation.ndos.len(),
         2,
         "Two NDOs should be at Ideation stage (Alice NDO 1 moved out)"
+    );
+    assert!(
+        at_ideation.ndos.iter().any(|n| n.entry.name == "Alice NDO 2"),
+        "Ideation filter must include Alice NDO 2"
+    );
+    assert!(
+        at_ideation.ndos.iter().any(|n| n.entry.name == "Bob NDO"),
+        "Ideation filter must include Bob NDO"
     );
 
     // Bob filters by Specification: only Alice NDO 1
@@ -660,6 +680,10 @@ async fn ndo_cross_agent_discovery() {
         1,
         "One NDO should be at Specification stage"
     );
+    assert_eq!(
+        at_specification.ndos[0].entry.name, "Alice NDO 1",
+        "Specification filter must return Alice NDO 1"
+    );
 
     // get_my_ndos is agent-scoped — Bob sees only his own
     let bob_mine: GetAllNdosOutput = conductors[1]
@@ -670,6 +694,10 @@ async fn ndo_cross_agent_discovery() {
         1,
         "get_my_ndos must return only Bob's NDO"
     );
+    assert_eq!(
+        bob_mine.ndos[0].entry.name, "Bob NDO",
+        "Bob's get_my_ndos must return Bob NDO"
+    );
 
     // Alice sees only her two NDOs
     let alice_mine: GetAllNdosOutput = conductors[0]
@@ -679,6 +707,14 @@ async fn ndo_cross_agent_discovery() {
         alice_mine.ndos.len(),
         2,
         "get_my_ndos must return only Alice's 2 NDOs"
+    );
+    assert!(
+        alice_mine.ndos.iter().any(|n| n.entry.name == "Alice NDO 1"),
+        "Alice's get_my_ndos must include Alice NDO 1"
+    );
+    assert!(
+        alice_mine.ndos.iter().any(|n| n.entry.name == "Alice NDO 2"),
+        "Alice's get_my_ndos must include Alice NDO 2"
     );
 }
 

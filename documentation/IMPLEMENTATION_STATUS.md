@@ -297,7 +297,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | hREA Phase 1 (Person/ReaAgent bridge)                  | ✅ Complete    |
 | SvelteKit + UnoCSS + Melt UI next-gen setup            | ✅ Complete    |
 | Effect-TS service layer                                | ✅ Complete (PR #97) |
-| NondominiumIdentity (Layer 0 identity anchor)          | ✅ Complete    |
+| NondominiumIdentity (Layer 0 identity anchor)          | ✅ Complete — Sweettest suite added in #86 (closes #76) |
 | MVP UI — Persistent Lobby sidebar (all routes)         | ✅ Complete    |
 | MVP UI — Lobby → Group → NDO hierarchy                 | ✅ Complete    |
 | MVP UI — Three-level identity (Lobby/Group/Agent)      | ✅ Complete    |
