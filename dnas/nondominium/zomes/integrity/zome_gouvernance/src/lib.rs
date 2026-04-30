@@ -303,10 +303,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           return validate_create_ndo_hard_link(link, action);
         }
         EntryTypes::Contribution(c) => {
-          return validate_create_contribution(c);
+          return validate_create_contribution(c, action);
         }
         EntryTypes::Agreement(a) => {
-          return validate_create_agreement(a);
+          return validate_create_agreement(a, action);
         }
         _ => {}
       },
@@ -317,7 +317,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           ));
         }
         EntryTypes::Agreement(a) => {
-          return validate_create_agreement(a);
+          // Author check is not applicable here (action is Update, not Create).
+          // Validate only the content; the StoreRecord arm enforces version monotonicity
+          // and ndo_identity_hash immutability.
+          return validate_agreement_content(&a);
         }
         _ => {}
       },
@@ -418,7 +421,12 @@ fn validate_create_ndo_hard_link(
   Ok(ValidateCallbackResult::Valid)
 }
 
-fn validate_create_contribution(c: Contribution) -> ExternResult<ValidateCallbackResult> {
+fn validate_create_contribution(c: Contribution, action: Create) -> ExternResult<ValidateCallbackResult> {
+  if c.provider != action.author {
+    return Ok(ValidateCallbackResult::Invalid(
+      "provider must equal action.author".to_string(),
+    ));
+  }
   match c.action {
     VfAction::Work | VfAction::Modify | VfAction::Cite => {}
     _ => return Ok(ValidateCallbackResult::Invalid(
@@ -443,7 +451,7 @@ fn validate_create_contribution(c: Contribution) -> ExternResult<ValidateCallbac
   Ok(ValidateCallbackResult::Valid)
 }
 
-fn validate_create_agreement(a: Agreement) -> ExternResult<ValidateCallbackResult> {
+fn validate_agreement_content(a: &Agreement) -> ExternResult<ValidateCallbackResult> {
   if a.primary_accountable.is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
       "primary_accountable must contain at least one agent".to_string(),
@@ -463,6 +471,15 @@ fn validate_create_agreement(a: Agreement) -> ExternResult<ValidateCallbackResul
     ));
   }
   Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_create_agreement(a: Agreement, action: Create) -> ExternResult<ValidateCallbackResult> {
+  if a.created_by != action.author {
+    return Ok(ValidateCallbackResult::Invalid(
+      "created_by must equal action.author".to_string(),
+    ));
+  }
+  validate_agreement_content(&a)
 }
 
 /// Validate a Private Participation Claim entry

@@ -1082,6 +1082,69 @@ pub struct CreateAgreementInput {
 
 ---
 
+## Lobby DNA Functions (`zome_lobby_coordinator`)
+
+Global discovery and federation layer. Uses canonical `network_seed: nondominium-lobby-v1`.
+
+### Agent Profile Functions
+
+#### `upsert_lobby_agent_profile(input: LobbyAgentProfileInput) -> ExternResult<ActionHash>`
+**Purpose**: Create or update the calling agent's Lobby profile (upsert pattern via update chain)
+**Authorization**: Any agent
+**Returns**: `ActionHash` of the new or updated entry
+**Note**: Creates two links on first call — global `AllLobbyAgents` (path anchor) and per-agent `AgentToLobbyProfile` (agent pubkey anchor, used for lookup and update detection)
+
+#### `get_lobby_agent_profile(agent: AgentPubKey) -> ExternResult<Option<LobbyAgentProfile>>`
+**Purpose**: Retrieve a specific agent's current Lobby profile (resolves update chain)
+**Authorization**: Any agent (public DHT)
+**Returns**: `Option<LobbyAgentProfile>`
+
+#### `get_all_lobby_agents(_: ()) -> ExternResult<Vec<LobbyAgentProfileRecord>>`
+**Purpose**: Retrieve all Lobby agent profiles via global path anchor
+**Authorization**: Any agent (public DHT)
+**Returns**: `Vec<LobbyAgentProfileRecord>`
+
+### NDO Announcement Functions
+
+#### `announce_ndo(input: AnnounceNdoInput) -> ExternResult<ActionHash>`
+**Purpose**: Announce an NDO to the global Lobby DHT for cross-network discovery
+**Authorization**: Any agent
+**Returns**: `ActionHash` of the `NdoAnnouncement` entry
+
+#### `get_all_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>>`
+**Purpose**: Retrieve all NDO announcements via global path anchor
+**Authorization**: Any agent (public DHT)
+
+#### `get_my_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>>`
+**Purpose**: Retrieve NDO announcements registered by the calling agent
+**Authorization**: Any agent (public DHT)
+
+#### `get_ndo_announcements_by_lifecycle(stage: String) -> ExternResult<Vec<NdoAnnouncementRecord>>`
+**Purpose**: Retrieve NDO announcements filtered by lifecycle stage
+**Authorization**: Any agent (public DHT)
+**Input**: Lifecycle stage string matching `LifecycleStage::Display` (e.g. `"active"`, `"stable"`)
+**Returns**: `Vec<NdoAnnouncementRecord>` via `NdoAnnouncementByLifecycle` lifecycle-path anchor
+
+#### `update_ndo_announcement(input: UpdateNdoAnnouncementInput) -> ExternResult<ActionHash>`
+**Purpose**: Advance the lifecycle stage of an existing `NdoAnnouncement`
+**Authorization**: Original registrant only (enforced in coordinator; integrity enforces field immutability)
+**Input**:
+```rust
+pub struct UpdateNdoAnnouncementInput {
+    pub original_action_hash: ActionHash,
+    pub new_lifecycle_stage: LifecycleStage,
+}
+```
+**Returns**: `ActionHash` of the updated entry; creates a `NdoAnnouncementUpdates` chain link
+
+### Group Functions (Stub)
+
+#### `get_my_groups(_: ()) -> ExternResult<Vec<GroupDescriptorStub>>`
+**Purpose**: Return the calling agent's group memberships (stub until Group DNA ships in issue #101)
+**Returns**: Always returns a single solo workspace `GroupDescriptorStub`
+
+---
+
 ## 🔗 Cross-Zome Integration Functions
 
 ### Agent Capability Assessment

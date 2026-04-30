@@ -63,10 +63,10 @@ pub fn upsert_lobby_agent_profile(input: LobbyAgentProfileInput) -> ExternResult
     created_at: now,
   };
 
-  // Discovery stays anchored on the original action hash (via AllLobbyAgents link from agent key).
-  // Updates are chained via AgentProfileUpdates links and walked by resolve_update_chain().
-  // This avoids modifying the anchor link on every update.
-  let existing_links = get_links(LinkQuery::try_new(agent.clone(), LinkTypes::AllLobbyAgents)?, GetStrategy::default())?;
+  // AgentToLobbyProfile: agent-centric lookup link (agent pubkey -> profile hash).
+  // AllLobbyAgents: global path anchor (lobby.agents path -> profile hash).
+  // Update detection uses AgentToLobbyProfile so per-agent queries work correctly.
+  let existing_links = get_links(LinkQuery::try_new(agent.clone(), LinkTypes::AgentToLobbyProfile)?, GetStrategy::default())?;
 
   if let Some(link) = existing_links.into_iter().max_by_key(|l| l.timestamp) {
     let Some(original_hash) = link.target.into_action_hash() else {
@@ -85,11 +85,20 @@ pub fn upsert_lobby_agent_profile(input: LobbyAgentProfileInput) -> ExternResult
   // First profile creation
   let action_hash = create_entry(&EntryTypes::LobbyAgentProfile(new_profile))?;
 
+  // Global discovery anchor: path -> profile
   let agents_path = Path::from("lobby.agents");
   create_link(
     agents_path.path_entry_hash()?,
     action_hash.clone(),
     LinkTypes::AllLobbyAgents,
+    (),
+  )?;
+
+  // Agent-centric lookup: agent pubkey -> profile (used by get_lobby_agent_profile and upsert detection)
+  create_link(
+    agent,
+    action_hash.clone(),
+    LinkTypes::AgentToLobbyProfile,
     (),
   )?;
 
@@ -99,7 +108,7 @@ pub fn upsert_lobby_agent_profile(input: LobbyAgentProfileInput) -> ExternResult
 /// Get the lobby profile for a given agent (resolves update chain).
 #[hdk_extern]
 pub fn get_lobby_agent_profile(agent: AgentPubKey) -> ExternResult<Option<LobbyAgentProfile>> {
-  let links = get_links(LinkQuery::try_new(agent, LinkTypes::AllLobbyAgents)?, GetStrategy::default())?;
+  let links = get_links(LinkQuery::try_new(agent, LinkTypes::AgentToLobbyProfile)?, GetStrategy::default())?;
 
   let Some(link) = links.into_iter().max_by_key(|l| l.timestamp) else {
     return Ok(None);
@@ -238,6 +247,70 @@ pub fn get_my_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord
     results.push(NdoAnnouncementRecord { action_hash, entry });
   }
   Ok(results)
+}
+
+/// Get NDO announcements filtered by lifecycle stage string (e.g. "active", "stable").
+#[hdk_extern]
+pub fn get_ndo_announcements_by_lifecycle(stage: String) -> ExternResult<Vec<NdoAnnouncementRecord>> {
+  let lifecycle_path = Path::from(format!("lobby.ndo.lifecycle.{}", stage));
+  let links = get_links(
+    LinkQuery::try_new(lifecycle_path.path_entry_hash()?, LinkTypes::NdoAnnouncementByLifecycle)?,
+    GetStrategy::default(),
+  )?;
+
+  let mut results = Vec::new();
+  for link in links {
+    let Some(action_hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let latest_hash = resolve_update_chain(action_hash.clone())?;
+    let Some(record) = get(latest_hash, GetOptions::default())? else {
+      continue;
+    };
+    let Ok(Some(entry)) = record.entry().to_app_option::<NdoAnnouncement>() else {
+      continue;
+    };
+    results.push(NdoAnnouncementRecord { action_hash, entry });
+  }
+  Ok(results)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateNdoAnnouncementInput {
+  pub original_action_hash: ActionHash,
+  pub new_lifecycle_stage: LifecycleStage,
+}
+
+/// Update the lifecycle_stage of an NdoAnnouncement. Only the registrant may call this.
+#[hdk_extern]
+pub fn update_ndo_announcement(input: UpdateNdoAnnouncementInput) -> ExternResult<ActionHash> {
+  let Some(original_record) = get(input.original_action_hash.clone(), GetOptions::default())? else {
+    return Err(wasm_error!(WasmErrorInner::Guest("original NdoAnnouncement not found".to_string())));
+  };
+  let Ok(Some(original)) = original_record.entry().to_app_option::<NdoAnnouncement>() else {
+    return Err(wasm_error!(WasmErrorInner::Guest("could not decode NdoAnnouncement".to_string())));
+  };
+  let agent = agent_info()?.agent_initial_pubkey;
+  if agent != original.registered_by {
+    return Err(wasm_error!(WasmErrorInner::Guest(
+      "only the registrant can update an NdoAnnouncement".to_string()
+    )));
+  }
+
+  let updated = NdoAnnouncement {
+    lifecycle_stage: input.new_lifecycle_stage,
+    ..original
+  };
+  let new_hash = update_entry(input.original_action_hash.clone(), &updated)?;
+
+  create_link(
+    input.original_action_hash,
+    new_hash.clone(),
+    LinkTypes::NdoAnnouncementUpdates,
+    (),
+  )?;
+
+  Ok(new_hash)
 }
 
 // ─── Group functions (stub until Group DNA ships in #101) ─────────────────────

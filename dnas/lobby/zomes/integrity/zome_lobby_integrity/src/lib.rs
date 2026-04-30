@@ -98,6 +98,7 @@ pub enum EntryTypes {
 pub enum LinkTypes {
   AllLobbyAgents,            // Path("lobby.agents") -> LobbyAgentProfile
   AgentProfileUpdates,       // LobbyAgentProfile -> LobbyAgentProfile (versioning)
+  AgentToLobbyProfile,       // AgentPubKey -> LobbyAgentProfile (agent-centric lookup)
   AllNdoAnnouncements,       // Path("lobby.ndos") -> NdoAnnouncement
   NdoAnnouncementByLifecycle, // Path("lobby.ndo.lifecycle.{Stage}") -> NdoAnnouncement
   AgentToNdoAnnouncements,   // registered_by AgentPubKey -> NdoAnnouncement

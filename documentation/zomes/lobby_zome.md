@@ -67,6 +67,7 @@ pub struct NdoAnnouncement {
 |---|---|---|---|
 | `AllLobbyAgents` | `Path("lobby.agents")` | `LobbyAgentProfile` | Global agent discovery |
 | `AgentProfileUpdates` | `LobbyAgentProfile` (original hash) | `LobbyAgentProfile` (updated hash) | Update chain for profile versioning |
+| `AgentToLobbyProfile` | `AgentPubKey` | `LobbyAgentProfile` | Agent-centric lookup (used by `get_lobby_agent_profile` and upsert detection) |
 | `AllNdoAnnouncements` | `Path("lobby.ndos")` | `NdoAnnouncement` | Global NDO discovery |
 | `NdoAnnouncementByLifecycle` | `Path("lobby.ndo.lifecycle.{stage}")` | `NdoAnnouncement` | Filtered discovery by lifecycle stage |
 | `AgentToNdoAnnouncements` | `registered_by AgentPubKey` | `NdoAnnouncement` | Agent-centric NDO discovery |
@@ -163,6 +164,21 @@ Get all NDO announcements from the global discovery anchor (`Path("lobby.ndos")`
 #### `get_my_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>>`
 
 Get all NDO announcements registered by the calling agent, via the `AgentToNdoAnnouncements` links from the agent's pubkey.
+
+#### `get_ndo_announcements_by_lifecycle(stage: String) -> ExternResult<Vec<NdoAnnouncementRecord>>`
+
+Get all NDO announcements with a given lifecycle stage, via the `NdoAnnouncementByLifecycle` links from the `Path("lobby.ndo.lifecycle.{stage}")` anchor. The `stage` string must match the `Display` serialization of `LifecycleStage` (e.g. `"active"`, `"stable"`, `"ideation"`).
+
+#### `update_ndo_announcement(input: UpdateNdoAnnouncementInput) -> ExternResult<ActionHash>`
+
+Update the `lifecycle_stage` of an existing `NdoAnnouncement`. Only the original registrant (the agent whose pubkey is stored in `registered_by`) may call this. All other fields are immutable (enforced by the integrity zome's `StoreRecord` arm). Creates a `NdoAnnouncementUpdates` chain link from the original hash to the new hash.
+
+```rust
+pub struct UpdateNdoAnnouncementInput {
+    pub original_action_hash: ActionHash,
+    pub new_lifecycle_stage: LifecycleStage,
+}
+```
 
 ---
 
