@@ -94,6 +94,18 @@ pub fn get_agent_contributions(provider: AgentPubKey) -> ExternResult<Vec<Contri
   resolve_contribution_links(links)
 }
 
+/// Get a single Contribution by its action hash.
+#[hdk_extern]
+pub fn get_contribution(action_hash: ActionHash) -> ExternResult<Option<ContributionRecord>> {
+  let Some(record) = get(action_hash.clone(), GetOptions::default())? else {
+    return Ok(None);
+  };
+  let Ok(Some(entry)) = record.entry().to_app_option::<Contribution>() else {
+    return Ok(None);
+  };
+  Ok(Some(ContributionRecord { action_hash, entry }))
+}
+
 fn resolve_contribution_links(links: Vec<Link>) -> ExternResult<Vec<ContributionRecord>> {
   let mut results = Vec::new();
   for link in links {

@@ -313,6 +313,19 @@ pub fn update_ndo_announcement(input: UpdateNdoAnnouncementInput) -> ExternResul
   Ok(new_hash)
 }
 
+/// Get a single NdoAnnouncement by its action hash (resolves update chain).
+#[hdk_extern]
+pub fn get_ndo_announcement(action_hash: ActionHash) -> ExternResult<Option<NdoAnnouncementRecord>> {
+  let latest_hash = resolve_update_chain(action_hash.clone())?;
+  let Some(record) = get(latest_hash.clone(), GetOptions::default())? else {
+    return Ok(None);
+  };
+  let Ok(Some(entry)) = record.entry().to_app_option::<NdoAnnouncement>() else {
+    return Ok(None);
+  };
+  Ok(Some(NdoAnnouncementRecord { action_hash: latest_hash, entry }))
+}
+
 // ─── Group functions (stub until Group DNA ships in #101) ─────────────────────
 
 /// Returns the agent's group memberships. Stub: returns a solo workspace until

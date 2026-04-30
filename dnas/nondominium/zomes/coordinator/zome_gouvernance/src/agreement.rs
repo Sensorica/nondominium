@@ -149,6 +149,18 @@ pub fn get_current_agreement(ndo_identity_hash: ActionHash) -> ExternResult<Opti
   Ok(Some(AgreementRecord { action_hash: latest_hash, entry }))
 }
 
+/// Get a specific Agreement by its action hash (does not walk update chain).
+#[hdk_extern]
+pub fn get_agreement(action_hash: ActionHash) -> ExternResult<Option<AgreementRecord>> {
+  let Some(record) = get(action_hash.clone(), GetOptions::default())? else {
+    return Ok(None);
+  };
+  let Ok(Some(entry)) = record.entry().to_app_option::<Agreement>() else {
+    return Ok(None);
+  };
+  Ok(Some(AgreementRecord { action_hash, entry }))
+}
+
 fn resolve_agreement_update_chain(original: ActionHash) -> ExternResult<ActionHash> {
   let mut current = original;
   loop {

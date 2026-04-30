@@ -98,6 +98,18 @@ pub fn get_ndo_hard_links(ndo_identity_hash: ActionHash) -> ExternResult<Vec<Ndo
   Ok(results)
 }
 
+/// Get a single NdoHardLink by its action hash.
+#[hdk_extern]
+pub fn get_ndo_hard_link(action_hash: ActionHash) -> ExternResult<Option<NdoHardLinkRecord>> {
+  let Some(record) = get(action_hash.clone(), GetOptions::default())? else {
+    return Ok(None);
+  };
+  let Ok(Some(entry)) = record.entry().to_app_option::<NdoHardLink>() else {
+    return Ok(None);
+  };
+  Ok(Some(NdoHardLinkRecord { action_hash, entry }))
+}
+
 /// Get hard links filtered by type for a given NDO identity hash.
 #[hdk_extern]
 pub fn get_ndo_hard_links_by_type(
