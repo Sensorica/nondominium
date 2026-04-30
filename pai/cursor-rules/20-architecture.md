@@ -23,7 +23,6 @@ This separation means governance logic can evolve without touching data structur
 
 ## NDO Three-Layer Model
 Source: `documentation/requirements/ndo_prima_materia.md §4–§5`
-Full detail: `.claude/skills/nondominium-domain/ndo-three-layer-model.md`
 
 - **Layer 0 — NondominiumIdentity**: Permanent anchor. `action_hash` is the stable NDO ID.
   Fields: `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`,

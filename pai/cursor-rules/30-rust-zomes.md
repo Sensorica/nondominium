@@ -62,7 +62,7 @@ let result: ExternResult<GovernanceTransitionResult> = call(
 ```
 
 ## Private Entries (PPR Storage)
-Source: `documentation/specifications/specifications.md §3.3.6`, `.claude/skills/nondominium-domain/ppr-system.md`
+Source: `documentation/specifications/specifications.md §3.3.6`
 
 Private entries are not linked in DHT. Access via `query()` on source chain:
 ```rust
