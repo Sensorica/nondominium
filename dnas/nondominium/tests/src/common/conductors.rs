@@ -1,5 +1,6 @@
 use holochain::prelude::*;
 use holochain::sweettest::*;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Path to the compiled nondominium DNA bundle, resolved relative to this crate's Cargo.toml.
 pub const NONDOMINIUM_DNA_PATH: &str = concat!(
@@ -18,6 +19,18 @@ pub const HREA_DNA_PATH: &str = concat!(
     "/../../../vendor/hrea/dnas/hrea/workdir/hrea.dna"
 );
 
+// Each test invocation gets a unique monotonic ID. Combined with the process PID this
+// guarantees distinct network seeds even when multiple test processes run in parallel
+// (e.g. `cargo test -j N` at the binary level). A unique network seed means each test
+// gets a different DNA hash → completely isolated DHT shard → tests can run in parallel
+// without global anchor cross-contamination.
+static TEST_INSTANCE: AtomicU64 = AtomicU64::new(0);
+
+fn unique_seed() -> NetworkSeed {
+    let id = TEST_INSTANCE.fetch_add(1, Ordering::SeqCst);
+    format!("test-{}-{}", std::process::id(), id).into()
+}
+
 /// Spin up two conductors, each with the nondominium DNA installed.
 ///
 /// Returns `(conductors, cell_alice, cell_bob)`.
@@ -27,7 +40,9 @@ pub async fn setup_two_agents() -> (SweetConductorBatch, SweetCell, SweetCell) {
 
     let dna = SweetDnaFile::from_bundle(std::path::Path::new(NONDOMINIUM_DNA_PATH))
         .await
-        .expect("Failed to load nondominium DNA bundle. Did you run `bun run build:happ`?");
+        .expect("Failed to load nondominium DNA bundle. Did you run `bun run build:happ`?")
+        .with_network_seed(unique_seed())
+        .await;
 
     let apps = conductors
         .setup_app("nondominium", &[dna])
@@ -49,7 +64,9 @@ pub async fn setup_three_agents() -> (SweetConductorBatch, SweetCell, SweetCell,
 
     let dna = SweetDnaFile::from_bundle(std::path::Path::new(NONDOMINIUM_DNA_PATH))
         .await
-        .expect("Failed to load nondominium DNA bundle. Did you run `bun run build:happ`?");
+        .expect("Failed to load nondominium DNA bundle. Did you run `bun run build:happ`?")
+        .with_network_seed(unique_seed())
+        .await;
 
     let apps = conductors
         .setup_app("nondominium", &[dna])
@@ -75,13 +92,18 @@ pub async fn setup_dual_dna_two_agents() -> (
     let mut conductors =
         SweetConductorBatch::from_config_rendezvous(2, SweetConductorConfig::standard()).await;
 
+    let seed = unique_seed();
     let dna_nd = SweetDnaFile::from_bundle(std::path::Path::new(NONDOMINIUM_DNA_PATH))
         .await
-        .expect("Failed to load nondominium DNA bundle");
+        .expect("Failed to load nondominium DNA bundle")
+        .with_network_seed(seed.clone())
+        .await;
 
     let dna_hrea = SweetDnaFile::from_bundle(std::path::Path::new(HREA_DNA_PATH))
         .await
-        .expect("Failed to load hREA DNA bundle");
+        .expect("Failed to load hREA DNA bundle")
+        .with_network_seed(seed)
+        .await;
 
     // Explicit role names (RoleName = String) are required so that
     // `CallTargetCell::OtherRole("hrea")` resolves correctly inside the nondominium zomes.
