@@ -66,9 +66,9 @@ Clicking an NDO card navigates to `/ndo/:hash`.
 - **Detail card**: labeled fields for Description, Property Regime, Resource Nature, Lifecycle Stage, and Created date
 - **Identity badges**: lifecycle-stage color badge, property-regime badge, resource-nature badge
 - **Lifecycle transition button** (visible to NDO initiator only): advances the lifecycle stage
-- **Join NDO** button — placeholder; shows "Coming soon" tooltip; no backend call yet
-- **Associate with a group** button — visible only when the user belongs to at least one group; opens a modal listing groups not yet associated with this NDO; multi-select; writes association to `localStorage` (`ndo_groups_v1`); NDO card then appears in the selected group(s)
-- **Fork this NDO** button — opens the fork form; visible only when the Holochain conductor is connected
+- **Join NDO** button — placeholder; toggles inline "Coming soon"; no backend call yet
+- **Associate with a group** button — always shown in the header; opens a modal that lists groups the user has created or joined that are **not** already linked to this NDO (multi-select); if the user has no groups, the modal explains that case; confirming writes associations to `localStorage` (`ndo_groups_v1` keyed like other group data — see `group.store.svelte.ts`); the NDO card then appears in the selected group(s)
+- **Fork this NDO** button — opens the fork friction modal; visible only when the Holochain conductor is connected and the UI has resolved the user's agent key
 - Tabs: Resources, Governance, Composition, Activity (stubs for post-MVP content)
 
 ---
@@ -101,19 +101,18 @@ At the Lobby level the User can be anyone. At this level the User creates a Lobb
 
 2. **NDO fork friction**: the "Fork this NDO" button opens a form but currently has no governance friction. Per spec, forking should present a notice about negotiation, consensus, and eventual payment (Unyt integration); the MVP version should at minimum display this notice before proceeding.
 
-3. **Join NDO**: the "Join NDO" button is a placeholder ("Coming soon"). Define and implement the DHT-level action for an agent to register interest or membership in an existing NDO.
+3. **NDO detail page — DHT refresh reliability**: the NDO detail page seeds its display from an in-memory card cache and then attempts a background DHT refresh. The DHT refresh path (`getMyNdos` → `getAllNdos`) should be validated end-to-end; if it consistently fails, the root cause in `get_ndo` / `get_all_ndos` zome calls should be investigated.
 
-4. **NDO detail page — DHT refresh reliability**: the NDO detail page seeds its display from an in-memory card cache and then attempts a background DHT refresh. The DHT refresh path (`getMyNdos` → `getAllNdos`) should be validated end-to-end; if it consistently fails, the root cause in `get_ndo` / `get_all_ndos` zome calls should be investigated.
+4. **Group member list**: the Group panel has a `MemberList` stub that currently shows an empty list. Implement fetching and displaying group members (requires the invite/join flow from ToDo 1).
 
-5. **Group member list**: the Group panel has a `MemberList` stub that currently shows an empty list. Implement fetching and displaying group members (requires the invite/join flow from ToDo 1).
+5. **Browse NDOs onboarding**: when the user has no groups, the NDO browser shows nothing. Add a visible call-to-action ("Create or join a group to see NDOs") to guide new users.
 
-6. **Browse NDOs onboarding**: when the user has no groups, the NDO browser shows nothing. Add a visible call-to-action ("Create or join a group to see NDOs") to guide new users.
+6. **Update `agent.md`**: foundational document should be updated to reflect the three-tier identity model — Lobby profile (localStorage) → Group profile (localStorage, per-group) → DHT Agent (`zome_person`), including the pseudonymity guarantees at the NDO level.
 
-7. **Update `agent.md`**: foundational document should be updated to reflect the three-tier identity model — Lobby profile (localStorage) → Group profile (localStorage, per-group) → DHT Agent (`zome_person`), including the pseudonymity guarantees at the NDO level.
+7. **NDO–Group association DHT propagation**: the "Associate with a group" action currently writes only to the local agent's `localStorage`. Once the Group DNA is implemented, each association must also be written to the Group's DHT table so all group members see the NDO card — not just the agent who performed the association. The write site is `associateNdoWithGroup` in `group.store.svelte.ts` (marked with a `TODO` comment).
 
-8. **NDO–Group association DHT propagation**: the "Associate with a group" action currently writes only to the local agent's `localStorage`. Once the Group DNA is implemented, each association must also be written to the Group's DHT table so all group members see the NDO card — not just the agent who performed the association. The write site is `associateNdoWithGroup` in `group.store.svelte.ts` (marked with a `TODO` comment).
+8. **Join NDO**: the UI only shows placeholder copy ("Coming soon"). Implement backend + UI wiring: `join_ndo` (or equivalent) coordinator API, integrity entry or link types for membership, and DHT propagation so the joining agent appears in the NDO's contributor/member record. Distinct from **Associate with group** (curated short list per group).
 
-9. **Join NDO**: the "Join NDO" button is a placeholder ("Coming soon"). This action requires backend infrastructure not yet built: a `join_ndo` coordinator zome function, a membership entry type or link in the integrity zome, and DHT propagation of the joining agent's identity to the NDO's contributor/member record. Implement as a separate tracked issue.
 
 
 ## Post MVP
@@ -385,5 +384,3 @@ const meso_composition = {
 - **Performance**: Virtualized rendering for large entity sets
 - **Caching**: Intelligent prefetching based on proximity scores
 - **State Management**: Maintain layer states and user preferences
-
-"/home/soushi888/Téléchargements/PXL_20250828_013350143.jpg"

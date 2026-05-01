@@ -504,7 +504,7 @@ _Optimizing the system for large-scale network operation_
 
 ### Current Frontend Status
 
-- **MVP UI**: ✅ Implemented — persistent Lobby sidebar + Group panel + NDO detail page with full NDO lifecycle management, Join NDO placeholder, and reliable NDO data display via cache + DHT refresh
+- **MVP UI**: ✅ Implemented — persistent Lobby sidebar + Group panel + NDO detail page with full NDO lifecycle management, Join NDO placeholder ("Coming soon"), **Associate with group** modal (localStorage-backed `ndo_groups_v1`), fork friction modal, and reliable NDO data display via cache + DHT refresh
 - **Stack**: SvelteKit 2 + Svelte 5 runes + TypeScript + UnoCSS + Melt UI next-gen + Effect-TS
 - **Service Layer**: ✅ Complete (PR #97 + MVP UI work) — all three zome services + NDO/Lobby services with Effect-TS `Context.Tag` / `Layer` / `E.gen` pattern
 - **Architecture reference**: `documentation/specifications/ui_architecture.md`
@@ -528,7 +528,7 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 - [x] **Lobby service (localStorage)**: `getMyGroups`, `createGroup`, `joinGroup`, `generateInviteLink` — `lobby.service.ts`
 - [x] **app.context**: `lobbyUserProfile` state with localStorage hydration
 - [x] **lobby.store**: `activeFilters`, `filteredNdos`, `createGroup`, `joinGroup`; `loadLobby()` now invoked from root layout
-- [x] **group.store**: `group`, `groupNdos`, `loadGroupData`, `createNdo`
+- [x] **group.store**: `group`, `groupNdos`, `loadGroupData`, `createNdo`, **`associateNdoWithGroup`** (append spec hash to `GroupDescriptor.ndoHashes` in `localStorage`; `TODO` hook for Group DHT when DNA lands)
 - [x] **ndo-cache.ts** *(new)*: in-memory descriptor cache keyed by hash; populated on card click to seed NDO page instantly
 - [x] **UserProfileForm.svelte**: Lobby profile create/edit, modal + page modes, nickname required
 - [x] **GroupProfileModal.svelte**: Per-group disclosure preferences (first visit only)
@@ -539,14 +539,15 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 - [x] **LifecycleTransitionModal.svelte**: Full state machine, Deprecated/Hibernating special cases
 - [x] **TransitionHistoryPanel.svelte**: Collapsible history panel with copy-to-clipboard
 - [x] **ForkNdoModal.svelte**: Informational fork friction modal, copy-pubkey CTA
+- [x] **AssociateNdoModal.svelte**: multi-select modal of groups **not** already linked to this NDO; confirms via `associateNdoWithGroup` (see MVP ToDo in `ui_design.md` for DHT propagation)
 
 #### UI-restructure sprint (persistent Lobby shell)
 
 - [x] **`+layout.svelte`** (root): `onMount` initialises agent key, calls `loadLobby()`, triggers first-time profile modal if no lobby profile exists — ensures sidebar data available on every route
 - [x] **`Sidebar.svelte`** (rewritten as LobbySidebar): Browse NDOs link, live groups list (`/group/:id`), inline "+ New Group" form, inline "→ Join Group" form, "My Profile / Edit profile" at bottom; global "New NDO" link removed (creation is group-scoped only)
-- [x] **`LobbyView.svelte`** (simplified): removed GroupSidebar and onMount data loading; renders page header + NdoBrowser only
+- [x] **`LobbyView.svelte`** (simplified): removed GroupSidebar and onMount data loading; renders page header + NdoBrowser only; **`$effect` no longer assigns `appContext.currentView = 'lobby'`** (that clobbered the NDO route when both Lobby and NDO views were reactive); `currentView` is set where the routed page applies (e.g. `NdoView` sets `'ndo'`)
 - [x] **`GroupView.svelte`**: replaced `onMount` with `$effect` so group name and NDO list reload correctly when navigating between groups via the sidebar
-- [x] **`NdoView.svelte`** (extended): NDO detail card (Description, Property Regime, Resource Nature, Lifecycle Stage, Created); loading skeleton; retry-able error banner; Join NDO placeholder (always visible); Fork button (auth-gated); descriptor seeded from `ndo-cache`, refreshed from DHT in background
+- [x] **`NdoView.svelte`** (extended): NDO detail card (Description, Property Regime, Resource Nature, Lifecycle Stage, Created); loading skeleton; retry-able error banner; Join NDO placeholder (inline "Coming soon"); **Associate with a group** (always visible header button → `AssociateNdoModal`); Fork button (Holochain + agent connected); descriptor seeded from `ndo-cache`, refreshed from DHT in background; **`$effect` that sets `selectedNdoId` must decode into a local `hash` variable** — assigning `selectedNdoId = specActionHash` immediately after mutating `$state(specActionHash)` created a self-referential dependency and **`effect_update_depth_exceeded`** (broken header buttons); fixed by passing the local `Uint8Array` reference only
 - [x] **`/group/[id]` route**: `?createNdo=1` query param still supported
 - [x] **`/ndo/new` route**: redirects to active group or shows instruction screen
 

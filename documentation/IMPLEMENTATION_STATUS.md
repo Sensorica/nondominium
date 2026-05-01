@@ -193,7 +193,7 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 
 - `app.context.svelte.ts` — `lobbyUserProfile` state with localStorage hydration + persistence
 - `lobby.store.svelte.ts` — `ndos`, `filteredNdos`, `activeFilters`, `groups`, `createGroup`, `joinGroup`; `loadLobby()` now called from root layout
-- `group.store.svelte.ts` — `group`, `groupNdos`, `loadGroupData`, `createNdo`
+- `group.store.svelte.ts` — `group`, `groupNdos`, `loadGroupData`, `createNdo`, **`associateNdoWithGroup(ndoHashB64, groupId)`** — appends hash to group’s `ndoHashes` in `localStorage`; includes TODO for Group DNA propagation
 - `ndo-cache.ts` *(new)* — in-memory `Map<hashB64, NdoDescriptor>` populated on card click so the NDO detail page renders immediately without a DHT round-trip
 
 #### Components — Shell / Layout
@@ -204,7 +204,7 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 
 #### Components — Lobby Level
 
-- `LobbyView.svelte` — **simplified**: removed GroupSidebar and onMount data loading (both moved to root); keeps only page header and `NdoBrowser`
+- `LobbyView.svelte` — page header + `NdoBrowser`; **`$effect` mirrors `lobbyStore.myPerson` into `appContext` and triggers `loadNdos()` — it does not set `appContext.currentView`** so the lobby shell does not override `'ndo'` when an NDO page is mounted
 - `UserProfileForm.svelte` — Lobby profile create/edit (modal + page modes; nickname required)
 - `NdoBrowser.svelte` — multi-select filter chips: LifecycleStage × ResourceNature × PropertyRegime (4 variants); "No NDOs yet" empty state
 - `NdoCard.svelte` — NDO summary card with lifecycle/nature/regime badges; populates `ndo-cache` before navigating
@@ -217,8 +217,9 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 
 #### Components — NDO Level
 
-- `NdoView.svelte` — **extended**: detail card with labeled Description / Property Regime / Resource Nature / Lifecycle Stage / Created fields; loading skeleton and retry-able error banner; Join NDO placeholder button ("Coming soon" tooltip); Fork button (visible when Holochain connected); descriptor seeded from `ndo-cache` immediately, then refreshed from DHT
-- `NdoIdentityLayer.svelte` — initiator profile link, lifecycle transition button (initiator-only), `TransitionHistoryPanel`; updated to 4-variant `PropertyRegime` color map
+- `NdoView.svelte` — detail card with labeled Description / Property Regime / Resource Nature / Lifecycle Stage / Created; loading skeleton + retry-able DHT refresh error banner; Join NDO (inline **Coming soon**); **Associate with a group** opens `AssociateNdoModal` (multi-select eligible groups → `associateNdoWithGroup`); Fork opens `ForkNdoModal` when Holochain is connected (`appContext.myAgentPubKey`). Descriptor seeded from `ndo-cache` then refreshed via `NdoService.getNdoDescriptorForSpecActionHash`. **Reactive fix**: first `$effect` decodes URL hash into a local `hash` variable before assigning `appContext.selectedNdoId`; reading `$state(specActionHash)` in the same effect after writing it caused Svelte **effect_update_depth_exceeded** and left header buttons non-functional.
+- `AssociateNdoModal.svelte` — lists groups excluding those whose `ndoHashes` already contain this spec; loads groups via `lobbyStore.loadGroups()` on mount
+- `NdoIdentityLayer.svelte` — initiator profile link, lifecycle transition button (initiator-only), `TransitionHistoryPanel`; 4-variant `PropertyRegime` color map
 - `LifecycleTransitionModal.svelte` — full state machine (mirrors Rust), Deprecated + Hibernating special cases
 - `TransitionHistoryPanel.svelte` — collapsible history: from/to stage, agent, timestamp, event_hash + copy-to-clipboard
 - `ForkNdoModal.svelte` — informational fork friction modal with copy-initiator-pubkey CTA
@@ -301,7 +302,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | MVP UI — Lobby → Group → NDO hierarchy                 | ✅ Complete    |
 | MVP UI — Three-level identity (Lobby/Group/Agent)      | ✅ Complete    |
 | MVP UI — NDO creation within Group context             | ✅ Complete    |
-| MVP UI — NDO detail page (name, description, fields)   | ✅ Complete    |
+| MVP UI — NDO detail page (detail card + header actions) | ✅ Complete (Join placeholder, Associate modal, Fork modal — smoke-tested) |
 | MVP UI — NDO filter browser (3-dimension chips)        | ✅ Complete    |
 | MVP UI — Lifecycle transition + history panel          | ✅ Complete    |
 | MVP UI — Fork friction modal                           | ✅ Complete    |
