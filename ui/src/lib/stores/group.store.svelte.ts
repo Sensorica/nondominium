@@ -100,6 +100,8 @@ function createGroupStore(): GroupStore {
       if (!existing.includes(ndoHashB64)) {
         groups[idx] = { ...groups[idx], ndoHashes: [...existing, ndoHashB64] } as GroupDescriptor;
         localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+        // TODO: also write to Group DHT once Group DNA is implemented, so the
+        // association is visible to all group members — not just the local agent.
         void loadGroupData(targetGroupId);
       }
     } catch {

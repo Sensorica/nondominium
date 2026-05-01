@@ -193,7 +193,7 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 
 - `app.context.svelte.ts` — `lobbyUserProfile` state with localStorage hydration + persistence
 - `lobby.store.svelte.ts` — `ndos`, `filteredNdos`, `activeFilters`, `groups`, `createGroup`, `joinGroup`; `loadLobby()` now called from root layout
-- `group.store.svelte.ts` — `group`, `groupNdos`, `loadGroupData`, `createNdo`, `associateNdoWithGroup`
+- `group.store.svelte.ts` — `group`, `groupNdos`, `loadGroupData`, `createNdo`
 - `ndo-cache.ts` *(new)* — in-memory `Map<hashB64, NdoDescriptor>` populated on card click so the NDO detail page renders immediately without a DHT round-trip
 
 #### Components — Shell / Layout
@@ -217,8 +217,7 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 
 #### Components — NDO Level
 
-- `NdoView.svelte` — **extended**: detail card with labeled Description / Property Regime / Resource Nature / Lifecycle Stage / Created fields; loading skeleton and retry-able error banner; Join NDO placeholder button ("Coming soon" tooltip); Associate with group button (always visible); Fork button (visible when Holochain connected); descriptor seeded from `ndo-cache` immediately, then refreshed from DHT
-- `AssociateNdoModal.svelte` *(new)* — group-picker modal: lists user's groups from `lobbyStore`, multi-select checkboxes, writes NDO hash to target group's `ndoHashes` in localStorage via `groupStore.associateNdoWithGroup`
+- `NdoView.svelte` — **extended**: detail card with labeled Description / Property Regime / Resource Nature / Lifecycle Stage / Created fields; loading skeleton and retry-able error banner; Join NDO placeholder button ("Coming soon" tooltip); Fork button (visible when Holochain connected); descriptor seeded from `ndo-cache` immediately, then refreshed from DHT
 - `NdoIdentityLayer.svelte` — initiator profile link, lifecycle transition button (initiator-only), `TransitionHistoryPanel`; updated to 4-variant `PropertyRegime` color map
 - `LifecycleTransitionModal.svelte` — full state machine (mirrors Rust), Deprecated + Hibernating special cases
 - `TransitionHistoryPanel.svelte` — collapsible history: from/to stage, agent, timestamp, event_hash + copy-to-clipboard

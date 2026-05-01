@@ -259,9 +259,8 @@ export const NdoServiceLive: Layer.Layer<NdoServiceTag, never, ResourceServiceTa
             }
           }
 
-          // For hashes not found in own NDOs (NDOs from other agents associated
-          // to this group via the "Associate with group" flow), fall back to the
-          // DHT-wide scan so associated NDOs from peers also appear.
+          // For hashes not found in own source chain (e.g. NDOs created by other
+          // agents), fall back to the DHT-wide scan so peer NDOs also appear.
           const unresolved = ndoHashes.filter((h) => !seen.has(h));
           if (unresolved.length > 0) {
             const unresolvedSet = new Set(unresolved);

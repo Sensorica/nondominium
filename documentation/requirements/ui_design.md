@@ -67,7 +67,7 @@ Clicking an NDO card navigates to `/ndo/:hash`.
 - **Identity badges**: lifecycle-stage color badge, property-regime badge, resource-nature badge
 - **Lifecycle transition button** (visible to NDO initiator only): advances the lifecycle stage
 - **Join NDO** button — placeholder; shows "Coming soon" tooltip; no backend call yet
-- **Associate with group** button — opens a modal listing the user's groups; the user can select one or more groups and the NDO hash is appended to their `ndoHashes` in `localStorage`
+- **Associate with a group** button — visible only when the user belongs to at least one group; opens a modal listing groups not yet associated with this NDO; multi-select; writes association to `localStorage` (`ndo_groups_v1`); NDO card then appears in the selected group(s)
 - **Fork this NDO** button — opens the fork form; visible only when the Holochain conductor is connected
 - Tabs: Resources, Governance, Composition, Activity (stubs for post-MVP content)
 
@@ -110,6 +110,10 @@ At the Lobby level the User can be anyone. At this level the User creates a Lobb
 6. **Browse NDOs onboarding**: when the user has no groups, the NDO browser shows nothing. Add a visible call-to-action ("Create or join a group to see NDOs") to guide new users.
 
 7. **Update `agent.md`**: foundational document should be updated to reflect the three-tier identity model — Lobby profile (localStorage) → Group profile (localStorage, per-group) → DHT Agent (`zome_person`), including the pseudonymity guarantees at the NDO level.
+
+8. **NDO–Group association DHT propagation**: the "Associate with a group" action currently writes only to the local agent's `localStorage`. Once the Group DNA is implemented, each association must also be written to the Group's DHT table so all group members see the NDO card — not just the agent who performed the association. The write site is `associateNdoWithGroup` in `group.store.svelte.ts` (marked with a `TODO` comment).
+
+9. **Join NDO**: the "Join NDO" button is a placeholder ("Coming soon"). This action requires backend infrastructure not yet built: a `join_ndo` coordinator zome function, a membership entry type or link in the integrity zome, and DHT propagation of the joining agent's identity to the NDO's contributor/member record. Implement as a separate tracked issue.
 
 
 ## Post MVP

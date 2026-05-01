@@ -32,10 +32,14 @@
 
   $effect(() => {
     try {
-      specActionHash = decodeHashFromBase64(decodeURIComponent(specHashB64)) as ActionHash;
+      // Use a local variable for the decoded hash to avoid reading the `specActionHash`
+      // $state variable after writing it — that would create a self-referential reactive
+      // dependency and cause an infinite `effect_update_depth_exceeded` loop.
+      const hash = decodeHashFromBase64(decodeURIComponent(specHashB64)) as ActionHash;
+      specActionHash = hash;
       parseError = null;
       appContext.currentView = 'ndo';
-      appContext.selectedNdoId = specActionHash;
+      appContext.selectedNdoId = hash;
     } catch {
       specActionHash = null;
       parseError = 'Could not decode resource specification hash from the URL.';
@@ -136,13 +140,14 @@
           {/if}
         </div>
 
-        <!-- Associate with group: localStorage-only, no auth needed -->
+        <!-- Associate with group: always shown; localStorage-only, no auth needed.
+             Modal handles the "no groups yet" edge case gracefully. -->
         <button
           type="button"
           onclick={() => { showAssociateModal = true; }}
           class="rounded border border-blue-300 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
         >
-          Associate with group
+          Associate with a group
         </button>
 
         <!-- Fork: requires live Holochain connection -->

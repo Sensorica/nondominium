@@ -14,8 +14,15 @@
   let selected = $state<Set<string>>(new Set());
   let saved = $state(false);
 
-  // Reload groups each time the modal opens — ensures the list is current even
-  // when the user arrived at this NDO page without passing through the lobby.
+  // Filter to groups that don't yet contain this NDO.
+  // TODO: replace with a DHT-side check once Group DNA is implemented, so all
+  // group members see an accurate association list rather than just the local agent.
+  const availableGroups = $derived(
+    lobbyStore.groups.filter((g) => !(g.ndoHashes ?? []).includes(ndoHashB64))
+  );
+
+  // Reload groups on modal open — ensures the list is current even when the
+  // user arrived at this NDO page without navigating through the lobby first.
   onMount(() => {
     void lobbyStore.loadGroups();
   });
@@ -49,25 +56,39 @@
   aria-modal="true"
   aria-label="Associate NDO with a group"
   tabindex="-1"
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
   onkeydown={handleKeydown}
 >
-  <div class="w-full max-w-sm rounded-xl bg-white shadow-xl">
+  <div
+    class="relative w-full max-w-sm rounded-xl border border-gray-200 bg-white shadow-xl"
+    role="presentation"
+  >
     <div class="border-b border-gray-100 px-5 py-4">
       <h2 class="text-base font-semibold text-gray-900">Associate with a group</h2>
       <p class="mt-0.5 text-sm text-gray-500">
-        Add <span class="font-medium text-gray-700">"{ndoName}"</span> to one or more of your groups.
+        Add <span class="font-medium text-gray-700">"{ndoName}"</span> to one of your groups so
+        group members can find and join it.
       </p>
     </div>
 
     <div class="max-h-72 overflow-y-auto px-5 py-3">
-      {#if lobbyStore.groups.length === 0}
-        <p class="text-sm text-gray-400 italic">You have no groups yet. Create one from the sidebar.</p>
+      {#if lobbyStore.isLoading}
+        <p class="text-sm text-gray-400 italic">Loading groups…</p>
+      {:else if lobbyStore.groups.length === 0}
+        <p class="text-sm text-gray-400 italic">
+          You have no groups yet. Create one from the sidebar.
+        </p>
+      {:else if availableGroups.length === 0}
+        <p class="text-sm text-gray-400 italic">
+          This NDO is already associated with all your groups.
+        </p>
       {:else}
         <ul class="space-y-1">
-          {#each lobbyStore.groups as g (g.id)}
+          {#each availableGroups as g (g.id)}
             <li>
-              <label class="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-gray-50">
+              <label
+                class="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 hover:bg-gray-50"
+              >
                 <input
                   type="checkbox"
                   checked={selected.has(g.id)}
