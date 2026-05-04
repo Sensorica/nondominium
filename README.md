@@ -217,4 +217,5 @@ This generates:
 - [@holochain/tryorama](https://www.npmjs.com/package/@holochain/tryorama): Testing framework
 - [@holochain/client](https://www.npmjs.com/package/@holochain/client): UI-to-Holochain client library
 - [Holochain Playground](https://github.com/darksoil-studio/holochain-playground): Development introspection tools
-- [ValueFlows](https://www.valuefflows.org/): Economic coordination ontology
+- [Valueflows](https://www.valueflo.ws/): Economic coordination ontology
+- [hREA](https://github.com/h-REA/hREA/): Holochain implementation of Valueflows
