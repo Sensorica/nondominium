@@ -8,7 +8,8 @@ Nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant res
 
 - **[`zome_person`](./person_zome.md)**: Agent identity, profiles, roles, capability-based private data sharing, PPR integration, access control
 - **[`zome_resource`](./resource_zome.md)**: Resource specifications, Economic Resources, governance rules, lifecycle management, custody transfers
-- **[`zome_gouvernance`](./governance_zome.md)**: Economic events, commitments, claims, validation workflows, PPR issuance, agent validation
+- **[`zome_gouvernance`](./governance_zome.md)**: Economic events, commitments, claims, validation workflows, PPR issuance, agent validation. NDO federation extensions (PR #103) added three entry types: `NdoHardLink` (immutable OVN-licensed cross-NDO link backed by an EconomicEvent), `Contribution` (peer-validated work record; VF: `vf:EconomicEvent/Work`), and `Agreement` (versioned benefit redistribution agreement; VF: `vf:Agreement`). See `documentation/zomes/governance_zome.md §NDO Federation Extensions` for API details.
+- **[`zome_lobby`](./lobby_zome.md)** (Lobby DNA, separate network seed `nondominium-lobby-v1`): Global NDO discovery, agent presence, group membership stubs. Entry types: `LobbyAgentProfile`, `NdoAnnouncement`.
 
 ### Technology Foundation
 

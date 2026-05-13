@@ -1,95 +1,13 @@
 use hdi::prelude::*;
+// VfAction, NdoLinkType, BeneficiaryRef, BenefitType, BenefitClause are defined in
+// nondominium_shared::types so coordinator zomes and Sweettest test crates can import
+// them directly without WASM-crate dependency constraints.
+pub use nondominium_shared::types::{
+  BeneficiaryRef, BenefitClause, BenefitType, NdoLinkType, VfAction,
+};
 
 pub mod ppr;
 pub use ppr::*;
-
-/// ValueFlows Action enum representing all valid economic actions
-/// Based on the ValueFlows vocabulary with nondominium-specific extensions
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum VfAction {
-  // Standard ValueFlows transfer actions
-  Transfer, // Transfer ownership/custody
-  Move,     // Move a resource from one location to another
-
-  // Standard ValueFlows production/consumption actions
-  Use, // Use a resource without consuming it
-
-  // TODO: No consumable in the PoC, but end-of-life / Consume flows need design alignment with
-  // lifecycle stages — see `documentation/requirements/ndo_prima_materia.md` §5.3, REQ-GOV-11–13.
-  Consume, // Consume/destroy a resource
-  Produce, // Create/produce a new resource
-  Work,    // Apply work/labor to a resource
-
-  // Standard ValueFlows modification actions
-  Modify,   // Modify an existing resource
-  Combine,  // Combine multiple resources
-  Separate, // Separate one resource into multiple
-
-  // Standard ValueFlows quantity adjustment actions
-  Raise, // Increase quantity/value of a resource
-  Lower, // Decrease quantity/value of a resource
-
-  // Standard ValueFlows citation/reference actions
-  Cite,   // Reference or cite a resource
-  Accept, // Accept delivery or responsibility
-
-  // nondominium-specific actions
-  InitialTransfer, // First transfer by a Simple Agent
-  AccessForUse,    // Request access to use a resource
-  TransferCustody, // Transfer custody (nondominium specific)
-}
-
-impl VfAction {
-  /// Returns true if this action requires the resource to already exist
-  pub fn requires_existing_resource(&self) -> bool {
-    match self {
-      VfAction::Transfer
-      | VfAction::TransferCustody
-      | VfAction::Use
-      | VfAction::Consume
-      | VfAction::Move
-      | VfAction::Modify
-      | VfAction::Combine
-      | VfAction::Separate
-      | VfAction::Raise
-      | VfAction::Lower
-      | VfAction::Cite
-      | VfAction::Accept
-      | VfAction::InitialTransfer
-      | VfAction::AccessForUse => true,
-      VfAction::Produce | VfAction::Work => false,
-    }
-  }
-
-  /// Returns true if this action creates a new resource
-  pub fn creates_resource(&self) -> bool {
-    match self {
-      VfAction::Produce => true,
-      _ => false,
-    }
-  }
-
-  /// Returns true if this action modifies resource quantity
-  pub fn modifies_quantity(&self) -> bool {
-    match self {
-      VfAction::Consume
-      | VfAction::Produce
-      | VfAction::Raise
-      | VfAction::Lower
-      | VfAction::Combine
-      | VfAction::Separate => true,
-      _ => false,
-    }
-  }
-
-  /// Returns true if this action changes custody/ownership
-  pub fn changes_custody(&self) -> bool {
-    match self {
-      VfAction::Transfer | VfAction::TransferCustody | VfAction::InitialTransfer => true,
-      _ => false,
-    }
-  }
-}
 
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -150,6 +68,54 @@ pub struct ResourceValidation {
   pub updated_at: Timestamp,
 }
 
+/// Permanent validated structural link between two NDOs.
+/// Created only on EconomicEvent fulfillment. Immutable and undeletable (OVN license).
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct NdoHardLink {
+  pub from_ndo_identity_hash: ActionHash,
+  pub to_ndo_dna_hash: DnaHash,
+  pub to_ndo_identity_hash: ActionHash,
+  pub link_type: NdoLinkType,
+  pub fulfillment_hash: ActionHash, // EconomicEvent backing this link
+  pub created_by: AgentPubKey,      // must equal action.author
+  pub created_at: Timestamp,
+}
+
+/// Peer-validated work contribution on an NDO. VF: vf:EconomicEvent (Work/Modify).
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct Contribution {
+  pub provider: AgentPubKey,
+  pub action: VfAction,
+  pub work_log_group_dna_hash: Option<DnaHash>,
+  pub work_log_action_hash: Option<ActionHash>,
+  pub ndo_identity_hash: ActionHash,
+  pub input_of: Option<ActionHash>, // Process ActionHash
+  pub note: String,
+  pub effort_quantity: Option<f64>, // hours [0.0, 10000.0]
+  pub validated_by: Vec<AgentPubKey>, // min 1 AccountableAgent
+  pub fulfills: Option<ActionHash>,
+  pub has_point_in_time: Timestamp,
+  pub validated_at: Timestamp,
+}
+
+/// Benefit redistribution agreement. Versioned, AccountableAgent-controlled.
+/// VF: vf:Agreement
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct Agreement {
+  pub ndo_identity_hash: ActionHash,
+  pub version: u32, // monotonic, must equal previous.version + 1 on update
+  pub clauses: Vec<BenefitClause>,
+  pub primary_accountable: Vec<AgentPubKey>,
+  pub created_by: AgentPubKey,
+  pub created_at: Timestamp,
+}
+
+// BenefitClause, BeneficiaryRef, BenefitType are re-exported from nondominium_shared::types
+// (see the `pub use` at the top of this file).
+
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 #[derive(Serialize, Deserialize, SerializedBytes)]
@@ -161,6 +127,10 @@ pub enum EntryTypes {
   ResourceValidation(ResourceValidation),
   #[entry_type(visibility = "private")]
   PrivateParticipationClaim(PrivateParticipationClaim),
+  // NDO federation extensions (issue #100)
+  NdoHardLink(NdoHardLink),
+  Contribution(Contribution),
+  Agreement(Agreement),
 }
 
 #[hdk_link_types]
@@ -175,10 +145,18 @@ pub enum LinkTypes {
   AllClaims,
   AllResourceValidations,
   // PPR-related links
-  AgentToPrivateParticipationClaims, // Link from agent to their PPR claims
-  EventToPrivateParticipationClaims, // Link from economic event to generated PPR claims
-  CommitmentToPrivateParticipationClaims, // Link from commitment to its PPR claims
-  ResourceToPrivateParticipationClaims, // Link from resource to PPR claims related to it
+  AgentToPrivateParticipationClaims,
+  EventToPrivateParticipationClaims,
+  CommitmentToPrivateParticipationClaims,
+  ResourceToPrivateParticipationClaims,
+  // NDO federation links (issue #100)
+  NdoToHardLinks,         // from_ndo_identity_hash -> NdoHardLink
+  HardLinkByType,         // Path("ndo.hardlink.{NdoLinkType}") -> NdoHardLink
+  NdoToContributions,     // ndo_identity_hash -> Contribution
+  AgentToContributions,   // provider AgentPubKey -> Contribution
+  ContributionToEvent,    // Contribution -> EconomicEvent
+  NdoToAgreement,         // ndo_identity_hash -> Agreement (latest)
+  AgreementUpdates,       // Agreement -> Agreement (version chain)
 }
 
 #[hdk_extern]
@@ -196,23 +174,194 @@ pub fn validate_agent_joining(
 
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
-  // Basic validation for PPR entries
+  // Phase 1: validate create/update entry content via StoreEntry
   if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_entry {
-      OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
-        match app_entry {
-          EntryTypes::PrivateParticipationClaim(claim) => {
-            return validate_private_participation_claim(claim);
-          }
-          _ => (),
+      OpEntry::CreateEntry { app_entry, action } => match app_entry {
+        EntryTypes::PrivateParticipationClaim(claim) => {
+          return validate_private_participation_claim(claim);
         }
-      }
-      _ => (),
+        EntryTypes::NdoHardLink(link) => {
+          return validate_create_ndo_hard_link(link, action);
+        }
+        EntryTypes::Contribution(c) => {
+          return validate_create_contribution(c, action);
+        }
+        EntryTypes::Agreement(a) => {
+          return validate_create_agreement(a, action);
+        }
+        _ => {}
+      },
+      OpEntry::UpdateEntry { app_entry, .. } => match app_entry {
+        EntryTypes::NdoHardLink(_) => {
+          return Ok(ValidateCallbackResult::Invalid(
+            "NdoHardLink entries are immutable and cannot be updated".to_string(),
+          ));
+        }
+        EntryTypes::Agreement(a) => {
+          // Author check is not applicable here (action is Update, not Create).
+          // Validate only the content; the StoreRecord arm enforces version monotonicity
+          // and ndo_identity_hash immutability.
+          return validate_agreement_content(&a);
+        }
+        _ => {}
+      },
+      _ => {}
     }
   }
 
-  // For Phase 1, other validations remain basic
+  // Phase 2: validate deletes and update version constraints via StoreRecord
+  if let FlatOp::StoreRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
+    match store_record {
+      OpRecord::DeleteEntry { original_action_hash, .. } => {
+        let original_record = must_get_valid_record(original_action_hash)?;
+        let original_action = original_record.action().clone();
+        let creation_action = match original_action {
+          Action::Create(c) => EntryCreationAction::Create(c),
+          Action::Update(u) => EntryCreationAction::Update(u),
+          _ => return Ok(ValidateCallbackResult::Valid),
+        };
+        let app_entry_type = match creation_action.entry_type() {
+          EntryType::App(t) => t,
+          _ => return Ok(ValidateCallbackResult::Valid),
+        };
+        let entry = match original_record.entry().as_option() {
+          Some(e) => e,
+          None => return Ok(ValidateCallbackResult::Valid),
+        };
+        let original_app_entry = EntryTypes::deserialize_from_type(
+          *app_entry_type.zome_index,
+          app_entry_type.entry_index,
+          entry,
+        )?;
+        match original_app_entry {
+          Some(EntryTypes::NdoHardLink(_)) => {
+            return Ok(ValidateCallbackResult::Invalid(
+              "NdoHardLink entries are permanent and cannot be deleted (OVN license requirement)"
+                .to_string(),
+            ));
+          }
+          Some(EntryTypes::Agreement(_)) => {
+            return Ok(ValidateCallbackResult::Invalid(
+              "Agreement entries cannot be deleted; supersede via versioned update".to_string(),
+            ));
+          }
+          _ => {}
+        }
+      }
+      OpRecord::UpdateEntry { original_action_hash, app_entry, .. } => {
+        if let EntryTypes::Agreement(updated) = app_entry {
+          let original_record = must_get_valid_record(original_action_hash)?;
+          let original_action = original_record.action().clone();
+          let creation_action = match original_action {
+            Action::Create(c) => EntryCreationAction::Create(c),
+            Action::Update(u) => EntryCreationAction::Update(u),
+            _ => return Ok(ValidateCallbackResult::Valid),
+          };
+          let app_entry_type = match creation_action.entry_type() {
+            EntryType::App(t) => t,
+            _ => return Ok(ValidateCallbackResult::Valid),
+          };
+          let entry = match original_record.entry().as_option() {
+            Some(e) => e,
+            None => return Ok(ValidateCallbackResult::Valid),
+          };
+          if let Some(EntryTypes::Agreement(original)) = EntryTypes::deserialize_from_type(
+            *app_entry_type.zome_index,
+            app_entry_type.entry_index,
+            entry,
+          )? {
+            if updated.ndo_identity_hash != original.ndo_identity_hash {
+              return Ok(ValidateCallbackResult::Invalid(
+                "ndo_identity_hash is immutable".to_string(),
+              ));
+            }
+            if updated.version != original.version + 1 {
+              return Ok(ValidateCallbackResult::Invalid(
+                "Agreement version must equal previous.version + 1".to_string(),
+              ));
+            }
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+
   Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_create_ndo_hard_link(
+  link: NdoHardLink,
+  action: Create,
+) -> ExternResult<ValidateCallbackResult> {
+  if link.created_by != action.author {
+    return Ok(ValidateCallbackResult::Invalid(
+      "created_by must equal action.author".to_string(),
+    ));
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_create_contribution(c: Contribution, action: Create) -> ExternResult<ValidateCallbackResult> {
+  if c.provider != action.author {
+    return Ok(ValidateCallbackResult::Invalid(
+      "provider must equal action.author".to_string(),
+    ));
+  }
+  match c.action {
+    VfAction::Work | VfAction::Modify | VfAction::Cite => {}
+    _ => return Ok(ValidateCallbackResult::Invalid(
+      "Contribution.action must be Work, Modify, or Cite".to_string(),
+    )),
+  }
+  if c.validated_by.is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "validated_by must contain at least one AccountableAgent".to_string(),
+    ));
+  }
+  if c.note.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid("note cannot be empty".to_string()));
+  }
+  if let Some(hours) = c.effort_quantity {
+    if !(0.0..=10000.0).contains(&hours) {
+      return Ok(ValidateCallbackResult::Invalid(
+        "effort_quantity must be in [0.0, 10000.0]".to_string(),
+      ));
+    }
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_agreement_content(a: &Agreement) -> ExternResult<ValidateCallbackResult> {
+  if a.primary_accountable.is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "primary_accountable must contain at least one agent".to_string(),
+    ));
+  }
+  for clause in &a.clauses {
+    if !(0.0..=100.0).contains(&clause.share_percent) {
+      return Ok(ValidateCallbackResult::Invalid(
+        "each clause.share_percent must be in [0.0, 100.0]".to_string(),
+      ));
+    }
+  }
+  let total: f64 = a.clauses.iter().map(|c| c.share_percent).sum();
+  if total > 100.0 {
+    return Ok(ValidateCallbackResult::Invalid(
+      "sum of clause.share_percent must not exceed 100.0".to_string(),
+    ));
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_create_agreement(a: Agreement, action: Create) -> ExternResult<ValidateCallbackResult> {
+  if a.created_by != action.author {
+    return Ok(ValidateCallbackResult::Invalid(
+      "created_by must equal action.author".to_string(),
+    ));
+  }
+  validate_agreement_content(&a)
 }
 
 /// Validate a Private Participation Claim entry

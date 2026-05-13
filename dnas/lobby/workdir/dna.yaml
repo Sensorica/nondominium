@@ -1,0 +1,17 @@
+---
+manifest_version: "0"
+name: lobby
+integrity:
+  network_seed: ~
+  properties: ~
+  zomes:
+    - name: zome_lobby_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/zome_lobby_integrity.wasm"
+coordinator:
+  zomes:
+    - name: zome_lobby
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/zome_lobby_coordinator.wasm"
+      dependencies:
+        - name: zome_lobby_integrity

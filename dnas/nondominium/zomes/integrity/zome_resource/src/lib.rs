@@ -1,8 +1,9 @@
 use hdi::prelude::*;
+pub use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature};
 
 // TODO (post-MVP): Split ResourceState into two orthogonal enums and migrate EconomicResource:
 //
-// 1. LifecycleStage — now defined below for NondominiumIdentity (NDO Layer 0).
+// 1. LifecycleStage — now in nondominium_shared::types (imported above).
 //
 // 2. OperationalState — the current process acting on this specific resource instance (cycles
 //    frequently as processes begin and end). Governance-zome controlled.
@@ -35,62 +36,9 @@ impl std::fmt::Display for ResourceState {
   }
 }
 
-// NDO Layer 0 — LifecycleStage (REQ-NDO-LC-01 through REQ-NDO-LC-07)
-// The maturity/evolutionary phase of a NondominiumIdentity. Advances rarely and (mostly)
-// irreversibly, driven by significant events. The ONLY mutable field in NondominiumIdentity
-// after creation (REQ-NDO-L0-04).
-// See: documentation/requirements/ndo_prima_materia.md §5.1 and §9.4
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum LifecycleStage {
-  // --- Emergence Phase ---
-  Ideation,      // Placeholder: name and intent only. Layer 0 alone.
-  Specification, // Design/requirements being written. Layer 1 activating.
-  Development,   // Active construction, prototyping. Layers 0+1+2 active.
-  Prototype,     // PoC exists, not production-ready. Layers 0+1+2 active.
-  // --- Maturity Phase ---
-  Stable,      // Production-ready, design is replicable. All layers active.
-  Distributed, // Being actively fabricated/used across the network.
-  // --- Operation Phase ---
-  Active, // In normal use. All layers active.
-  // --- Suspension (REQ-NDO-LC-04: reversible) ---
-  Hibernating, // Dormant but recoverable. Layers 1+2 dormant, Layer 0 active.
-  // --- Terminal (REQ-NDO-LC-04: not reactivatable) ---
-  Deprecated, // Superseded. Successor NDO required (REQ-NDO-LC-06).
-  EndOfLife,  // Concluded. Layer 0 tombstone; fully terminal.
-}
-
-// NDO Layer 0 — PropertyRegime (REQ-NDO-L0-02)
-// The governance/ownership regime of a NondominiumIdentity. Immutable after creation.
-// See: documentation/requirements/ndo_prima_materia.md §4.1
-// TODO (post-MVP): Implement PropertyRegime → governance defaults mapping via GovernanceDefaultsEngine.
-// See: documentation/archives/resources.md §6.6 (PropertyRegime → governance defaults)
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum PropertyRegime {
-  Private,
-  Commons,
-  Collective,
-  Pool,
-  CommonPool,
-  Nondominium,
-}
-
-// NDO Layer 0 — ResourceNature (REQ-NDO-L0-02)
-// The physical/digital nature of a NondominiumIdentity. Immutable after creation.
-// See: documentation/requirements/ndo_prima_materia.md §4.1
-//
-// Note: The spec (§8.2) defines 3 variants (Digital, Physical, Hybrid). This implementation
-// extends that to 5 by adding Service and Information, which are first-class resource natures
-// in the OVN/ValueFlows context and needed for NDOs representing software services and
-// knowledge assets. These additions are backwards-compatible (existing records are unaffected)
-// and do not conflict with any spec constraint. See PR #80 Decisions table.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum ResourceNature {
-  Physical,
-  Digital,
-  Service,
-  Hybrid,
-  Information,
-}
+// LifecycleStage, PropertyRegime, ResourceNature are re-exported from nondominium_shared::types
+// (see the `pub use` at the top of this file). Both DNAs share the same definitions, eliminating
+// the duplication that previously existed between this file and zome_lobby_integrity.
 
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]

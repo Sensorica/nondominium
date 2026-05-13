@@ -1,13 +1,27 @@
-use hdk::prelude::*;
-use serde::{Deserialize, Serialize};
+// Types and I/O structs are available to all compilation targets
+// (integrity zomes, coordinator zomes, native test crates).
+pub mod io;
+pub mod types;
 
+// Re-export types at crate root for ergonomic imports
+pub use types::*;
+
+// The following modules use hdk (coordinator-only) and are gated behind
+// the `coordinator` feature. Integrity zomes and test crates do NOT enable
+// this feature, so they never see hdk as a transitive dependency.
+#[cfg(feature = "coordinator")]
 pub mod errors;
+#[cfg(feature = "coordinator")]
 pub mod paths;
-
+#[cfg(feature = "coordinator")]
 pub use errors::{CommonError, GovernanceError, PersonError, ResourceError};
 
-/// Utility function for making external local calls to other zomes
-/// This follows the pattern established in the Requests & Offers project
+#[cfg(feature = "coordinator")]
+use hdk::prelude::*;
+#[cfg(feature = "coordinator")]
+use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "coordinator")]
 pub fn external_local_call<I, T>(fn_name: &str, zome_name: &str, payload: I) -> ExternResult<T>
 where
   I: Clone + Serialize + std::fmt::Debug,
@@ -34,7 +48,7 @@ where
   }
 }
 
-/// Helper function to call person zome functions
+#[cfg(feature = "coordinator")]
 pub fn call_person_zome<I, T>(fn_name: &str, payload: I) -> ExternResult<T>
 where
   I: Clone + Serialize + std::fmt::Debug,
@@ -43,7 +57,7 @@ where
   external_local_call(fn_name, "zome_person", payload)
 }
 
-/// Helper function to call resource zome functions
+#[cfg(feature = "coordinator")]
 pub fn call_resource_zome<I, T>(fn_name: &str, payload: I) -> ExternResult<T>
 where
   I: Clone + Serialize + std::fmt::Debug,
@@ -52,7 +66,7 @@ where
   external_local_call(fn_name, "zome_resource", payload)
 }
 
-/// Helper function to call governance zome functions
+#[cfg(feature = "coordinator")]
 pub fn call_governance_zome<I, T>(fn_name: &str, payload: I) -> ExternResult<T>
 where
   I: Clone + Serialize + std::fmt::Debug,
@@ -61,9 +75,7 @@ where
   external_local_call(fn_name, "zome_gouvernance", payload)
 }
 
-/// Generic bridge helper for calling functions in the hREA DNA (cross-DNA call).
-/// Uses `CallTargetCell::OtherRole("hrea")` — the role name defined in happ.yaml.
-/// Any coordinator zome that needs to call hREA should use this function.
+#[cfg(feature = "coordinator")]
 pub fn call_hrea_zome<I, O>(fn_name: &str, payload: I) -> ExternResult<O>
 where
   I: Serialize + std::fmt::Debug,
@@ -95,10 +107,7 @@ where
   }
 }
 
-/// Common validation helpers inspired by Requests & Offers patterns
 pub mod validation {
-
-  /// Validate that a string field is not empty and within length limits
   pub fn validate_string_field(
     value: &str,
     field_name: &str,
@@ -107,17 +116,12 @@ pub mod validation {
     if value.trim().is_empty() {
       return Err(format!("{field_name} cannot be empty"));
     }
-
     if value.len() > max_length {
-      return Err(format!(
-        "{field_name} too long (max {max_length} characters)"
-      ));
+      return Err(format!("{field_name} too long (max {max_length} characters)"));
     }
-
     Ok(())
   }
 
-  /// Validate URL format
   pub fn validate_url(url: &str) -> Result<(), String> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
       return Err("URL must be a valid HTTP/HTTPS URL".to_string());
@@ -125,79 +129,13 @@ pub mod validation {
     Ok(())
   }
 
-  /// Validate email format (basic validation)
   pub fn validate_email(email: &str) -> Result<(), String> {
     if email.trim().is_empty() || !email.contains('@') {
       return Err("Valid email address is required".to_string());
     }
-
     if email.len() > 254 {
       return Err("Email address too long".to_string());
     }
-
-    Ok(())
-  }
-}
-
-/// Link creation helpers with consistent patterns
-/// Note: These functions are provided as helper patterns but may need
-/// zome-specific LinkType implementations for proper generic constraints
-pub mod links {
-  use super::paths;
-  use hdk::prelude::*;
-
-  /// Create a global discovery link
-  /// Generic L must implement Into<ScopedZomeType<LinkType>> for the specific zome
-  pub fn create_global_discovery_link<L, E>(
-    entity_type: &str,
-    target_hash: ActionHash,
-    link_type: L,
-    tag: &str,
-  ) -> ExternResult<()>
-  where
-    ScopedLinkType: TryFrom<L, Error = E>,
-    WasmError: From<E>,
-  {
-    let anchor_path = paths::global_anchor(entity_type);
-    let anchor_hash = anchor_path.path_entry_hash()?;
-    create_link(anchor_hash, target_hash, link_type, LinkTag::new(tag))?;
-    Ok(())
-  }
-
-  /// Create an agent-specific link
-  /// Generic L must implement Into<ScopedZomeType<LinkType>> for the specific zome
-  pub fn create_agent_link<L, E>(
-    agent_pub_key: &AgentPubKey,
-    relation: &str,
-    target_hash: ActionHash,
-    link_type: L,
-    tag: &str,
-  ) -> ExternResult<()>
-  where
-    ScopedLinkType: TryFrom<L, Error = E>,
-    WasmError: From<E>,
-  {
-    let anchor_path = paths::agent_anchor_by_relation(agent_pub_key, relation);
-    let anchor_hash = anchor_path.path_entry_hash()?;
-    create_link(anchor_hash, target_hash, link_type, LinkTag::new(tag))?;
-    Ok(())
-  }
-
-  /// Create a category-based link
-  /// Generic L must implement Into<ScopedZomeType<LinkType>> for the specific zome
-  pub fn create_category_link<L, E>(
-    entity_type: &str,
-    category: &str,
-    target_hash: ActionHash,
-    link_type: L,
-  ) -> ExternResult<()>
-  where
-    ScopedLinkType: TryFrom<L, Error = E>,
-    WasmError: From<E>,
-  {
-    let anchor_path = paths::category_anchor(entity_type, category);
-    let anchor_hash = anchor_path.path_entry_hash()?;
-    create_link(anchor_hash, target_hash, link_type, LinkTag::new(category))?;
     Ok(())
   }
 }

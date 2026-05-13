@@ -1,5 +1,5 @@
 use hdk::prelude::*;
-pub use nondominium_utils::errors::ResourceError;
+pub use nondominium_shared::errors::ResourceError;
 
 pub mod economic_resource;
 pub mod governance_rule;

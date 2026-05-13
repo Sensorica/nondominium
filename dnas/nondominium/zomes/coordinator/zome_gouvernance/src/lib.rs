@@ -1,5 +1,5 @@
 use hdk::prelude::*;
-pub use nondominium_utils::errors::GovernanceError;
+pub use nondominium_shared::errors::GovernanceError;
 use zome_gouvernance_integrity::*;
 
 pub mod commitment;
@@ -7,12 +7,19 @@ pub mod economic_event;
 pub mod ppr;
 pub mod private_data_validation;
 pub mod validation;
+// NDO federation extensions (issue #100)
+pub mod agreement;
+pub mod contribution;
+pub mod hard_link;
 
 pub use commitment::*;
 pub use economic_event::*;
 pub use ppr::*;
 pub use private_data_validation::*;
 pub use validation::*;
+pub use agreement::*;
+pub use contribution::*;
+pub use hard_link::*;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Debug)]
