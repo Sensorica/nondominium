@@ -10,6 +10,7 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group
 
 use holochain::prelude::*;
+use holochain::sweettest::*;
 use serde::{Deserialize, Serialize};
 
 use group_sweettest::common::*;
@@ -159,7 +160,7 @@ async fn join_group_creates_membership() {
         .await;
 
     // Sync DHT between agents
-    await_consistency_20_s(&[&cell_alice, &cell_bob])
+    await_consistency_20_s([&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -171,7 +172,7 @@ async fn join_group_creates_membership() {
         )
         .await;
 
-    let bob_key = conductors[1].keystore().list_keys().await.unwrap()[0].clone();
+    let bob_key = cell_bob.agent_pubkey().clone();
 
     assert!(
         members.iter().any(|m| m.member == bob_key),
@@ -200,7 +201,7 @@ async fn leave_group_removes_membership() {
         .call(&cell_bob.zome("zome_group"), "join_group", group_hash.clone())
         .await;
 
-    await_consistency_20_s(&[&cell_alice, &cell_bob])
+    await_consistency_20_s([&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -212,7 +213,7 @@ async fn leave_group_removes_membership() {
         )
         .await;
 
-    await_consistency_20_s(&[&cell_alice, &cell_bob])
+    await_consistency_20_s([&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -224,7 +225,7 @@ async fn leave_group_removes_membership() {
         )
         .await;
 
-    let bob_key = conductors[1].keystore().list_keys().await.unwrap()[0].clone();
+    let bob_key = cell_bob.agent_pubkey().clone();
 
     assert!(
         !members.iter().any(|m| m.member == bob_key),
