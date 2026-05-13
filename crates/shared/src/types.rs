@@ -6,10 +6,10 @@ use hdi::prelude::*;
 
 /// Maturity / evolutionary phase of a NondominiumIdentity.
 /// Advances rarely and mostly irreversibly.
-/// `serde(rename_all = "snake_case")` aligns the wire format with the Display
-/// impl used by lifecycle-path anchors (e.g. "lobby.ndo.lifecycle.active").
+/// Serde uses default PascalCase ("Ideation", "Active") to match the original
+/// zome_resource_integrity wire format. The Display impl is separate and outputs
+/// lowercase ("ideation", "active") for lobby path construction anchors.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum LifecycleStage {
   Ideation,
   Specification,
@@ -44,7 +44,6 @@ impl std::fmt::Display for LifecycleStage {
 /// Governance / ownership regime of a NondominiumIdentity.
 /// Immutable after creation.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum PropertyRegime {
   Private,
   Commons,
@@ -57,7 +56,6 @@ pub enum PropertyRegime {
 /// Physical / digital nature of a NondominiumIdentity.
 /// Immutable after creation.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum ResourceNature {
   Physical,
   Digital,
