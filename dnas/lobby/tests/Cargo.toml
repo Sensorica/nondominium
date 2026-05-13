@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-holochain = { workspace = true }
-tokio = { workspace = true }
-serde = { workspace = true }
+holochain               = { workspace = true }
+tokio                   = { workspace = true }
+serde                   = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
+nondominium_shared      = { workspace = true }
 
 [[test]]
 name = "lobby"

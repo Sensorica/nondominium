@@ -1,95 +1,13 @@
 use hdi::prelude::*;
+// VfAction, NdoLinkType, BeneficiaryRef, BenefitType, BenefitClause are defined in
+// nondominium_shared::types so coordinator zomes and Sweettest test crates can import
+// them directly without WASM-crate dependency constraints.
+pub use nondominium_shared::types::{
+  BeneficiaryRef, BenefitClause, BenefitType, NdoLinkType, VfAction,
+};
 
 pub mod ppr;
 pub use ppr::*;
-
-/// ValueFlows Action enum representing all valid economic actions
-/// Based on the ValueFlows vocabulary with nondominium-specific extensions
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum VfAction {
-  // Standard ValueFlows transfer actions
-  Transfer, // Transfer ownership/custody
-  Move,     // Move a resource from one location to another
-
-  // Standard ValueFlows production/consumption actions
-  Use, // Use a resource without consuming it
-
-  // TODO: No consumable in the PoC, but end-of-life / Consume flows need design alignment with
-  // lifecycle stages — see `documentation/requirements/ndo_prima_materia.md` §5.3, REQ-GOV-11–13.
-  Consume, // Consume/destroy a resource
-  Produce, // Create/produce a new resource
-  Work,    // Apply work/labor to a resource
-
-  // Standard ValueFlows modification actions
-  Modify,   // Modify an existing resource
-  Combine,  // Combine multiple resources
-  Separate, // Separate one resource into multiple
-
-  // Standard ValueFlows quantity adjustment actions
-  Raise, // Increase quantity/value of a resource
-  Lower, // Decrease quantity/value of a resource
-
-  // Standard ValueFlows citation/reference actions
-  Cite,   // Reference or cite a resource
-  Accept, // Accept delivery or responsibility
-
-  // nondominium-specific actions
-  InitialTransfer, // First transfer by a Simple Agent
-  AccessForUse,    // Request access to use a resource
-  TransferCustody, // Transfer custody (nondominium specific)
-}
-
-impl VfAction {
-  /// Returns true if this action requires the resource to already exist
-  pub fn requires_existing_resource(&self) -> bool {
-    match self {
-      VfAction::Transfer
-      | VfAction::TransferCustody
-      | VfAction::Use
-      | VfAction::Consume
-      | VfAction::Move
-      | VfAction::Modify
-      | VfAction::Combine
-      | VfAction::Separate
-      | VfAction::Raise
-      | VfAction::Lower
-      | VfAction::Cite
-      | VfAction::Accept
-      | VfAction::InitialTransfer
-      | VfAction::AccessForUse => true,
-      VfAction::Produce | VfAction::Work => false,
-    }
-  }
-
-  /// Returns true if this action creates a new resource
-  pub fn creates_resource(&self) -> bool {
-    match self {
-      VfAction::Produce => true,
-      _ => false,
-    }
-  }
-
-  /// Returns true if this action modifies resource quantity
-  pub fn modifies_quantity(&self) -> bool {
-    match self {
-      VfAction::Consume
-      | VfAction::Produce
-      | VfAction::Raise
-      | VfAction::Lower
-      | VfAction::Combine
-      | VfAction::Separate => true,
-      _ => false,
-    }
-  }
-
-  /// Returns true if this action changes custody/ownership
-  pub fn changes_custody(&self) -> bool {
-    match self {
-      VfAction::Transfer | VfAction::TransferCustody | VfAction::InitialTransfer => true,
-      _ => false,
-    }
-  }
-}
 
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -164,24 +82,6 @@ pub struct NdoHardLink {
   pub created_at: Timestamp,
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum NdoLinkType {
-  Component,    // target is a structural component of source
-  DerivedFrom,  // source was derived/forked from target
-  Supersedes,   // source formally replaces target in the network
-}
-
-impl std::fmt::Display for NdoLinkType {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let s = match self {
-      NdoLinkType::Component => "component",
-      NdoLinkType::DerivedFrom => "derived_from",
-      NdoLinkType::Supersedes => "supersedes",
-    };
-    write!(f, "{}", s)
-  }
-}
-
 /// Peer-validated work contribution on an NDO. VF: vf:EconomicEvent (Work/Modify).
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
@@ -213,26 +113,8 @@ pub struct Agreement {
   pub created_at: Timestamp,
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct BenefitClause {
-  pub receiver: BeneficiaryRef,
-  pub share_percent: f64, // 0.0..=100.0
-  pub benefit_type: BenefitType,
-  pub note: Option<String>,
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum BeneficiaryRef {
-  Agent(AgentPubKey),
-  NdoComponent { ndo_dna_hash: DnaHash, ndo_identity_hash: ActionHash },
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub enum BenefitType {
-  Monetary,
-  GovernanceWeight,
-  AccessRight(String),
-}
+// BenefitClause, BeneficiaryRef, BenefitType are re-exported from nondominium_shared::types
+// (see the `pub use` at the top of this file).
 
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]

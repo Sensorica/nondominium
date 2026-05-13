@@ -1,25 +1,11 @@
 use hdk::prelude::*;
 use zome_gouvernance_integrity::*;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateNdoHardLinkInput {
-  pub from_ndo_identity_hash: ActionHash,
-  pub to_ndo_dna_hash: DnaHash,
-  pub to_ndo_identity_hash: ActionHash,
-  pub link_type: NdoLinkType,
-  pub fulfillment_hash: ActionHash,
-}
+use nondominium_shared::io::governance::{CreateNdoHardLinkInput, GetNdoHardLinksByTypeInput};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NdoHardLinkRecord {
   pub action_hash: ActionHash,
   pub entry: NdoHardLink,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GetNdoHardLinksByTypeInput {
-  pub ndo_identity_hash: ActionHash,
-  pub link_type: NdoLinkType,
 }
 
 /// Create an immutable hard link between two NDOs.

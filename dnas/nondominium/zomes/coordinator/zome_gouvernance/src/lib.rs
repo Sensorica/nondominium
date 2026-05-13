@@ -1,5 +1,5 @@
 use hdk::prelude::*;
-pub use nondominium_utils::errors::GovernanceError;
+pub use nondominium_shared::errors::GovernanceError;
 use zome_gouvernance_integrity::*;
 
 pub mod commitment;

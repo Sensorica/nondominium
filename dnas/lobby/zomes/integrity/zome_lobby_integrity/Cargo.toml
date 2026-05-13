@@ -11,3 +11,4 @@ name = "zome_lobby_integrity"
 hdi = { workspace = true }
 serde = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
+nondominium_shared = { workspace = true }

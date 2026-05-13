@@ -1,5 +1,5 @@
 use hdk::prelude::*;
-use nondominium_utils::call_hrea_zome;
+use nondominium_shared::call_hrea_zome;
 
 /// Local mirror of hREA's `ReaAgent` struct for serialization.
 /// Avoids a hard Cargo dependency on the hREA workspace.

@@ -1,19 +1,16 @@
 use hdk::prelude::*;
 use zome_lobby_integrity::*;
+use nondominium_shared::io::lobby::{
+  AnnounceNdoInput, GroupDescriptorStub, LobbyAgentProfileInput, UpdateNdoAnnouncementInput,
+};
 
 #[hdk_extern]
 pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
   Ok(InitCallbackResult::Pass)
 }
 
-// ─── Input / Output types ─────────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LobbyAgentProfileInput {
-  pub handle: String,
-  pub avatar_url: Option<String>,
-  pub bio: Option<String>,
-}
+// ─── Output types (wrap entry types with action hash — stay here because they
+//     reference LobbyAgentProfile / NdoAnnouncement from the integrity zome) ──
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LobbyAgentProfileRecord {
@@ -22,29 +19,9 @@ pub struct LobbyAgentProfileRecord {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AnnounceNdoInput {
-  pub ndo_name: String,
-  pub ndo_dna_hash: DnaHash,
-  pub network_seed: String,
-  pub ndo_identity_hash: ActionHash,
-  pub lifecycle_stage: LifecycleStage,
-  pub property_regime: PropertyRegime,
-  pub resource_nature: ResourceNature,
-  pub description: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct NdoAnnouncementRecord {
   pub action_hash: ActionHash,
   pub entry: NdoAnnouncement,
-}
-
-/// Minimal group descriptor stub until Group DNA ships in issue #101.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GroupDescriptorStub {
-  pub id: String,
-  pub name: String,
-  pub is_solo: bool,
 }
 
 // ─── Agent profile functions ──────────────────────────────────────────────────
@@ -273,12 +250,6 @@ pub fn get_ndo_announcements_by_lifecycle(stage: String) -> ExternResult<Vec<Ndo
     results.push(NdoAnnouncementRecord { action_hash, entry });
   }
   Ok(results)
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateNdoAnnouncementInput {
-  pub original_action_hash: ActionHash,
-  pub new_lifecycle_stage: LifecycleStage,
 }
 
 /// Update the lifecycle_stage of an NdoAnnouncement. Only the registrant may call this.

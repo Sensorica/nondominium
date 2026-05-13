@@ -12,5 +12,5 @@ hdk = { workspace = true }
 serde = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
 zome_resource_integrity = { path = "../../integrity/zome_resource" }
-nondominium_utils = { path = "../../../../../crates/utils" }
+nondominium_shared = { workspace = true, features = ["coordinator"] }
 thiserror = { workspace = true }

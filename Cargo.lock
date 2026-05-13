@@ -3672,6 +3672,7 @@ version = "0.1.0"
 dependencies = [
  "holochain",
  "holochain_serialized_bytes",
+ "nondominium_shared",
  "serde",
  "tokio",
 ]
@@ -3958,22 +3959,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nondominium_shared"
+version = "0.1.0"
+dependencies = [
+ "hdi",
+ "hdk",
+ "serde",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "nondominium_sweettest"
 version = "0.1.0"
 dependencies = [
  "holochain",
  "holochain_serialized_bytes",
+ "nondominium_shared",
  "serde",
  "tokio",
-]
-
-[[package]]
-name = "nondominium_utils"
-version = "0.1.0"
-dependencies = [
- "hdk",
- "serde",
- "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -8247,7 +8250,7 @@ dependencies = [
  "blake3",
  "hdk",
  "holochain_serialized_bytes",
- "nondominium_utils",
+ "nondominium_shared",
  "serde",
  "thiserror 2.0.17",
  "zome_gouvernance_integrity",
@@ -8259,6 +8262,7 @@ version = "0.0.1"
 dependencies = [
  "hdi",
  "holochain_serialized_bytes",
+ "nondominium_shared",
  "serde",
 ]
 
@@ -8268,6 +8272,7 @@ version = "0.0.1"
 dependencies = [
  "hdk",
  "holochain_serialized_bytes",
+ "nondominium_shared",
  "serde",
  "thiserror 2.0.17",
  "zome_lobby_integrity",
@@ -8279,6 +8284,7 @@ version = "0.0.1"
 dependencies = [
  "hdi",
  "holochain_serialized_bytes",
+ "nondominium_shared",
  "serde",
 ]
 
@@ -8288,7 +8294,7 @@ version = "0.0.1"
 dependencies = [
  "hdk",
  "holochain_serialized_bytes",
- "nondominium_utils",
+ "nondominium_shared",
  "serde",
  "thiserror 2.0.17",
  "zome_person_integrity",
@@ -8309,7 +8315,7 @@ version = "0.0.1"
 dependencies = [
  "hdk",
  "holochain_serialized_bytes",
- "nondominium_utils",
+ "nondominium_shared",
  "serde",
  "thiserror 2.0.17",
  "zome_resource_integrity",
@@ -8321,6 +8327,7 @@ version = "0.0.1"
 dependencies = [
  "hdi",
  "holochain_serialized_bytes",
+ "nondominium_shared",
  "serde",
 ]
 

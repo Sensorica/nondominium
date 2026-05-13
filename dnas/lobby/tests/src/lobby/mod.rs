@@ -16,51 +16,26 @@ use holochain::sweettest::*;
 use serde::{Deserialize, Serialize};
 
 use crate::common::*;
+// Input and stub types come directly from the shared crate — no mirror needed.
+use nondominium_shared::io::lobby::{AnnounceNdoInput, GroupDescriptorStub, LobbyAgentProfileInput};
+use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature};
 
-// ─── Mirror structs ───────────────────────────────────────────────────────────
+// ─── Local output types (contain NdoAnnouncement / LobbyAgentProfile from the
+//     integrity zome which is a WASM crate — kept here as partial assertion views) ──
 
-/// Mirrors `zome_lobby_coordinator::AnnounceNdoInput`.
-#[derive(Debug, Serialize, Deserialize)]
-struct AnnounceNdoInput {
-    pub ndo_name: String,
-    pub ndo_dna_hash: DnaHash,
-    pub network_seed: String,
-    pub ndo_identity_hash: ActionHash,
-    pub lifecycle_stage: String,
-    pub property_regime: String,
-    pub resource_nature: String,
-    pub description: Option<String>,
-}
-
-/// Mirrors `zome_lobby_coordinator::NdoAnnouncementRecord`.
+/// Partial view of NdoAnnouncement for test assertions.
 #[derive(Debug, Serialize, Deserialize)]
 struct NdoAnnouncementRecord {
     pub action_hash: ActionHash,
     pub entry: NdoAnnouncementEntry,
 }
 
-/// Mirrors `zome_lobby_integrity::NdoAnnouncement`.
+/// Subset of NdoAnnouncement fields used for assertions.
 #[derive(Debug, Serialize, Deserialize)]
 struct NdoAnnouncementEntry {
     pub ndo_name: String,
     pub network_seed: String,
     pub registered_by: AgentPubKey,
-}
-
-/// Mirrors `zome_lobby_coordinator::LobbyAgentProfileInput`.
-#[derive(Debug, Serialize, Deserialize)]
-struct LobbyAgentProfileInput {
-    pub handle: String,
-    pub avatar_url: Option<String>,
-    pub bio: Option<String>,
-}
-
-/// Mirrors `zome_lobby_coordinator::GroupDescriptorStub`.
-#[derive(Debug, Serialize, Deserialize)]
-struct GroupDescriptorStub {
-    pub id: String,
-    pub name: String,
-    pub is_solo: bool,
 }
 
 // ─── Decode helper ────────────────────────────────────────────────────────────
@@ -91,9 +66,9 @@ async fn announce_ndo_single_agent() {
                 ndo_dna_hash: ndo_dna_hash.clone(),
                 network_seed: "test-seed-001".to_string(),
                 ndo_identity_hash: ActionHash::from_raw_36(vec![1u8; 36]),
-                lifecycle_stage: "active".to_string(),
-                property_regime: "nondominium".to_string(),
-                resource_nature: "physical".to_string(),
+                lifecycle_stage: LifecycleStage::Active,
+                property_regime: PropertyRegime::Nondominium,
+                resource_nature: ResourceNature::Physical,
                 description: Some("A test NDO".to_string()),
             },
         )
@@ -122,9 +97,9 @@ async fn announce_ndo_cross_conductor() {
                 ndo_dna_hash: DnaHash::from_raw_36(vec![2u8; 36]),
                 network_seed: "test-seed-002".to_string(),
                 ndo_identity_hash: ActionHash::from_raw_36(vec![2u8; 36]),
-                lifecycle_stage: "stable".to_string(),
-                property_regime: "commons".to_string(),
-                resource_nature: "physical".to_string(),
+                lifecycle_stage: LifecycleStage::Stable,
+                property_regime: PropertyRegime::Commons,
+                resource_nature: ResourceNature::Physical,
                 description: None,
             },
         )

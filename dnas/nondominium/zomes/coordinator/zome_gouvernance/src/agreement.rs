@@ -1,20 +1,7 @@
 use hdk::prelude::*;
 use zome_gouvernance_integrity::*;
-use nondominium_utils::external_local_call;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateAgreementInput {
-  pub ndo_identity_hash: ActionHash,
-  pub clauses: Vec<BenefitClause>,
-  pub primary_accountable: Vec<AgentPubKey>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateAgreementInput {
-  pub original_action_hash: ActionHash,
-  pub clauses: Vec<BenefitClause>,
-  pub primary_accountable: Vec<AgentPubKey>,
-}
+use nondominium_shared::external_local_call;
+use nondominium_shared::io::governance::{CreateAgreementInput, UpdateAgreementInput};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AgreementRecord {

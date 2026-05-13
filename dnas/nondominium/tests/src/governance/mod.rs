@@ -15,132 +15,56 @@ use holochain::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use nondominium_sweettest::common::*;
+// Shared types — imported directly, no mirror needed.
+use nondominium_shared::io::governance::{
+    CreateAgreementInput, CreateNdoHardLinkInput, GetNdoHardLinksByTypeInput,
+    UpdateAgreementInput, ValidateContributionInput,
+};
+use nondominium_shared::types::{BeneficiaryRef, BenefitClause, BenefitType, NdoLinkType, VfAction};
 
-// ─── Mirror structs ───────────────────────────────────────────────────────────
-// These must match the serialized form of their counterparts in the zomes.
-// VfAction, NdoLinkType, BenefitType are unit/newtype enums with PascalCase
-// variant names (serde default — no rename attribute in the integrity zomes).
+// ─── Local output types (partial views for assertion — reference entry types
+//     from integrity zomes which cannot be imported in native test crates) ──────
 
-/// Mirrors `BeneficiaryRef` from `zome_gouvernance_integrity`.
-/// Externally-tagged serde format: {"Agent": <AgentPubKey>}.
-#[derive(Debug, Serialize, Deserialize)]
-enum BeneficiaryRef {
-    Agent(AgentPubKey),
-}
-
-/// Mirrors `BenefitType` from `zome_gouvernance_integrity`.
-#[derive(Debug, Serialize, Deserialize)]
-enum BenefitType {
-    Monetary,
-}
-
-/// Mirrors `BenefitClause` from `zome_gouvernance_integrity`.
-#[derive(Debug, Serialize, Deserialize)]
-struct BenefitClause {
-    pub receiver: BeneficiaryRef,
-    pub share_percent: f64,
-    pub benefit_type: BenefitType,
-    pub note: Option<String>,
-}
-
-/// Mirrors `CreateAgreementInput` from `zome_gouvernance/agreement.rs`.
-#[derive(Debug, Serialize, Deserialize)]
-struct CreateAgreementInput {
-    pub ndo_identity_hash: ActionHash,
-    pub clauses: Vec<BenefitClause>,
-    pub primary_accountable: Vec<AgentPubKey>,
-}
-
-/// Mirrors `UpdateAgreementInput` from `zome_gouvernance/agreement.rs`.
-#[derive(Debug, Serialize, Deserialize)]
-struct UpdateAgreementInput {
-    pub original_action_hash: ActionHash,
-    pub clauses: Vec<BenefitClause>,
-    pub primary_accountable: Vec<AgentPubKey>,
-}
-
-/// Minimal `Agreement` fields asserted in tests.
+/// Minimal Agreement fields asserted in tests.
 #[derive(Debug, Serialize, Deserialize)]
 struct AgreementOutput {
     pub version: u32,
     pub ndo_identity_hash: ActionHash,
 }
 
-/// Mirrors `AgreementRecord` from `zome_gouvernance/agreement.rs`.
+/// Record wrapper matching `AgreementRecord` in the coordinator.
 #[derive(Debug, Serialize, Deserialize)]
 struct AgreementRecord {
     pub action_hash: ActionHash,
     pub entry: AgreementOutput,
 }
 
-/// Mirrors `ValidateContributionInput` from `zome_gouvernance/contribution.rs`.
-/// `action` is a String matching the PascalCase `VfAction` variant name.
-#[derive(Debug, Serialize, Deserialize)]
-struct ValidateContributionInput {
-    pub provider: AgentPubKey,
-    pub action: String, // "Work" | "Modify" | "Cite"
-    pub work_log_group_dna_hash: Option<DnaHash>,
-    pub work_log_action_hash: Option<ActionHash>,
-    pub ndo_identity_hash: ActionHash,
-    pub input_of: Option<ActionHash>,
-    pub note: String,
-    pub effort_quantity: Option<f64>,
-    pub fulfills: Option<ActionHash>,
-    pub has_point_in_time: Timestamp,
-}
-
-/// Minimal asserted fields for a returned Contribution.
+/// Minimal Contribution fields asserted in tests.
 #[derive(Debug, Serialize, Deserialize)]
 struct ContributionOutput {
     pub note: String,
     pub provider: AgentPubKey,
 }
 
-/// Mirrors `ContributionRecord`.
+/// Record wrapper matching `ContributionRecord` in the coordinator.
 #[derive(Debug, Serialize, Deserialize)]
 struct ContributionRecord {
     pub action_hash: ActionHash,
     pub entry: ContributionOutput,
 }
 
-/// Mirrors `NdoLinkType` from `zome_gouvernance_integrity`.
-/// PascalCase variant names (serde default).
-#[derive(Debug, Serialize, Deserialize)]
-enum NdoLinkType {
-    Component,
-    DerivedFrom,
-    Supersedes,
-}
-
-/// Mirrors `CreateNdoHardLinkInput` from `zome_gouvernance/hard_link.rs`.
-#[derive(Debug, Serialize, Deserialize)]
-struct CreateNdoHardLinkInput {
-    pub from_ndo_identity_hash: ActionHash,
-    pub to_ndo_dna_hash: DnaHash,
-    pub to_ndo_identity_hash: ActionHash,
-    pub link_type: NdoLinkType,
-    pub fulfillment_hash: ActionHash,
-}
-
-/// Minimal asserted fields for a returned NdoHardLink.
+/// Minimal NdoHardLink fields asserted in tests.
 #[derive(Debug, Serialize, Deserialize)]
 struct NdoHardLinkOutput {
     pub from_ndo_identity_hash: ActionHash,
     pub to_ndo_identity_hash: ActionHash,
 }
 
-/// Mirrors `NdoHardLinkRecord`.
+/// Record wrapper matching `NdoHardLinkRecord` in the coordinator.
 #[derive(Debug, Serialize, Deserialize)]
 struct NdoHardLinkRecord {
     pub action_hash: ActionHash,
     pub entry: NdoHardLinkOutput,
-}
-
-/// Mirrors `GetNdoHardLinksByTypeInput`.
-#[derive(Debug, Serialize, Deserialize)]
-struct GetNdoHardLinksByTypeInput {
-    pub ndo_identity_hash: ActionHash,
-    pub link_type: NdoLinkType,
 }
 
 /// Mirrors `LogEconomicEventInput` for creating a stub EconomicEvent.
@@ -244,7 +168,7 @@ async fn validate_and_get_contributions() {
 
     let input = ValidateContributionInput {
         provider: alice_key.clone(),
-        action: "Work".to_string(),
+        action: VfAction::Work,
         work_log_group_dna_hash: None,
         work_log_action_hash: None,
         ndo_identity_hash: ndo_hash.clone(),
@@ -304,7 +228,7 @@ async fn create_and_get_ndo_hard_link() {
             &cell_alice.zome("zome_gouvernance"),
             "log_economic_event",
             LogEconomicEventInput {
-                action: "Use".to_string(),
+                action: VfAction::Use,
                 provider: alice_key.clone(),
                 receiver: alice_key.clone(),
                 resource_inventoried_as: stub_resource,

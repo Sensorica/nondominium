@@ -1,5 +1,5 @@
 use hdk::prelude::*;
-pub use nondominium_utils::errors::PersonError;
+pub use nondominium_shared::errors::PersonError;
 
 pub mod capability_based_sharing;
 pub mod device_management;

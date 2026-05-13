@@ -1,62 +1,10 @@
 use hdi::prelude::*;
-
-// LifecycleStage, PropertyRegime, ResourceNature are re-declared here because WASM
-// compilation forbids cross-crate type imports between DNAs. These match the definitions
-// in zome_resource_integrity exactly (ADR-LOBBY-02).
-// snake_case: aligns serde wire format with the Display impl ("active" not "Active").
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LifecycleStage {
-  Ideation,
-  Specification,
-  Development,
-  Prototype,
-  Stable,
-  Distributed,
-  Active,
-  Hibernating,
-  Deprecated,
-  EndOfLife,
-}
-
-impl std::fmt::Display for LifecycleStage {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let s = match self {
-      LifecycleStage::Ideation => "ideation",
-      LifecycleStage::Specification => "specification",
-      LifecycleStage::Development => "development",
-      LifecycleStage::Prototype => "prototype",
-      LifecycleStage::Stable => "stable",
-      LifecycleStage::Distributed => "distributed",
-      LifecycleStage::Active => "active",
-      LifecycleStage::Hibernating => "hibernating",
-      LifecycleStage::Deprecated => "deprecated",
-      LifecycleStage::EndOfLife => "end_of_life",
-    };
-    write!(f, "{}", s)
-  }
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PropertyRegime {
-  Private,
-  Commons,
-  Collective,
-  Pool,
-  CommonPool,
-  Nondominium,
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ResourceNature {
-  Physical,
-  Digital,
-  Service,
-  Hybrid,
-  Information,
-}
+// LifecycleStage, PropertyRegime, ResourceNature, and their Display impls live in
+// nondominium_shared::types — shared between this DNA and zome_resource_integrity.
+// The PR #103 comment claiming "WASM forbids cross-crate type imports between DNAs"
+// was incorrect: pure serde types with no hdk/hdi symbols can freely cross crate
+// boundaries. The real constraint was that crates/utils had hdk as a hard dep.
+pub use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature};
 
 /// Public agent presence in the Lobby DHT. Permissionless to create, permanent anchor.
 #[hdk_entry_helper]

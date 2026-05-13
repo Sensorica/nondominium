@@ -1,20 +1,7 @@
 use hdk::prelude::*;
 use zome_gouvernance_integrity::*;
-use nondominium_utils::external_local_call;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ValidateContributionInput {
-  pub provider: AgentPubKey,
-  pub action: VfAction,
-  pub work_log_group_dna_hash: Option<DnaHash>,
-  pub work_log_action_hash: Option<ActionHash>,
-  pub ndo_identity_hash: ActionHash,
-  pub input_of: Option<ActionHash>,
-  pub note: String,
-  pub effort_quantity: Option<f64>,
-  pub fulfills: Option<ActionHash>,
-  pub has_point_in_time: Timestamp,
-}
+use nondominium_shared::external_local_call;
+use nondominium_shared::io::governance::ValidateContributionInput;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ContributionRecord {

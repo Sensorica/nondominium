@@ -19,6 +19,7 @@ holochain                  = { workspace = true }
 tokio                      = { workspace = true }
 serde                      = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
+nondominium_shared         = { workspace = true }
 
 [[test]]
 name = "misc"

@@ -1,0 +1,16 @@
+[package]
+name = "nondominium_shared"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hdi = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+# hdk is only needed by coordinator zomes — integrity zomes and test crates use the
+# default (no feature) configuration which has only hdi + serde in scope.
+hdk = { workspace = true, optional = true }
+
+[features]
+default = []
+coordinator = ["hdk"]

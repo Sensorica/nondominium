@@ -1,6 +1,6 @@
 use crate::GovernanceError;
 use hdk::prelude::*;
-use nondominium_utils::call_person_zome;
+use nondominium_shared::call_person_zome;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
