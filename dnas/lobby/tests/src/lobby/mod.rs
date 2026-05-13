@@ -15,13 +15,20 @@ use holochain::prelude::*;
 use holochain::sweettest::*;
 use serde::{Deserialize, Serialize};
 
-use crate::common::*;
+use lobby_sweettest::common::*;
 // Input and stub types come directly from the shared crate — no mirror needed.
 use nondominium_shared::io::lobby::{AnnounceNdoInput, GroupDescriptorStub, LobbyAgentProfileInput};
 use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature};
 
 // ─── Local output types (contain NdoAnnouncement / LobbyAgentProfile from the
 //     integrity zome which is a WASM crate — kept here as partial assertion views) ──
+
+/// Partial view of LobbyAgentProfile for test assertions.
+/// Holochain uses MessagePack serialization — serde_json::Value cannot be used here.
+#[derive(Debug, Serialize, Deserialize)]
+struct LobbyProfileView {
+    pub handle: String,
+}
 
 /// Partial view of NdoAnnouncement for test assertions.
 #[derive(Debug, Serialize, Deserialize)]
@@ -106,7 +113,7 @@ async fn announce_ndo_cross_conductor() {
         .await;
 
     // Wait for DHT consistency between Alice and Bob
-    await_consistency(10, &[&cell_alice, &cell_bob])
+    await_consistency(10, [&cell_alice, &cell_bob])
         .await
         .expect("DHT consistency timeout");
 
@@ -140,7 +147,7 @@ async fn upsert_lobby_agent_profile() {
         .await;
 
     // Retrieve and verify
-    let profile: Option<serde_json::Value> = conductors[0]
+    let profile: Option<LobbyProfileView> = conductors[0]
         .call(
             &cell_alice.zome("zome_lobby"),
             "get_lobby_agent_profile",
