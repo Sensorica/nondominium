@@ -25,3 +25,14 @@ roles:
         properties: ~
         origin_time: 1716323893645
       clone_limit: 0
+  - name: group
+    provisioning:
+      strategy: create
+      deferred: true
+    dna:
+      path: "../dnas/group/workdir/group.dna"
+      modifiers:
+        network_seed: ~
+        properties: ~
+        origin_time: 1716323893645
+      clone_limit: 64
