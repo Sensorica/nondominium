@@ -151,6 +151,27 @@ Tibi: standard `git checkout` workflow works fine — worktrees are optional.
 
 ---
 
+## AI Tooling Conventions
+
+Running `nix develop` materializes two AI asset directories (both gitignored):
+- `.cursor/rules/` — Cursor always-loaded rules from `pai/`
+- `.agents/skills/` — Open Agent Skills for Cursor, VS Code Copilot, and compatible editors
+
+### Source files and what they drive
+
+| Source | Drives | When to edit |
+|---|---|---|
+| `documentation/TELOS.md` | `.cursor/rules/00-telos.mdc` + Claude Code session context | Project purpose / operating principles changed |
+| `pai/conventions.md` | `.cursor/rules/10-conventions.mdc` | Coding/process conventions changed |
+| `pai/cursor-rules/*.md` | `.cursor/rules/20-50-*.mdc` | Architecture, Rust, Svelte, or test patterns changed |
+| `pai/claude/skills/nondominium-domain/` | `.claude/skills/nondominium-domain/` + `.agents/skills/nondominium-domain/` | NDO domain knowledge updated; run `nix develop` to regenerate |
+| flake input `holochain-agent-skill` | `.claude/skills/holochain/` + `.agents/skills/holochain/` | Run `nix flake update holochain-agent-skill` to pin a new version |
+
+After editing any `pai/` file: `exit` the nix shell and `nix develop` to regenerate.
+The `.claude/`, `.cursor/`, and `.agents/` directories are gitignored — never edit them directly.
+
+---
+
 ## Questions?
 
 Open an issue or ping in the team channel.

@@ -51,6 +51,35 @@ nondominium implements a modular governance-as-operator architecture that separa
 
 **Documentation map:** See [documentation/DOCUMENTATION_INDEX.md](documentation/DOCUMENTATION_INDEX.md). Post-MVP **NDO** model and optional **Unyt** / **Flowsta** integrations are specified in [documentation/requirements/ndo_prima_materia.md](documentation/requirements/ndo_prima_materia.md) and the stubs under [documentation/requirements/post-mvp/](documentation/requirements/post-mvp/).
 
+## AI Tooling
+
+Nondominium supports Claude Code, Cursor, VS Code Copilot, and any
+[Open Agent Skill](https://agentskills.io)-compatible editor out of the box.
+All AI assets are generated automatically when you run `nix develop`.
+
+**Skills** (Open Agent Skill format — progressively disclosed on activation):
+- `holochain` — Holochain HDK patterns, architecture, testing, TypeScript client
+- `nondominium-domain` — NDO three-layer model, PPR system, capability slots, ValueFlows alignment
+
+Skills are materialized from `.claude/skills/` into `.agents/skills/` (the editor-agnostic
+primary discovery path) on every `nix develop`. `.agents/` is gitignored.
+
+**Cursor rules** (always-loaded project context, generated from `pai/`):
+| Rule | Scope | Content |
+|---|---|---|
+| `00-telos` | always | Project TELOS — vision, philosophy, AI operating principles |
+| `10-conventions` | always | Branch model, commits, Rust/TS/Svelte conventions |
+| `20-architecture` | always | Three-zome structure, NDO layers, lifecycle state machine |
+| `30-rust-zomes` | `**/*.rs` | HDK entry patterns, cross-zome calls, validation |
+| `40-svelte-ui` | `**/*.svelte` | Svelte 5 runes, UnoCSS, Effect-TS patterns |
+| `50-tests` | `dnas/**/tests/**/*.rs` | Sweettest setup, multi-agent DHT sync |
+
+**Source files** (edit these; tools update on next `nix develop`):
+- `documentation/TELOS.md` — Project purpose and operating principles
+- `pai/conventions.md` — Coding and process conventions
+- `pai/cursor-rules/` — Architecture, Rust, Svelte, test patterns
+- `.claude/skills/nondominium-domain/` — Claude Code skill (no rebuild needed)
+
 ## Environment Setup
 
 > **PREREQUISITE**: Set up the [Holochain development environment](https://developer.holochain.org/docs/install/).
