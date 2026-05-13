@@ -67,8 +67,7 @@ let
   mkFrontmatter = { alwaysApply, globs, description, ... }: ''
     ---
     description: ${description}
-    globs: ${globs}
-    alwaysApply: ${if alwaysApply then "true" else "false"}
+    ${lib.optionalString (globs != "") "globs: ${globs}\n"}alwaysApply: ${if alwaysApply then "true" else "false"}
     ---
 
   '';

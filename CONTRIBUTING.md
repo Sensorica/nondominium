@@ -164,12 +164,11 @@ Running `nix develop` materializes two AI asset directories (both gitignored):
 | `documentation/TELOS.md` | `.cursor/rules/00-telos.mdc` + Claude Code session context | Project purpose / operating principles changed |
 | `pai/conventions.md` | `.cursor/rules/10-conventions.mdc` | Coding/process conventions changed |
 | `pai/cursor-rules/*.md` | `.cursor/rules/20-50-*.mdc` | Architecture, Rust, Svelte, or test patterns changed |
-| `.claude/skills/nondominium-domain/` | `.agents/skills/nondominium-domain/` + Claude Code | NDO domain knowledge updated (no rebuild needed) |
-| `.claude/skills/holochain-agent-skill/` | `.agents/skills/holochain/` | Submodule update only — don't edit directly |
+| `pai/claude/skills/nondominium-domain/` | `.claude/skills/nondominium-domain/` + `.agents/skills/nondominium-domain/` | NDO domain knowledge updated; run `nix develop` to regenerate |
+| flake input `holochain-agent-skill` | `.claude/skills/holochain/` + `.agents/skills/holochain/` | Run `nix flake update holochain-agent-skill` to pin a new version |
 
 After editing any `pai/` file: `exit` the nix shell and `nix develop` to regenerate.
-Skill changes (`.claude/skills/nondominium-domain/`) take effect immediately in Claude Code.
-The `.cursor/` and `.agents/` directories are gitignored.
+The `.claude/`, `.cursor/`, and `.agents/` directories are gitignored — never edit them directly.
 
 ---
 
