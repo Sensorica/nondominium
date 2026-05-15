@@ -1,0 +1,20 @@
+[book]
+title = "Nondominium Documentation"
+description = "Infrastructure for organization-agnostic, uncapturable, self-governed resources built on Holochain and ValueFlows."
+authors = ["Sensorica"]
+language = "en"
+src = "documentation"
+
+[build]
+build-dir = "book"
+
+[output.html]
+site-url = "/nondominium/"
+git-repository-url = "https://github.com/Sensorica/nondominium"
+edit-url-template = "https://github.com/Sensorica/nondominium/edit/main/documentation/{path}"
+no-section-label = false
+
+[output.html.search]
+enable = true
+limit-results = 20
+teaser-word-count = 30
