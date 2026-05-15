@@ -1,6 +1,6 @@
 # Summary
 
-[Introduction](DOCUMENTATION_INDEX.md)
+[Introduction](README.md)
 
 ---
 
