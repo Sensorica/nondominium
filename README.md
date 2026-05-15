@@ -229,13 +229,13 @@ This generates:
 
 ### Applications & Use Cases
 
-- [Artcoin Integration](documentation/Applications/Nondominium_Artcoin.md) - Artcoin application integration
+- [Artcoin Integration](documentation/Applications/nondominium_artcoin.md) - Artcoin application integration
 - [User Stories](documentation/Applications/user-story/) - Complete user journey scenarios
 
 ### Additional Resources
 
-- [hREA Integration Strategy](documentation/hREA-integration-strategy.md) - hREA integration planning
-- [Resource Transport Flow Protocol](documentation/specifications/resource-transport-flow-protocol.md) - Resource transport specifications
+- [hREA Integration Strategy](documentation/hREA/integration-strategy.md) - hREA integration planning
+- [Resource Transport Flow Protocol](documentation/requirements/post-mvp/resource-transport-flow-protocol.md) - Resource transport specifications
 - [Protocol Bridge Specifications](documentation/specifications/protocol-bridge-specifications.md) - Bun Protocol Bridge architecture for platform integration (Tiki, Odoo, etc.)
 
 ## Technology Stack

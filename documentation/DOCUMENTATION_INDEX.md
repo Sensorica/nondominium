@@ -1,6 +1,6 @@
 # Nondominium Project Documentation Index
 
-**Updated**: 2026-03-31
+**Updated**: 2026-05-04
 
 ---
 
@@ -40,19 +40,19 @@ bun install              # Install dependencies
 bun run start            # Start 2-agent development network with UIs
 AGENTS=3 bun run network # Custom agent network
 
-# Testing
-bun run tests           # Full test suite
-bun run test:foundation  # Basic connectivity tests
-bun run test:integration # Multi-agent interaction tests
-bun run test:scenarios   # Complete workflow simulations
-bun run test:person      # Person management test suite
-bun run test:debug       # Verbose test output for debugging
+# Testing — Sweettest (Rust, primary)
+bun run build:happ
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest -- --nocapture
 
 # Build
 bun run build:zomes     # Compile Rust zomes to WASM
 bun run build:happ      # Package DNA into .happ bundle
 bun run package         # Create final .webhapp distribution
 ```
+
+> **Note**: Tryorama (TypeScript) tests in `tests/` are **deprecated**. All new tests use Sweettest (Rust). See `tests/DEPRECATED.md`.
 
 ---
 
@@ -64,17 +64,17 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 - **Framework**: Holochain HDK ^0.6.0 / HDI ^0.7.0 (Rust + WASM)
 - **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
-- **Testing**: Vitest 3.1.3 + @holochain/tryorama 0.18.2
+- **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) deprecated
 - **Client**: @holochain/client 0.19.0
 - **Package Management**: Bun for dependency management and build orchestration
 
 ### Zome Structure
 
-| Zome                                                             | Purpose                         | Key Features                                                                                                                                                                 |
-| ---------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[`zome_person`](documentation/zomes/person_zome.md)**          | Agent identity & access control | • Agent profiles & roles<br>• Capability-based security<br>• Private data sharing workflows<br>• PPR integration & reputation tracking                                       |
-| **[`zome_resource`](documentation/zomes/resource_zome.md)**      | Pure data model                 | • EconomicResource & EconomicEvent data structures<br>• Resource state management only<br>• Cross-zome interface for governance requests<br>• No business logic              |
-| **[`zome_gouvernance`](documentation/zomes/governance_zome.md)** | State transition operator       | • Governance rule evaluation<br>• State transition validation<br>• Economic event generation<br>• PPR issuance (16 categories)<br>• Agent promotion & capability progression |
+| Zome | Purpose | Key Features |
+| --- | --- | --- |
+| **[`zome_person`](zomes/person_zome.md)** | Agent identity & access control | Agent profiles & roles, capability-based security, private data sharing workflows, PPR integration & reputation tracking |
+| **[`zome_resource`](zomes/resource_zome.md)** | Pure data model | EconomicResource & EconomicEvent data structures, resource state management only, cross-zome interface for governance requests, no business logic |
+| **[`zome_gouvernance`](zomes/governance_zome.md)** | State transition operator | Governance rule evaluation, state transition validation, economic event generation, PPR issuance (16 categories), agent promotion & capability progression |
 
 ### Governance-as-Operator Architecture
 
@@ -88,63 +88,100 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 **Documentation:**
 
-- **[Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md)** - Technical architecture and design patterns
-- **[Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md)** - Detailed implementation with code examples
-- **[Cross-Zome API](documentation/specifications/governance/cross-zome-api.md)** - Complete API specifications
+- **[Governance Operator Architecture](specifications/governance/governance-operator-architecture.md)** - Technical architecture and design patterns
+- **[Governance Implementation Guide](specifications/governance/governance-operator-implementation-guide.md)** - Detailed implementation with code examples
+- **[Cross-Zome API](specifications/governance/cross-zome-api.md)** - Complete API specifications
 
 ### Key Concepts
 
 - **🔐 Capability-Based Security**: Progressive trust model (Simple → Accountable → Primary Accountable Agent)
 - **📋 Private Participation Receipts (PPRs)**: Cryptographic reputation tracking across 16 categories
 - **🔄 Economic Processes**: Structured workflows (Use, Transport, Storage, Repair) with role-based access
-- **🛡️ Private Data Sharing**: Request/grant workflows with field-level control and time-limited grants (30-day maximum per `PrivateDataCapabilityMetadata`; shorter defaults may apply in UI flows — see [person_zome.md](documentation/zomes/person_zome.md))
+- **🛡️ Private Data Sharing**: Request/grant workflows with field-level control and time-limited grants (30-day maximum per `PrivateDataCapabilityMetadata`; shorter defaults may apply in UI flows — see [person_zome.md](zomes/person_zome.md))
 
 ---
 
 ## 📚 Core Documentation
 
-### Project Requirements & Design
+### Project Requirements
 
-| Document                                                                                                  | Description                                        | Status      |
-| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------- |
-| **[Requirements](documentation/requirements/requirements.md)**                                            | Complete PRD with modular governance architecture  | ✅ Complete |
-| **[UI Architecture](documentation/specifications/ui_architecture.md)**                                    | Frontend design patterns & component structure     | ✅ Complete |
-| **[UI Design](documentation/requirements/ui_design.md)**                                                  | User interface design specifications               | ✅ Complete |
-| **[PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md)** | Security model for reputation system               | ✅ Complete |
-| **[ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md)**                             | ValueFlows implementation with governance examples | ✅ Complete |
-| **[Lobby DNA Requirements](documentation/requirements/post-mvp/lobby-dna.md)**                            | Multi-network federation: Lobby DNA, Group DNA, NDO extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) | 🔄 Post-MVP |
+| Document | Description | Status |
+| --- | --- | --- |
+| **[Requirements](requirements/requirements.md)** | Complete PRD with modular governance architecture | ✅ Complete |
+| **[NDO Prima Materia](requirements/ndo_prima_materia.md)** | NDO v1.0 normative requirements (REQ-NDO-*, capability slots, Unyt/Flowsta integration, three-layer model) | ✅ Active |
+| **[Agent Ontology](requirements/agent.md)** | Agent types, affiliation spectrum, identity model, OVN forward map | ✅ Active |
+| **[Resources Ontology](requirements/resources.md)** | Resource types, property regimes, governance model, OVN forward map | ✅ Active |
+| **[Governance Ontology](requirements/governance.md)** | Governance architecture, OVN patterns, governance equation, forward map | ✅ Active |
+| **[UI Design](requirements/ui_design.md)** | User interface design specifications (source of truth for UI conflicts) | ✅ Complete |
 
 ### Architecture & Roadmap
 
-| Document                                                                                       | Description                                                                          | Status    |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------- |
-| **[NDO v1.0 Architecture Design](documentation/specifications/ndo-v1-architecture-design.md)** | Dual-DNA architecture, VF 1.0 class mapping, entry type specs, ADRs, migration notes | ✅ Active |
-| **[Lobby DNA Architecture](documentation/specifications/post-mvp/lobby-architecture.md)**      | Full design: Lobby + Group DNAs, NDO extensions, entry types, coordinator APIs, pipelines, UI, Moss contract, 7 ADRs | 🔄 Post-MVP |
-| **[hREA Integration Strategy](documentation/hREA/integration-strategy.md)**                    | Cross-DNA call architecture, zome-level integration pattern, migration plan          | ✅ Active |
-| **[hREA VF 1.0 Compliance Analysis](documentation/hREA/valueflows-1.0-compliance.md)**         | Field-by-field audit of hREA main-0.6 against VF 1.0 ontology (~65% compliance)      | ✅ Active |
-| **[hREA Strategic Roadmap](documentation/hREA/strategic-roadmap.md)**                          | Phase 1+2 maintainership proposal: VF 1.0 gap closure and JSON-LD API                | ✅ Active |
+| Document | Description | Status |
+| --- | --- | --- |
+| **[NDO v1.0 Architecture Design](specifications/ndo-v1-architecture-design.md)** | Dual-DNA architecture, VF 1.0 class mapping, entry type specs, ADRs, migration notes | ✅ Active |
+| **[Lobby DNA Architecture](specifications/post-mvp/lobby-architecture.md)** | Full design: Lobby + Group DNAs, NDO extensions, entry types, coordinator APIs, Moss contract, 7 ADRs | 🔄 Post-MVP |
+| **[hREA Integration Strategy](hREA/integration-strategy.md)** | Cross-DNA call architecture, zome-level integration pattern, migration plan | ✅ Active |
+| **[hREA VF 1.0 Compliance Analysis](hREA/valueflows-1.0-compliance.md)** | Field-by-field audit of hREA main-0.6 against VF 1.0 ontology (~65% compliance) | ✅ Active |
+| **[hREA Strategic Roadmap](hREA/strategic-roadmap.md)** | Phase 1+2 maintainership proposal: VF 1.0 gap closure and JSON-LD API | ✅ Active |
 
 ### Technical Specifications
 
-| Document                                                                                                                   | Description                                                | Status      |
-| -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------- |
-| **[Architecture Overview](documentation/zomes/architecture_overview.md)**                                                  | Comprehensive system architecture & cross-zome integration | ✅ Complete |
-| **[Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md)**        | Technical architecture for modular governance design       | ✅ Complete |
-| **[Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples           | ✅ Complete |
-| **[Cross-Zome API](documentation/specifications/governance/cross-zome-api.md)**                                            | Complete API specifications for zome communication         | ✅ Complete |
-| **[Implementation Plan](implementation_plan.md)**                                                                        | Development roadmap & phase breakdown                      | ✅ Complete |
-| **[Implementation Status](documentation/archives/IMPLEMENTATION_STATUS.md)**                                               | Current development progress & completion status           | ✅ Complete |
+| Document | Description | Status |
+| --- | --- | --- |
+| **[Technical Specifications](specifications/specifications.md)** | Detailed data structures, zome functions, cross-zome interfaces | ✅ Complete |
+| **[Architecture Overview](zomes/architecture_overview.md)** | Comprehensive system architecture & cross-zome integration | ✅ Complete |
+| **[Governance Operator Architecture](specifications/governance/governance-operator-architecture.md)** | Technical architecture for modular governance design | ✅ Complete |
+| **[Governance Implementation Guide](specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples | ✅ Complete |
+| **[Cross-Zome API](specifications/governance/cross-zome-api.md)** | Complete API specifications for zome communication | ✅ Complete |
+| **[PPR Security Implementation](specifications/governance/PPR_Security_Implementation.md)** | Security model for reputation system | ✅ Complete |
+| **[Private Participation Receipts](specifications/governance/private-participation-receipt.md)** | PPR system full specification | ✅ Complete |
+| **[Governance Model (Legacy)](specifications/governance/governance.md)** | Legacy governance model and decision-making processes | 📦 Reference |
+| **[UI Architecture](specifications/ui_architecture.md)** | Frontend design patterns & component structure | ✅ Complete |
+| **[ValueFlows Action Usage](specifications/VfAction_Usage.md)** | ValueFlows implementation with governance examples | ✅ Complete |
+| **[Protocol Bridge Specifications](specifications/protocol-bridge-specifications.md)** | Bun Protocol Bridge architecture for platform integration (Tiki, Odoo) | ✅ Complete |
+| **[API Reference](API_REFERENCE.md)** | Complete function reference across all zomes | ✅ Complete |
+| **[Implementation Plan](implementation_plan.md)** | Development roadmap & phase breakdown | ✅ Complete |
+| **[Implementation Status](IMPLEMENTATION_STATUS.md)** | Current development progress & completion status | ✅ Current |
+
+### Post-MVP Requirements
+
+| Document | Description | Status |
+| --- | --- | --- |
+| **[Lobby DNA Requirements](requirements/post-mvp/lobby-dna.md)** | Multi-network federation: Lobby DNA, Group DNA, NDO extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) | 🔄 Post-MVP |
+| **[Unyt Integration](requirements/post-mvp/unyt-integration.md)** | Economic settlement, Smart Agreements, RAVE proofs, PPR↔RAVE provenance | 🔄 Post-MVP |
+| **[Flowsta Integration](requirements/post-mvp/flowsta-integration.md)** | Cross-app identity (IsSamePersonEntry, FlowstaIdentity, DID, key recovery) | 🔄 Post-MVP |
+| **[Versioning](requirements/post-mvp/versioning.md)** | DAG-based version graph, fork/merge/repair relations, contribution propagation | 🔄 Post-MVP |
+| **[Digital Resource Integrity](requirements/post-mvp/digital-resource-integrity.md)** | Cryptographic integrity verification, Merkle tree, composable architecture | 🔄 Post-MVP |
+| **[Many-to-Many Flows](requirements/post-mvp/many-to-many-flows.md)** | Multi-custodian custody, shared ownership, resource pools | 🔄 Post-MVP |
+| **[Resource Transport Flow Protocol](requirements/post-mvp/resource-transport-flow-protocol.md)** | Resource transport specifications | 🔄 Post-MVP |
+| **[ValueFlows DSL](requirements/post-mvp/valueflows-dsl.md)** | Domain-specific language for governance rule authoring | 🔄 Post-MVP |
+| **[Complete Resource Specification](requirements/post-mvp/complete-resource-specification.md)** | Extended resource specification with full property model | 🔄 Post-MVP |
 
 ### Testing & Infrastructure
 
-| Document                                                              | Description                                   | Status      |
-| --------------------------------------------------------------------- | --------------------------------------------- | ----------- |
-| **[Testing Infrastructure](documentation/Testing_Infrastructure.md)** | Complete testing strategy & framework details | ✅ Complete |
-| **[Test Commands](documentation/TEST_COMMANDS.md)**                   | Test execution commands & development tips    | ✅ Complete |
+| Document | Description | Status |
+| --- | --- | --- |
+| **[Testing Infrastructure](Testing_Infrastructure.md)** | Complete testing strategy & framework details | ✅ Complete |
+| **[Test Commands](TEST_COMMANDS.md)** | Test execution commands & development tips | ✅ Complete |
+
+### Applications & Use Cases
+
+| Document | Description |
+| --- | --- |
+| **[Artcoin Integration](Applications/nondominium_artcoin.md)** | Artcoin application integration |
+| **[User Story — Artcoin](Applications/user-story/user-story-artcoin.md)** | Complete Artcoin user journey |
+| **[User Story — Art Distribution](Applications/user-story/user-story-art-distribution.md)** | Art distribution scenario |
+| **[User Story — Art Production](Applications/user-story/user-story-art-production.md)** | Art production scenario |
+| **[User Story — ERP Bridge](Applications/user-story/user-story-ERP-bridge.md)** | ERP bridge integration scenario |
+| **[User Story — Food Basket](Applications/user-story/user-story-food-basket.md)** | Food basket sharing scenario |
+| **[User Story — Material Peer Production](Applications/user-story/user-story-material-peer-production.md)** | Material peer production scenario |
+| **[User Story — Open Science](Applications/user-story/user-story-open-science.md)** | Open science commons scenario |
 
 ---
 
 ## 🔧 API Documentation
+
+Full reference: **[API Reference](API_REFERENCE.md)**
 
 ### Person Zome API
 
@@ -250,31 +287,35 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 ## 🧪 Testing Infrastructure
 
-### Test Architecture (4-Layer Strategy)
+### Test Architecture
 
-1. **Foundation Tests** - Basic zome function calls and connectivity
-2. **Integration Tests** - Cross-zome interactions and multi-agent scenarios
-3. **Scenario Tests** - Complete user journeys and workflows
-4. **Performance Tests** - Load and stress testing (planned)
-
-### Test Execution
+All new tests use **Sweettest (Rust)** in `dnas/nondominium/tests/src/`. Tryorama (TypeScript) tests in `tests/` are deprecated.
 
 ```bash
-# Run specific test categories
-bun run test:foundation      # Basic connectivity tests
-bun run test:integration     # Multi-agent interaction tests
-bun run test:scenarios       # Complete workflow simulations
+# Prerequisites
+bun run build:happ
 
-# Development testing
-bun run test:person          # Person management test suite
-bun run test:debug           # Verbose test output for debugging
+# Run all tests
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
+
+# Run a specific module
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person
+
+# Verbose output
+CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest -- --nocapture
 ```
 
-### Test Development Tips
+### Shared Setup Utilities
 
-- Use `.only()` on `describe` or `it` blocks for focused development
-- Use `warn!` macro in Rust for debugging visibility in test output
-- Test timeout: 4 minutes for complex multi-agent scenarios
+- `setup_two_agents()` — two conductors with nondominium DNA
+- `setup_three_agents()` — three conductors with nondominium DNA
+- `setup_dual_dna_two_agents()` — two conductors with nondominium + hREA DNAs
+
+### Development Tips
+
+- Use `warn!` macro in Rust zome functions to log debugging information visible in test output
+- Use `#[ignore]` on tests not yet ready for execution
+- DHT sync between agents: `await_consistency_20_s(&[&cell_a, &cell_b]).await.unwrap()`
 
 ---
 
@@ -285,25 +326,31 @@ bun run test:debug           # Verbose test output for debugging
 - **Person Management**: Agent profiles, roles, and basic capability tokens
 - **Identity System**: Pseudonymous identity with public/private separation
 - **Basic Access Control**: Role-based access with validation metadata
-- **Test Infrastructure**: Comprehensive testing framework with Tryorama
+- **hREA Bridge**: Person/ReaAgent bridge for ValueFlows compliance
 
-### ✅ Phase 2 Complete: Advanced Governance & Reputation
+### ✅ MVP Complete: Advanced Governance & UI
 
-- **Capability-Based Sharing**: Complete request/grant workflows with time-limited grants (30-day cap; see person zome docs)
+- **Capability-Based Sharing**: Complete request/grant workflows with time-limited grants (30-day cap)
 - **PPR System**: 16-category reputation tracking with cryptographic signatures
 - **Economic Processes**: Four structured processes (Use, Transport, Storage, Repair)
 - **Multi-Reviewer Validation**: 2-of-3, N-of-M, and simple majority validation
 - **Agent Promotion**: Progressive trust model with automatic advancement
-- **Enhanced Security**: Field-level private data control with Economic Process integration
+- **NDO Layer 0**: `NondominiumIdentity` permanent identity anchor with lifecycle transitions
+- **MVP UI**: Lobby → Group → NDO three-level hierarchy, NDO creation, lifecycle browser, fork friction modal
 
-### ✅ Phase 2 Complete: Production Ready Implementation
+### 🔄 Phase 2 (In Progress): Economic Processes & PPR Generation
 
-- **Complete PPR System**: 16-category reputation tracking with cryptographic validation
-- **Full Frontend Implementation**: Svelte 5 with comprehensive UI components
-- **Advanced Governance**: Multi-party validation and dispute resolution
-- **Performance Optimization**: Load testing and efficient DHT operations
-- **Comprehensive Testing**: 4-layer testing strategy with 95%+ coverage
-- **Production Deployment**: Complete packaging and distribution system
+- Economic processes (Use/Transport/Storage/Repair) backend
+- PPR receipt generation from Commitment/Claim/Event cycles
+- Governance-as-operator full implementation
+- Agent promotion workflows
+
+### 📋 Post-MVP
+
+- Group DNA backend, NDO cell cloning
+- PPR reputation UI
+- Unyt/Flowsta integrations
+- Collective agent types, affiliation spectrum
 
 ---
 
@@ -328,12 +375,12 @@ bun run test:debug           # Verbose test output for debugging
 
 ### Economic Processes with Role-Based Access
 
-| Process       | Description                                     | Required Role             | Key Features                            |
-| ------------- | ----------------------------------------------- | ------------------------- | --------------------------------------- |
-| **Use**       | Resource utilization without ownership transfer | Accountable Agent         | Time-limited access, usage tracking     |
-| **Transport** | Resource movement between locations             | Primary Accountable Agent | Custody transfer, location tracking     |
-| **Storage**   | Resource preservation and maintenance           | Primary Accountable Agent | Location tracking, condition monitoring |
-| **Repair**    | Resource restoration and improvement            | Primary Accountable Agent | Quality validation, cost tracking       |
+| Process | Description | Required Role | Key Features |
+| --- | --- | --- | --- |
+| **Use** | Resource utilization without ownership transfer | Accountable Agent | Time-limited access, usage tracking |
+| **Transport** | Resource movement between locations | Primary Accountable Agent | Custody transfer, location tracking |
+| **Storage** | Resource preservation and maintenance | Primary Accountable Agent | Location tracking, condition monitoring |
+| **Repair** | Resource restoration and improvement | Primary Accountable Agent | Quality validation, cost tracking |
 
 ### Progressive Trust Model
 
@@ -365,14 +412,13 @@ Primary Accountable Agent (coordination/governance)
 
 - [**Holochain**](https://holochain.org/) - Distributed application framework
 - [**ValueFlows**](https://www.valueflows.org/) - Economic coordination ontology
-- [**NPM Workspaces**](https://docs.npmjs.com/cli/v7/using-npm/workspaces/) - Monorepo management
-- [**@holochain/tryorama**](https://www.npmjs.com/package/@holochain/tryorama) - Testing framework
+- [**hREA**](https://github.com/h-REA/hREA/) - Holochain implementation of ValueFlows
+- [**@holochain/client**](https://www.npmjs.com/package/@holochain/client) - UI client library
 - [**Holochain Playground**](https://github.com/darksoil-studio/holochain-playground) - Development tools
 
 ### Development Tools
 
 - [**hc CLI**](https://github.com/holochain/holochain/tree/develop/crates/hc) - Holochain development tool
-- [**@holochain/client**](https://www.npmjs.com/package/@holochain/client) - UI client library
 - [**Svelte**](https://svelte.dev/) - Frontend framework
 - [**Vite**](https://vitejs.dev/) - Build tool and development server
 
@@ -390,7 +436,7 @@ Primary Accountable Agent (coordination/governance)
 ### Testing Patterns
 
 - **Multi-Agent**: All tests support 2+ distributed agents
-- **Timeout Management**: 4-minute timeout for complex scenarios
+- **DHT Sync**: Use `await_consistency_20_s` with the timeout wrapper
 - **Debug Support**: Verbose logging with `warn!` macro for Rust debugging
 - **Isolation**: Test isolation with proper cleanup between scenarios
 
@@ -405,8 +451,7 @@ Primary Accountable Agent (coordination/governance)
 
 ## 🔄 Document Maintenance
 
-**Last Updated**: 2025-12-17
-**Next Review**: 2026-01-17
+**Last Updated**: 2026-05-04
 **Maintainers**: Development Team
 
 ### Update Process
@@ -415,10 +460,3 @@ Primary Accountable Agent (coordination/governance)
 2. Feature completion → Update implementation status
 3. Architecture changes → Update architecture overview
 4. Test additions → Update testing documentation
-
-### Quality Assurance
-
-- ✅ All documentation reviewed and approved
-- ✅ Cross-references validated and functional
-- ✅ API documentation matches implementation
-- ✅ Status tracking reflects actual development progress

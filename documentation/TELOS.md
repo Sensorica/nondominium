@@ -50,9 +50,6 @@ participate without wholesale migration.
 - **UI work uses Svelte 5 runes, UnoCSS, and Melt UI next-gen (`melt`).** Not
   shadcn. Not Tailwind utility classes directly in templates. Not Svelte 4 reactive
   statements (`$:`). Check the `mcp__svelte` MCP server for current Svelte 5 API.
-- **Tibi (Tiberius Brastaviceanu) is co-author and primary collaborator.** When
-  proposing architectural changes, frame them as proposals to discuss with him before
-  implementing. He owns the Cursor workflow; test changes there too.
 - **Consult `REVIEW.md` before proposing PR-shaped changes.** It explicitly lists
   patterns to flag. If your proposed code matches a flagged pattern, explain why it
   is safe before proceeding.

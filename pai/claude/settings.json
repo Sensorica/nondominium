@@ -1,4 +1,7 @@
 {
+  "permissions": {
+    "additionalDirectories": ["../nondominium-design-system"]
+  },
   "hooks": {
     "SessionStart": [
       {
