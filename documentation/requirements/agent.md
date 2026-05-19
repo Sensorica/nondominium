@@ -112,13 +112,13 @@ The MVP UI introduces three distinct identity layers that reflect the Lobby → 
 
 - Stored alongside the `GroupDescriptor` in `localStorage` under `ndo_groups_v1`.
 - Prompted via `GroupProfileModal.svelte` on first entry to each group.
-- No consensus or DHT record required; this is a purely local choice.
+- No consensus or DHT record required; this is a purely local choice. 
 
 #### Level 3 — NDO / Agent (DHT, `zome_person`)
 
-**`Person`** is the public, on-chain agent profile. It is created when the agent performs their first DHT-active action — creating an NDO or accepting a commitment. This layer corresponds to the "person-type identity" described in §1.3.
+**`Person`** is the public, on-chain agent profile. It is created when the agent performs their first DHT-active action — creating an NDO, joining an NDO, or accepting a commitment. This layer corresponds to the "person-type identity" described in §1.3.
 
-- Written to the DHT via `create_person` in `zome_person`.
+- Written to the NDO's DHT via `create_person` in `zome_person`.
 - Linked to the agent's `AgentPubKey` through Holochain's source chain.
 - Required for governance participation, custodianship, and specialised service provision.
 - Discoverable by other agents via the `all_persons` anchor.
@@ -285,7 +285,7 @@ When a collective does have an associated NDO, the NDO's three-layer structure (
 - NDO **Specification layer** = the collective's documented form (mission, assets, governance rules for how agents interact with it)
 - NDO **Process layer** = the economic activity *around* the collective as a resource (contributions, agreements, events involving the collective-as-resource)
 
-The NDO may use a subset of `LifecycleStage` values — a working group does not go through `Prototype` or `Distributed`. The `PropertyRegime` and `ResourceNature` fields on `NondominiumIdentity` remain applicable to the collective's resource face: a working group's shared knowledge base is a `Commons`/`Digital` NDO; a collectively owned workshop is a `Collective`/`Physical` NDO.
+The **`LifecycleStage`** at registration can be any non-suspend, non-terminal stage (**Ideation** through **Active**) so the resource face can anchor an already mature or in-use NDO (e.g. a stable shared tool), not only an emerging project. Profiles or wizards may **suggest** a narrower subset for specific organisation types — for example a short-lived working group often stays in emergence — but that is UX guidance, not an ontology constraint on `NondominiumIdentity`. **Hibernating**, **Deprecated**, and **EndOfLife** remain transition-only after creation. The `PropertyRegime` and `ResourceNature` fields on `NondominiumIdentity` remain applicable to the collective's resource face: a working group's shared knowledge base is a `Commons`/`Digital` NDO; a collectively owned workshop maps to a commons-style physical NDO in the UI's four-regime model.
 
 ### 3.2 CapabilitySlot on Agent Identity
 

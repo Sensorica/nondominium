@@ -198,6 +198,52 @@ async fn ndo_create_and_get() {
     assert_eq!(entry.lifecycle_stage, LifecycleStage::Ideation);
 }
 
+/// Create NDO with `Stable` lifecycle at registration (mature/tool-style anchor).
+#[tokio::test(flavor = "multi_thread")]
+async fn ndo_create_at_stable_stage() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let output: NdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_ndo",
+            ndo_input(
+                "Stable Tool NDO",
+                PropertyRegime::Commons,
+                ResourceNature::Physical,
+                LifecycleStage::Stable,
+            ),
+        )
+        .await;
+
+    assert_eq!(output.entry.lifecycle_stage, LifecycleStage::Stable);
+    assert!(output.entry.hibernation_origin.is_none());
+}
+
+/// `Hibernating` is not a valid initial stage — must enter via transition after create.
+#[tokio::test(flavor = "multi_thread")]
+async fn ndo_create_rejects_hibernating_initial_stage() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let result: Result<NdoOutput, _> = conductors[0]
+        .call_fallible(
+            &alice.zome("zome_resource"),
+            "create_ndo",
+            ndo_input(
+                "Invalid Hibernating",
+                PropertyRegime::Commons,
+                ResourceNature::Digital,
+                LifecycleStage::Hibernating,
+            ),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "create_ndo must reject Hibernating at registration (integrity REQ-NDO-LC-01)"
+    );
+}
+
 /// Advance a NondominiumIdentity through multiple lifecycle stages and verify
 /// that the original action hash remains the stable Layer 0 identity.
 ///
