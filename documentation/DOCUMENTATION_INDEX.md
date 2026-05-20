@@ -75,6 +75,8 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | **[`zome_person`](zomes/person_zome.md)** | Agent identity & access control | Agent profiles & roles, capability-based security, private data sharing workflows, PPR integration & reputation tracking |
 | **[`zome_resource`](zomes/resource_zome.md)** | Pure data model | EconomicResource & EconomicEvent data structures, resource state management only, cross-zome interface for governance requests, no business logic |
 | **[`zome_gouvernance`](zomes/governance_zome.md)** | State transition operator | Governance rule evaluation, state transition validation, economic event generation, PPR issuance (16 categories), agent promotion & capability progression |
+| **[`zome_group`](zomes/group_zome.md)** | Per-group coordination (cloned cell) | Group profiles, membership, work logs, soft links; one cloned cell per group; `all_groups` anchor; 13 `#[hdk_extern]` functions |
+| **[`zome_lobby`](zomes/lobby_zome.md)** | Lobby coordination | NDO announcement/discovery across groups |
 
 ### Governance-as-Operator Architecture
 

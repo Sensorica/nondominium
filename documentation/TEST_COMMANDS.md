@@ -52,6 +52,24 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test
 CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby announce_ndo_cross_conductor
 ```
 
+### Group DNA Sweettest
+
+Tests live in `dnas/group/tests/src/group/mod.rs`. Covers group creation, membership (join/leave), work logs, soft links, `is_member`, and `get_my_group`.
+
+```bash
+# Prerequisites: build:happ must have been run first
+bun run build:happ
+
+# Run all Group Sweettest tests
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group
+
+# With test output visible
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group -- --nocapture
+
+# Run a single test
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group join_group_creates_membership
+```
+
 ### NDO Layer 0 tests (`--test nondominium`)
 
 ```bash

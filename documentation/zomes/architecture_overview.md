@@ -4,12 +4,21 @@ This document provides a comprehensive overview of the Nondominium Holochain app
 
 ## System Architecture
 
-Nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant resource sharing with embedded governance rules, cryptographically-secured reputation tracking through Private Participation Receipts (PPRs), and agent capability progression:
+Nondominium is a **multi-DNA Holochain hApp** implementing ValueFlows-compliant resource sharing with embedded governance rules, cryptographically-secured reputation tracking through Private Participation Receipts (PPRs), and agent capability progression.
+
+**Nondominium DNA (3-zome core)**
 
 - **[`zome_person`](./person_zome.md)**: Agent identity, profiles, roles, capability-based private data sharing, PPR integration, access control
 - **[`zome_resource`](./resource_zome.md)**: Resource specifications, Economic Resources, governance rules, lifecycle management, custody transfers
 - **[`zome_gouvernance`](./governance_zome.md)**: Economic events, commitments, claims, validation workflows, PPR issuance, agent validation. NDO federation extensions (PR #103) added three entry types: `NdoHardLink` (immutable OVN-licensed cross-NDO link backed by an EconomicEvent), `Contribution` (peer-validated work record; VF: `vf:EconomicEvent/Work`), and `Agreement` (versioned benefit redistribution agreement; VF: `vf:Agreement`). See `documentation/zomes/governance_zome.md §NDO Federation Extensions` for API details.
-- **[`zome_lobby`](./lobby_zome.md)** (Lobby DNA, separate network seed `nondominium-lobby-v1`): Global NDO discovery, agent presence, group membership stubs. Entry types: `LobbyAgentProfile`, `NdoAnnouncement`.
+
+**Lobby DNA** (network seed `nondominium-lobby-v1`, `deferred: false`)
+
+- **[`zome_lobby`](./lobby_zome.md)**: Global NDO discovery, agent presence, group membership stubs. Entry types: `LobbyAgentProfile`, `NdoAnnouncement`.
+
+**Group DNA** (cloned cell, `deferred: true`, `clone_limit: 64`)
+
+- **[`zome_group`](./group_zome.md)**: Per-group coordination with network isolation. Each group occupies its own cloned DHT provisioned via `clone_cell`. Entry types: `GroupProfile`, `GroupMembership`, `WorkLog`, `SoftLink`. See PR #107.
 
 ### Technology Foundation
 

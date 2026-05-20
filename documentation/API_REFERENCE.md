@@ -1352,6 +1352,67 @@ pub struct ErrorDetails {
 
 ---
 
+---
+
+## 🏘️ zome_group — Per-Group Coordination (Group DNA, cloned cell)
+
+> Full documentation: [`zomes/group_zome.md`](zomes/group_zome.md)
+
+Each group occupies its own cloned cell. Functions below operate within the calling cell's isolated DHT. `groupId` in the TypeScript service maps to the clone role suffix `group_${groupId}`.
+
+### Group Profile
+
+#### `create_group(input: GroupProfileInput) -> ExternResult<Record>`
+**Input**: `{ name: String, description: Option<String> }`
+**Returns**: Created `GroupProfile` record. Also creates the `all_groups` anchor link.
+**Validation**: name non-empty, ≤ 100 characters.
+
+#### `get_group(group_hash: ActionHash) -> ExternResult<Option<Record>>`
+Retrieves a `GroupProfile` by action hash.
+
+#### `get_all_groups() -> ExternResult<Vec<Record>>`
+Enumerates all groups via the `all_groups` anchor.
+
+#### `get_my_group() -> ExternResult<Option<Record>>`
+Returns the single `GroupProfile` in this cloned cell (one group per cell).
+
+### Membership
+
+#### `join_group(group_hash: ActionHash) -> ExternResult<Record>`
+Creates a `GroupMembership` entry and `GroupToMembers` + `MemberToGroups` links.
+**Guard**: Returns `GroupError::AlreadyMember` if agent already has a membership entry.
+
+#### `leave_group(group_hash: ActionHash) -> ExternResult<()>`
+Deletes the `GroupToMembers` and `MemberToGroups` links for the calling agent.
+The `GroupMembership` entry is intentionally retained on-chain as an audit trail.
+
+#### `get_group_members(group_hash: ActionHash) -> ExternResult<Vec<GroupMembership>>`
+Returns all current `GroupMembership` entries reachable via `GroupToMembers` links.
+
+#### `is_member(input: (AgentPubKey, ActionHash)) -> ExternResult<bool>`
+Predicate: does the given agent appear in `get_group_members`?
+
+### Work Logs
+
+#### `log_work(input: WorkLogInput) -> ExternResult<Record>`
+**Input**: `{ group_hash: ActionHash, description: String, hours: f32 }`
+Creates a `WorkLog` entry with `GroupToWorkLogs` and `AgentToWorkLogs` links.
+**Validation**: description non-empty; hours > 0.
+
+#### `get_work_logs(group_hash: ActionHash) -> ExternResult<Vec<WorkLog>>`
+Returns all `WorkLog` entries for the group.
+
+### Soft Links
+
+#### `create_soft_link(input: SoftLinkInput) -> ExternResult<Record>`
+**Input**: `{ group_hash: ActionHash, target_ndo_hash: ActionHash, description: Option<String> }`
+Creates a planning-level `SoftLink` entry (no PPRs generated; ADR-GROUP-04).
+
+#### `get_soft_links(group_hash: ActionHash) -> ExternResult<Vec<SoftLink>>`
+Returns all `SoftLink` entries for the group.
+
+---
+
 *This API reference represents the complete current functionality of the Nondominium system based on actual codebase analysis. Function signatures and behaviors evolve with implementation improvements and community feedback.*
 
 ## 🔄 **Updates in Version 3.0 (2025-12-17)**
