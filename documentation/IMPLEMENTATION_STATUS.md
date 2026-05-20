@@ -145,6 +145,37 @@ The governance-as-operator pattern (pure-function `GovernanceEngine`, cross-zome
 
 ---
 
+## Group DNA ✅ Complete (PR #107)
+
+### DNA Architecture
+
+Group cells use the **cloned-cell pattern**: a single Group DNA template is installed with the hApp (`deferred: true` in `workdir/happ.yaml`). Each new group provisions its own DHT via `clone_cell`, giving full network isolation between groups. `clone_limit: 64` is the hard per-conductor ceiling.
+
+### Entry Types
+
+- `GroupProfile` — group name, description, initiator, created_at; one per cloned cell; anchor at `all_groups` path
+- `GroupMembership` — agent membership record; links removed on leave, entry retained as audit trail
+- `WorkLog` — planning-level contribution record (no PPRs; ADR-GROUP-04)
+- `SoftLink` — planning-level link to an NDO (no PPRs; ADR-GROUP-04)
+
+### Coordinator API (13 externs)
+
+`create_group`, `get_group`, `get_all_groups`, `get_my_group`, `join_group`, `leave_group`, `get_group_members`, `is_member`, `log_work`, `get_work_logs`, `create_soft_link`, `get_soft_links`, `init`
+
+### Sweettest Coverage
+
+7 test scenarios in `dnas/group/tests/src/group/mod.rs`: group creation, discovery, membership join, membership leave, work log round-trip, soft link round-trip, `is_member` predicate, `get_my_group`.
+
+### Shared Crate
+
+`GroupError` added to `crates/shared/src/errors.rs` (gated behind `coordinator` feature), re-exported from `crates/shared/src/lib.rs`.
+
+### UI Service Layer
+
+`ui/src/lib/services/zomes/group.service.ts` — stub replaced with real `callZome` implementation targeting cloned cells; `GroupServiceTag` interface unchanged (ADR-GROUP-03).
+
+---
+
 ## hREA Dual-DNA Integration
 
 ### Phase 1: Complete ✅
