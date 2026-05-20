@@ -70,7 +70,8 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
           fnName,
           payload,
           context,
-          LobbyError.fromError
+          LobbyError.fromError,
+          'lobby'
         );
 
       return {
@@ -104,7 +105,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
               saveGroupsToStorage([...groups, { ...groupData, ndoHashes: groupData.ndoHashes ?? [] }]);
               return groupData;
             },
-            catch: (e) => LobbyError.fromError(new Error(`Invalid invite code: ${String(e)}`))
+            catch: (e) => LobbyError.fromError(new Error(`Invalid invite code: ${String(e)}`), 'JOIN_GROUP')
           }),
 
         generateInviteLink: (groupId) =>
