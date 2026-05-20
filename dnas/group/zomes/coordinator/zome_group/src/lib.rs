@@ -1,5 +1,5 @@
 use hdk::prelude::*;
-pub use nondominium_utils::GroupError;
+pub use nondominium_shared::GroupError;
 
 pub mod group_profile;
 pub mod membership;

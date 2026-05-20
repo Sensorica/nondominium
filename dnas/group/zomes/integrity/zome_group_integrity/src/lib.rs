@@ -43,17 +43,6 @@ pub struct SoftLink {
     pub created_at: Timestamp,
 }
 
-/// Group-scoped governance rule (subset of nondominium GovernanceRule).
-#[hdk_entry_helper]
-#[derive(Clone, PartialEq)]
-pub struct GroupGovernanceRule {
-    pub group_hash: ActionHash,
-    pub rule_type: String,
-    pub rule_data: String,
-    pub created_by: AgentPubKey,
-    pub created_at: Timestamp,
-}
-
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
@@ -61,19 +50,17 @@ pub enum EntryTypes {
     GroupMembership(GroupMembership),
     WorkLog(WorkLog),
     SoftLink(SoftLink),
-    GroupGovernanceRule(GroupGovernanceRule),
 }
 
 #[hdk_link_types]
 pub enum LinkTypes {
-    AllGroups,              // Anchor("groups") → GroupProfile
-    GroupUpdates,           // GroupProfile → GroupProfile (versioning)
-    GroupToMembers,         // GroupProfile → GroupMembership
-    MemberToGroups,         // AgentPubKey → GroupProfile
-    GroupToWorkLogs,        // GroupProfile → WorkLog
-    AgentToWorkLogs,        // AgentPubKey → WorkLog
-    GroupToSoftLinks,       // GroupProfile → SoftLink
-    GroupToGovernanceRules, // GroupProfile → GroupGovernanceRule
+    AllGroups,     // Anchor("all_groups") → GroupProfile
+    GroupUpdates,  // GroupProfile → GroupProfile (versioning)
+    GroupToMembers,  // GroupProfile → GroupMembership
+    MemberToGroups,  // AgentPubKey → GroupProfile
+    GroupToWorkLogs, // GroupProfile → WorkLog
+    AgentToWorkLogs, // AgentPubKey → WorkLog
+    GroupToSoftLinks, // GroupProfile → SoftLink
 }
 
 #[hdk_extern]
@@ -106,9 +93,6 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                     }
                     EntryTypes::SoftLink(soft_link) => {
                         return validate_soft_link(soft_link);
-                    }
-                    EntryTypes::GroupGovernanceRule(rule) => {
-                        return validate_group_governance_rule(rule);
                     }
                 }
             }
@@ -161,17 +145,6 @@ pub fn validate_soft_link(soft_link: SoftLink) -> ExternResult<ValidateCallbackR
     if soft_link.group_hash.get_raw_39().is_empty() {
         return Ok(ValidateCallbackResult::Invalid(
             "SoftLink.group_hash cannot be empty".to_string(),
-        ));
-    }
-    Ok(ValidateCallbackResult::Valid)
-}
-
-pub fn validate_group_governance_rule(
-    rule: GroupGovernanceRule,
-) -> ExternResult<ValidateCallbackResult> {
-    if rule.rule_type.trim().is_empty() {
-        return Ok(ValidateCallbackResult::Invalid(
-            "GroupGovernanceRule.rule_type cannot be empty".to_string(),
         ));
     }
     Ok(ValidateCallbackResult::Valid)

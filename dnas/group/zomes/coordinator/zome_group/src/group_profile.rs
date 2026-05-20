@@ -22,7 +22,7 @@ pub fn create_group(input: GroupProfileInput) -> ExternResult<Record> {
         GroupError::EntryOperationFailed("Failed to retrieve created group profile".to_string()),
     )?;
 
-    let path = Path::from("groups");
+    let path = Path::from("all_groups");
     create_link(
         path.path_entry_hash()?,
         profile_hash.clone(),
@@ -40,7 +40,7 @@ pub fn get_group(group_hash: ActionHash) -> ExternResult<Option<Record>> {
 
 #[hdk_extern]
 pub fn get_all_groups(_: ()) -> ExternResult<Vec<Record>> {
-    let path = Path::from("groups");
+    let path = Path::from("all_groups");
     let link_query = LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllGroups)?;
     let links = get_links(link_query, GetStrategy::default())?;
 
@@ -59,7 +59,7 @@ pub fn get_all_groups(_: ()) -> ExternResult<Vec<Record>> {
 /// Queries the AllGroups anchor — since each cell has its own DHT, there is exactly one entry.
 #[hdk_extern]
 pub fn get_my_group(_: ()) -> ExternResult<Option<Record>> {
-    let path = Path::from("groups");
+    let path = Path::from("all_groups");
     let link_query = LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllGroups)?;
     let links = get_links(link_query, GetStrategy::default())?;
 

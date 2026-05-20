@@ -47,6 +47,9 @@ pub fn leave_group(group_hash: ActionHash) -> ExternResult<()> {
     let link_query = LinkQuery::try_new(group_hash.clone(), LinkTypes::GroupToMembers)?;
     let links = get_links(link_query, GetStrategy::default())?;
 
+    // Only the discovery links are removed; the GroupMembership entry itself is intentionally
+    // left on the source chain. Holochain entries are append-only, so the membership record
+    // serves as an audit trail of prior participation even after the agent leaves.
     for link in links {
         if let Some(membership_hash) = link.target.clone().into_action_hash() {
             if let Some(record) = get(membership_hash, GetOptions::default())? {

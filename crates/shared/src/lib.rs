@@ -14,7 +14,7 @@ pub mod errors;
 #[cfg(feature = "coordinator")]
 pub mod paths;
 #[cfg(feature = "coordinator")]
-pub use errors::{CommonError, GovernanceError, PersonError, ResourceError};
+pub use errors::{CommonError, GovernanceError, GroupError, PersonError, ResourceError};
 
 #[cfg(feature = "coordinator")]
 use hdk::prelude::*;
@@ -140,32 +140,3 @@ pub mod validation {
   }
 }
 
-// =============================================================================
-// GroupError — domain errors for zome_group
-// =============================================================================
-
-#[derive(Debug, thiserror::Error)]
-pub enum GroupError {
-  #[error("Group not found: {0}")]
-  GroupNotFound(String),
-  #[error("Already a member of this group")]
-  AlreadyMember,
-  #[error("Not a member of this group")]
-  NotMember,
-  #[error("Not the author of this entry")]
-  NotAuthor,
-  #[error("Serialization error: {0}")]
-  SerializationError(String),
-  #[error("Entry operation failed: {0}")]
-  EntryOperationFailed(String),
-  #[error("Link operation failed: {0}")]
-  LinkOperationFailed(String),
-  #[error("Invalid input: {0}")]
-  InvalidInput(String),
-}
-
-impl From<GroupError> for WasmError {
-  fn from(err: GroupError) -> Self {
-    wasm_error!(WasmErrorInner::Guest(err.to_string()))
-  }
-}

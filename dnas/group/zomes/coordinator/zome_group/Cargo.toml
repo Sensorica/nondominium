@@ -13,4 +13,4 @@ serde = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
 thiserror = { workspace = true }
 zome_group_integrity = { path = "../../integrity/zome_group_integrity" }
-nondominium_utils = { path = "../../../../../crates/utils" }
+nondominium_shared = { workspace = true, features = ["coordinator"] }

@@ -316,3 +316,73 @@ async fn create_soft_link_and_get_soft_links() {
         Some("Planning link to an NDO".to_string())
     );
 }
+
+/// `get_my_group` returns the GroupProfile created in this cell.
+#[tokio::test(flavor = "multi_thread")]
+async fn get_my_group_returns_created_group() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_agents().await;
+
+    let input = GroupProfileInput {
+        name: "My Group".to_string(),
+        description: Some("Testing get_my_group".to_string()),
+    };
+
+    let _record: Record = conductors[0]
+        .call(&cell_alice.zome("zome_group"), "create_group", input)
+        .await;
+
+    let maybe_record: Option<Record> = conductors[0]
+        .call(&cell_alice.zome("zome_group"), "get_my_group", ())
+        .await;
+
+    assert!(maybe_record.is_some(), "get_my_group should return the group created in this cell");
+    let profile: GroupProfileOutput = decode_record_entry(&maybe_record.unwrap());
+    assert_eq!(profile.name, "My Group");
+}
+
+/// `is_member` returns true after join and false for a non-member.
+#[tokio::test(flavor = "multi_thread")]
+async fn is_member_reflects_membership_state() {
+    let (conductors, cell_alice, cell_bob) = setup_two_agents().await;
+
+    let input = GroupProfileInput {
+        name: "Membership Test Group".to_string(),
+        description: None,
+    };
+
+    let group_record: Record = conductors[0]
+        .call(&cell_alice.zome("zome_group"), "create_group", input)
+        .await;
+
+    let group_hash = group_record.action_address().clone();
+    let bob_key = cell_bob.agent_pubkey().clone();
+
+    // Before join: bob is not a member
+    let is_member_before: bool = conductors[0]
+        .call(
+            &cell_alice.zome("zome_group"),
+            "is_member",
+            (bob_key.clone(), group_hash.clone()),
+        )
+        .await;
+    assert!(!is_member_before, "bob should not be a member before joining");
+
+    // Bob joins
+    let _: Record = conductors[1]
+        .call(&cell_bob.zome("zome_group"), "join_group", group_hash.clone())
+        .await;
+
+    await_consistency_20_s([&cell_alice, &cell_bob])
+        .await
+        .unwrap();
+
+    // After join: bob is a member
+    let is_member_after: bool = conductors[0]
+        .call(
+            &cell_alice.zome("zome_group"),
+            "is_member",
+            (bob_key, group_hash),
+        )
+        .await;
+    assert!(is_member_after, "bob should be a member after joining");
+}
