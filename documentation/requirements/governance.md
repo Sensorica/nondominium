@@ -37,23 +37,23 @@ The most important governance concept for the NDO is **embedded governance**: en
 
 The OVN wiki describes this precisely: "Embedded governance (or immanent governance) is about engineering the environment in which actions are deployed to direct, channel or shape action, to take away the possibility of undesirable or less desirable action alternatives."
 
-In practice: instead of writing a rule "you must not transfer a resource without a validated custodian," make it technically impossible to record a custody transfer without a prior commitment accepted by an accountable agent. The rule is in the architecture, not in a policy document that humans can ignore.
+In practice: instead of writing a rule "you must not transfer a resource without a validated custodian," make it technically impossible to record a *custody transfer* without a prior *commitment* accepted by an *accountable agent*, based on *enbedded rules*, following *validation*. The rule is in the architecture, not in a policy document that humans can ignore.
 
-This is also stigmergy in the complexity economics sense: governance through environmental modification. Ants do not follow written rules — their collective behaviour emerges from pheromone trails (environmental signals) that individual agents respond to locally. The NDO's capability slot surface (Layer 0 stigmergic attachment) is exactly this: governance emerges from what agents choose to attach to resources, without central coordination.
+This is also *stigmergy* in the complexity economics sense: governance through environmental modification. Ants do not follow written rules — their collective behaviour emerges from pheromone trails (environmental signals) that individual agents respond to locally. The NDO's capability slot surface (Layer 0 stigmergic attachment) is exactly this: governance emerges from what agents choose to attach to resources, without central coordination.
 
 The same stigmergic attachment pattern applies to **agent** identity anchors: a `FlowstaIdentity` capability slot on the agent's `Person` entry hash (`ndo_prima_materia.md` **Section 6.5** defines the Person attachment surface; **Section 6.7** specifies Flowsta). **Tier 1** is permissionless at the DHT level; **Tier 2** is when a community turns that signal into a **hard governance precondition** via typed `GovernanceRule` mechanisms (Flowsta Phase 3).
 
-The distinction between soft and hard embedded governance matters:
+The distinction between *soft* and *hard* embedded governance matters:
 - **Hard embedded**: cryptographic impossibility of the prohibited action (Holochain validation rules, capability tokens)
 - **Soft embedded**: social norms encoded as discoverable defaults (GovernanceRules marked as required, reputation consequences)
 
-The NDO primarily uses hard embedded governance (Holochain integrity zomes are cryptographic) with soft embedded governance at the application layer (GovernanceRules are data that agents must choose to enforce in their coordinator logic).
+The NDO primarily uses *hard embedded governance* (Holochain integrity zomes are cryptographic) with *soft embedded governance* at the application layer (GovernanceRules are data that agents must choose to enforce in their coordinator logic).
 
 ### 1.3 Governance as Signal Processing, Not Rule Enforcement
 
 The OVN wiki makes a critical distinction: OVN governance is not "rules-based, but rather signal-based, as norms emerge in real time from agent preferences, in context." Rules assume a known, closed world. Signals are the governance of complex, open, evolving systems.
 
-In complexity economics terms: the adjacent possible (Kauffman) is never fully knowable. Rules written today cannot anticipate tomorrow's edge cases. The governance architecture must support emergence — agents should be able to propose and enact new norms through their behaviour, not just comply with pre-written rules.
+In complexity economics terms: the *adjacent possible* (Kauffman) is never fully knowable. Rules written today cannot anticipate tomorrow's edge cases. The governance architecture must support emergence — agents should be able to propose and enact new norms through their behaviour, not just comply with pre-written rules.
 
 This has direct implications for NDO design: the governance layer should expose proposing, voting, and adapting mechanisms as first-class capabilities, not just enforcement mechanisms. The current MVP focuses almost entirely on enforcement. Adaptation is barely present. Proposal is absent.
 
@@ -61,9 +61,9 @@ This has direct implications for NDO design: the governance layer should expose 
 
 The OVN wiki makes a structural proposal with deep implications: "Architecture governance in a way that it becomes compatible with the organizational and economic model architecture. REA is used to model the economic reality of the network, use the same structure to describe governance."
 
-This means: governance events are EconomicEvents. Governance policies are Resources. Governance actors are Agents. The Policy/Scheduling/Accountability layers of REA are the governance architecture, not just the economic architecture.
+This means: governance *events* are EconomicEvents. Governance *policies* are Resources. Governance *actors* are Agents. The Policy/Scheduling/Accountability layers of REA are the governance architecture, not just the economic architecture.
 
-The implication: the NDO's `zome_gouvernance` — which already models EconomicEvents, Commitments, and Claims — should be the natural home for governance events as well. A decision to grant a role is a governance EconomicEvent. A governance proposal is a Commitment. The decision outcome is a Claim. This unification is not complete in the current codebase but is architecturally supported.
+The implication: the NDO's `zome_gouvernance` — which already models *EconomicEvents*, *Commitments*, and *Claims* — should be the natural home for governance events as well. A decision to grant a *role* is a governance EconomicEvent. A governance proposal is a *Commitment*. The decision outcome is a *Claim*. This unification is not complete in the current codebase but is architecturally supported.
 
 ### 1.5 Holonic Multi-Scale Governance
 
@@ -74,7 +74,7 @@ The OVN wiki defines three governance layers:
 - **Network** (commons community): shared resources, roles, benefit distribution
 - **Venture** (project): specific work, specific benefit distribution
 
-Currently the NDO implements only venture-level governance (single resource interactions, agent roles, process validation). Network and federation-level governance are absent.
+Currently the NDO implements only resource-level governance (single resource interactions, agent roles, process validation). Network and federation-level governance are absent.
 
 ### 1.6 Ostrom's Principles as NDO Architecture
 
@@ -126,7 +126,7 @@ Commitment (intent + obligation)
        └─ Claim (link: this event fulfills that commitment)
 ```
 
-This is the **planning → observation** bridge. Commitments are governance artifacts: they are the declared intent of an agent, time-bound, linking provider and receiver for a specific VfAction on a specific resource. The claim verifies fulfillment. The entire chain is auditable on the DHT.
+This is the **planning → observation** bridge. *Commitments* are governance artifacts: they are the declared *intent of an agent*, time-bound, linking provider and receiver for a specific VfAction on a specific resource. The claim verifies *fulfillment*. The entire chain is auditable on the DHT.
 
 This cycle is both governance and economics — consistent with the OVN wiki's REA governance parallel.
 
@@ -147,7 +147,11 @@ The validation system implements the monitoring and graduated sanction aspects o
 
 ### 2.5 The PPR System: 16 Categories, Bilateral Cryptographic Signatures
 
-The Private Participation Receipt (PPR) system is the most complete governance mechanism in the MVP. It generates cryptographically signed, private, bilateral records of every economic interaction.
+The Private Participation Receipt (PPR) system is the most complete governance mechanism in the MVP. It generates **cryptographically signed, private receipts** grounded in ValueFlows commitments and events.
+
+In the MVP, each recorded economic interaction uses a **single provider** and a **single receiver** on the DHT (one-to-one ValueFlows pattern). For that interaction, the PPR model is **pairwise bilateral**: each party holds a receipt that names the other as `counterparty`, and **two coordinated receipts** capture the same underlying event from both sides (`private-participation-receipt.md` — “two receipts per action”). This is bilateral accountability **per interacting pair**, not a single shared “group receipt.”
+
+Broader participation topologies (**one-to-many**, **many-to-one**, and **many-to-many** custody transfers, shared co-custodianship, resource pools, and delegation among co-custodians) are specified as **post-MVP** extensions to EconomicEvent / Commitment and to **how PPRs are issued and attributed** when several providers or receivers are involved (`post-mvp/many-to-many-flows.md` §1–2, Phase 5, REQ-MMF-19–22). Until that work lands, interactions that socially involve more than two agents must still be represented as sequences or combinations of **one-to-one** events and **pairwise** PPRs, or omitted from structured monitoring (see gaps in Sections 2.8 and 6 of this document and `implementation_plan.md` (many-to-many / `AgentContext`)).
 
 **`PrivateParticipationClaim` entry structure**:
 ```rust
@@ -181,7 +185,7 @@ pub struct PrivateParticipationClaim {
 - `communication` (weight 0.20)
 - `overall_satisfaction` (additional signal)
 
-**Bilateral cryptographic signatures**: both the recipient and the counterparty sign the PPR. This is not just authentication — it is **mutual accountability**. Neither party can unilaterally issue a PPR; both must sign. This prevents false claims and creates bilateral commitment to the record.
+**Bilateral cryptographic signatures**: for each pairwise PPR, the issuing agent's view and the counterparty's agreement are both reflected in the receipt design (mutual attestation to the claim). This is not merely authentication — it is **mutual accountability** for that **two-party** slice of the interaction. Multi-party flows will need extended signing and distribution rules (see `many-to-many-flows.md` Phase 3 and §4.5).
 
 **`ReputationSummary`**: a derived, privacy-preserving aggregate that agents can selectively share. Counts by category, average performance, time period. The agent controls what they reveal; the summary proves they have a track record without revealing individual interactions.
 
@@ -210,7 +214,7 @@ This is the access control layer of the deontic ontology: permissions are crypto
 
 - **Governance-as-operator** is the correct architectural pattern: clear separation of data model and governance logic, enabling swappable governance
 - **VfAction semantics** — typed actions with governance implications — are a principled approach to deontic governance encoding
-- **Bilateral cryptographic PPRs** are a novel and strong accountability mechanism; stronger than reputation systems that rely on one-sided ratings
+- **Pairwise bilateral cryptographic PPRs** are a novel and strong accountability mechanism; stronger than reputation systems that rely on one-sided ratings
 - **Multi-scheme validation** (`"2-of-3"`, `"N-of-M"`) supports configurable collective decisions at the resource validation level
 - **Graduated role tiers** implement Ostrom's "clearly defined boundaries" principle
 - **Private-yet-derivable reputation** (PPR → ReputationSummary) correctly addresses the privacy/accountability tension
@@ -487,7 +491,7 @@ The NDO has no formal governance surface. Rule changes require developer interve
 | Deontic permission system | Capability tokens + role-gated validation | ✅ Implemented |
 | Deontic obligation system | `Commitment` entries with due dates | ✅ Implemented |
 | Access from Permission | Role-gated VfAction execution | ✅ Implemented |
-| Monitoring and accountability | PPR system (16 categories, bilateral signatures) | ✅ Implemented |
+| Monitoring and accountability | PPR system (16 categories; pairwise bilateral for MVP one-to-one events; multi-party issuance post-MVP per post-mvp/many-to-many-flows.md) | ✅ Implemented |
 | Graduated trust / bounded membership | SimpleAgent → Accountable → Primary tiers | ✅ Implemented |
 | Multi-scheme collective validation | ResourceValidation with `"2-of-3"`, `"N-of-M"` | ✅ Implemented |
 | Governance equation (contribution → access) | PPR → role promotion; Unyt credit limit feedback | ✅ Partial (promotion path); 🔄 Planned (credit/weight) |

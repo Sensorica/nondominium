@@ -39,7 +39,7 @@ export interface AnnounceNdoInput {
   description?: string;
 }
 
-export interface GroupDescriptor {
+export interface GroupDescriptorStub {
   id: string;
   name: string;
   description?: string;

@@ -7,9 +7,10 @@ import type { AppClient, CellId } from '@holochain/client';
 export async function getLobbyCellHandle(client: AppClient): Promise<CellId | null> {
   try {
     const appInfo = await client.appInfo();
-    const lobbyCell = appInfo?.cell_info?.['lobby']?.[0];
+    const lobbyCell = appInfo?.cell_info?.['lobby']?.[0] as Record<string, unknown> | undefined;
     if (lobbyCell && 'provisioned' in lobbyCell) {
-      return lobbyCell.provisioned.cell_id;
+      const provisioned = lobbyCell.provisioned as { cell_id: CellId };
+      return provisioned.cell_id;
     }
     return null;
   } catch {

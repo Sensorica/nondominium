@@ -66,7 +66,7 @@
           </p>
           <div class="space-y-1.5">
             {#each optionalFields as f}
-              {#if (lobby as Record<string, unknown>)[f]}
+              {#if (lobby as unknown as Record<string, unknown>)[f]}
                 <label class="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -75,7 +75,7 @@
                     class="h-4 w-4 rounded"
                   />
                   <span class="text-sm text-gray-700">
-                    {fieldLabels[f]}: <span class="font-medium">{(lobby as Record<string, unknown>)[f]}</span>
+                    {fieldLabels[f]}: <span class="font-medium">{(lobby as unknown as Record<string, unknown>)[f]}</span>
                   </span>
                 </label>
               {/if}

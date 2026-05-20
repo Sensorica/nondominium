@@ -49,7 +49,7 @@ NDOs can only be created from within a Group. The "Create NDO" button in a Group
 | `name` | text input | required; uniqueness warning shown if name already exists in the lobby |
 | `property_regime` | select | 4 variants: **Private**, **Commons**, **Nondominium**, **CommonPool**; tooltip per option |
 | `resource_nature` | select | 5 variants: Physical, Digital, Service, Hybrid, Information; tooltip per option |
-| `lifecycle_stage` | select | restricted to initial stages: Ideation, Specification, Development, Stable, Hibernating |
+| `lifecycle_stage` | select | **seven** creatable-at-registration stages: Ideation, Specification, Development, Prototype, Stable, Distributed, Active (matches `create_ndo` validation); Hibernating and terminal stages (Deprecated, EndOfLife) are **not** selectable here — only via lifecycle transitions after registration |
 | `description` | textarea | optional |
 
 > Note: the original spec listed 6 property-regime variants (including Collective and Pool) and 4 initial lifecycle stages (including Prototype). Both have been revised — see the Rust `PropertyRegime` enum and `LifecycleStage` for current canonical values.
