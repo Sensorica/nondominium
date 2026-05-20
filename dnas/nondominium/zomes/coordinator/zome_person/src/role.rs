@@ -1,7 +1,7 @@
 use crate::person::get_agent_person;
 use crate::PersonError;
 use hdk::prelude::*;
-use nondominium_utils::call_governance_zome;
+use nondominium_shared::call_governance_zome;
 use zome_person_integrity::*;
 
 // Cross-zome call structure for governance validation

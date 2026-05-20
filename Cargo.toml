@@ -16,9 +16,10 @@ members = [
     "dnas/nondominium/zomes/integrity/zome_gouvernance",
     "dnas/group/zomes/coordinator/zome_group",
     "dnas/group/zomes/integrity/zome_group_integrity",
-    "crates/utils",
+    "crates/shared",
     "dnas/nondominium/tests",
     "dnas/group/tests",
+    "dnas/lobby/tests",
 ]
 # default-members excludes Sweettest crates so that
 # `cargo build --target wasm32-unknown-unknown` only compiles WASM zomes.
@@ -36,11 +37,14 @@ default-members = [
     "dnas/nondominium/zomes/coordinator/misc",
     "dnas/group/zomes/coordinator/zome_group",
     "dnas/group/zomes/integrity/zome_group_integrity",
-    "crates/utils",
+    "crates/shared",
+    "dnas/lobby/zomes/coordinator/zome_lobby_coordinator",
+    "dnas/lobby/zomes/integrity/zome_lobby_integrity",
 ]
 resolver = "2"
 
 [workspace.dependencies]
+nondominium_shared = { path = "crates/shared" }
 hdi = "^0.7.0"
 hdk = "^0.6.0"
 holochain_serialized_bytes = "*"

@@ -189,6 +189,19 @@ export type LifecycleStage =
   | "Deprecated"
   | "EndOfLife";
 
+/** Stages allowed when registering a new NDO via `create_ndo` (UI + coordinator). */
+export const CREATABLE_NDO_LIFECYCLE_STAGES = [
+  'Ideation',
+  'Specification',
+  'Development',
+  'Prototype',
+  'Stable',
+  'Distributed',
+  'Active'
+] as const satisfies readonly LifecycleStage[];
+
+export type CreatableNdoLifecycleStage = (typeof CREATABLE_NDO_LIFECYCLE_STAGES)[number];
+
 export interface NondominiumIdentity {
   name: string;
   initiator: AgentPubKey;

@@ -1,5 +1,5 @@
 import { Effect as E } from 'effect';
-import type { HolochainClientService, ZomeName } from '$lib/services/holochain.service.svelte';
+import type { HolochainClientService, RoleName, ZomeName } from '$lib/services/holochain.service.svelte';
 
 /**
  * Wait until the Holochain client is connected.
@@ -26,12 +26,13 @@ export const wrapZomeCall = <T, E>(
   fnName: string,
   payload: unknown,
   errorContext: string,
-  ErrorConstructor: new (message: string, context?: string) => E
+  ErrorConstructor: new (message: string, context?: string) => E,
+  roleName?: RoleName
 ): E.Effect<T, E> =>
   E.tryPromise({
     try: async () => {
       await ensureConnected(holochainClient);
-      const result = await holochainClient.callZome(zomeName as ZomeName, fnName, payload);
+      const result = await holochainClient.callZome(zomeName as ZomeName, fnName, payload, undefined, roleName);
       return result as T;
     },
     catch: (error) =>
@@ -52,12 +53,13 @@ export const wrapZomeCallWithErrorFactory = <T, E>(
   fnName: string,
   payload: unknown,
   errorContext: string,
-  errorFactory: (error: unknown, context: string) => E
+  errorFactory: (error: unknown, context: string) => E,
+  roleName?: RoleName
 ): E.Effect<T, E> =>
   E.tryPromise({
     try: async () => {
       await ensureConnected(holochainClient);
-      const result = await holochainClient.callZome(zomeName as ZomeName, fnName, payload);
+      const result = await holochainClient.callZome(zomeName as ZomeName, fnName, payload, undefined, roleName);
       return result as T;
     },
     catch: (error) => errorFactory(error, errorContext)

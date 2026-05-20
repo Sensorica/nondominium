@@ -1,12 +1,12 @@
 import { Effect as E, Exit, pipe } from 'effect';
 import type { GroupDescriptor, NdoDescriptor, NdoInput } from '@nondominium/shared-types';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
-import { LobbyServiceTag, LobbyServiceLive } from '../services/zomes/lobby.service';
+import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
 import { Layer } from 'effect';
 
 const GROUPS_KEY = 'ndo_groups_v1';
 
-const GroupStoreServicesResolved = Layer.mergeAll(NdoServiceResolved, LobbyServiceLive);
+const GroupStoreServicesResolved = Layer.mergeAll(NdoServiceResolved, LobbyServiceResolved);
 
 function loadGroups(): GroupDescriptor[] {
   try {

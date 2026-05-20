@@ -1,11 +1,12 @@
 <script lang="ts">
   import type {
-    LifecycleStage,
+    CreatableNdoLifecycleStage,
     NdoDescriptor,
     NdoInput,
     PropertyRegime,
     ResourceNature
   } from '@nondominium/shared-types';
+  import { CREATABLE_NDO_LIFECYCLE_STAGES } from '@nondominium/shared-types';
   import { goto } from '$app/navigation';
   import { groupStore } from '$lib/stores/group.store.svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
@@ -17,14 +18,13 @@
 
   let { groupId, onclose }: Props = $props();
 
-  const initialStages: LifecycleStage[] = ['Ideation', 'Specification', 'Development', 'Prototype'];
   const allRegimes: PropertyRegime[] = ['Private', 'Commons', 'Nondominium', 'CommonPool'];
   const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
 
   let name = $state('');
   let property_regime = $state<PropertyRegime>('Commons');
   let resource_nature = $state<ResourceNature>('Physical');
-  let lifecycle_stage = $state<LifecycleStage>('Ideation');
+  let lifecycle_stage = $state<CreatableNdoLifecycleStage>('Ideation');
   let description = $state('');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
@@ -152,11 +152,18 @@
           bind:value={lifecycle_stage}
           class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         >
-          {#each initialStages as s}
+          {#each CREATABLE_NDO_LIFECYCLE_STAGES as s}
             <option value={s}>{s}</option>
           {/each}
         </select>
-        <p class="mt-1 text-xs text-gray-500">New NDOs start in early stages of maturity.</p>
+        <p class="mt-1 text-xs text-gray-500">
+          Choose emergence (Ideation–Prototype) for something still forming, or
+          <span class="font-medium">Stable</span> / <span class="font-medium">Distributed</span> /
+          <span class="font-medium">Active</span> for an already mature or in-use resource (e.g. a stable
+          shared tool).
+          <span class="font-medium">Hibernating</span>, terminal stages, and deprecation are set only after
+          creation via lifecycle transitions.
+        </p>
       </div>
 
       <!-- Description -->

@@ -8,7 +8,7 @@ import type {
   PropertyRegime,
   ResourceNature
 } from '@nondominium/shared-types';
-import { LobbyServiceTag, LobbyServiceLive } from '../services/zomes/lobby.service';
+import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
 import { PersonServiceTag, PersonServiceResolved } from '../services/zomes/person.service';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
 import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-helpers/core';
@@ -19,9 +19,8 @@ export interface ActiveFilters {
   regimes: PropertyRegime[];
 }
 
-/** Lobby store: resolved zome layers only (no duplicate `HolochainClientServiceTag`). */
 const LobbyStoreServicesResolved = Layer.mergeAll(
-  LobbyServiceLive,
+  LobbyServiceResolved,
   NdoServiceResolved,
   PersonServiceResolved
 );
@@ -157,8 +156,8 @@ const createLobbyStore = (): E.Effect<
             )
           )
         ]);
-        const failed = [groupsExit, ndosExit, personExit].filter(Exit.isFailure);
-        if (failed.length > 0) {
+        const hasFailed = [groupsExit, ndosExit, personExit].some((e) => e._tag === 'Failure');
+        if (hasFailed) {
           errorMessage = 'Failed to load lobby data. Please try again.';
         }
       } finally {

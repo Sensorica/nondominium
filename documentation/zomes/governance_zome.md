@@ -654,6 +654,138 @@ Creates validation with explicit private data access.
 **Security**: Creates audit trail of private data access
 **Compliance**: Ensures privacy requirements are met
 
+## NDO Federation Extensions
+
+Added in PR #103. These three coordinator modules implement the NDO-to-NDO hard links,
+peer-validated contributions, and benefit redistribution agreements specified in
+`documentation/requirements/post-mvp/lobby-dna.md` (REQ-NDO-EXT-01–16).
+
+### Hard Links (`hard_link.rs`)
+
+#### `create_ndo_hard_link(input: CreateNdoHardLinkInput) -> ExternResult<ActionHash>`
+
+Creates a permanent, immutable OVN-licensed structural link between two NDOs.
+The link is backed by a real `EconomicEvent` (its hash is stored and verified at creation time).
+
+**Input**:
+```rust
+pub struct CreateNdoHardLinkInput {
+    pub from_ndo_identity_hash: ActionHash,
+    pub to_ndo_dna_hash: DnaHash,
+    pub to_ndo_identity_hash: ActionHash,
+    pub link_type: NdoLinkType, // Component | DerivedFrom | Supersedes
+    pub fulfillment_hash: ActionHash, // must resolve to a record in this DHT
+}
+```
+
+**Business Logic**:
+- Verifies `fulfillment_hash` resolves to an existing record
+- Creates a `NdoHardLink` entry (immutable, undeletable per OVN license requirement)
+- Creates `NdoToHardLinks` anchor from `from_ndo_identity_hash` for global discovery
+- Creates `HardLinkByType` anchor from `Path("ndo.hardlink.{type}")` for filtered queries
+
+#### `get_ndo_hard_links(ndo_identity_hash: ActionHash) -> ExternResult<Vec<NdoHardLinkRecord>>`
+
+Returns all hard links originating from a given NDO identity hash.
+Resolves the latest update of each entry before returning.
+
+#### `get_ndo_hard_links_by_type(input: GetNdoHardLinksByTypeInput) -> ExternResult<Vec<NdoHardLinkRecord>>`
+
+Returns hard links filtered by `NdoLinkType`. Calls `get_ndo_hard_links` internally and filters client-side.
+
+**Input**:
+```rust
+pub struct GetNdoHardLinksByTypeInput {
+    pub ndo_identity_hash: ActionHash,
+    pub link_type: NdoLinkType,
+}
+```
+
+---
+
+### Contributions (`contribution.rs`)
+
+#### `validate_contribution(input: ValidateContributionInput) -> ExternResult<ActionHash>`
+
+Records and peer-validates a work contribution on an NDO. The calling agent is recorded
+as the first validator in `validated_by`. The `action` field is constrained to
+`Work | Modify | Cite` by integrity validation.
+
+**Input**:
+```rust
+pub struct ValidateContributionInput {
+    pub provider: AgentPubKey,
+    pub action: VfAction,               // Must be Work, Modify, or Cite
+    pub work_log_group_dna_hash: Option<DnaHash>,
+    pub work_log_action_hash: Option<ActionHash>,
+    pub ndo_identity_hash: ActionHash,
+    pub input_of: Option<ActionHash>,
+    pub note: String,
+    pub effort_quantity: Option<f64>,   // hours [0.0, 10000.0]
+    pub fulfills: Option<ActionHash>,
+    pub has_point_in_time: Timestamp,
+}
+```
+
+**Business Logic**:
+- Creates a `Contribution` entry with the calling agent as `validated_by[0]`
+- Creates `NdoToContributions` anchor from `ndo_identity_hash`
+- Creates `AgentToContributions` anchor from `input.provider` (not the validator)
+
+#### `get_ndo_contributions(ndo_identity_hash: ActionHash) -> ExternResult<Vec<ContributionRecord>>`
+
+Returns all contributions for a given NDO identity hash via the `NdoToContributions` anchor.
+
+#### `get_agent_contributions(provider: AgentPubKey) -> ExternResult<Vec<ContributionRecord>>`
+
+Returns all contributions from a given agent (provider) via the `AgentToContributions` anchor.
+
+---
+
+### Agreements (`agreement.rs`)
+
+#### `create_agreement(input: CreateAgreementInput) -> ExternResult<ActionHash>`
+
+Creates the first benefit redistribution `Agreement` (version 1) for an NDO.
+Agreements are versioned (monotonic), undeletable, and linked to the NDO identity hash.
+
+**Input**:
+```rust
+pub struct CreateAgreementInput {
+    pub ndo_identity_hash: ActionHash,
+    pub clauses: Vec<BenefitClause>,
+    pub primary_accountable: Vec<AgentPubKey>,
+}
+```
+
+**Integrity validation**:
+- `primary_accountable` must be non-empty
+- Each `clause.share_percent` must be in `[0.0, 100.0]`
+- Sum of all `share_percent` values must not exceed `100.0`
+
+#### `update_agreement(input: UpdateAgreementInput) -> ExternResult<ActionHash>`
+
+Updates an existing Agreement, incrementing its version monotonically.
+Creates an `AgreementUpdates` chain link from the previous hash to the new one.
+
+**Input**:
+```rust
+pub struct UpdateAgreementInput {
+    pub original_action_hash: ActionHash,
+    pub clauses: Vec<BenefitClause>,
+    pub primary_accountable: Vec<AgentPubKey>,
+}
+```
+
+**Integrity validation**: `version` must equal `previous.version + 1` (enforced by HDI).
+
+#### `get_current_agreement(ndo_identity_hash: ActionHash) -> ExternResult<Option<AgreementRecord>>`
+
+Returns the latest version of the Agreement for a given NDO by walking the
+`AgreementUpdates` chain from the `NdoToAgreement` anchor.
+
+---
+
 ## Link Architecture
 
 ### Economic Event Links

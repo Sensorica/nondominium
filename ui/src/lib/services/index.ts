@@ -9,6 +9,7 @@ export {
 
 // Zome service tags and layers
 export { PersonServiceTag, PersonServiceLive, PersonServiceResolved } from './zomes/person.service';
+export { LobbyServiceTag, LobbyServiceLive, LobbyServiceResolved } from './zomes/lobby.service';
 export { ResourceServiceTag, ResourceServiceLive, ResourceServiceResolved } from './zomes/resource.service';
 export {
   GovernanceServiceTag,
@@ -16,7 +17,6 @@ export {
   GovernanceServiceResolved
 } from './zomes/governance.service';
 export { NdoServiceTag, NdoServiceLive, NdoServiceResolved } from './zomes/ndo.service';
-export { LobbyServiceTag, LobbyServiceLive, LobbyServiceResolved } from './zomes/lobby.service';
 export { GroupServiceTag, GroupServiceLive, GroupServiceResolved } from './zomes/group.service';
 export {
   getLobbyCellHandle,

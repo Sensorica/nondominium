@@ -1,9 +1,6 @@
 import { Context, Effect as E, Layer } from 'effect';
 import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
-import {
-  HolochainClientServiceTag,
-  HolochainClientServiceLive
-} from '../holochain.service.svelte';
+import { HolochainClientServiceTag, HolochainClientServiceLive } from '../holochain.service.svelte';
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import { GovernanceError } from '$lib/errors/governance.errors';
 import { GOVERNANCE_CONTEXTS } from '$lib/errors/error-contexts';
@@ -25,10 +22,7 @@ export interface GovernanceService {
   getCommitmentsByProvider: (provider: AgentPubKey) => E.Effect<Commitment[], GovernanceError>;
   getCommitmentsByReceiver: (receiver: AgentPubKey) => E.Effect<Commitment[], GovernanceError>;
   getPendingCommitments: () => E.Effect<Commitment[], GovernanceError>;
-  cancelCommitment: (
-    hash: ActionHash,
-    reason?: string
-  ) => E.Effect<ActionHash, GovernanceError>;
+  cancelCommitment: (hash: ActionHash, reason?: string) => E.Effect<ActionHash, GovernanceError>;
   updateCommitment: (
     hash: ActionHash,
     updatedCommitment: Omit<Commitment, 'created_at'>
@@ -136,7 +130,11 @@ export const GovernanceServiceLive: Layer.Layer<
         ),
 
       cancelCommitment: (hash, reason) =>
-        wz<ActionHash>('cancel_commitment', { hash, reason }, GOVERNANCE_CONTEXTS.CANCEL_COMMITMENT),
+        wz<ActionHash>(
+          'cancel_commitment',
+          { hash, reason },
+          GOVERNANCE_CONTEXTS.CANCEL_COMMITMENT
+        ),
 
       updateCommitment: (hash, updatedCommitment) =>
         wz<ActionHash>(

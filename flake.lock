@@ -67,6 +67,22 @@
         "type": "github"
       }
     },
+    "holochain-agent-skill": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1775526113,
+        "narHash": "sha256-9A3qw0LG3IxA8KpunF1Ef+aRPjXFRwDifvIl3yrsEIo=",
+        "owner": "Soushi888",
+        "repo": "holochain-agent-skill",
+        "rev": "ab02c4f11edef175e438664adc4536e5da12cbc2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Soushi888",
+        "repo": "holochain-agent-skill",
+        "type": "github"
+      }
+    },
     "holonix": {
       "inputs": {
         "crane": "crane",
@@ -182,6 +198,7 @@
           "holonix",
           "flake-parts"
         ],
+        "holochain-agent-skill": "holochain-agent-skill",
         "holonix": "holonix",
         "nixpkgs": [
           "holonix",

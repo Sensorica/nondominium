@@ -76,6 +76,7 @@ function createHolochainClientService(): HolochainClientService {
    */
   async function getMyAgentPubKey(): Promise<AgentPubKey> {
     const info = await getAppInfo();
+    if (!info) throw new Error('App info not available');
     return info.agent_pub_key;
   }
 
