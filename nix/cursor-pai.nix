@@ -15,6 +15,46 @@ let
       description = "Nondominium project purpose and operating principles";
     }
     {
+      name = "01-requirements";
+      dir = docsDir;
+      sourceFile = "requirements/requirements.md";
+      alwaysApply = true;
+      globs = "";
+      description = "REQ-* IDs, user roles, resource characteristics, economic process and governance requirements";
+    }
+    {
+      name = "02-agent";
+      dir = docsDir;
+      sourceFile = "requirements/agent.md";
+      alwaysApply = true;
+      globs = "";
+      description = "Agent ontology: individual/person distinction, role system, affiliation spectrum, multi-device architecture";
+    }
+    {
+      name = "03-resources";
+      dir = docsDir;
+      sourceFile = "requirements/resources.md";
+      alwaysApply = true;
+      globs = "";
+      description = "Resource ontology: property regimes, ResourceNature, rivalry, NDO three-layer model context";
+    }
+    {
+      name = "04-governance";
+      dir = docsDir;
+      sourceFile = "requirements/governance.md";
+      alwaysApply = true;
+      globs = "";
+      description = "Governance model: governance-as-operator, PPR system, VfAction cycle, validation schemes";
+    }
+    {
+      name = "05-specifications";
+      dir = docsDir;
+      sourceFile = "specifications/specifications.md";
+      alwaysApply = true;
+      globs = "";
+      description = "Technical specifications: entry types, zome functions, cross-zome interface, UI layer specs";
+    }
+    {
       name = "10-conventions";
       dir = paiDir;
       sourceFile = "conventions.md";
