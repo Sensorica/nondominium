@@ -13,8 +13,14 @@ site-url = "/nondominium/"
 git-repository-url = "https://github.com/Sensorica/nondominium"
 edit-url-template = "https://github.com/Sensorica/nondominium/edit/main/documentation/{path}"
 no-section-label = false
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
 
 [output.html.search]
 enable = true
 limit-results = 20
 teaser-word-count = 30
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
