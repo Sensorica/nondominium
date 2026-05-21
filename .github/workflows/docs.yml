@@ -29,6 +29,14 @@ jobs:
           curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.43/mdbook-v0.4.43-x86_64-unknown-linux-gnu.tar.gz \
             | tar -xz --directory=/usr/local/bin
 
+      - name: Install mdbook-mermaid
+        run: |
+          curl -sSL https://github.com/badboy/mdbook-mermaid/releases/download/v0.14.0/mdbook-mermaid-v0.14.0-x86_64-unknown-linux-gnu.tar.gz \
+            | tar -xz --directory=/usr/local/bin
+
+      - name: Set up mermaid
+        run: mdbook-mermaid install
+
       - name: Build book
         run: mdbook build
 

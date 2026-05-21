@@ -103,6 +103,12 @@
 
 ---
 
+# AI Agent Integration
+
+- [AI Agent Integration Overview](pai/README.md)
+
+---
+
 # Research & Archives
 
 - [P2P Models Comparison](archives/P2PMODELS_COMPARISON_REPORT.md)
