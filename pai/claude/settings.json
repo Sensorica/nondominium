@@ -1,17 +1,5 @@
 {
   "permissions": {
     "additionalDirectories": ["../nondominium-design-system"]
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bun .claude/hooks/LoadProjectDocs.hook.ts"
-          }
-        ]
-      }
-    ]
   }
 }
