@@ -90,7 +90,7 @@ pub fn create_economic_resource(
 
   // TEMPORARILY COMMENTED OUT - Call governance zome to initiate resource validation
   // This implements REQ-GOV-02: Resource Validation
-  // TODO: Re-enable once cross-zome call issues are resolved
+  // TODO: enable once cross-zome call issues are resolved
   // let _validation_result = call(
   //   CallTargetCell::Local,
   //   "zome_gouvernance",

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use hdi::prelude::*;
 // VfAction, NdoLinkType, BeneficiaryRef, BenefitType, BenefitClause are defined in
 // nondominium_shared::types so coordinator zomes and Sweettest test crates can import
@@ -56,6 +58,26 @@ pub struct Claim {
   pub note: Option<String>,
 }
 
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum ResourceValidationStatus {
+  Pending,
+  Approved,
+  Rejected,
+}
+
+impl FromStr for ResourceValidationStatus {
+  type Err = String;
+
+   fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match s {
+      "pending" => Ok(Self::Pending),
+      "approved" => Ok(Self::Approved),
+      "rejected" => Ok(Self::Rejected),
+      _ => Err(format!("Invalid status type: {}", s)),
+    }
+  }
+}
+
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct ResourceValidation {
@@ -63,7 +85,7 @@ pub struct ResourceValidation {
   pub validation_scheme: String, // e.g., "2-of-3", "simple_majority"
   pub required_validators: u32,
   pub current_validators: u32,
-  pub status: String, // "pending", "approved", "rejected"
+  pub status: ResourceValidationStatus,
   pub created_at: Timestamp,
   pub updated_at: Timestamp,
 }
