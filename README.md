@@ -16,6 +16,11 @@ The project's central goal is to support a **_peer sharing economy_**, overcomin
 
 Built on the Holochain framework and using the ValueFlows standard, nondominium allows any Agent to interact with these Resources in a permissionless but accountable environment, with automatic reputation tracking through Private Participation Receipts (PPRs).
 
+## Project Links
+
+- [Nondominium on Sensorica](https://www.sensorica.co/ventures/infrastructure/nondominium) — Official project page on the Sensorica website
+- [Log your contribution](https://docs.google.com/forms/d/e/1FAIpQLSeW4OigEN72aioByDVPw4ONBWjmmTo5UFD6B4fpYqBHtYNxdQ/viewform) — OVN contribution form
+
 ## Overview
 
 Nondominium is a 3-zome Holochain hApp that enables decentralized resource sharing through:
