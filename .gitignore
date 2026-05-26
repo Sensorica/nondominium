@@ -47,3 +47,5 @@ ISA.md
 
 # git worktrees
 .worktrees/
+
+.codegraph
