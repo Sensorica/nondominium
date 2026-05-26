@@ -4,7 +4,7 @@
 
 ### 1.1 Purpose
 
-This document provides the detailed technical specifications for the nondominium Holochain application (hApp). It is based on the requirements outlined in `requirements.md` and the architecture described in the nondominium project document. It is intended for Holochain developers.
+This document provides the detailed technical specifications for the nondominium Holochain application (hApp). It is based on the requirements outlined in `requirements.md` and the architecture described in other nondominium project documents. It is intended for Holochain developers.
 
 ### 1.2 Guiding Principles
 
