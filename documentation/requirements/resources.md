@@ -314,7 +314,7 @@ These four rights are not always bundled together. A Simple Agent may have Use r
 
 #### 4.4.2 Goods Typology: The Excludability × Rivalry Matrix
 
-![Goods typology 2×2 matrix — excludability × rivalry with NDO PropertyRegime mapping](../../assets/diagrams/goods-typology-matrix.png)
+![Goods typology 2×2 matrix — excludability × rivalry with NDO PropertyRegime mapping](../assets/diagrams/goods-typology-matrix.png)
 
 *Ostrom's four quadrants: Common-Pool Resources (high rivalry, low excludability → CommonPool regime), Private Goods (high/high → Private), Public Goods (low/low → Commons/Nondominium), Club/Toll Goods (low rivalry, high excludability → Collective/Pool). Goods type describes intrinsic characteristics; PropertyRegime describes the chosen governance arrangement.*
 
@@ -377,7 +377,7 @@ The `PropertyRegime` on `NondominiumIdentity` should therefore be a *hard constr
 
 #### 4.4.5 Property and Distribution — Transfer Rights
 
-![Property regime transfer rights matrix — which transfer types are allowed, conditional, or prohibited per regime](../../assets/diagrams/property-regime-transfer-rights.png)
+![Property regime transfer rights matrix — which transfer types are allowed, conditional, or prohibited per regime](../assets/diagrams/property-regime-transfer-rights.png)
 
 *Six PropertyRegime variants × four transfer types (Ownership, Custody, Use Rights, Benefit). Nondominium blocks ownership transfer architecturally. Pool allows temporary custody scheduling. Commons blocks ownership but allows stewardship. Enforced by governance zome validation.*
 
@@ -678,7 +678,7 @@ This score accumulates over time and is queryable from the governance zome along
 
 ### 6.6 Governance Defaults from Classification
 
-![Resource classification to governance defaults — Nature × Rivalry × PropertyRegime mapped to GovernanceRule templates](../../assets/diagrams/resource-governance-defaults.png)
+![Resource classification to governance defaults — Nature × Rivalry × PropertyRegime mapped to GovernanceRule templates](../assets/diagrams/resource-governance-defaults.png)
 
 *Three classification axes (ResourceNature, Rivalry, PropertyRegime) determine which governance rule templates apply. Digital + NonRivalrous + Commons → open access + copy-left. Physical + Rivalrous + Pool → credentialed access + custody transfer + maintenance schedule. Defaults are starting points overridable by community GovernanceRule entries on Layer 1.*
 

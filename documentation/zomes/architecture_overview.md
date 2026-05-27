@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the Nondominium Holochain app
 
 ## System Architecture
 
-![Full system topology — Lobby DNA, zome_person, zome_resource, and zome_gouvernance with hREA bridge](../../assets/diagrams/system-topology.png)
+![Full system topology — Lobby DNA, zome_person, zome_resource, and zome_gouvernance with hREA bridge](../assets/diagrams/system-topology.png)
 
 *Lobby DNA (separate network seed) is the permissionless entry point — no DHT write required for browsing. The three NDO zomes handle identity, resource data, and governance. zome_gouvernance bridges to hREA DNA for canonical ValueFlows event recording.*
 
@@ -247,7 +247,7 @@ let receiver_ppr = PrivateParticipationClaim {
 
 ### PPR Category Determination Logic
 
-![PPR category decision tree — from VfAction and process_type to bilateral claim type pairs](../../assets/diagrams/ppr-category-decision-tree.png)
+![PPR category decision tree — from VfAction and process_type to bilateral claim type pairs](../assets/diagrams/ppr-category-decision-tree.png)
 
 *VfAction + process_type → correct PPR claim type pair. Every interaction generates exactly 2 receipts (one per agent). Create/Produce → Genesis group. Transfer → Core Custody group. Service commitments branch by process_type (Maintenance/Storage/Transport) into commitment-phase and fulfillment-phase receipt pairs.*
 
@@ -454,7 +454,7 @@ let links = get_links(
 
 ### Four-Layer Privacy Model
 
-![Four-layer privacy model — public DHT, access-controlled, private source chain, derived summaries](../../assets/diagrams/four-layer-privacy-model.png)
+![Four-layer privacy model — public DHT, access-controlled, private source chain, derived summaries](../assets/diagrams/four-layer-privacy-model.png)
 
 *Absolute privacy by default. Outermost: public DHT (readable by all). Second: access-controlled via capability grants. Third: private source chain entries (owner only — PPRs, private PII). Innermost: derived summaries (agent-controlled selective disclosure, not stored on DHT).*
 

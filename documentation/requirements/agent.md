@@ -29,7 +29,7 @@ This is not merely semantic. The data model follows the ontology: a "user" has a
 
 ### 1.2 The Agent Type Spectrum
 
-![Agent type spectrum — Individual through Collective, Project, Network, to Bot with increasing governance complexity](../../assets/diagrams/agent-type-spectrum.png)
+![Agent type spectrum — Individual through Collective, Project, Network, to Bot with increasing governance complexity](../assets/diagrams/agent-type-spectrum.png)
 
 *MVP implements Individual only. Post-MVP targets: Collective (working groups, N-of-M signing), Project (AgentContext + linked NondominiumIdentity digital twin), Network (OVN as agent), Bot (capabilities declared, operator accountable). Governance complexity increases rightward.*
 
@@ -47,7 +47,7 @@ The current NDO models only individual agents. This is a significant constraint 
 
 ### 1.3 Individual vs Person — The Two Layers of Agent Identity
 
-![Individual vs person identity layers — permissionless cryptographic key vs earned person-type credentials](../../assets/diagrams/agent-individual-vs-person.png)
+![Individual vs person identity layers — permissionless cryptographic key vs earned person-type credentials](../assets/diagrams/agent-individual-vs-person.png)
 
 *Individual-type identity: cryptographic key pair, permissionless entry, no disclosure required — like a bus ticket. Person-type identity: created on first DHT-active action, role credentials, PPR history, enables governance and custodianship — like a medical credential. The progression is earned through participation, not granted.*
 
@@ -266,7 +266,7 @@ This is a forward-looking implementation: one person may use Nondominium from a 
 
 ### 3.1 Collective Agents and Their Digital Twins
 
-![Collective agent dual-face model — agent face (AgentContext) linked to resource face (NondominiumIdentity) via ActionHash](../../assets/diagrams/collective-agent-dual-face.png)
+![Collective agent dual-face model — agent face (AgentContext) linked to resource face (NondominiumIdentity) via ActionHash](../assets/diagrams/collective-agent-dual-face.png)
 
 *Agent face: AgentContext with member agents, acts as provider/receiver in economic events, accumulates PPRs. Resource face: NondominiumIdentity — permanent anchor, lifecycle, specification, governance rules. The Project(ActionHash) in AgentEntityType bridges them. Neither face replaces the other — they are ontologically distinct.*
 
@@ -354,7 +354,7 @@ The NDO currently only models the individual case. For the generic NDO to suppor
 
 ### 4.2 The Affiliation Spectrum
 
-![Affiliation spectrum state machine — five states from UnaffiliatedStranger to CoreAffiliate with transition triggers](../../assets/diagrams/affiliation-spectrum-state-machine.png)
+![Affiliation spectrum state machine — five states from UnaffiliatedStranger to CoreAffiliate with transition triggers](../assets/diagrams/affiliation-spectrum-state-machine.png)
 
 *Five states: UnaffiliatedStranger → CloseAffiliate → ActiveAffiliate (governance gate, requires AffiliationRecord signing) → CoreAffiliate (algorithmically determined from PPR rate) → InactiveAffiliate (contribution history preserved). Re-engagement via new contributions. AffiliationState is derived from DHT data — never stored.*
 
@@ -431,7 +431,7 @@ This spectrum maps to the OVN's individual/person identity model: individual-lev
 
 ### 4.6 Agent Profile and Network Wealth
 
-![Agent as network bridge node — single agent participating in multiple OVN networks simultaneously](../../assets/diagrams/agent-network-bridge.png)
+![Agent as network bridge node — single agent participating in multiple OVN networks simultaneously](../assets/diagrams/agent-network-bridge.png)
 
 *An agent participating in Sensorica, a Fab Lab, and a Research Collective simultaneously is a bridge node — carrying trust, information, and potential collaboration across network boundaries. Multi-membership and cross-network reputation (via FlowstaIdentity DID) are themselves a form of network wealth.*
 
