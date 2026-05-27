@@ -202,6 +202,12 @@ Receipt   Receipts    Receipts       Receipt       Receipt
 
 This comprehensive lifecycle ensures complete accountability from resource creation through final decommissioning, with enhanced security measures protecting against end-of-life abuse vectors.
 
+## PPR System Overview
+
+![PPR System — bilateral accountability between sovereign agents](../../assets/ppr-system.png)
+
+*Two sovereign agents (Agent A / Provider and Agent B / Receiver) exchange a Commitment, an Economic Event, and a Claim. Each agent stores a sealed Private PPR on their own source chain only. Both receipts feed into a derived Reputation Summary.*
+
 ## PPR Process Flow Diagram
 
 ```mermaid
