@@ -1,0 +1,22 @@
+[package]
+name = "group_sweettest"
+version = "0.1.0"
+edition = "2021"
+
+# This crate is NOT compiled to WASM. It uses the holochain test_utils feature
+# to run Sweettest in-process against the compiled .dna bundles.
+#
+# IMPORTANT: Run with CARGO_TARGET_DIR=target/native-tests to avoid
+# artifact conflicts with the wasm32-unknown-unknown build directory.
+#
+# Prerequisites: `bun run build:happ` must be run before `cargo test`
+
+[dependencies]
+holochain                  = { workspace = true }
+tokio                      = { workspace = true }
+serde                      = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
+
+[[test]]
+name = "group"
+path = "src/group/mod.rs"
