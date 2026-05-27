@@ -2,6 +2,10 @@
 
 ## 1. Overview
 
+![Governance-as-operator boundary — resource zome as pure data model, governance zome as state transition operator](../../../assets/diagrams/governance-operator-boundary.png)
+
+*zome_resource stores entries only — no business logic. zome_gouvernance evaluates rules, approves or rejects transitions, and generates audit trail events. The clean boundary enables independent evolution and swappable governance schemes.*
+
 The governance-as-operator architecture establishes a clear separation between data management and business logic enforcement in the nondominium system. This design enables independent evolution of resource data structures and governance rules, providing a foundation for modular, maintainable, and extensible decentralized resource management.
 
 ### 1.1 Core Principles
@@ -147,6 +151,10 @@ pub struct GovernanceDecision {
 
 ### 3.1 Pure Function Governance
 
+![Governance evaluation pipeline — four sequential checks from permission to result combination](../../../assets/diagrams/governance-evaluation-pipeline.png)
+
+*Four-stage pure function pipeline: (1) capability/permission check, (2) GovernanceRule evaluation, (3) state validity check, (4) result combination. A FAIL at any stage triggers immediate rejection. Same inputs always produce same outputs — independently testable.*
+
 Governance logic is implemented as pure functions that evaluate state transitions without side effects:
 
 ```rust
@@ -265,6 +273,10 @@ impl EventGenerator {
 ## 4. Implementation Guidelines
 
 ### 4.1 Cross-Zome Call Patterns
+
+![Full cross-zome request sequence — agent through resource zome, governance zome, hREA, DHT, and back](../../../assets/diagrams/cross-zome-request-sequence.png)
+
+*Complete round-trip: agent request → zome_resource → zome_gouvernance (4-stage evaluation) → hREA DNA (EconomicEvent commit) → DHT → results propagated back. Solid arrows = calls, dashed = returns.*
 
 Efficient cross-zome communication patterns:
 

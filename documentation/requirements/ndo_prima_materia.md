@@ -174,7 +174,15 @@ The honest challenge of COP, noted in the complexity_oriented_programming archiv
 
 The prima materia is realized in the NDO as a **three-layer structure**, where each layer corresponds to a different register of complexity and is activated independently in response to the resource's current context.
 
+![NDO Three-Layer Architecture — identity, specification, and process activated progressively](../../assets/diagrams/ndo-three-layer-model.png)
+
+*Layer 0 (NondominiumIdentity) is always present. Layer 1 (ResourceSpecification) activates when form is ready to share. Layer 2 (Process) activates when multi-agent coordination begins. Each layer adds overhead only when the environment demands it.*
+
 ### 4.1 The Brain Architecture Analogy
+
+![Brain architecture analogy — brainstem/cerebellum/cortex mapped to NDO Layer 0/1/2](../../assets/diagrams/ndo-brain-layer-analogy.png)
+
+*The triune brain evolved in layers: brainstem (always active) → cerebellum (coordination) → cortex (higher cognition, optional). The NDO mirrors this: Layer 0 (permanent anchor) → Layer 1 (specification) → Layer 2 (process). Each layer adds complexity only when the environment demands it.*
 
 The human brain provides the most vivid structural analogy. It did not evolve as a single organ — it evolved in layers, each built on and coupled to the previous:
 
@@ -506,6 +514,10 @@ A central requirement of the NDO is that it must not need to anticipate all futu
 
 ### 6.1 The COP Principle of the Attachment Surface
 
+![Stigmergic attachment surface — agents freely attach capability slots to the NDO identity hash](../../assets/diagrams/ndo-stigmergic-attachment.png)
+
+*Any agent freely attaches capability slots (GovernanceDAO, UnytAgreement, FlowstaIdentity, custom operators) to the NDO's Layer 0 identity hash without modifying the NDO entry itself — pure stigmergy: coordination through environmental modification, not central authority.*
+
 In COP terms: you cannot design the attachment surface in advance. The DHT link space *is* the surface. Any agent, any hApp, any future tool that knows the Layer 0 identity hash can create a link from that hash to whatever it needs to attach. The NDO entry itself does not change.
 
 This is **stigmergy** in the complexity economics sense: indirect coordination through the environment. Ants coordinate the construction of a nest not by communicating plans but by leaving pheromone trails (environmental modifications) that other ants respond to. The NDO's Layer 0 hash is the pheromone trail — any agent can respond to it by attaching capabilities.
@@ -573,6 +585,10 @@ This mirrors the approach taken in the wider complex systems literature: edge-ba
 *A detailed analysis of the `UnytAgreement` slot type, its relationship to the governance layer, and the three-phase integration path.*
 
 #### Why Unyt Is a Capability, Not a Layer
+
+![Unyt coordination overhead pyramid — economic settlement warranted only at high resource complexity](../../assets/diagrams/unyt-coordination-pyramid.png)
+
+*Simple resources (Ideation/Specification) need zero economic overhead. Moderate resources (Active, distributed) benefit from GovernanceRules and custody tracking. Complex, high-value rivalrous resources justify Unyt Smart Agreements and RAVE proofs. Pay-as-you-grow.*
 
 The prima materia model has three structural layers. It might seem natural to propose a fourth — an "Economic Layer" — for payment and value-flow infrastructure. This would be the wrong architecture.
 
@@ -722,6 +738,10 @@ The governance zome's `evaluate_transition_request` function is extended to: (a)
 ### 6.7 Identity and Authentication Slots — Flowsta Integration
 
 *A detailed analysis of the `FlowstaIdentity` slot type, its relationship to the agent identity surface (Section 6.5), and the three-phase integration path.*
+
+![Flowsta dual-signed identity — NDO agent key + Flowsta Vault key → IsSamePersonEntry → W3C DID](../../assets/diagrams/flowsta-dual-signed-identity.png)
+
+*Tier 1: any agent voluntarily attaches a FlowstaIdentity slot (permissionless trust signal). Tier 2: governance rules can require a valid Flowsta link for high-trust transitions (e.g. PrimaryAccountableAgent promotion). The dual-signed IsSamePersonEntry on the NDO DHT yields a W3C DID without modifying the Person entry schema.*
 
 #### Why Flowsta Is a Capability, Not a Layer
 

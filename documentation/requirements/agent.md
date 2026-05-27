@@ -29,6 +29,10 @@ This is not merely semantic. The data model follows the ontology: a "user" has a
 
 ### 1.2 The Agent Type Spectrum
 
+![Agent type spectrum — Individual through Collective, Project, Network, to Bot with increasing governance complexity](../../assets/diagrams/agent-type-spectrum.png)
+
+*MVP implements Individual only. Post-MVP targets: Collective (working groups, N-of-M signing), Project (AgentContext + linked NondominiumIdentity digital twin), Network (OVN as agent), Bot (capabilities declared, operator accountable). Governance complexity increases rightward.*
+
 The OVN wiki defines agents as: "anything that can perform an action. Has agency, i.e. can also plan to take actions. Agents can be individuals, groups, projects, networks. Agents can also be bots, machines (IoT)."
 
 This spectrum is essential. In a P2P complexity economics framework, the system must model:
@@ -42,6 +46,10 @@ This spectrum is essential. In a P2P complexity economics framework, the system 
 The current NDO models only individual agents. This is a significant constraint for the generic NDO project, which aims to support Sensorica-style open value networks where ventures, networks, and partner organisations are themselves agents in economic processes.
 
 ### 1.3 Individual vs Person — The Two Layers of Agent Identity
+
+![Individual vs person identity layers — permissionless cryptographic key vs earned person-type credentials](../../assets/diagrams/agent-individual-vs-person.png)
+
+*Individual-type identity: cryptographic key pair, permissionless entry, no disclosure required — like a bus ticket. Person-type identity: created on first DHT-active action, role credentials, PPR history, enables governance and custodianship — like a medical credential. The progression is earned through participation, not granted.*
 
 The OVN wiki makes a distinction of deep philosophical and technical importance:
 
@@ -258,6 +266,10 @@ This is a forward-looking implementation: one person may use Nondominium from a 
 
 ### 3.1 Collective Agents and Their Digital Twins
 
+![Collective agent dual-face model — agent face (AgentContext) linked to resource face (NondominiumIdentity) via ActionHash](../../assets/diagrams/collective-agent-dual-face.png)
+
+*Agent face: AgentContext with member agents, acts as provider/receiver in economic events, accumulates PPRs. Resource face: NondominiumIdentity — permanent anchor, lifecycle, specification, governance rules. The Project(ActionHash) in AgentEntityType bridges them. Neither face replaces the other — they are ontologically distinct.*
+
 A collective entity — a project-as-organisation, a cooperative, an open value network — has **two distinct ontological faces** in the Nondominium model. These faces are different roles the same real-world entity plays, and they must not be collapsed into one.
 
 **The agent face** is the `AgentContext` carrying the relevant `AgentEntityType` variant (`Collective`, `Project`, `Network`). Through this face the collective participates in economic events as provider or receiver, holds commitments, accumulates reputation, and may be the `primary_accountable` on shared resources. Collective agents of this kind are **composed agents** or **group agents**: their actions may require N-of-M authorisation from individual member agents (multi-signature pattern — forward design, post-MVP). This is how REA-ontology-compliant collective economic agency works — it is distinct from the physical thing the collective creates or represents.
@@ -342,6 +354,10 @@ The NDO currently only models the individual case. For the generic NDO to suppor
 
 ### 4.2 The Affiliation Spectrum
 
+![Affiliation spectrum state machine — five states from UnaffiliatedStranger to CoreAffiliate with transition triggers](../../assets/diagrams/affiliation-spectrum-state-machine.png)
+
+*Five states: UnaffiliatedStranger → CloseAffiliate → ActiveAffiliate (governance gate, requires AffiliationRecord signing) → CoreAffiliate (algorithmically determined from PPR rate) → InactiveAffiliate (contribution history preserved). Re-engagement via new contributions. AffiliationState is derived from DHT data — never stored.*
+
 The OVN wiki defines five affiliation states that capture the long tail of participation:
 
 **Unaffiliated**: anonymous; accesses public information only; no obligations; not known by affiliates.
@@ -414,6 +430,10 @@ A more complete implementation would allow agents to choose their privacy level 
 This spectrum maps to the OVN's individual/person identity model: individual-level participation (anonymous), person-level participation (reputation-accumulating), and fully identified participation (legal accountability for high-trust processes).
 
 ### 4.6 Agent Profile and Network Wealth
+
+![Agent as network bridge node — single agent participating in multiple OVN networks simultaneously](../../assets/diagrams/agent-network-bridge.png)
+
+*An agent participating in Sensorica, a Fab Lab, and a Research Collective simultaneously is a bridge node — carrying trust, information, and potential collaboration across network boundaries. Multi-membership and cross-network reputation (via FlowstaIdentity DID) are themselves a form of network wealth.*
 
 The OVN wiki's individual profile description includes something not present in most technical systems: network affiliations as a form of organisational wealth. "The information about affiliations can be used... to assess the organic reach into other organisational contexts, beyond the immediate zone of influence of the context. This allows surfacing of a new form of network wealth, its influence or degree of connectivity with other networks within the ecosystem, provided by the number of relations extending from the context network to other networks, through agents."
 

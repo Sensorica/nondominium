@@ -18,6 +18,10 @@ version: v1.0 design
 
 ### 1.0 Dual-DNA Architecture (Ground Rule)
 
+![Dual-DNA architecture — hREA DNA owns canonical ValueFlows data, NDO DNA extends with governance and identity](../../assets/diagrams/dual-dna-architecture.png)
+
+*hREA DNA owns all canonical ValueFlows entry types (EconomicResource, EconomicEvent, Commitment). NDO DNA calls hREA via cross-DNA calls — never duplicates VF types. The bridge (sync_agent_hash, bridge_economic_event, get_hrea_resource) is the only coupling point.*
+
 Nondominium runs as a **dual-DNA hApp** — `hrea` DNA + `ndo` DNA, both registered as roles in `happ.yaml`. NDO does **not** re-implement VF entry types. All VF core types are owned by the `hrea` DNA. NDO coordinates governance, identity, and accountability on top of hREA via cross-DNA calls (`CallTargetCell::OtherRole("hrea")`).
 
 | Lives in hREA DNA               | Lives in NDO DNA                       |
@@ -523,6 +527,10 @@ stateDiagram-v2
 ---
 
 ## 5. Zome Responsibility Boundaries
+
+![Zome responsibility matrix — which entry types each zome owns and which cross-zome calls are authorized](../../assets/diagrams/zome-responsibility-matrix.png)
+
+*zome_person owns identity and roles. zome_resource owns NDO entry types. zome_gouvernance owns the accountability cycle (Commitment/Event/Claim/PPR). hREA DNA is the source of truth for ValueFlows. Arrows show authorized cross-zome call directions.*
 
 ### hREA DNA — VF Core Layer
 
