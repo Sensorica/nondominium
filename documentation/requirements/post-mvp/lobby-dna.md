@@ -1,10 +1,13 @@
 # Lobby DNA: Multi-Network Federation Requirements
 
-**Status**: Post-MVP Design Document
+**Status**: Partially implemented — Lobby DNA and NDO federation extensions landed in PR #103;
+Group DNA in progress (#101); MVP UI uses a localStorage group shell until Group DNA ships
 **Created**: 2026-04-14
+**Last updated**: 2026-05-23
 **Authors**: Nondominium project
 **Relates to**: `ndo_prima_materia.md`, `flowsta-integration.md`, `unyt-integration.md`,
-`many-to-many-flows.md`, `../requirements.md §2.3`
+`many-to-many-flows.md`, `../requirements.md §2.3`, `../ui_design.md` (MVP Lobby → Group → NDO UI),
+`../../IMPLEMENTATION_STATUS.md`, `../../implementation_plan.md §12.6`
 
 ---
 
@@ -139,42 +142,76 @@ For the comparative table and worked example, see
 
 ## 4. Lobby DNA Requirements
 
+> **Implementation note (PR #103):** The Lobby is a **separate DNA** (`dnas/lobby/`), not a zome inside
+> the nondominium DNA. The `lobby` role in `workdir/happ.yaml` uses canonical
+> `network_seed: "nondominium-lobby-v1"`. Entry types are `LobbyAgentProfile` and
+> **`NdoAnnouncement`** (not `NdoDescriptor` — see ADR-LOBBY-04 in `lobby-architecture.md`).
+> Coordinator APIs: `upsert_lobby_agent_profile`, `get_lobby_agent_profile`, `get_all_lobby_agents`,
+> `announce_ndo`, `get_all_ndo_announcements`, `get_my_ndo_announcements`,
+> `get_ndo_announcements_by_lifecycle`, `update_ndo_announcement`, `get_ndo_announcement`.
+> `get_my_groups` returns a solo-workspace **stub** until Group DNA (#101) lands.
+
 ### 4.1 Agent profile
 
 - **REQ-LOBBY-01**: Any agent may register a public `LobbyAgentProfile` in the Lobby DHT
   containing a handle, optional avatar, and optional bio. Registration is permissionless.
+  **Status:** ✅ Implemented (`upsert_lobby_agent_profile`).
 - **REQ-LOBBY-02**: An agent may update only their own profile. Profiles cannot be deleted
   (permanent identity anchors in the Lobby DHT).
+  **Status:** ✅ Implemented (update chain + delete rejected in integrity zome).
 - **REQ-LOBBY-03**: Agent profiles are discoverable via a global anchor
   (`Path("lobby.agents")`).
+  **Status:** ✅ Implemented (`AllLobbyAgents` link type, `get_all_lobby_agents`).
 
 ### 4.2 NDO descriptor registry
 
-- **REQ-LOBBY-04**: Any agent may register an `NdoDescriptor` entry in the Lobby DHT for an
-  NDO they initiated. The descriptor contains: NDO name, DnaHash, network_seed,
+Normative name: **`NdoDescriptor`**. Implemented entry type: **`NdoAnnouncement`** (same role,
+same fields; see `documentation/zomes/lobby_zome.md`).
+
+- **REQ-LOBBY-04**: Any agent may register an `NdoDescriptor` / `NdoAnnouncement` entry in the
+  Lobby DHT for an NDO they initiated. The descriptor contains: NDO name, DnaHash, network_seed,
   Layer 0 identity hash, lifecycle_stage, property_regime, resource_nature, and description.
+  **Status:** ✅ Implemented (`announce_ndo`).
 - **REQ-LOBBY-05**: Only the registrant may update a descriptor. Descriptors cannot be
   deleted (mirroring the permanent nature of NondominiumIdentity in the NDO DHT).
+  **Status:** ✅ Implemented (integrity zome rejects deletes; author check on update).
 - **REQ-LOBBY-06**: The only mutable field on a descriptor after registration is
   `lifecycle_stage`, which mirrors transitions on the NDO's `NondominiumIdentity`.
+  **Status:** ✅ Implemented (`update_ndo_announcement`).
 - **REQ-LOBBY-07**: Descriptors are discoverable via global anchors and categorization paths
   by lifecycle stage, resource nature, and property regime.
+  **Status:** 🔄 Partial — global anchor (`lobby.ndos`) and lifecycle paths
+  (`lobby.ndo.lifecycle.{stage}`) ✅; nature and property-regime facet anchors **not yet**
+  implemented (client-side filtering only in MVP UI).
 - **REQ-LOBBY-08**: Anti-spam: registration requires a valid `DnaHash` referencing an actual
   NDO cell. Ghost registrations (no deployed DNA) are detectable by peers who attempt to
   connect and find no DHT.
+  **Status:** 🔄 Partial — `ndo_dna_hash` is stored but not cryptographically verified at
+  registration time; social detection only.
 
 ### 4.3 Discovery model
 
 - **REQ-LOBBY-09**: NDO descriptors are publicly discoverable in the Lobby DHT without any
   group membership or invitation.
+  **Status:** ✅ Implemented at DNA level; MVP UI browse still uses resource zome + local groups.
 - **REQ-LOBBY-10**: Groups are NOT publicly discoverable. Group membership is invite-only.
   Agents discover groups through personal connections and out-of-band invite codes.
+  **Status:** ✅ By design — Group DNA not public; MVP uses localStorage invite encoding.
 - **REQ-LOBBY-11**: Canonical Lobby network seed (`"nondominium-lobby-v1"`) is hardcoded
   in the hApp bundle to ensure all deployments share one global registry.
+  **Status:** ✅ Implemented in `workdir/happ.yaml` lobby role modifiers.
 
 ---
 
 ## 5. Group DNA Requirements
+
+> **Current state:** Group DNA (`zome_group_integrity` + `zome_group_coordinator`) is **not yet
+> in the repository** (issue #101). The **MVP UI** implements the Lobby → Group → NDO navigation
+> hierarchy with a **localStorage shell** (`GroupDescriptor` in `ndo_groups_v1`) per
+> `ui_design.md` and REQ-UI-GRP-01. `LobbyService.getMyGroups()` reads/writes localStorage;
+> `associateNdoWithGroup` in `group.store.svelte.ts` appends NDO hashes locally with a TODO for
+> Group DHT propagation once DNA lands. The Lobby coordinator's `get_my_groups` returns a
+> solo-workspace stub until real membership exists on the Group DHT.
 
 ### 5.1 Group structure
 
@@ -239,23 +276,36 @@ For the comparative table and worked example, see
 
 ## 6. NDO DNA Extension Requirements
 
+> **Implementation note (PR #103):** Entry types and coordinator modules exist in
+> `zome_gouvernance`. Sweettest coverage in `dnas/nondominium/tests/src/governance/mod.rs`
+> (`create_and_get_ndo_hard_link` passes; Agreement and Contribution tests are `#[ignore]`
+> pending AccountableAgent role setup in test harness). Full **AccountableAgent** enforcement
+> on create paths awaits governance-as-operator (#41–#44) and complete promotion workflows.
+
 ### 6.1 Hard NDO-to-NDO links
 
 - **REQ-NDO-EXT-01**: The NDO DNA (zome_gouvernance) shall support a `NdoHardLink` entry
   type representing a permanent, validated structural relationship between two NDOs.
+  **Status:** ✅ Implemented.
 - **REQ-NDO-EXT-02**: A `NdoHardLink` may only be created by an agent holding the
   `AccountableAgent` or `PrimaryAccountableAgent` role in the originating NDO.
+  **Status:** 🔄 Partial — coordinator validates caller identity; full cross-zome role
+  check deferred to governance-as-operator.
 - **REQ-NDO-EXT-03**: Every `NdoHardLink` must reference a valid `EconomicEvent` fulfillment
   hash in the originating NDO's DHT. This fulfillment is the cryptographic proof that the
   incorporation actually occurred.
+  **Status:** ✅ Implemented (`create_ndo_hard_link` verifies record decodes as `EconomicEvent`).
 - **REQ-NDO-EXT-04**: `NdoHardLink` entries are immutable: no updates or deletions are
   permitted after creation. Hard links represent permanent historical reality (OVN license
   requirement).
+  **Status:** ✅ Implemented (integrity zome).
 - **REQ-NDO-EXT-05**: Three `NdoLinkType` values are supported: `Component` (target is a
   structural component of the source), `DerivedFrom` (source was forked/adapted from
   target), `Supersedes` (source replaces target in the network).
+  **Status:** ✅ Implemented.
 - **REQ-NDO-EXT-06**: Hard links are publicly discoverable on the NDO DHT via
   `NdoToHardLinks` anchor links and filterable by type.
+  **Status:** ✅ Implemented (`get_ndo_hard_links`, `get_ndo_hard_links_by_type`).
 
 #### Design note — two-stage NdoHardLink deployment
 
@@ -281,17 +331,24 @@ struct and §7.1 for the incorporation pipeline.
 
 - **REQ-NDO-EXT-07**: The NDO DNA shall support a `Contribution` entry type representing a
   peer-validated record of work done on the NDO.
+  **Status:** ✅ Implemented (`validate_contribution`, discovery queries).
 - **REQ-NDO-EXT-08**: A Contribution is created by any agent but must be validated by at
   least one `AccountableAgent` of the NDO. The `validated_by` field records all validating
   agents.
+  **Status:** 🔄 Partial — schema and API exist; AccountableAgent enforcement in tests
+  still `#[ignore]`.
 - **REQ-NDO-EXT-09**: A Contribution may optionally reference a `WorkLog` entry in a Group
   DHT (stored as `DnaHash + ActionHash`) for audit purposes. This reference is not
   validated on-chain (cross-DHT references are informational only).
+  **Status:** ✅ Schema fields `work_log_group_dna_hash`, `work_log_action_hash` on
+  `Contribution`; Group DHT not yet available.
 - **REQ-NDO-EXT-10**: When a work log is validated as a Contribution, the contributing
   agent's pubkey is discoverable via `AgentToContributions` links, making them appear in
   the NDO's contributor list.
+  **Status:** ✅ Implemented (`AgentToContributions`, `NdoToContributions` links).
 - **REQ-NDO-EXT-11**: A Contribution may optionally reference an `EconomicEvent` fulfillment
   hash when the work resulted in a structural change (i.e. hard link creation).
+  **Status:** ✅ Optional `fulfills` field on `Contribution`.
 
 ### 6.3 Smart agreements
 
@@ -301,19 +358,24 @@ Entry type name: `Agreement` (aligned with VF vocabulary `vf:Agreement`); referr
 - **REQ-NDO-EXT-12**: The NDO DNA shall support an `Agreement` entry type defining
   benefit distribution rules for the NDO. Smart agreements are created and updated only by
   agents holding the `AccountableAgent` role.
+  **Status:** ✅ Implemented (`create_agreement`, `update_agreement`, `get_current_agreement`).
 - **REQ-NDO-EXT-13**: A `Agreement` contains a list of `BenefitClause` entries, each
   specifying a beneficiary (agent or component NDO), a share percentage, and a benefit type
   (`Monetary`, `GovernanceWeight`, or `AccessRight`).
+  **Status:** ✅ Implemented.
 - **REQ-NDO-EXT-14**: Smart agreements are versioned. Each update creates a new entry linked
   to the previous via `AgreementUpdates`. The full version history is preserved for
   audit purposes.
+  **Status:** ✅ Implemented.
 - **REQ-NDO-EXT-15**: When a `NdoHardLink` of type `Component` is created, the originating
   NDO's smart agreement should be updated to include a cascade benefit rule to the component
   NDO, implementing the OVN license benefit cascade. (Automated post-MVP via Unyt; manual
   in MVP.)
+  **Status:** ❌ Not automated — manual process only; Unyt integration post-MVP.
 - **REQ-NDO-EXT-16**: `BeneficiaryRef` supports both `Agent(AgentPubKey)` and
   `NdoComponent { ndo_dna_hash, ndo_identity_hash }`, allowing benefits to flow recursively
   through the NDO composition graph.
+  **Status:** ✅ Implemented in shared types / integrity zome.
 
 ---
 
@@ -325,9 +387,12 @@ Entry type name: `Agreement` (aligned with VF vocabulary `vf:Agreement`); referr
   Group DNA + NDO DNA, all managed by one conductor) AND as a single Moss/The Weave Tool
   applet (Nondominium Lobby appears as one tile in the Moss sidebar; Moss handles agent
   invites and identity at the surface level).
+  **Status:** 🔄 Partial — standalone bundle includes **lobby** + **nondominium** + **hrea**
+  roles; Group DNA and Moss WeApplet not yet present.
 - **REQ-XCUT-02**: The NDO DNA is not modified between standalone and Moss deployments. The
   Lobby and Group DNAs are either used directly (standalone) or delegated to Moss
   equivalents (Moss integration).
+  **Status:** ✅ NDO DNA unchanged; Moss path not implemented.
 
 ### 7.2 Resources are organization-agnostic
 
@@ -405,16 +470,61 @@ an actual deployed DNA (discoverable by peers who attempt to connect).
 
 ## 10. Current State vs Planned Enforcement
 
-As of the Nondominium MVP codebase:
+*Last reconciled with `IMPLEMENTATION_STATUS.md` and the codebase, 2026-05-23.*
 
-- Lobby DNA, Group DNA, and NDO DNA extensions are **not yet implemented**.
-- The existing NDO DNA (`zome_person`, `zome_resource`, `zome_gouvernance`) provides the
-  constitutional layer for a single NDO DHT; the multi-network federation layer is absent.
-- `NdoHardLink`, `Contribution`, and `Agreement` entry types are **specified but not
-  yet present** in the WASM.
-- The companion architecture specification
-  (`documentation/specifications/post-mvp/lobby-architecture.md`) provides the full schema,
-  coordinator API, validation rules, sequence diagrams, and ADRs for implementation.
+### 10.1 What is implemented
+
+| Layer | Status | Notes |
+|-------|--------|-------|
+| **Lobby DNA** | ✅ PR #103 | `dnas/lobby/` — `LobbyAgentProfile`, `NdoAnnouncement`; `lobby` role in `happ.yaml` with `network_seed: "nondominium-lobby-v1"`; Sweettest (`lobby_sweettest`) |
+| **NDO federation extensions** | ✅ PR #103 | `NdoHardLink`, `Contribution`, `Agreement` in `zome_gouvernance`; coordinator APIs + partial Sweettest |
+| **NDO Layer 0** | ✅ PR #80 | `NondominiumIdentity` on single shared NDO DHT (`clone_limit: 0`) — Stage 2 hard-link deployment |
+| **MVP UI shell** | ✅ | Persistent Lobby sidebar, Group panel, NDO detail (`ui_design.md`); groups + lobby profile in **localStorage**; NDO data on **nondominium** DHT |
+| **Lobby service (UI)** | 🔄 Partial | `ui/src/lib/services/zomes/lobby.service.ts` exposes `announce_ndo` and `upsert_lobby_agent_profile` zome calls, but main flows still use localStorage profile + `get_all_ndos` on resource zome for browse — **Lobby DHT not yet wired end-to-end** |
+
+### 10.2 In progress or not started
+
+| Layer | Status | Notes |
+|-------|--------|-------|
+| **Group DNA** | 🔄 Issue #101 | No `dnas/group/` yet; `get_my_groups` stub in Lobby coordinator; UI `Associate with group` writes localStorage only |
+| **`group` hApp role** | ❌ | `happ.yaml` has `lobby` + `nondominium` + `hrea`; `group` role with `clone_limit: 255` not yet added |
+| **Per-NDO cell cloning** | ❌ | `nondominium` role still `clone_limit: 0` — Stage 3 multi-DHT not active |
+| **Moss WeApplet** | ❌ | `ui/src/we-applet.ts` contract specified in architecture doc; not in repo |
+| **Lobby ↔ NDO lifecycle sync** | ❌ | `update_ndo_announcement` not called automatically on `update_lifecycle_stage` |
+| **Facet discovery (nature / regime)** | ❌ | REQ-LOBBY-07 nature and property-regime path anchors not in Lobby DNA |
+| **Governance-as-operator** | ❌ | #41–#44 — blocks full AccountableAgent enforcement on Contribution / Agreement / hard links |
+
+### 10.3 MVP UI alignment (`ui_design.md`)
+
+The MVP implements the **Lobby → Group → NDO** hierarchy in the frontend while the backend
+catches up:
+
+- **Lobby profile (Level 1):** `LobbyUserProfile` in `localStorage` — not yet synced to
+  `LobbyAgentProfile` on the Lobby DHT (service method exists).
+- **Groups (Level 2):** `GroupDescriptor` in `localStorage` — replace with Group DNA when #101
+  lands; `LobbyService` interface designed for swap without component changes (REQ-UI-GRP-01).
+- **NDO browse:** Aggregates NDOs linked to the agent's local groups via `get_all_ndos` on the
+  resource zome, not yet via `get_all_ndo_announcements` on the Lobby DHT.
+- **Associate NDO with group:** localStorage only; Group DHT write pending (MVP ToDo #7 in
+  `ui_design.md`).
+- **PropertyRegime:** UI and Rust use **4 variants** (Private, Commons, Nondominium, CommonPool);
+  Collective and Pool removed after design review — Lobby `NdoAnnouncement` uses the same enum
+  via `nondominium_shared::types`.
+
+### 10.4 Planned next steps (see `implementation_plan.md §12.6`)
+
+1. **Group DNA (#101)** — `GroupDescriptor`, `GroupMembership`, `WorkLog`, `SoftLink`,
+   `GroupGovernanceRule`; add `group` role to `happ.yaml`.
+2. **Wire UI to Lobby DHT** — profile upsert, `announce_ndo` on NDO creation, browse via
+   `get_all_ndo_announcements`; mirror lifecycle updates to `update_ndo_announcement`.
+3. **Replace localStorage groups** — `LobbyService.getMyGroups()` → Group DNA; propagate
+   `associateNdoWithGroup` to Group DHT.
+4. **Governance-as-operator (#41–#44)** — enforce AccountableAgent on federation extension writes.
+5. **Stage 3 federation** — per-NDO `clone_limit`, Moss WeApplet, Flowsta identity bridge.
+
+The companion architecture specification
+(`documentation/specifications/post-mvp/lobby-architecture.md`) remains the detailed schema,
+coordinator API, pipeline, UI, Moss contract, and ADR reference for remaining work.
 
 ---
 
