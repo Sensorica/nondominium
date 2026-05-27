@@ -120,6 +120,8 @@ export interface GroupDescriptor {
   createdAt?: number;
   ndoHashes?: string[];
   memberProfile?: GroupMemberProfile;
+  /** DnaHash of the cloned group cell — present once the group has been provisioned on the DHT. */
+  dnaHash?: Uint8Array;
 }
 
 // ─── UI-only identity types (localStorage, no DHT entry) ─────────────────────

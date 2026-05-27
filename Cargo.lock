@@ -1868,6 +1868,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
+name = "group_sweettest"
+version = "0.1.0"
+dependencies = [
+ "holochain",
+ "holochain_serialized_bytes",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8263,6 +8273,27 @@ dependencies = [
  "hdi",
  "holochain_serialized_bytes",
  "nondominium_shared",
+ "serde",
+]
+
+[[package]]
+name = "zome_group_coordinator"
+version = "0.0.1"
+dependencies = [
+ "hdk",
+ "holochain_serialized_bytes",
+ "nondominium_shared",
+ "serde",
+ "thiserror 2.0.17",
+ "zome_group_integrity",
+]
+
+[[package]]
+name = "zome_group_integrity"
+version = "0.0.1"
+dependencies = [
+ "hdi",
+ "holochain_serialized_bytes",
  "serde",
 ]
 

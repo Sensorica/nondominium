@@ -145,6 +145,37 @@ The governance-as-operator pattern (pure-function `GovernanceEngine`, cross-zome
 
 ---
 
+## Group DNA ✅ Complete (PR #107)
+
+### DNA Architecture
+
+Group cells use the **cloned-cell pattern**: a single Group DNA template is installed with the hApp (`deferred: true` in `workdir/happ.yaml`). Each new group provisions its own DHT via `clone_cell`, giving full network isolation between groups. `clone_limit: 64` is the hard per-conductor ceiling.
+
+### Entry Types
+
+- `GroupProfile` — group name, description, initiator, created_at; one per cloned cell; anchor at `all_groups` path
+- `GroupMembership` — agent membership record; links removed on leave, entry retained as audit trail
+- `WorkLog` — planning-level contribution record (no PPRs; ADR-GROUP-04)
+- `SoftLink` — planning-level link to an NDO (no PPRs; ADR-GROUP-04)
+
+### Coordinator API (15 externs)
+
+`create_group`, `get_group`, `get_all_groups`, `get_my_group`, `update_group`, `join_group`, `leave_group`, `get_group_members`, `is_member`, `log_work`, `get_work_logs`, `get_my_work_logs`, `create_soft_link`, `get_soft_links`, `init`
+
+### Sweettest Coverage
+
+13 test scenarios in `dnas/group/tests/src/group/mod.rs`: group creation, discovery, membership (join/leave/is_member/duplicate-join guard), work logs (group + per-agent query), soft links, `get_my_group`, `update_group`, and validation rejection cases (empty name, zero hours).
+
+### Shared Crate
+
+`GroupError` added to `crates/shared/src/errors.rs` (gated behind `coordinator` feature), re-exported from `crates/shared/src/lib.rs`.
+
+### UI Service Layer
+
+`ui/src/lib/services/zomes/group.service.ts` — stub replaced with real `callZome` implementation targeting cloned cells; `GroupServiceTag` interface unchanged (ADR-GROUP-03).
+
+---
+
 ## hREA Dual-DNA Integration
 
 ### Phase 1: Complete ✅
@@ -241,7 +272,7 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 - PPR reputation visualization (issue #22)
 - Economic Process workflow UI (issues #28–#32)
 - Role management / agent progression UI (issues #33–#34)
-- Group DNA backend (post-MVP; currently localStorage shell — `implementation_plan.md §12.6`)
+- Group DNA backend ✅ Complete (PR #107) — cloned-cell architecture, 4 entry types, 15 coordinator externs, 13 Sweettest cases
 
 ---
 
@@ -318,7 +349,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | Person management UI components                        | ❌ Not started |
 | Economic Process UI                                    | ❌ Not started |
 | PPR reputation visualization                           | ❌ Not started |
-| Group DNA backend (currently localStorage shell)       | ❌ Not started |
+| Group DNA backend (cloned-cell architecture)           | ✅ Complete (PR #107) |
 | hREA Phase 2–4                                         | ❌ Not started |
 
 ---
@@ -335,7 +366,7 @@ The following are documented and traceable to REQ-NDO-\* in `documentation/requi
 | **Unyt (EconomicAgreement, RAVE)**                | `ndo_prima_materia.md` §6.6, §11.5; `unyt-integration.md`; REQ-NDO-CS-07–CS-11    | Not started — no Unyt cell / RAVE validation in governance zome                                                                                        |
 | **Flowsta (agent linking, IdentityVerification)** | `ndo_prima_materia.md` §6.7, §11.6; `flowsta-integration.md`; REQ-NDO-CS-12–CS-15 | Not started — `flowsta-agent-linking` zomes not bundled                                                                                                |
 | **Person capability slot (G15)**                  | `agent.md` §3.2; `person_zome.md`; REQ-AGENT-11, REQ-NDO-AGENT-07                 | Not started — no `FlowstaIdentity` links on `Person` hash                                                                                              |
-| **Lobby DNA (multi-network federation entry point)** | `post-mvp/lobby-dna.md` REQ-LOBBY-*; `specifications/post-mvp/lobby-architecture.md` | **Complete** (#103) — `zome_lobby` DNA with `LobbyAgentProfile` + `NdoAnnouncement` entry types, Sweettest suite (`lobby_sweettest`), `lobby` role in `happ.yaml`, Moss manifest. Group DNA (#101) not yet started. |
+| **Lobby DNA (multi-network federation entry point)** | `post-mvp/lobby-dna.md` REQ-LOBBY-*; `specifications/post-mvp/lobby-architecture.md` | **Complete** (#103) — `zome_lobby` DNA with `LobbyAgentProfile` + `NdoAnnouncement` entry types, Sweettest suite (`lobby_sweettest`), `lobby` role in `happ.yaml`, Moss manifest. Group DNA complete (#107). |
 | **NDO DNA extensions (NdoHardLink, Contribution, Agreement)** | `post-mvp/lobby-dna.md` REQ-NDO-EXT-01–16; `specifications/post-mvp/lobby-architecture.md §6` | **Complete** (#103) — three new entry types and link types added to `zome_gouvernance` integrity; coordinator modules `hard_link.rs`, `contribution.rs`, `agreement.rs` with Sweettest coverage. |
 
 See `documentation/implementation_plan.md` Section 12 for a phased checklist aligned with the prima materia.

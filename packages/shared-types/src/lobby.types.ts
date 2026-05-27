@@ -1,5 +1,4 @@
 import type { ActionHash, DnaHash, AgentPubKey, Timestamp } from '@holochain/client';
-import type { LifecycleStage, PropertyRegime, ResourceNature } from './resource.types.js';
 
 export interface LobbyAgentProfile {
   handle: string;
@@ -15,27 +14,20 @@ export interface LobbyAgentProfileInput {
   bio?: string;
 }
 
-export interface NdoAnnouncement {
-  ndo_name: string;
-  ndo_dna_hash: DnaHash;
+/// Registry entry for a group cloned cell in the Lobby DHT.
+/// Follows the Lobby → Groups → NDOs hierarchy: Lobby hosts groups; groups host NDOs.
+export interface GroupAnnouncement {
+  group_name: string;
+  group_dna_hash: DnaHash;
   network_seed: string;
-  ndo_identity_hash: ActionHash;
-  lifecycle_stage: LifecycleStage;
-  property_regime: PropertyRegime;
-  resource_nature: ResourceNature;
   description?: string;
   registered_by: AgentPubKey;
-  registered_at: Timestamp;
 }
 
-export interface AnnounceNdoInput {
-  ndo_name: string;
-  ndo_dna_hash: DnaHash;
+export interface AnnounceGroupInput {
+  group_name: string;
+  group_dna_hash: DnaHash;
   network_seed: string;
-  ndo_identity_hash: ActionHash;
-  lifecycle_stage: LifecycleStage;
-  property_regime: PropertyRegime;
-  resource_nature: ResourceNature;
   description?: string;
 }
 

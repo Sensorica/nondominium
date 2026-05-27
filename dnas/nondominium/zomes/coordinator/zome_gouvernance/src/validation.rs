@@ -149,7 +149,7 @@ pub fn create_resource_validation(
     validation_scheme: input.validation_scheme,
     required_validators: input.required_validators,
     current_validators: 0,
-    status: "pending".to_string(),
+    status: ResourceValidationStatus::Pending,
     created_at: now,
     updated_at: now,
   };

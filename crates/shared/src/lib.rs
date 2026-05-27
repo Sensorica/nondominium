@@ -14,7 +14,7 @@ pub mod errors;
 #[cfg(feature = "coordinator")]
 pub mod paths;
 #[cfg(feature = "coordinator")]
-pub use errors::{CommonError, GovernanceError, PersonError, ResourceError};
+pub use errors::{CommonError, GovernanceError, GroupError, PersonError, ResourceError};
 
 #[cfg(feature = "coordinator")]
 use hdk::prelude::*;
@@ -139,3 +139,4 @@ pub mod validation {
     Ok(())
   }
 }
+

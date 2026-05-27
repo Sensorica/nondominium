@@ -1,9 +1,12 @@
 //! Lobby DNA Sweettest integration tests.
 //!
 //! Covers:
-//!   - announce_ndo: single-agent creation and cross-conductor discovery
-//!   - upsert_lobby_agent_profile: create and update
-//!   - get_my_groups: returns solo workspace stub
+//!   - Agent profile: upsert_lobby_agent_profile, get_lobby_agent_profile
+//!   - Group registry: announce_group, get_all_group_announcements,
+//!     get_my_group_announcements, get_my_groups
+//!
+//! NDO announcement functions were removed from the Lobby DNA. NDOs are discovered
+//! through group cells following the Lobby → Groups → NDOs hierarchy.
 //!
 //! Prerequisites:
 //!   bun run build:happ   # builds lobby.dna
@@ -16,31 +19,20 @@ use holochain::sweettest::*;
 use serde::{Deserialize, Serialize};
 
 use lobby_sweettest::common::*;
-// Input and stub types come directly from the shared crate — no mirror needed.
-use nondominium_shared::io::lobby::{AnnounceNdoInput, GroupDescriptorStub, LobbyAgentProfileInput};
-use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature};
+use nondominium_shared::io::lobby::{AnnounceGroupInput, GroupDescriptorStub, LobbyAgentProfileInput};
 
-// ─── Local output types (contain NdoAnnouncement / LobbyAgentProfile from the
-//     integrity zome which is a WASM crate — kept here as partial assertion views) ──
+// ─── Local output types ────────────────────────────────────────────────────────
 
 /// Partial view of LobbyAgentProfile for test assertions.
-/// Holochain uses MessagePack serialization — serde_json::Value cannot be used here.
 #[derive(Debug, Serialize, Deserialize)]
 struct LobbyProfileView {
     pub handle: String,
 }
 
-/// Partial view of NdoAnnouncement for test assertions.
+/// Partial view of GroupAnnouncement for test assertions.
 #[derive(Debug, Serialize, Deserialize)]
-struct NdoAnnouncementRecord {
-    pub action_hash: ActionHash,
-    pub entry: NdoAnnouncementEntry,
-}
-
-/// Subset of NdoAnnouncement fields used for assertions.
-#[derive(Debug, Serialize, Deserialize)]
-struct NdoAnnouncementEntry {
-    pub ndo_name: String,
+struct GroupAnnouncementEntry {
+    pub group_name: String,
     pub network_seed: String,
     pub registered_by: AgentPubKey,
 }
@@ -57,77 +49,7 @@ fn decode_record_entry<T: serde::de::DeserializeOwned + std::fmt::Debug>(record:
     }
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread")]
-async fn announce_ndo_single_agent() {
-    let (conductors, cell_alice, _cell_bob) = setup_two_lobby_agents().await;
-
-    let ndo_dna_hash = DnaHash::from_raw_36(vec![0u8; 36]);
-    let ndo_identity_hash: ActionHash = conductors[0]
-        .call(
-            &cell_alice.zome("zome_lobby"),
-            "announce_ndo",
-            AnnounceNdoInput {
-                ndo_name: "Test Electronic Device".to_string(),
-                ndo_dna_hash: ndo_dna_hash.clone(),
-                network_seed: "test-seed-001".to_string(),
-                ndo_identity_hash: ActionHash::from_raw_36(vec![1u8; 36]),
-                lifecycle_stage: LifecycleStage::Active,
-                property_regime: PropertyRegime::Nondominium,
-                resource_nature: ResourceNature::Physical,
-                description: Some("A test NDO".to_string()),
-            },
-        )
-        .await;
-
-    // Alice should be able to read her own announcement
-    let announcements: Vec<NdoAnnouncementRecord> = conductors[0]
-        .call(&cell_alice.zome("zome_lobby"), "get_all_ndo_announcements", ())
-        .await;
-
-    assert_eq!(announcements.len(), 1, "expected 1 announcement");
-    assert_eq!(announcements[0].entry.ndo_name, "Test Electronic Device");
-    let _ = ndo_identity_hash;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn announce_ndo_cross_conductor() {
-    let (conductors, cell_alice, cell_bob) = setup_two_lobby_agents().await;
-
-    let _hash: ActionHash = conductors[0]
-        .call(
-            &cell_alice.zome("zome_lobby"),
-            "announce_ndo",
-            AnnounceNdoInput {
-                ndo_name: "Power Supply NDO".to_string(),
-                ndo_dna_hash: DnaHash::from_raw_36(vec![2u8; 36]),
-                network_seed: "test-seed-002".to_string(),
-                ndo_identity_hash: ActionHash::from_raw_36(vec![2u8; 36]),
-                lifecycle_stage: LifecycleStage::Stable,
-                property_regime: PropertyRegime::Commons,
-                resource_nature: ResourceNature::Physical,
-                description: None,
-            },
-        )
-        .await;
-
-    // Wait for DHT consistency between Alice and Bob
-    await_consistency(10, [&cell_alice, &cell_bob])
-        .await
-        .expect("DHT consistency timeout");
-
-    // Bob should see Alice's announcement via the global anchor
-    let bob_announcements: Vec<NdoAnnouncementRecord> = conductors[1]
-        .call(&cell_bob.zome("zome_lobby"), "get_all_ndo_announcements", ())
-        .await;
-
-    assert!(
-        !bob_announcements.is_empty(),
-        "Bob should see at least 1 announcement from Alice"
-    );
-    assert_eq!(bob_announcements[0].entry.ndo_name, "Power Supply NDO");
-}
+// ─── Agent profile tests ───────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread")]
 async fn upsert_lobby_agent_profile() {
@@ -156,6 +78,7 @@ async fn upsert_lobby_agent_profile() {
         .await;
 
     assert!(profile.is_some(), "profile should exist after upsert");
+    assert_eq!(profile.unwrap().handle, "alice_ovn");
 
     // Update profile
     let _updated_hash: ActionHash = conductors[0]
@@ -171,15 +94,135 @@ async fn upsert_lobby_agent_profile() {
         .await;
 }
 
+// ─── Group announcement tests ─────────────────────────────────────────────────
+
+/// `announce_group` creates an announcement visible via `get_all_group_announcements`.
 #[tokio::test(flavor = "multi_thread")]
-async fn get_my_groups_returns_stub() {
+async fn announce_group_single_agent() {
     let (conductors, cell_alice, _cell_bob) = setup_two_lobby_agents().await;
+
+    let group_dna_hash = DnaHash::from_raw_36(vec![0u8; 36]);
+
+    let record: Record = conductors[0]
+        .call(
+            &cell_alice.zome("zome_lobby"),
+            "announce_group",
+            AnnounceGroupInput {
+                group_name: "Open Hardware Lab".to_string(),
+                group_dna_hash: group_dna_hash.clone(),
+                network_seed: "group-seed-001".to_string(),
+                description: Some("A group for open hardware projects".to_string()),
+            },
+        )
+        .await;
+
+    let entry: GroupAnnouncementEntry = decode_record_entry(&record);
+    assert_eq!(entry.group_name, "Open Hardware Lab");
+    assert_eq!(entry.network_seed, "group-seed-001");
+
+    let all_announcements: Vec<Record> = conductors[0]
+        .call(&cell_alice.zome("zome_lobby"), "get_all_group_announcements", ())
+        .await;
+
+    assert_eq!(all_announcements.len(), 1, "should have exactly one group announcement");
+    let ann: GroupAnnouncementEntry = decode_record_entry(&all_announcements[0]);
+    assert_eq!(ann.group_name, "Open Hardware Lab");
+}
+
+/// `announce_group` cross-conductor: alice announces, bob sees it after DHT sync.
+#[tokio::test(flavor = "multi_thread")]
+async fn announce_group_cross_conductor() {
+    let (conductors, cell_alice, cell_bob) = setup_two_lobby_agents().await;
+
+    let _record: Record = conductors[0]
+        .call(
+            &cell_alice.zome("zome_lobby"),
+            "announce_group",
+            AnnounceGroupInput {
+                group_name: "Sensorica Design Group".to_string(),
+                group_dna_hash: DnaHash::from_raw_36(vec![1u8; 36]),
+                network_seed: "group-seed-002".to_string(),
+                description: None,
+            },
+        )
+        .await;
+
+    await_consistency(10, [&cell_alice, &cell_bob])
+        .await
+        .expect("DHT consistency timeout");
+
+    let bob_announcements: Vec<Record> = conductors[1]
+        .call(&cell_bob.zome("zome_lobby"), "get_all_group_announcements", ())
+        .await;
+
+    assert!(
+        !bob_announcements.is_empty(),
+        "Bob should see at least one group announcement after DHT sync"
+    );
+    // Find by name rather than index: other tests may share the same conductor pool
+    let found = bob_announcements.iter().any(|r| {
+        decode_record_entry::<GroupAnnouncementEntry>(r).group_name == "Sensorica Design Group"
+    });
+    assert!(found, "Bob should see the 'Sensorica Design Group' announcement from Alice");
+}
+
+/// `get_my_group_announcements` returns only the calling agent's announcements.
+#[tokio::test(flavor = "multi_thread")]
+async fn get_my_group_announcements_returns_own() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_lobby_agents().await;
+
+    let _: Record = conductors[0]
+        .call(
+            &cell_alice.zome("zome_lobby"),
+            "announce_group",
+            AnnounceGroupInput {
+                group_name: "Alice Group".to_string(),
+                group_dna_hash: DnaHash::from_raw_36(vec![2u8; 36]),
+                network_seed: "group-seed-003".to_string(),
+                description: None,
+            },
+        )
+        .await;
+
+    let my_announcements: Vec<Record> = conductors[0]
+        .call(&cell_alice.zome("zome_lobby"), "get_my_group_announcements", ())
+        .await;
+
+    assert_eq!(my_announcements.len(), 1, "alice should have exactly one of her own announcements");
+    let ann: GroupAnnouncementEntry = decode_record_entry(&my_announcements[0]);
+    assert_eq!(ann.group_name, "Alice Group");
+}
+
+/// `get_my_groups` returns stubs for the agent's announced groups.
+#[tokio::test(flavor = "multi_thread")]
+async fn get_my_groups_returns_real_group() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_lobby_agents().await;
+
+    // Announce a group first
+    let _: Record = conductors[0]
+        .call(
+            &cell_alice.zome("zome_lobby"),
+            "announce_group",
+            AnnounceGroupInput {
+                group_name: "Test Group".to_string(),
+                group_dna_hash: DnaHash::from_raw_36(vec![3u8; 36]),
+                network_seed: "my-test-group".to_string(),
+                description: None,
+            },
+        )
+        .await;
 
     let groups: Vec<GroupDescriptorStub> = conductors[0]
         .call(&cell_alice.zome("zome_lobby"), "get_my_groups", ())
         .await;
 
-    assert_eq!(groups.len(), 1, "should return solo workspace stub");
-    assert!(groups[0].is_solo, "stub group should be marked as solo");
-    assert_eq!(groups[0].id, "solo");
+    assert!(!groups.is_empty(), "get_my_groups should return at least one group after announcing");
+    assert!(
+        groups.iter().any(|g| g.name == "Test Group"),
+        "should find the announced group in the list"
+    );
+    assert!(
+        groups.iter().all(|g| !g.is_solo),
+        "real groups should not be marked as solo"
+    );
 }

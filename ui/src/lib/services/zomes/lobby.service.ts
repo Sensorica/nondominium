@@ -1,8 +1,8 @@
 import { Context, Effect as E, Layer } from 'effect';
 import type {
   GroupDescriptor,
-  NdoAnnouncement,
-  AnnounceNdoInput,
+  GroupAnnouncement,
+  AnnounceGroupInput,
   LobbyAgentProfile,
   LobbyAgentProfileInput
 } from '@nondominium/shared-types';
@@ -45,8 +45,9 @@ export interface LobbyService {
   joinGroup: (inviteCode: string) => E.Effect<GroupDescriptor, LobbyError>;
   generateInviteLink: (groupId: string) => E.Effect<string, LobbyError>;
   // Lobby DHT (zome-backed)
-  getAllNdoDescriptors: () => E.Effect<NdoAnnouncement[], LobbyError>;
-  announceNdo: (input: AnnounceNdoInput) => E.Effect<Uint8Array, LobbyError>;
+  announceGroup: (input: AnnounceGroupInput) => E.Effect<unknown, LobbyError>;
+  getAllGroupAnnouncements: () => E.Effect<GroupAnnouncement[], LobbyError>;
+  getMyGroupAnnouncements: () => E.Effect<GroupAnnouncement[], LobbyError>;
   upsertLobbyAgentProfile: (input: LobbyAgentProfileInput) => E.Effect<Uint8Array, LobbyError>;
   getLobbyAgentProfile: (agentPubKey: Uint8Array) => E.Effect<LobbyAgentProfile | null, LobbyError>;
 }
@@ -118,10 +119,15 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
           }) as E.Effect<string, LobbyError>,
 
         // Lobby DHT — real zome calls
-        getAllNdoDescriptors: () =>
-          wz<NdoAnnouncement[]>('get_all_ndo_announcements', null, 'GET_ALL_NDO_ANNOUNCEMENTS'),
+        // NDO discoverability flows through Groups, not the Lobby (Lobby → Groups → NDOs).
+        announceGroup: (input) =>
+          wz<unknown>('announce_group', input, 'ANNOUNCE_GROUP'),
 
-        announceNdo: (input) => wz<Uint8Array>('announce_ndo', input, 'ANNOUNCE_NDO'),
+        getAllGroupAnnouncements: () =>
+          wz<GroupAnnouncement[]>('get_all_group_announcements', null, 'GET_ALL_GROUP_ANNOUNCEMENTS'),
+
+        getMyGroupAnnouncements: () =>
+          wz<GroupAnnouncement[]>('get_my_group_announcements', null, 'GET_MY_GROUP_ANNOUNCEMENTS'),
 
         upsertLobbyAgentProfile: (input) =>
           wz<Uint8Array>('upsert_lobby_agent_profile', input, 'UPSERT_LOBBY_AGENT_PROFILE'),

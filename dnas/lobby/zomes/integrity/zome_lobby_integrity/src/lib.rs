@@ -1,10 +1,4 @@
 use hdi::prelude::*;
-// LifecycleStage, PropertyRegime, ResourceNature, and their Display impls live in
-// nondominium_shared::types — shared between this DNA and zome_resource_integrity.
-// The PR #103 comment claiming "WASM forbids cross-crate type imports between DNAs"
-// was incorrect: pure serde types with no hdk/hdi symbols can freely cross crate
-// boundaries. The real constraint was that crates/utils had hdk as a hard dep.
-pub use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature};
 
 /// Public agent presence in the Lobby DHT. Permissionless to create, permanent anchor.
 #[hdk_entry_helper]
@@ -17,21 +11,22 @@ pub struct LobbyAgentProfile {
   pub created_at: Timestamp,
 }
 
-/// Public descriptor for a registered NDO. Mirrors NondominiumIdentity key fields.
-/// Only lifecycle_stage is mutable after creation. Cannot be deleted.
+/// Registry entry for a group cloned cell.
+///
+/// Stored in the Lobby DHT so agents can discover which group cells exist and obtain
+/// their DnaHash for CellId addressing. Follows the Lobby → Groups → NDOs hierarchy:
+/// Lobby hosts groups; groups host NDOs. NDOs travel group-to-group through agents who
+/// are members of multiple groups (organic, fractal propagation).
+///
+/// Cannot be deleted. Core fields are immutable after creation.
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
-pub struct NdoAnnouncement {
-  pub ndo_name: String,
-  pub ndo_dna_hash: DnaHash,
+pub struct GroupAnnouncement {
+  pub group_name: String,          // non-empty, validated
+  pub group_dna_hash: DnaHash,     // stable CellId key for the cloned cell
   pub network_seed: String,
-  pub ndo_identity_hash: ActionHash, // Layer 0 anchor inside the NDO DHT
-  pub lifecycle_stage: LifecycleStage,
-  pub property_regime: PropertyRegime,
-  pub resource_nature: ResourceNature,
   pub description: Option<String>,
-  pub registered_by: AgentPubKey, // must equal action.author
-  pub registered_at: Timestamp,
+  pub registered_by: AgentPubKey,  // must equal action.author
 }
 
 #[hdk_entry_types]
@@ -39,7 +34,7 @@ pub struct NdoAnnouncement {
 #[derive(Serialize, Deserialize, SerializedBytes)]
 pub enum EntryTypes {
   LobbyAgentProfile(LobbyAgentProfile),
-  NdoAnnouncement(NdoAnnouncement),
+  GroupAnnouncement(GroupAnnouncement),
 }
 
 #[hdk_link_types]
@@ -47,10 +42,8 @@ pub enum LinkTypes {
   AllLobbyAgents,            // Path("lobby.agents") -> LobbyAgentProfile
   AgentProfileUpdates,       // LobbyAgentProfile -> LobbyAgentProfile (versioning)
   AgentToLobbyProfile,       // AgentPubKey -> LobbyAgentProfile (agent-centric lookup)
-  AllNdoAnnouncements,       // Path("lobby.ndos") -> NdoAnnouncement
-  NdoAnnouncementByLifecycle, // Path("lobby.ndo.lifecycle.{Stage}") -> NdoAnnouncement
-  AgentToNdoAnnouncements,   // registered_by AgentPubKey -> NdoAnnouncement
-  NdoAnnouncementUpdates,    // NdoAnnouncement -> NdoAnnouncement (lifecycle chain)
+  AllGroupAnnouncements,     // Path("lobby.groups") -> GroupAnnouncement
+  AgentToGroupAnnouncements, // AgentPubKey -> GroupAnnouncement
 }
 
 #[hdk_extern]
@@ -75,8 +68,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         EntryTypes::LobbyAgentProfile(profile) => {
           return validate_create_lobby_agent_profile(profile, action);
         }
-        EntryTypes::NdoAnnouncement(ann) => {
-          return validate_create_ndo_announcement(ann, action);
+        EntryTypes::GroupAnnouncement(ann) => {
+          return validate_create_group_announcement(ann, action);
         }
       },
       OpEntry::UpdateEntry { app_entry, .. } => match app_entry {
@@ -94,12 +87,8 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
             }
           }
         }
-        EntryTypes::NdoAnnouncement(_ann) => {
-          // Author check for NdoAnnouncement updates is done in the StoreRecord arm below,
-          // not here. StoreEntry validates entry content; StoreRecord validates action metadata
-          // (author, signatures). Both arms run on every update — this split is intentional
-          // per Holochain's dual-validation design.
-          // lifecycle_stage update is allowed; other field immutability is enforced in StoreRecord.
+        EntryTypes::GroupAnnouncement(_ann) => {
+          // GroupAnnouncement is immutable after creation — updates are rejected in StoreRecord.
         }
       },
       _ => {}
@@ -111,7 +100,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     match store_record {
       OpRecord::DeleteEntry { .. } => {
         return Ok(ValidateCallbackResult::Invalid(
-          "LobbyAgentProfile and NdoAnnouncement entries cannot be deleted".to_string(),
+          "LobbyAgentProfile and GroupAnnouncement entries cannot be deleted".to_string(),
         ));
       }
       OpRecord::UpdateEntry { original_action_hash, app_entry, action, .. } => {
@@ -146,24 +135,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
               return Ok(ValidateCallbackResult::Invalid("lobby_pubkey is immutable".to_string()));
             }
           }
-          (EntryTypes::NdoAnnouncement(updated), Some(EntryTypes::NdoAnnouncement(original))) => {
-            if action.author != original.registered_by {
-              return Ok(ValidateCallbackResult::Invalid(
-                "only the registrant can update an NdoAnnouncement".to_string(),
-              ));
-            }
-            if updated.ndo_name != original.ndo_name
-              || updated.ndo_dna_hash != original.ndo_dna_hash
-              || updated.network_seed != original.network_seed
-              || updated.ndo_identity_hash != original.ndo_identity_hash
-              || updated.property_regime != original.property_regime
-              || updated.resource_nature != original.resource_nature
-              || updated.registered_by != original.registered_by
-            {
-              return Ok(ValidateCallbackResult::Invalid(
-                "only lifecycle_stage may change in an NdoAnnouncement update".to_string(),
-              ));
-            }
+          (EntryTypes::GroupAnnouncement(_), Some(EntryTypes::GroupAnnouncement(_))) => {
+            return Ok(ValidateCallbackResult::Invalid(
+              "GroupAnnouncement entries are immutable after creation".to_string(),
+            ));
           }
           _ => {}
         }
@@ -205,26 +180,17 @@ fn validate_create_lobby_agent_profile(
   Ok(ValidateCallbackResult::Valid)
 }
 
-fn validate_create_ndo_announcement(
-  ann: NdoAnnouncement,
+fn validate_create_group_announcement(
+  ann: GroupAnnouncement,
   action: Create,
 ) -> ExternResult<ValidateCallbackResult> {
+  if ann.group_name.trim().is_empty() {
+    return Ok(ValidateCallbackResult::Invalid("group_name cannot be empty".to_string()));
+  }
   if ann.registered_by != action.author {
     return Ok(ValidateCallbackResult::Invalid(
       "registered_by must equal action.author".to_string(),
     ));
   }
-  if ann.ndo_name.trim().is_empty() {
-    return Ok(ValidateCallbackResult::Invalid("ndo_name cannot be empty".to_string()));
-  }
-  match ann.lifecycle_stage {
-    LifecycleStage::Deprecated | LifecycleStage::EndOfLife => {
-      return Ok(ValidateCallbackResult::Invalid(
-        "cannot register an NDO with Deprecated or EndOfLife lifecycle stage".to_string(),
-      ))
-    }
-    _ => {}
-  }
   Ok(ValidateCallbackResult::Valid)
 }
-

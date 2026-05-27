@@ -1,8 +1,9 @@
-import { type AgentPubKey, type AppInfoResponse, AppWebsocket } from '@holochain/client';
+import { type AgentPubKey, type AppInfoResponse, type CellId, AppWebsocket } from '@holochain/client';
 import { Context, Layer } from 'effect';
 
-export type ZomeName = 'zome_person' | 'zome_resource' | 'zome_gouvernance';
-export type RoleName = 'nondominium' | 'lobby' | `group_${string}`;
+export type ZomeName = 'zome_person' | 'zome_resource' | 'zome_gouvernance' | 'zome_group';
+// group_${string} removed: group cells are now addressed by CellId, not role-name strings.
+export type RoleName = 'nondominium' | 'lobby';
 
 export interface HolochainClientService {
   readonly appId: string;
@@ -20,7 +21,8 @@ export interface HolochainClientService {
     fnName: string,
     payload: unknown,
     capSecret?: Uint8Array | undefined,
-    roleName?: RoleName
+    roleName?: RoleName,
+    cellId?: CellId
   ): Promise<unknown>;
 
   verifyConnection(): Promise<boolean>;
@@ -105,20 +107,27 @@ function createHolochainClientService(): HolochainClientService {
     fnName: string,
     payload: unknown,
     capSecret: Uint8Array | undefined = undefined,
-    roleName: RoleName = 'nondominium'
+    roleName: RoleName = 'nondominium',
+    cellId?: CellId
   ): Promise<unknown> {
     if (!client) {
       throw new Error('Client not connected');
     }
 
+    const baseRequest = {
+      cap_secret: capSecret,
+      zome_name: zomeName,
+      fn_name: fnName,
+      payload
+    };
+
     try {
-      return await client.callZome({
-        cap_secret: capSecret,
-        zome_name: zomeName,
-        fn_name: fnName,
-        payload,
-        role_name: roleName
-      });
+      // When a CellId is provided (e.g., group cloned cells), address the cell directly.
+      // Otherwise use the role name (standard cells: nondominium, lobby).
+      const request = cellId
+        ? { ...baseRequest, cell_id: cellId }
+        : { ...baseRequest, role_name: roleName };
+      return await client.callZome(request);
     } catch (error) {
       console.error(`Error calling zome function ${zomeName}.${fnName}:`, error);
 
