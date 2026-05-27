@@ -1,7 +1,7 @@
 use hdk::prelude::*;
 use zome_lobby_integrity::*;
 use nondominium_shared::io::lobby::{
-  AnnounceNdoInput, GroupDescriptorStub, LobbyAgentProfileInput, UpdateNdoAnnouncementInput,
+  AnnounceGroupInput, GroupDescriptorStub, LobbyAgentProfileInput,
 };
 
 #[hdk_extern]
@@ -9,19 +9,12 @@ pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
   Ok(InitCallbackResult::Pass)
 }
 
-// ─── Output types (wrap entry types with action hash — stay here because they
-//     reference LobbyAgentProfile / NdoAnnouncement from the integrity zome) ──
+// ─── Output types ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LobbyAgentProfileRecord {
   pub action_hash: ActionHash,
   pub entry: LobbyAgentProfile,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NdoAnnouncementRecord {
-  pub action_hash: ActionHash,
-  pub entry: NdoAnnouncement,
 }
 
 // ─── Agent profile functions ──────────────────────────────────────────────────
@@ -43,7 +36,10 @@ pub fn upsert_lobby_agent_profile(input: LobbyAgentProfileInput) -> ExternResult
   // AgentToLobbyProfile: agent-centric lookup link (agent pubkey -> profile hash).
   // AllLobbyAgents: global path anchor (lobby.agents path -> profile hash).
   // Update detection uses AgentToLobbyProfile so per-agent queries work correctly.
-  let existing_links = get_links(LinkQuery::try_new(agent.clone(), LinkTypes::AgentToLobbyProfile)?, GetStrategy::default())?;
+  let existing_links = get_links(
+    LinkQuery::try_new(agent.clone(), LinkTypes::AgentToLobbyProfile)?,
+    GetStrategy::default(),
+  )?;
 
   if let Some(link) = existing_links.into_iter().max_by_key(|l| l.timestamp) {
     let Some(original_hash) = link.target.into_action_hash() else {
@@ -71,7 +67,7 @@ pub fn upsert_lobby_agent_profile(input: LobbyAgentProfileInput) -> ExternResult
     (),
   )?;
 
-  // Agent-centric lookup: agent pubkey -> profile (used by get_lobby_agent_profile and upsert detection)
+  // Agent-centric lookup: agent pubkey -> profile
   create_link(
     agent,
     action_hash.clone(),
@@ -85,7 +81,10 @@ pub fn upsert_lobby_agent_profile(input: LobbyAgentProfileInput) -> ExternResult
 /// Get the lobby profile for a given agent (resolves update chain).
 #[hdk_extern]
 pub fn get_lobby_agent_profile(agent: AgentPubKey) -> ExternResult<Option<LobbyAgentProfile>> {
-  let links = get_links(LinkQuery::try_new(agent, LinkTypes::AgentToLobbyProfile)?, GetStrategy::default())?;
+  let links = get_links(
+    LinkQuery::try_new(agent, LinkTypes::AgentToLobbyProfile)?,
+    GetStrategy::default(),
+  )?;
 
   let Some(link) = links.into_iter().max_by_key(|l| l.timestamp) else {
     return Ok(None);
@@ -100,14 +99,20 @@ pub fn get_lobby_agent_profile(agent: AgentPubKey) -> ExternResult<Option<LobbyA
     return Ok(None);
   };
 
-  record.entry().to_app_option::<LobbyAgentProfile>().map_err(|e| wasm_error!(WasmErrorInner::Serialize(e)))
+  record
+    .entry()
+    .to_app_option::<LobbyAgentProfile>()
+    .map_err(|e| wasm_error!(WasmErrorInner::Serialize(e)))
 }
 
 /// Get all registered lobby agent profiles.
 #[hdk_extern]
 pub fn get_all_lobby_agents(_: ()) -> ExternResult<Vec<LobbyAgentProfileRecord>> {
   let path = Path::from("lobby.agents");
-  let links = get_links(LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllLobbyAgents)?, GetStrategy::default())?;
+  let links = get_links(
+    LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllLobbyAgents)?,
+    GetStrategy::default(),
+  )?;
 
   let mut results = Vec::new();
   for link in links {
@@ -126,37 +131,34 @@ pub fn get_all_lobby_agents(_: ()) -> ExternResult<Vec<LobbyAgentProfileRecord>>
   Ok(results)
 }
 
-// ─── NDO announcement functions ───────────────────────────────────────────────
+// ─── Group announcement functions ─────────────────────────────────────────────
+//
+// The Lobby DHT is the registry for group cells. Groups host NDOs; NDOs travel
+// group-to-group through agents who are members of multiple groups (fractal,
+// organic propagation). NDO discoverability flows through Groups, not the Lobby.
 
-/// Announce an NDO to the global Lobby DHT so other agents can discover it.
+/// Announce a group cloned cell to the Lobby DHT so other agents can discover it.
+/// Returns the Record of the created GroupAnnouncement.
 #[hdk_extern]
-pub fn announce_ndo(input: AnnounceNdoInput) -> ExternResult<ActionHash> {
+pub fn announce_group(input: AnnounceGroupInput) -> ExternResult<Record> {
   let agent = agent_info()?.agent_initial_pubkey;
-  let now = sys_time()?;
 
-  let stage_label = format!("{}", input.lifecycle_stage);
-
-  let ann = NdoAnnouncement {
-    ndo_name: input.ndo_name,
-    ndo_dna_hash: input.ndo_dna_hash,
+  let ann = GroupAnnouncement {
+    group_name: input.group_name,
+    group_dna_hash: input.group_dna_hash,
     network_seed: input.network_seed,
-    ndo_identity_hash: input.ndo_identity_hash,
-    lifecycle_stage: input.lifecycle_stage,
-    property_regime: input.property_regime,
-    resource_nature: input.resource_nature,
     description: input.description,
     registered_by: agent.clone(),
-    registered_at: now,
   };
 
-  let action_hash = create_entry(&EntryTypes::NdoAnnouncement(ann))?;
+  let action_hash = create_entry(&EntryTypes::GroupAnnouncement(ann))?;
 
   // Global discovery anchor
-  let all_ndos_path = Path::from("lobby.ndos");
+  let all_groups_path = Path::from("lobby.groups");
   create_link(
-    all_ndos_path.path_entry_hash()?,
+    all_groups_path.path_entry_hash()?,
     action_hash.clone(),
-    LinkTypes::AllNdoAnnouncements,
+    LinkTypes::AllGroupAnnouncements,
     (),
   )?;
 
@@ -164,150 +166,104 @@ pub fn announce_ndo(input: AnnounceNdoInput) -> ExternResult<ActionHash> {
   create_link(
     agent,
     action_hash.clone(),
-    LinkTypes::AgentToNdoAnnouncements,
+    LinkTypes::AgentToGroupAnnouncements,
     (),
   )?;
 
-  // Lifecycle categorization for filtered queries
-  let lifecycle_path = Path::from(format!("lobby.ndo.lifecycle.{}", stage_label));
-  create_link(
-    lifecycle_path.path_entry_hash()?,
-    action_hash.clone(),
-    LinkTypes::NdoAnnouncementByLifecycle,
-    (),
-  )?;
-
-  Ok(action_hash)
+  let record = get(action_hash, GetOptions::default())?.ok_or(wasm_error!(
+    WasmErrorInner::Guest("Failed to retrieve created group announcement".to_string())
+  ))?;
+  Ok(record)
 }
 
-/// Get all NDO announcements in the Lobby DHT (cross-conductor discovery).
+/// Get all group announcements in the Lobby DHT (cross-conductor discovery).
 #[hdk_extern]
-pub fn get_all_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>> {
-  let path = Path::from("lobby.ndos");
-  let links = get_links(LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllNdoAnnouncements)?, GetStrategy::default())?;
-
-  let mut results = Vec::new();
-  for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let latest_hash = resolve_update_chain(action_hash.clone())?;
-    let Some(record) = get(latest_hash, GetOptions::default())? else {
-      continue;
-    };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NdoAnnouncement>() else {
-      continue;
-    };
-    results.push(NdoAnnouncementRecord { action_hash, entry });
-  }
-  Ok(results)
-}
-
-/// Get NDO announcements registered by the calling agent.
-#[hdk_extern]
-pub fn get_my_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>> {
-  let agent = agent_info()?.agent_initial_pubkey;
-  let links = get_links(LinkQuery::try_new(agent, LinkTypes::AgentToNdoAnnouncements)?, GetStrategy::default())?;
-
-  let mut results = Vec::new();
-  for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
-      continue;
-    };
-    let latest_hash = resolve_update_chain(action_hash.clone())?;
-    let Some(record) = get(latest_hash, GetOptions::default())? else {
-      continue;
-    };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NdoAnnouncement>() else {
-      continue;
-    };
-    results.push(NdoAnnouncementRecord { action_hash, entry });
-  }
-  Ok(results)
-}
-
-/// Get NDO announcements filtered by lifecycle stage string (e.g. "active", "stable").
-#[hdk_extern]
-pub fn get_ndo_announcements_by_lifecycle(stage: String) -> ExternResult<Vec<NdoAnnouncementRecord>> {
-  let lifecycle_path = Path::from(format!("lobby.ndo.lifecycle.{}", stage));
+pub fn get_all_group_announcements(_: ()) -> ExternResult<Vec<Record>> {
+  let path = Path::from("lobby.groups");
   let links = get_links(
-    LinkQuery::try_new(lifecycle_path.path_entry_hash()?, LinkTypes::NdoAnnouncementByLifecycle)?,
+    LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllGroupAnnouncements)?,
     GetStrategy::default(),
   )?;
 
   let mut results = Vec::new();
   for link in links {
-    let Some(action_hash) = link.target.into_action_hash() else {
+    let Some(hash) = link.target.into_action_hash() else {
       continue;
     };
-    let latest_hash = resolve_update_chain(action_hash.clone())?;
-    let Some(record) = get(latest_hash, GetOptions::default())? else {
+    let Some(record) = get(hash, GetOptions::default())? else {
       continue;
     };
-    let Ok(Some(entry)) = record.entry().to_app_option::<NdoAnnouncement>() else {
-      continue;
-    };
-    results.push(NdoAnnouncementRecord { action_hash, entry });
+    results.push(record);
   }
   Ok(results)
 }
 
-/// Update the lifecycle_stage of an NdoAnnouncement. Only the registrant may call this.
+/// Get group announcements registered by the calling agent.
 #[hdk_extern]
-pub fn update_ndo_announcement(input: UpdateNdoAnnouncementInput) -> ExternResult<ActionHash> {
-  let Some(original_record) = get(input.original_action_hash.clone(), GetOptions::default())? else {
-    return Err(wasm_error!(WasmErrorInner::Guest("original NdoAnnouncement not found".to_string())));
-  };
-  let Ok(Some(original)) = original_record.entry().to_app_option::<NdoAnnouncement>() else {
-    return Err(wasm_error!(WasmErrorInner::Guest("could not decode NdoAnnouncement".to_string())));
-  };
+pub fn get_my_group_announcements(_: ()) -> ExternResult<Vec<Record>> {
   let agent = agent_info()?.agent_initial_pubkey;
-  if agent != original.registered_by {
-    return Err(wasm_error!(WasmErrorInner::Guest(
-      "only the registrant can update an NdoAnnouncement".to_string()
-    )));
-  }
-
-  let updated = NdoAnnouncement {
-    lifecycle_stage: input.new_lifecycle_stage,
-    ..original
-  };
-  let new_hash = update_entry(input.original_action_hash.clone(), &updated)?;
-
-  create_link(
-    input.original_action_hash,
-    new_hash.clone(),
-    LinkTypes::NdoAnnouncementUpdates,
-    (),
+  let links = get_links(
+    LinkQuery::try_new(agent, LinkTypes::AgentToGroupAnnouncements)?,
+    GetStrategy::default(),
   )?;
 
-  Ok(new_hash)
+  let mut results = Vec::new();
+  for link in links {
+    let Some(hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let Some(record) = get(hash, GetOptions::default())? else {
+      continue;
+    };
+    results.push(record);
+  }
+  Ok(results)
 }
 
-/// Get a single NdoAnnouncement by its action hash (resolves update chain).
+/// Look up a group announcement by its DNA hash.
+/// Returns the first announcement whose `group_dna_hash` matches the given hash.
 #[hdk_extern]
-pub fn get_ndo_announcement(action_hash: ActionHash) -> ExternResult<Option<NdoAnnouncementRecord>> {
-  let latest_hash = resolve_update_chain(action_hash.clone())?;
-  let Some(record) = get(latest_hash.clone(), GetOptions::default())? else {
-    return Ok(None);
-  };
-  let Ok(Some(entry)) = record.entry().to_app_option::<NdoAnnouncement>() else {
-    return Ok(None);
-  };
-  Ok(Some(NdoAnnouncementRecord { action_hash: latest_hash, entry }))
+pub fn get_group_announcement_by_dna_hash(
+  dna_hash: DnaHash,
+) -> ExternResult<Option<Record>> {
+  let path = Path::from("lobby.groups");
+  let links = get_links(
+    LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllGroupAnnouncements)?,
+    GetStrategy::default(),
+  )?;
+
+  for link in links {
+    let Some(hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let Some(record) = get(hash, GetOptions::default())? else {
+      continue;
+    };
+    if let Ok(Some(ann)) = record.entry().to_app_option::<GroupAnnouncement>() {
+      if ann.group_dna_hash == dna_hash {
+        return Ok(Some(record));
+      }
+    }
+  }
+  Ok(None)
 }
 
-// ─── Group functions (stub until Group DNA ships in #101) ─────────────────────
-
-/// Returns the agent's group memberships. Stub: returns a solo workspace until
-/// Group DNA is implemented in issue #101.
+/// Returns the agent's group announcements as lightweight stubs.
 #[hdk_extern]
 pub fn get_my_groups(_: ()) -> ExternResult<Vec<GroupDescriptorStub>> {
-  Ok(vec![GroupDescriptorStub {
-    id: "solo".to_string(),
-    name: "Solo workspace".to_string(),
-    is_solo: true,
-  }])
+  let records = get_my_group_announcements(())?;
+  let stubs = records
+    .into_iter()
+    .filter_map(|r| {
+      let ann: GroupAnnouncement = r.entry().to_app_option().ok()??;
+      Some(GroupDescriptorStub {
+        id: ann.network_seed.clone(),
+        name: ann.group_name,
+        is_solo: false,
+      })
+    })
+    .collect();
+  Ok(stubs)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
