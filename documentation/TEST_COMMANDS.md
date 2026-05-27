@@ -52,6 +52,26 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test
 CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby announce_ndo_cross_conductor
 ```
 
+### Group DNA Sweettest
+
+Tests live in `dnas/group/tests/src/group/mod.rs`. Covers group creation, `get_group` (fetch by hash), `get_my_group`, membership (join/leave/is_member/duplicate-join guard), work logs (`log_work`, `get_work_logs`, `get_my_work_logs`, `delete_work_log`), soft links (`create_soft_link`, `get_soft_links`, `delete_soft_link`), `update_group`, and validation rejection cases (empty name, zero hours).
+
+> **Note:** Each test spins up 2 Holochain conductors. Running all 13 tests concurrently requires `--test-threads 6` (12 conductors max) to avoid port/resource contention.
+
+```bash
+# Prerequisites: build:happ must have been run first
+bun run build:happ
+
+# Run all Group Sweettest tests (thread-limited to avoid conductor contention)
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group -- --test-threads 6
+
+# With test output visible
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group -- --test-threads 6 --nocapture
+
+# Run a single test (no thread limit needed)
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group join_group_creates_membership
+```
+
 ### NDO Layer 0 tests (`--test nondominium`)
 
 ```bash

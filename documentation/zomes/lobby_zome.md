@@ -1,8 +1,8 @@
 # Lobby Zome (`zome_lobby`) Documentation
 
-The Lobby zome implements the global discovery and federation layer for the nondominium network. It is a separate Holochain DNA (not a zome inside the nondominium DNA) that uses the canonical `network_seed: nondominium-lobby-v1` so all deployed hApps share the same Lobby DHT. This enables cross-network NDO discovery, agent profile presence, and group membership stubs until the Group DNA ships.
+The Lobby zome implements the global discovery and federation layer for the nondominium network. It is a separate Holochain DNA (not a zome inside the nondominium DNA) that uses the canonical `network_seed: nondominium-lobby-v1` so all deployed hApps share the same Lobby DHT. The Lobby is the entry point of the Lobby → Groups → NDOs hierarchy: it maintains agent profiles and a registry of Group cells so agents can discover and join groups.
 
-**Design decisions:** See ADR-LOBBY-01 through ADR-LOBBY-04 in PR #103 for the rationale behind the separate DNA, the canonical network seed, and the `NdoAnnouncement` vs `NdoDescriptor` naming choice.
+**Design decisions:** See ADR-LOBBY-01 through ADR-LOBBY-04 in PR #103 for the rationale behind the separate DNA and canonical network seed.
 
 ---
 
@@ -32,34 +32,25 @@ pub struct LobbyAgentProfile {
 - Only the profile owner (`action.author == original.lobby_pubkey`) may update their profile
 - Delete operations are unconditionally rejected
 
-#### `NdoAnnouncement`
+#### `GroupAnnouncement`
 
-Public descriptor for a registered NDO. Links to the `NondominiumIdentity` Layer 0 anchor inside the NDO's own DHT. Only `lifecycle_stage` is mutable after creation; all other fields are immutable.
+Registry entry for a group cloned cell. Stored in the Lobby DHT so agents can discover which groups exist and obtain their `DnaHash` for `CellId` addressing. Core fields are immutable after creation; the entry cannot be deleted.
 
 ```rust
-pub struct NdoAnnouncement {
-    pub ndo_name: String,
-    pub ndo_dna_hash: DnaHash,
-    pub network_seed: String,
-    pub ndo_identity_hash: ActionHash, // Layer 0 NondominiumIdentity inside the NDO DHT
-    pub lifecycle_stage: LifecycleStage,
-    pub property_regime: PropertyRegime,
-    pub resource_nature: ResourceNature,
+pub struct GroupAnnouncement {
+    pub group_name: String,          // non-empty
+    pub group_dna_hash: DnaHash,     // stable CellId key for the cloned cell
+    pub network_seed: String,        // unique per group
     pub description: Option<String>,
-    pub registered_by: AgentPubKey,    // must equal action.author at create time
-    pub registered_at: Timestamp,
+    pub registered_by: AgentPubKey,  // must equal action.author
 }
 ```
 
 **Integrity constraints:**
-- `ndo_name` must be non-empty
-- `lifecycle_stage` cannot be `Deprecated` or `EndOfLife` at creation time
+- `group_name` must be non-empty
 - `registered_by` must equal `action.author`
-- Only the registrant (`action.author == original.registered_by`) may update the entry
-- Only `lifecycle_stage` may change in an update; all other fields are immutable
+- Update operations are unconditionally rejected (immutable after creation)
 - Delete operations are unconditionally rejected
-
-**Validation design note:** Author checks for `NdoAnnouncement` updates are split across two HDI arms. `StoreEntry` validates entry content (field constraints); `StoreRecord` validates action metadata (author identity, immutability). Both arms run on every update — this is intentional per Holochain's dual-validation design.
 
 ### Link Types
 
@@ -68,10 +59,8 @@ pub struct NdoAnnouncement {
 | `AllLobbyAgents` | `Path("lobby.agents")` | `LobbyAgentProfile` | Global agent discovery |
 | `AgentProfileUpdates` | `LobbyAgentProfile` (original hash) | `LobbyAgentProfile` (updated hash) | Update chain for profile versioning |
 | `AgentToLobbyProfile` | `AgentPubKey` | `LobbyAgentProfile` | Agent-centric lookup (used by `get_lobby_agent_profile` and upsert detection) |
-| `AllNdoAnnouncements` | `Path("lobby.ndos")` | `NdoAnnouncement` | Global NDO discovery |
-| `NdoAnnouncementByLifecycle` | `Path("lobby.ndo.lifecycle.{stage}")` | `NdoAnnouncement` | Filtered discovery by lifecycle stage |
-| `AgentToNdoAnnouncements` | `registered_by AgentPubKey` | `NdoAnnouncement` | Agent-centric NDO discovery |
-| `NdoAnnouncementUpdates` | `NdoAnnouncement` (original hash) | `NdoAnnouncement` (updated hash) | Update chain for lifecycle stage changes |
+| `AllGroupAnnouncements` | `Path("lobby.groups")` | `GroupAnnouncement` | Global group discovery |
+| `AgentToGroupAnnouncements` | `AgentPubKey` | `GroupAnnouncement` | Agent-centric group discovery |
 
 ---
 
@@ -93,11 +82,9 @@ pub struct LobbyAgentProfileInput {
 ```
 
 **Business Logic:**
-1. Reads the `AllLobbyAgents` anchor from `agent_info()` to find any existing profile link
-2. If no profile exists: creates a new `LobbyAgentProfile` entry and creates an `AllLobbyAgents` link from the agent's pubkey to the new entry
+1. Queries `AgentToLobbyProfile` links from the agent's pubkey to detect an existing profile
+2. If no profile exists: creates a new `LobbyAgentProfile` entry, creates an `AllLobbyAgents` link from the global anchor, and creates an `AgentToLobbyProfile` link from the agent's pubkey
 3. If a profile exists: calls `update_entry` on the most recent profile hash, then creates an `AgentProfileUpdates` link from the previous hash to the new one
-
-**Update chain pattern:** Discovery stays anchored on the original action hash via `AllLobbyAgents`. Updates are chained via `AgentProfileUpdates` links and walked by `resolve_update_chain()`. This avoids modifying the anchor link on every update.
 
 **Returns:** Action hash of the created or updated entry.
 
@@ -108,91 +95,76 @@ pub struct LobbyAgentProfileInput {
 Get the lobby profile for a given agent, resolving to the latest version in the update chain.
 
 **Business Logic:**
-1. Queries `AllLobbyAgents` links from the agent's pubkey
+1. Queries `AgentToLobbyProfile` links from the agent's pubkey
 2. Takes the most recent link by timestamp
-3. Walks the `AgentProfileUpdates` chain via `resolve_update_chain()` to find the latest hash
-4. Returns the decoded `LobbyAgentProfile` entry, or `None` if not found
+3. Returns the decoded `LobbyAgentProfile` entry, or `None` if not found
 
 ---
 
 #### `get_all_lobby_agents(_: ()) -> ExternResult<Vec<LobbyAgentProfileRecord>>`
 
-Get all registered lobby agent profiles from the global discovery anchor. Each result is resolved to its latest update.
+Get all registered lobby agent profiles from the global discovery anchor. Each result contains the original action hash and the latest profile entry.
 
-**Returns:** `Vec<LobbyAgentProfileRecord>` where each record contains the original `action_hash` and the latest `LobbyAgentProfile` entry.
+**Returns:** `Vec<LobbyAgentProfileRecord>` where each record contains `action_hash: ActionHash` and `entry: LobbyAgentProfile`.
 
 ---
 
-### NDO Announcement Functions
+### Group Registry Functions
 
-#### `announce_ndo(input: AnnounceNdoInput) -> ExternResult<ActionHash>`
+#### `announce_group(input: AnnounceGroupInput) -> ExternResult<Record>`
 
-Announce an NDO to the global Lobby DHT so other agents can discover it. Creates three discovery links.
+Register a group's cloned cell in the Lobby DHT so other agents can discover it.
 
 **Input:**
 ```rust
-pub struct AnnounceNdoInput {
-    pub ndo_name: String,
-    pub ndo_dna_hash: DnaHash,
+pub struct AnnounceGroupInput {
+    pub group_name: String,
+    pub group_dna_hash: DnaHash,
     pub network_seed: String,
-    pub ndo_identity_hash: ActionHash,
-    pub lifecycle_stage: LifecycleStage,
-    pub property_regime: PropertyRegime,
-    pub resource_nature: ResourceNature,
     pub description: Option<String>,
 }
 ```
 
 **Business Logic:**
-1. Creates a `NdoAnnouncement` entry with `registered_by = agent_info().agent_initial_pubkey`
-2. Creates `AllNdoAnnouncements` link: `Path("lobby.ndos")` → entry (global discovery)
-3. Creates `AgentToNdoAnnouncements` link: agent pubkey → entry (agent-centric discovery)
-4. Creates `NdoAnnouncementByLifecycle` link: `Path("lobby.ndo.lifecycle.{stage}")` → entry (filtered discovery)
+1. Creates a `GroupAnnouncement` entry with `registered_by = agent_info().agent_initial_pubkey`
+2. Creates `AllGroupAnnouncements` link: `Path("lobby.groups")` → entry (global discovery)
+3. Creates `AgentToGroupAnnouncements` link: agent pubkey → entry (agent-centric discovery)
 
-**Returns:** Action hash of the created `NdoAnnouncement` entry.
-
----
-
-#### `get_all_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>>`
-
-Get all NDO announcements from the global discovery anchor (`Path("lobby.ndos")`). Each result is resolved to its latest lifecycle stage update.
-
-**Returns:** `Vec<NdoAnnouncementRecord>` containing the original `action_hash` and latest `NdoAnnouncement` entry.
+**Returns:** The created `Record`.
 
 ---
 
-#### `get_my_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>>`
+#### `get_all_group_announcements(_: ()) -> ExternResult<Vec<Record>>`
 
-Get all NDO announcements registered by the calling agent, via the `AgentToNdoAnnouncements` links from the agent's pubkey.
+Get all group announcements from the global discovery anchor (`Path("lobby.groups")`).
 
-#### `get_ndo_announcements_by_lifecycle(stage: String) -> ExternResult<Vec<NdoAnnouncementRecord>>`
-
-Get all NDO announcements with a given lifecycle stage, via the `NdoAnnouncementByLifecycle` links from the `Path("lobby.ndo.lifecycle.{stage}")` anchor. The `stage` string must match the `Display` serialization of `LifecycleStage` (e.g. `"active"`, `"stable"`, `"ideation"`).
-
-#### `update_ndo_announcement(input: UpdateNdoAnnouncementInput) -> ExternResult<ActionHash>`
-
-Update the `lifecycle_stage` of an existing `NdoAnnouncement`. Only the original registrant (the agent whose pubkey is stored in `registered_by`) may call this. All other fields are immutable (enforced by the integrity zome's `StoreRecord` arm). Creates a `NdoAnnouncementUpdates` chain link from the original hash to the new hash.
-
-```rust
-pub struct UpdateNdoAnnouncementInput {
-    pub original_action_hash: ActionHash,
-    pub new_lifecycle_stage: LifecycleStage,
-}
-```
+**Returns:** `Vec<Record>` — decode each record's entry as `GroupAnnouncement` to access fields.
 
 ---
 
-### Group Functions (Stub)
+#### `get_my_group_announcements(_: ()) -> ExternResult<Vec<Record>>`
+
+Get all group announcements registered by the calling agent, via the `AgentToGroupAnnouncements` links from the agent's pubkey.
+
+---
+
+#### `get_group_announcement_by_dna_hash(dna_hash: DnaHash) -> ExternResult<Option<Record>>`
+
+Look up a group announcement by its `group_dna_hash`. Scans the `AllGroupAnnouncements` anchor and returns the first entry whose `group_dna_hash` matches.
+
+Used by the UI to resolve a `DnaHash` (from a `GroupDescriptorStub`) back to the full `GroupAnnouncement` for display or joining.
+
+---
 
 #### `get_my_groups(_: ()) -> ExternResult<Vec<GroupDescriptorStub>>`
 
-Returns the calling agent's group memberships. **Stub implementation** — returns a single solo workspace entry until the Group DNA is implemented in issue #101.
+Returns lightweight stubs for all groups the calling agent has announced. Derives stubs from `get_my_group_announcements()`.
 
 ```rust
 pub struct GroupDescriptorStub {
-    pub id: String,    // "solo"
-    pub name: String,  // "Solo workspace"
-    pub is_solo: bool, // true
+    pub id: String,    // network_seed — stable group identifier
+    pub name: String,  // group_name from the announcement
+    pub is_solo: bool, // always false for real group cells
 }
 ```
 
@@ -202,22 +174,21 @@ pub struct GroupDescriptorStub {
 
 ### `resolve_update_chain(original: ActionHash) -> ExternResult<ActionHash>`
 
-Walks an update chain by repeatedly calling `get_details` and following `updates` until reaching a record with no further updates. Returns the most recent action hash in the chain, determined by `action().timestamp()`.
-
-Used by both `get_lobby_agent_profile` / `get_all_lobby_agents` (for `LobbyAgentProfile` entries) and `get_all_ndo_announcements` / `get_my_ndo_announcements` (for `NdoAnnouncement` entries).
+Walks a `LobbyAgentProfile` update chain by following `AgentProfileUpdates` links until reaching the terminal hash. Used by `get_lobby_agent_profile` and `get_all_lobby_agents`.
 
 ---
 
 ## Sweettest Coverage
 
-Tests for this zome live in `dnas/lobby/tests/src/lobby/mod.rs` (`package: lobby_sweettest`).
+Tests live in `dnas/lobby/tests/src/lobby/mod.rs` (`package: lobby_sweettest`).
 
 | Test | Coverage |
 |---|---|
-| `announce_ndo_single_agent` | Single-agent creation + read via `get_all_ndo_announcements` |
-| `announce_ndo_cross_conductor` | Cross-conductor DHT consistency via `await_consistency` |
 | `upsert_lobby_agent_profile` | Create + update profile, verify via `get_lobby_agent_profile` |
-| `get_my_groups_returns_stub` | Stub always returns solo workspace |
+| `announce_group_single_agent` | Single-agent group announcement + read via `get_all_group_announcements` |
+| `announce_group_cross_conductor` | Cross-conductor DHT consistency via `await_consistency_20_s` |
+| `get_my_group_announcements_returns_own` | Agent-centric lookup returns only own announcements |
+| `get_my_groups_returns_real_group` | `get_my_groups` returns a real `GroupDescriptorStub` with `is_solo: false` |
 
 **Run:**
 ```bash

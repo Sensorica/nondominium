@@ -1104,44 +1104,31 @@ Global discovery and federation layer. Uses canonical `network_seed: nondominium
 **Authorization**: Any agent (public DHT)
 **Returns**: `Vec<LobbyAgentProfileRecord>`
 
-### NDO Announcement Functions
+### Group Registry Functions
 
-#### `announce_ndo(input: AnnounceNdoInput) -> ExternResult<ActionHash>`
-**Purpose**: Announce an NDO to the global Lobby DHT for cross-network discovery
+NDO discoverability flows through the Group layer, not the Lobby (`Lobby → Groups → NDOs`). The Lobby hosts the group registry; groups host NDOs.
+
+#### `announce_group(input: AnnounceGroupInput) -> ExternResult<Record>`
+**Purpose**: Register a group cloned cell in the Lobby DHT so other agents can discover it and obtain its DnaHash for CellId addressing
 **Authorization**: Any agent
-**Returns**: `ActionHash` of the `NdoAnnouncement` entry
+**Input**: `{ group_name, group_dna_hash: DnaHash, network_seed, description }`
+**Returns**: `Record` of the created `GroupAnnouncement` entry
 
-#### `get_all_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>>`
-**Purpose**: Retrieve all NDO announcements via global path anchor
+#### `get_all_group_announcements(_: ()) -> ExternResult<Vec<Record>>`
+**Purpose**: Enumerate all group announcements via the `lobby.groups` path anchor
 **Authorization**: Any agent (public DHT)
 
-#### `get_my_ndo_announcements(_: ()) -> ExternResult<Vec<NdoAnnouncementRecord>>`
-**Purpose**: Retrieve NDO announcements registered by the calling agent
+#### `get_my_group_announcements(_: ()) -> ExternResult<Vec<Record>>`
+**Purpose**: Return group announcements registered by the calling agent
 **Authorization**: Any agent (public DHT)
 
-#### `get_ndo_announcements_by_lifecycle(stage: String) -> ExternResult<Vec<NdoAnnouncementRecord>>`
-**Purpose**: Retrieve NDO announcements filtered by lifecycle stage
+#### `get_group_announcement_by_dna_hash(dna_hash: DnaHash) -> ExternResult<Option<Record>>`
+**Purpose**: Look up a group announcement by its cloned cell DNA hash
 **Authorization**: Any agent (public DHT)
-**Input**: Lifecycle stage string matching `LifecycleStage::Display` (e.g. `"active"`, `"stable"`)
-**Returns**: `Vec<NdoAnnouncementRecord>` via `NdoAnnouncementByLifecycle` lifecycle-path anchor
-
-#### `update_ndo_announcement(input: UpdateNdoAnnouncementInput) -> ExternResult<ActionHash>`
-**Purpose**: Advance the lifecycle stage of an existing `NdoAnnouncement`
-**Authorization**: Original registrant only (enforced in coordinator; integrity enforces field immutability)
-**Input**:
-```rust
-pub struct UpdateNdoAnnouncementInput {
-    pub original_action_hash: ActionHash,
-    pub new_lifecycle_stage: LifecycleStage,
-}
-```
-**Returns**: `ActionHash` of the updated entry; creates a `NdoAnnouncementUpdates` chain link
-
-### Group Functions (Stub)
 
 #### `get_my_groups(_: ()) -> ExternResult<Vec<GroupDescriptorStub>>`
-**Purpose**: Return the calling agent's group memberships (stub until Group DNA ships in issue #101)
-**Returns**: Always returns a single solo workspace `GroupDescriptorStub`
+**Purpose**: Return lightweight stubs for the calling agent's announced groups
+**Returns**: `Vec<GroupDescriptorStub>` derived from `get_my_group_announcements`
 
 ---
 
@@ -1349,6 +1336,73 @@ pub struct ErrorDetails {
     pub suggested_actions: Vec<String>,
 }
 ```
+
+---
+
+---
+
+## 🏘️ zome_group — Per-Group Coordination (Group DNA, cloned cell)
+
+> Full documentation: [`zomes/group_zome.md`](zomes/group_zome.md)
+
+Each group occupies its own cloned cell. Functions below operate within the calling cell's isolated DHT. The TypeScript `GroupService` uses `CellId` (DnaHash + AgentPubKey) to address the correct cloned cell — the `group_dna_hash` in the Lobby's `GroupAnnouncement` is used to resolve the CellId via `getGroupCellHandle(client, dnaHash)`.
+
+### Group Profile
+
+#### `create_group(input: GroupProfileInput) -> ExternResult<Record>`
+**Input**: `{ name: String, description: Option<String> }`
+**Returns**: Created `GroupProfile` record. Also creates the `all_groups` anchor link.
+**Validation**: name non-empty, ≤ 100 characters.
+**Note**: Initiator and created_at come from the action header (`record.action().author()` / `record.action().timestamp()`), not from entry fields.
+
+#### `get_group(group_hash: ActionHash) -> ExternResult<Option<Record>>`
+Retrieves a `GroupProfile` by action hash.
+
+#### `get_my_group() -> ExternResult<Option<Record>>`
+Returns the single `GroupProfile` in this cloned cell (one group per cell). Use this instead of `get_all_groups` — in the one-group-per-cell model, it's always 0 or 1 results.
+
+#### `update_group(input: UpdateGroupInput) -> ExternResult<Record>`
+**Input**: `{ previous_action_hash: ActionHash, original_action_hash: ActionHash, updated_name: String, updated_description: Option<String> }`
+Updates the group name and/or description. Only the original initiator may update.
+Creates a `GroupUpdates` link from `original_action_hash` to the new version's action hash.
+
+### Membership
+
+#### `join_group(group_hash: ActionHash) -> ExternResult<Record>`
+Creates a `GroupMembership` entry and `GroupToMembers` + `MemberToGroups` links.
+**Guard**: Returns `GroupError::AlreadyMember` if agent already has a membership entry.
+
+#### `leave_group(group_hash: ActionHash) -> ExternResult<()>`
+Deletes the `GroupToMembers` and `MemberToGroups` links for the calling agent.
+The `GroupMembership` entry is intentionally retained on-chain as an audit trail.
+
+#### `get_group_members(group_hash: ActionHash) -> ExternResult<Vec<Record>>`
+Returns Records for all current members reachable via `GroupToMembers` links. Member identity = `record.action().author()`.
+
+#### `is_member(input: (AgentPubKey, ActionHash)) -> ExternResult<bool>`
+Predicate: does the given agent appear in `get_group_members`?
+
+### Work Logs
+
+#### `log_work(input: WorkLogInput) -> ExternResult<Record>`
+**Input**: `{ group_hash: ActionHash, description: String, hours: f32 }`
+Creates a `WorkLog` entry with `GroupToWorkLogs` and `AgentToWorkLogs` links.
+**Validation**: description non-empty; hours > 0.
+
+#### `get_work_logs(group_hash: ActionHash) -> ExternResult<Vec<Record>>`
+Returns Records for all `WorkLog` entries in the group. Author = `record.action().author()`.
+
+#### `get_my_work_logs() -> ExternResult<Vec<Record>>`
+Returns Records for `WorkLog` entries authored by the calling agent (via `AgentToWorkLogs` links).
+
+### Soft Links
+
+#### `create_soft_link(input: SoftLinkInput) -> ExternResult<Record>`
+**Input**: `{ group_hash: ActionHash, target_ndo_hash: ActionHash, description: Option<String> }`
+Creates a `SoftLink` entry — the Group → NDO relationship in the `Lobby → Groups → NDOs` hierarchy. No PPRs generated (ADR-GROUP-04). Creator = action author.
+
+#### `get_soft_links(group_hash: ActionHash) -> ExternResult<Vec<Record>>`
+Returns Records for all `SoftLink` entries in the group. Creator = `record.action().author()`.
 
 ---
 
