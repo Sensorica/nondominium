@@ -114,3 +114,16 @@ export const HOLOCHAIN_CLIENT_CONTEXTS = {
   CALL_ZOME: 'Failed to call zome function',
   GET_APP_INFO: 'Failed to get app info'
 } as const;
+
+export const GROUP_CONTEXTS = {
+  CREATE_GROUP: 'Failed to create group',
+  GET_GROUP: 'Failed to get group',
+  GET_ALL_GROUPS: 'Failed to get all groups',
+  JOIN_GROUP: 'Failed to join group',
+  LEAVE_GROUP: 'Failed to leave group',
+  GET_GROUP_MEMBERS: 'Failed to get group members',
+  LOG_WORK: 'Failed to log work',
+  GET_WORK_LOGS: 'Failed to get work logs',
+  CREATE_SOFT_LINK: 'Failed to create soft link',
+  GET_SOFT_LINKS: 'Failed to get soft links'
+} as const;

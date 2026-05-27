@@ -9,6 +9,9 @@ export * from "./person.types.js";
 // Resource zome types
 export * from "./resource.types.js";
 
+// Group zome types
+export * from "./group.types.js";
+
 // Governance zome types
 export * from "./governance.types.js";
 

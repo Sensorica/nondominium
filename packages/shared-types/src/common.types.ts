@@ -1,9 +1,14 @@
 import type {
   ActionHash,
   AgentPubKey,
+  CellId,
+  DnaHash,
   EntryHash,
   Timestamp,
 } from "@holochain/client";
+
+// Re-export Holochain addressing types for convenience
+export type { CellId, DnaHash };
 
 // Core Holochain types
 export type HolochainHash = ActionHash | EntryHash;
