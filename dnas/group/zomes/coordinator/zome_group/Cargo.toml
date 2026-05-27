@@ -1,0 +1,16 @@
+[package]
+name = "zome_group_coordinator"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "zome_group_coordinator"
+
+[dependencies]
+hdk = { workspace = true }
+serde = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
+thiserror = { workspace = true }
+zome_group_integrity = { path = "../../integrity/zome_group_integrity" }
+nondominium_shared = { workspace = true, features = ["coordinator"] }

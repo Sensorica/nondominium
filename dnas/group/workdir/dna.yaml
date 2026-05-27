@@ -1,0 +1,17 @@
+---
+manifest_version: "0"
+name: group
+integrity:
+  network_seed: ~
+  properties: ~
+  zomes:
+    - name: zome_group_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/zome_group_integrity.wasm"
+coordinator:
+  zomes:
+    - name: zome_group
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/zome_group_coordinator.wasm"
+      dependencies:
+        - name: zome_group_integrity
