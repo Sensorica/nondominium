@@ -4,6 +4,10 @@
 
 This section describes the minimalistic UI for MVP Layer 0 — NDO Identity (stable anchor; only `lifecycle_stage` evolves after creation; REQ-NDO-L0-*). The MVP UI implements the concepts of **Lobby**, **Groups**, and **NDO view**.
 
+![Lobby → Groups → NDOs three-level hierarchy — DNA architecture, identity progression, and navigation flow](../assets/diagrams/lobby-groups-ndos-hierarchy.png)
+
+*Lobby discovers **Groups** (via `GroupAnnouncement` in the shared Lobby DHT) — not NDOs. Groups discover NDOs via `SoftLink` entries in each Group's own cloned-cell DHT. The Lobby's NdoBrowser shows only NDOs from the agent's own groups, not a global public registry. NDOs can only be created from within a Group. Identity: localStorage nickname → per-group profile → Person DHT entry on first NDO action.*
+
 ---
 
 ### Lobby

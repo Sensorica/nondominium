@@ -9,9 +9,9 @@
 
 The Nondominium frontend is a SvelteKit application using Svelte 5 runes, Effect-TS for async state management, and UnoCSS for styling. It exposes the three-zome Holochain backend through a typed service + store layer and renders a three-level navigational hierarchy:
 
-```
-Lobby  →  Group  →  NDO
-```
+![Lobby → Groups → NDOs three-level hierarchy — DNA architecture, identity progression, and navigation flow](../assets/diagrams/lobby-groups-ndos-hierarchy.png)
+
+*Lobby (global shared DHT) discovers **Groups** via `GroupAnnouncement` — not NDOs directly. Each Group is a cloned Group DNA cell with its own isolated DHT; Groups link to NDOs via `SoftLink` entries. The Lobby's NdoBrowser aggregates only NDOs from the agent's own groups — there is no global public NDO registry. Identity deepens at each level: localStorage nickname (Level 1) → per-group profile (Level 2) → Person DHT entry on first NDO action (Level 3).*
 
 This hierarchy maps to the three concentric organizational scopes in `ui_design.md`:
 
