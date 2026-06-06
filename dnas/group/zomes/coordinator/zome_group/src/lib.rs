@@ -13,5 +13,5 @@ pub use work_log::*;
 
 #[hdk_extern]
 pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
-    Ok(InitCallbackResult::Pass)
+  Ok(InitCallbackResult::Pass)
 }

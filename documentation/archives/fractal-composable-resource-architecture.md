@@ -366,6 +366,13 @@ VerificationStatus {
 - **Homomorphic Verification**: Verification of encrypted data without decryption
 - **Blockchain Integration**: Cross-blockchain verification and provenance tracking
 
+## Derived Work
+
+Concepts from this document — fractal composition taxonomy (Atomic/Component/Composite), hierarchical trust propagation, and verification as a fractal process — have been integrated into the Complexity Driven Development methodology and AI skill:
+
+- **Methodology**: `nondominium-design-system/.cursor/skills/complexity-oriented-programming/methodology.md`
+- **AI Skill**: `nondominium-design-system/.cursor/skills/complexity-oriented-programming/SKILL.md`
+
 ---
 **Status**: CONCEPTUAL DESIGN COMPLETE - READY FOR TECHNICAL SPECIFICATION
 **Next Phase**: Implementation Planning and Holochain Zome Architecture Design

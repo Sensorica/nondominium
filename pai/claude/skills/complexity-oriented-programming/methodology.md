@@ -11,21 +11,24 @@ CDD operationalizes the principles of **Complexity Oriented Programming (COP)**,
 - **From Execution to Coordination:** The primary bottleneck is no longer computation, but the coordination of distributed agency.
 - **From Control to Emergence:** We cannot design the perfect global state; we can only design local rules, constraints, and feedback loops that allow coherent global states to emerge.
 - **From Rigidity to Evolution:** Foundational architectures must be able to recursively rewrite their own rules as the environment changes.
+- **From Platforms to Fabrics:** Infrastructure should not mediate and control interactions (platform model). It should provide a coordination substrate — a fabric — where autonomous entities self-organize through embedded rules and stigmergic signals. The fabric enables; the platform constrains.
 
 ## 3. The CDD Ontology (The Primitives)
 Traditional development utilizes functions, classes, and modules. CDD utilizes a complex adaptive sequence:
 1. **Agent:** The sovereign actor (human, collective, or AI). Agents possess identity, capability, and subjective perspective.
 2. **Process:** A sequence of interactions or state transitions.
-3. **Relation:** The semantic and cryptographic links between agents, processes, and resources.
-4. **Network:** A topology of relations forming a bounded community or commons.
-5. **Ecosystem:** The overarching environment of interoperating networks.
+3. **Resource:** An autonomous entity with its own identity, embedded governance rules, and lifecycle. Resources are not passive data acted upon by agents — they are coordination objects that carry their own rules and exist independently of any host or platform. In CDD, resources are the *what* around which agents, processes, and relations organize.
+4. **Relation:** The semantic and cryptographic links between agents, processes, and resources.
+5. **Network:** A topology of relations forming a bounded community or commons.
+6. **Ecosystem:** The overarching environment of interoperating networks.
 
 ## 4. Core Principles of CDD
-1. **Fractal Composability:** Organizational and architectural principles must apply recursively. The rules governing an individual agent should naturally scale to govern a team, a network, and a federation.
+1. **Fractal Composability:** Organizational and architectural principles must apply recursively. The rules governing an individual agent should naturally scale to govern a team, a network, and a federation. This includes **trust/integrity propagation**: verification and trust must compose through the fractal hierarchy. Local verification at each level (component, assembly, system) produces global coherence. Trust propagates upward (component status affects the whole), downward (system requirements constrain parts), and laterally (changes to one component affect siblings). Design the composition so that the integrity of the whole is derivable from the integrity of its parts.
 2. **Stigmergic Coordination:** Agents coordinate by leaving discoverable traces and modifying their shared environment (e.g., capability slots, participation receipts) rather than relying on top-down orchestration.
-3. **Dynamic Complexity Matching:** Governance overhead and structural rigidity must match the actual social complexity of the task. Do not enforce high-complexity rules on low-complexity states (e.g., Ideation phase).
+3. **Dynamic Complexity Matching:** Governance overhead and structural rigidity must match the actual social complexity of the task. Do not enforce high-complexity rules on low-complexity states (e.g., Ideation phase). This includes the principle of **subsidiarity**: decisions and authority should reside at the most local level that can effectively handle them. Global coordination should emerge from local interactions, not be imposed from above. Escalate only when a decision genuinely requires broader context. Subsidiarity is the governance expression of complexity matching — don't centralize what can be resolved locally.
 4. **Governance-as-Operator:** Strictly decouple the underlying data substrate from the regulatory signaling (governance logic). This allows the rules of the system to evolve without requiring destructive data migrations.
 5. **Path-Dependency Awareness:** Every architectural choice creates a trajectory that constrains future options. CDD actively counters this by utilizing AI to continuously scan and analyze the history of contributions, commits, and the evolution of the codebase itself. This provides developers and agents with insights into potential cognitive or structural biases, ensuring that current decisions are not blindly conditioned by past actions.
+6. **Anti-Fragility:** Design systems that gain from stress, disorder, and volatility — not merely systems that survive them. Resilience (recovering from failure) is necessary but insufficient. Anti-fragile systems use disruption as a learning signal: disputes generate governance data that improves future rule evaluation; component failures populate verification caches that accelerate future checks; adversarial behavior strengthens the reputation signal. The test is not "does the system survive this shock?" but "is the system better after this shock?"
 
 ## 5. Roles and Actors
 In CDD, roles are not hierarchical job titles but dynamic, capability-based expressions of agency. Because of Fractal Composability, an "Actor" can be a single human, an AI bot, or an entire collective acting as one holon.
@@ -64,9 +67,11 @@ Instead of linear stages or endless, identical sprints, CDD operates through **P
 - **Private Participation Receipts (PPRs):** Bilaterally signed cryptographic receipts that form the basis of a distributed reputation system.
 - **Semantic Perspectives:** Subjective graphs that map how different agents perceive and link data.
 - **Path-Dependency Reports:** AI-generated analyses of contribution history and codebase evolution that highlight embedded biases and constraints inherited from past decisions.
+- **Composition Manifests:** Declarations of how resources compose into larger wholes (Atomic, Component, Composite), including required/optional/alternative relationship types, version compatibility matrices, and substitution rules. The manifest is itself a fractal artifact — each assembly's manifest references its components' manifests recursively.
+- **Trust Propagation Maps:** Representations of how verification status flows through a composition hierarchy. Maps track verification level, trust level, and dependency/dependent relationships at each node, enabling incremental re-verification when components change.
 
 ## 8. Evaluation Metrics
-1. **Resilience:** The system's ability to maintain coherence when nodes (agents) drop out or act maliciously.
+1. **Anti-Fragility:** The system's ability not merely to maintain coherence when agents drop out or act maliciously (resilience), but to *improve* its governance, verification, and coordination quality as a result of the disruption. Stress should make the system smarter, not just keep it alive.
 2. **Evolvability:** How easily the community can alter the Layer 1 Social DNA without breaking the Layer 0 identity substrate.
 3. **Coordination Capacity:** The number of heterogeneous agents (humans, organizations, AIs) that can effectively collaborate on a shared resource without central mediation.
 4. **Holonic Health:** Ensuring that collectives (networks) function efficiently without crushing the autonomy of their constituent parts (individual agents).
