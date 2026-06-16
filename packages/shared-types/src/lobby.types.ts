@@ -38,6 +38,15 @@ export interface GroupDescriptorStub {
   is_solo?: boolean;
 }
 
+/** Payload encoded in group invite links (base64 JSON in `?group=` query param). */
+export interface GroupInvitePayload {
+  network_seed: string;
+  /** Base64-encoded DnaHash of the cloned group cell. */
+  group_dna_hash: string;
+  group_name: string;
+  description?: string;
+}
+
 export interface NdoHardLink {
   from_ndo_identity_hash: ActionHash;
   to_ndo_dna_hash: DnaHash;

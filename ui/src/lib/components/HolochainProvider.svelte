@@ -1,14 +1,14 @@
 <script lang="ts">
   import { holochainService } from '$lib/services';
+  import { HolochainConnectionError } from '$lib/utils/hc-connect';
   import { onMount } from 'svelte';
 
   interface Props {
     children?: import('svelte').Snippet;
     autoConnect?: boolean;
-    url?: string;
   }
 
-  let { children, autoConnect = true, url }: Props = $props();
+  let { children, autoConnect = true }: Props = $props();
 
   // Simple state without reactive derivation
   let status: string = $state('disconnected');
@@ -66,6 +66,13 @@
       <p class="mb-4 text-gray-600">
         Unable to connect to Holochain conductor: {error.message}
       </p>
+      {#if error instanceof HolochainConnectionError}
+        <ul class="mb-4 list-disc space-y-1 pl-5 text-left text-sm text-gray-600">
+          {#each error.hints as hint}
+            <li>{hint}</li>
+          {/each}
+        </ul>
+      {/if}
       <button
         onclick={retry}
         class="rounded bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
@@ -77,7 +84,8 @@
           Connection Details
         </summary>
         <div class="mt-2 rounded bg-gray-100 p-3 font-mono text-xs">
-          <p><strong>URL:</strong> {url || 'ws://localhost:8888'}</p>
+          <p><strong>URL:</strong> {holochainService.connectionUrl ?? '(not connected)'}</p>
+          <p><strong>Mode:</strong> {holochainService.connectionMode ?? 'unknown'}</p>
           <p><strong>Error:</strong> {error.message}</p>
         </div>
       </details>

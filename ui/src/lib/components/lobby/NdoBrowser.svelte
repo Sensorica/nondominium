@@ -15,6 +15,11 @@
     activeFilters?: ActiveFilters;
     onfilterchange?: (partial: Partial<ActiveFilters>) => void;
     onclearfilters?: () => void;
+    /** Lobby view: distinguish no-groups vs groups-with-no-NDOs */
+    hasGroups?: boolean;
+    showOnboarding?: boolean;
+    onCreateGroup?: () => void;
+    onJoinGroup?: () => void;
   }
 
   let {
@@ -23,7 +28,11 @@
     errorMessage = null,
     activeFilters = { stages: [], natures: [], regimes: [] },
     onfilterchange,
-    onclearfilters
+    onclearfilters,
+    hasGroups = true,
+    showOnboarding = false,
+    onCreateGroup,
+    onJoinGroup
   }: Props = $props();
 
   const allStages: LifecycleStage[] = [
@@ -182,11 +191,42 @@
     {/if}
 
     {#if descriptors.length === 0 && !isLoading}
-      <p class="text-sm text-gray-500">
-        {hasFilters
-          ? 'No NDOs match the selected filters.'
-          : 'No NDOs yet. Create one from within a group.'}
-      </p>
+      {#if showOnboarding && !hasGroups}
+        <div class="rounded-lg border border-dashed border-blue-200 bg-blue-50 p-6 text-center">
+          <p class="text-sm font-medium text-gray-800">Create or join a group to see NDOs</p>
+          <p class="mt-1 text-sm text-gray-500">
+            NDOs are scoped to groups. Start by creating a group or pasting an invite link.
+          </p>
+          <div class="mt-4 flex justify-center gap-2">
+            <button
+              type="button"
+              onclick={() => onCreateGroup?.()}
+              class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Create group
+            </button>
+            <button
+              type="button"
+              onclick={() => onJoinGroup?.()}
+              class="rounded border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              Join group
+            </button>
+          </div>
+        </div>
+      {:else if showOnboarding && hasGroups}
+        <p class="text-sm text-gray-500">
+          {hasFilters
+            ? 'No NDOs match the selected filters.'
+            : 'No NDOs in your groups yet. Open a group and create one.'}
+        </p>
+      {:else}
+        <p class="text-sm text-gray-500">
+          {hasFilters
+            ? 'No NDOs match the selected filters.'
+            : 'No NDOs yet. Create one from within a group.'}
+        </p>
+      {/if}
     {:else}
       <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {#each descriptors as d (d.hash)}

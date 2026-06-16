@@ -1,52 +1,46 @@
 import { Context, Layer, Effect as E } from 'effect';
 import type { ActionHash, CellId } from '@holochain/client';
-import { encodeHashToBase64 } from '@holochain/client';
+import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import {
   HolochainClientServiceTag,
   HolochainClientServiceLive
 } from '../holochain.service.svelte';
 import { GroupError } from '$lib/errors/group.errors';
 import { GROUP_CONTEXTS } from '$lib/errors/error-contexts';
-import type { WorkLog, SoftLink } from '@nondominium/shared-types';
+import type { SoftLink } from '@nondominium/shared-types';
+import {
+  decodeGroupEntry,
+  groupProfileFromRecord,
+  softLinkTargetHashB64,
+  type GroupHolochainRecord
+} from '../group-clone.helpers';
 
-// Stub types preserved for backward compatibility with existing UI components.
 export interface GroupMemberStub {
   id: string;
   name: string;
-}
-
-export interface WorkLogStub {
-  id: string;
-  title: string;
+  role?: string;
 }
 
 export interface SoftLinkStub {
   id: string;
   label: string;
+  targetNdoHashB64: string;
 }
 
-// Minimal shape of a Holochain Record as returned by callZome.
-// Author (member identity) and timestamp come from the action header.
-interface HolochainRecord {
-  signed_action: {
-    hashed: {
-      hash: Uint8Array;
-      content: {
-        author: Uint8Array;
-        timestamp: number;
-      };
-    };
-  };
-}
-
-// GroupServiceTag interface (ADR-GROUP-03: interface stable, CellId replaces string groupId).
 export interface GroupService {
   getMembers: (groupCellId: CellId) => E.Effect<GroupMemberStub[], GroupError>;
-  getWorkLogs: (groupCellId: CellId) => E.Effect<WorkLogStub[], GroupError>;
+  getWorkLogs: (groupCellId: CellId) => E.Effect<{ id: string; title: string }[], GroupError>;
   getSoftLinks: (groupCellId: CellId) => E.Effect<SoftLinkStub[], GroupError>;
+  getSoftLinkTargetHashes: (groupCellId: CellId) => E.Effect<string[], GroupError>;
+  createSoftLink: (
+    groupCellId: CellId,
+    groupHashB64: string,
+    targetNdoHashB64: string,
+    description?: string
+  ) => E.Effect<void, GroupError>;
 }
 
-export class GroupServiceTag extends Context.Tag('GroupService')<GroupServiceTag, GroupService>() {}
+export class GroupServiceTag extends Context.Tag('GroupService')<GroupServiceTag, GroupService>() { }
 
 export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClientServiceTag> =
   Layer.effect(
@@ -54,7 +48,6 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
     E.gen(function* () {
       const holochainClient = yield* HolochainClientServiceTag;
 
-      // Call a function on the cloned group cell identified by its CellId.
       const callGroupZome = <T>(
         groupCellId: CellId,
         fnName: string,
@@ -69,32 +62,35 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
               fnName,
               payload,
               undefined,
-              undefined,   // roleName not used when cellId is provided
-              groupCellId  // CellId addressing for cloned group cell
+              undefined,
+              groupCellId
             ) as Promise<T>;
           },
           catch: (error) => GroupError.fromError(error, context)
         });
 
-      // Each cloned cell = one group. `get_my_group` returns the single GroupProfile Record.
       const resolveGroupHash = (groupCellId: CellId): E.Effect<ActionHash | null, GroupError> =>
         E.map(
-          callGroupZome<HolochainRecord | null>(
+          callGroupZome<GroupHolochainRecord | null>(
             groupCellId,
             'get_my_group',
             null,
             GROUP_CONTEXTS.GET_GROUP
           ),
-          (record) => (record?.signed_action?.hashed?.hash as ActionHash | undefined) ?? null
+          (record) => {
+            const profile = record ? groupProfileFromRecord(record) : null;
+            return profile
+              ? (decodeHashFromBase64(profile.groupHashB64) as ActionHash)
+              : null;
+          }
         );
 
       return {
-        // get_group_members returns Vec<Record>; member identity is record.signed_action.hashed.content.author
         getMembers: (groupCellId) =>
           E.flatMap(resolveGroupHash(groupCellId), (groupHash) => {
             if (!groupHash) return E.succeed([]);
             return E.map(
-              callGroupZome<HolochainRecord[]>(
+              callGroupZome<GroupHolochainRecord[]>(
                 groupCellId,
                 'get_group_members',
                 groupHash,
@@ -104,17 +100,20 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
                 records.map((r) => {
                   const authorBytes = r.signed_action?.hashed?.content?.author;
                   const authorB64 = authorBytes ? encodeHashToBase64(authorBytes) : 'unknown';
-                  return { id: authorB64, name: authorB64.slice(0, 8) };
+                  return {
+                    id: authorB64,
+                    name: `${authorB64.slice(0, 8)}…${authorB64.slice(-4)}`,
+                    role: 'Member'
+                  };
                 })
             );
           }),
 
-        // get_work_logs returns Vec<Record>; entry contains WorkLog data (description, hours)
         getWorkLogs: (groupCellId) =>
           E.flatMap(resolveGroupHash(groupCellId), (groupHash) => {
             if (!groupHash) return E.succeed([]);
             return E.map(
-              callGroupZome<(HolochainRecord & { entry?: { Present?: { entry: WorkLog } } })[]>(
+              callGroupZome<GroupHolochainRecord[]>(
                 groupCellId,
                 'get_work_logs',
                 groupHash,
@@ -122,7 +121,7 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
               ),
               (records) =>
                 records.map((r, i) => {
-                  const log = r.entry?.Present?.entry;
+                  const log = decodeGroupEntry(r);
                   return {
                     id: String(r.signed_action?.hashed?.content?.timestamp ?? i),
                     title: log?.description ?? '(work log)'
@@ -131,12 +130,11 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
             );
           }),
 
-        // get_soft_links returns Vec<Record>; entry contains SoftLink data (description)
         getSoftLinks: (groupCellId) =>
           E.flatMap(resolveGroupHash(groupCellId), (groupHash) => {
             if (!groupHash) return E.succeed([]);
             return E.map(
-              callGroupZome<(HolochainRecord & { entry?: { Present?: { entry: SoftLink } } })[]>(
+              callGroupZome<GroupHolochainRecord[]>(
                 groupCellId,
                 'get_soft_links',
                 groupHash,
@@ -144,12 +142,47 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
               ),
               (records) =>
                 records.map((r, i) => {
-                  const sl = r.entry?.Present?.entry;
+                  const sl = decodeGroupEntry(r) as (SoftLink & { description?: string }) | null;
+                  const target = softLinkTargetHashB64(r) ?? '';
                   return {
                     id: String(r.signed_action?.hashed?.content?.timestamp ?? i),
-                    label: sl?.description ?? 'Soft link'
+                    label: sl?.description ?? 'Soft link',
+                    targetNdoHashB64: target
                   };
                 })
+            );
+          }),
+
+        getSoftLinkTargetHashes: (groupCellId) =>
+          E.map(
+            E.flatMap(resolveGroupHash(groupCellId), (groupHash) => {
+              if (!groupHash) return E.succeed([] as GroupHolochainRecord[]);
+              return callGroupZome<GroupHolochainRecord[]>(
+                groupCellId,
+                'get_soft_links',
+                groupHash,
+                GROUP_CONTEXTS.GET_SOFT_LINKS
+              );
+            }),
+            (records) =>
+              records
+                .map((r) => softLinkTargetHashB64(r))
+                .filter((h): h is string => h !== null)
+          ),
+
+        createSoftLink: (groupCellId, groupHashB64, targetNdoHashB64, description) =>
+          E.gen(function* () {
+            const groupHash = decodeHashFromBase64(groupHashB64) as ActionHash;
+            const targetNdoHash = decodeHashFromBase64(targetNdoHashB64) as ActionHash;
+            yield* callGroupZome<GroupHolochainRecord>(
+              groupCellId,
+              'create_soft_link',
+              {
+                group_hash: groupHash,
+                target_ndo_hash: targetNdoHash,
+                description: description ?? null
+              },
+              GROUP_CONTEXTS.CREATE_SOFT_LINK
             );
           })
       } satisfies GroupService;

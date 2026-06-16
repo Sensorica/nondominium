@@ -38,15 +38,22 @@
 </script>
 
 <details class="mt-3 rounded border border-gray-200 bg-gray-50">
-  <summary class="cursor-pointer select-none px-3 py-2 text-xs font-medium text-gray-600 hover:text-gray-900">
-    Lifecycle history · {isLoading ? '…' : `${history.length} transition${history.length !== 1 ? 's' : ''}`}
+  <summary
+    class="cursor-pointer select-none px-3 py-2 text-xs font-medium text-gray-600 hover:text-gray-900"
+  >
+    Lifecycle history · {isLoading
+      ? '…'
+      : `${history.length} transition${history.length !== 1 ? 's' : ''}`}
   </summary>
 
   <div class="border-t border-gray-200 px-3 py-2">
     {#if isLoading}
       <p class="text-xs text-gray-400 italic">Loading history…</p>
     {:else if history.length === 0}
-      <p class="text-xs text-gray-400 italic">No transitions recorded.</p>
+      <p class="text-xs text-gray-400 italic">
+        No transitions recorded. Backend <code>get_ndo_transition_history</code> is not yet
+        implemented in <code>zome_resource</code>.
+      </p>
     {:else}
       <ul class="space-y-2">
         {#each history as event}

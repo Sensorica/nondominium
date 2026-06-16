@@ -1,4 +1,4 @@
-import { Effect as E, Exit, Layer, pipe } from 'effect';
+import { Cause, Effect as E, Exit, Layer, pipe } from 'effect';
 import type {
   GroupDescriptor,
   LifecycleStage,
@@ -41,6 +41,11 @@ export type LobbyStore = {
   loadLobby: () => Promise<void>;
   createGroup: (name: string, createdBy?: string) => Promise<GroupDescriptor | null>;
   joinGroup: (inviteCode: string) => Promise<GroupDescriptor | null>;
+  generateInviteLink: (groupId: string) => Promise<string | null>;
+  saveGroupMemberProfile: (
+    groupId: string,
+    profile: NonNullable<GroupDescriptor['memberProfile']>
+  ) => Promise<void>;
 };
 
 const createLobbyStore = (): E.Effect<
@@ -118,15 +123,22 @@ const createLobbyStore = (): E.Effect<
     }
 
     async function createGroup(name: string, createdBy?: string): Promise<GroupDescriptor | null> {
+      errorMessage = null;
       const exit = await E.runPromiseExit(
         lobbyService.createGroup(name, createdBy).pipe(
           E.tap((g) => { groups = [...groups, g]; })
         )
       );
-      return Exit.isSuccess(exit) ? exit.value : null;
+      if (Exit.isFailure(exit)) {
+        console.error('createGroup failed:', Cause.pretty(exit.cause));
+        errorMessage = `Group creation failed: ${Cause.pretty(exit.cause)}`;
+        return null;
+      }
+      return exit.value;
     }
 
     async function joinGroup(inviteCode: string): Promise<GroupDescriptor | null> {
+      errorMessage = null;
       const exit = await E.runPromiseExit(
         lobbyService.joinGroup(inviteCode).pipe(
           E.tap((g) => {
@@ -136,7 +148,28 @@ const createLobbyStore = (): E.Effect<
           })
         )
       );
+      if (Exit.isFailure(exit)) {
+        console.error('joinGroup failed:', Cause.pretty(exit.cause));
+        errorMessage = `Join group failed: ${Cause.pretty(exit.cause)}`;
+        return null;
+      }
+      return exit.value;
+    }
+
+    async function generateInviteLink(groupId: string): Promise<string | null> {
+      const exit = await E.runPromiseExit(lobbyService.generateInviteLink(groupId));
       return Exit.isSuccess(exit) ? exit.value : null;
+    }
+
+    async function saveGroupMemberProfile(
+      groupId: string,
+      profile: NonNullable<GroupDescriptor['memberProfile']>
+    ): Promise<void> {
+      await E.runPromiseExit(lobbyService.saveGroupMemberProfile(groupId, profile));
+      const idx = groups.findIndex((g) => g.id === groupId);
+      if (idx >= 0) {
+        groups = groups.map((g, i) => (i === idx ? { ...g, memberProfile: profile } : g));
+      }
     }
 
     async function loadLobby(): Promise<void> {
@@ -194,7 +227,9 @@ const createLobbyStore = (): E.Effect<
       loadMyPerson,
       loadLobby,
       createGroup,
-      joinGroup
+      joinGroup,
+      generateInviteLink,
+      saveGroupMemberProfile
     };
   });
 

@@ -101,21 +101,23 @@ At the Lobby level the User can be anyone. At this level the User creates a Lobb
 
 ### MVP ToDos
 
-1. **Multi-member groups — invite link**: implement invite-link generation and redemption so a group creator can share a link with other agents, who can then join the group and see its NDO list.
+> **Status (2026-06)**: All eight MVP ToDos below are implemented. Groups are **DNA-backed** via cloned Group cells (`clone_cell`, `zome_group`); NDO lists use **SoftLink** entries on the group DHT. Join NDO is **UI + API contract only** (backend stub).
 
-2. **NDO fork friction**: the "Fork this NDO" button opens a form but currently has no governance friction. Per spec, forking should present a notice about negotiation, consensus, and eventual payment (Unyt integration); the MVP version should at minimum display this notice before proceeding.
+1. ~~**Multi-member groups — invite link**~~ ✅ `generateInviteLink` encodes `{network_seed, group_dna_hash, group_name}`; Sidebar and GroupView expose copy-invite; `joinGroup` provisions clone cell and calls `join_group`.
 
-3. **NDO detail page — DHT refresh reliability**: the NDO detail page seeds its display from an in-memory card cache and then attempts a background DHT refresh. The DHT refresh path (`getMyNdos` → `getAllNdos`) should be validated end-to-end; if it consistently fails, the root cause in `get_ndo` / `get_all_ndos` zome calls should be investigated.
+2. ~~**NDO fork friction**~~ ✅ `ForkNdoModal.svelte` displays negotiation → consensus → Unyt stake notice before copy-pubkey CTA.
 
-4. **Group member list**: the Group panel has a `MemberList` stub that currently shows an empty list. Implement fetching and displaying group members (requires the invite/join flow from ToDo 1).
+3. ~~**NDO detail page — DHT refresh reliability**~~ ✅ `/ndo/[hash]` calls `resource.getNdo(hash)` directly via `getNdoDescriptorForSpecActionHash`; cache is fallback only.
 
-5. **Browse NDOs onboarding**: when the user has no groups, the NDO browser shows nothing. Add a visible call-to-action ("Create or join a group to see NDOs") to guide new users.
+4. ~~**Group member list**~~ ✅ `MemberList` wired to `groupService.getMembers(cellId)` from group clone cell.
 
-6. **Update `agent.md`**: foundational document should be updated to reflect the three-tier identity model — Lobby profile (localStorage) → Group profile (localStorage, per-group) → DHT Agent (`zome_person`), including the pseudonymity guarantees at the NDO level.
+5. ~~**Browse NDOs onboarding**~~ ✅ `NdoBrowser` empty state distinguishes no-groups vs no-NDOs with create/join CTAs.
 
-7. **NDO–Group association DHT propagation**: the "Associate with a group" action currently writes only to the local agent's `localStorage`. Once the Group DNA is implemented, each association must also be written to the Group's DHT table so all group members see the NDO card — not just the agent who performed the association. The write site is `associateNdoWithGroup` in `group.store.svelte.ts` (marked with a `TODO` comment).
+6. ~~**Update `agent.md`**~~ ✅ Three-tier identity model documented (§2.0); Level 2 profiles remain localStorage; groups are DHT-backed.
 
-8. **Join NDO**: the UI only shows placeholder copy ("Coming soon"). Implement backend + UI wiring: `join_ndo` (or equivalent) coordinator API, integrity entry or link types for membership, and DHT propagation so the joining agent appears in the NDO's contributor/member record. Distinct from **Associate with group** (curated short list per group).
+7. ~~**NDO–Group association DHT propagation**~~ ✅ `create_soft_link` on group cell; lobby/group NDO lists resolve from SoftLinks.
+
+8. ~~**Join NDO**~~ ✅ UI flow in `NdoView.svelte`; API contract in `documentation/zomes/resource_zome.md § NDO membership (planned)`; `joinNdo`/`getNdoMembers` stub in `ndo.service.ts`.
 
 
 

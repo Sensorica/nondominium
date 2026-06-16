@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { Effect as E, Exit, pipe } from 'effect';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
+  import { NdoServiceTag, NdoServiceResolved } from '$lib/services/zomes/ndo.service';
 
   type Props = {
     ndoHashB64: string;
@@ -13,18 +15,28 @@
 
   let selected = $state<Set<string>>(new Set());
   let saved = $state(false);
+  let associatedIds = $state<Set<string>>(new Set());
+  let loadingAssociations = $state(true);
 
-  // Filter to groups that don't yet contain this NDO.
-  // TODO: replace with a DHT-side check once Group DNA is implemented, so all
-  // group members see an accurate association list rather than just the local agent.
-  const availableGroups = $derived(
-    lobbyStore.groups.filter((g) => !(g.ndoHashes ?? []).includes(ndoHashB64))
-  );
+  const availableGroups = $derived(lobbyStore.groups.filter((g) => !associatedIds.has(g.id)));
 
-  // Reload groups on modal open — ensures the list is current even when the
-  // user arrived at this NDO page without navigating through the lobby first.
   onMount(() => {
-    void lobbyStore.loadGroups();
+    void (async () => {
+      await lobbyStore.loadGroups();
+      const exit = await E.runPromiseExit(
+        pipe(
+          E.gen(function* () {
+            const svc = yield* NdoServiceTag;
+            return yield* svc.getAssociatedGroupIds(ndoHashB64);
+          }),
+          E.provide(NdoServiceResolved)
+        )
+      );
+      if (Exit.isSuccess(exit)) {
+        associatedIds = new Set(exit.value);
+      }
+      loadingAssociations = false;
+    })();
   });
 
   function toggle(id: string) {
@@ -37,11 +49,11 @@
     selected = next;
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     for (const gid of selected) {
-      groupStore.associateNdoWithGroup(ndoHashB64, gid);
+      await groupStore.associateNdoWithGroup(ndoHashB64, gid);
     }
-    void lobbyStore.loadNdos();
+    await lobbyStore.loadNdos();
     saved = true;
     setTimeout(onclose, 600);
   }
@@ -66,13 +78,13 @@
     <div class="border-b border-gray-100 px-5 py-4">
       <h2 class="text-base font-semibold text-gray-900">Associate with a group</h2>
       <p class="mt-0.5 text-sm text-gray-500">
-        Add <span class="font-medium text-gray-700">"{ndoName}"</span> to one of your groups so
-        group members can find and join it.
+        Add <span class="font-medium text-gray-700">"{ndoName}"</span> to one of your groups so group
+        members can find and join it.
       </p>
     </div>
 
     <div class="max-h-72 overflow-y-auto px-5 py-3">
-      {#if lobbyStore.isLoading}
+      {#if lobbyStore.isLoading || loadingAssociations}
         <p class="text-sm text-gray-400 italic">Loading groups…</p>
       {:else if lobbyStore.groups.length === 0}
         <p class="text-sm text-gray-400 italic">

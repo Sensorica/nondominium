@@ -130,24 +130,27 @@ interface GroupMemberProfile {
 
 ---
 
-## 5. Group Architecture (MVP Shell)
+## 5. Group Architecture (DNA-backed)
 
-Groups are the mandatory context for NDO creation. In the MVP, Group DNA does not yet exist; groups are persisted as `GroupDescriptor[]` in `localStorage` (key `ndo_groups_v1`).
+Groups are the mandatory context for NDO creation. Each group is a **cloned Group DNA cell** (`role_name: 'group'`, unique `network_seed`, `clone_limit: 64` in `workdir/happ.yaml`).
 
 ```typescript
 interface GroupDescriptor {
-  id: string;          // generated: grp_<timestamp>_<random>
+  id: string;              // canonical key = network_seed
+  networkSeed: string;
   name: string;
-  createdBy?: string;  // LobbyUserProfile.nickname
+  description?: string;
+  createdBy?: string;      // LobbyUserProfile.nickname at creation
   createdAt?: number;
-  ndoHashes?: string[];        // ActionHash[]  (base64) of NDOs created in this group
-  memberProfile?: GroupMemberProfile;
+  dnaHash?: string;        // clone cell DNA hash (base64)
+  groupHash?: string;      // GroupProfile ActionHash (base64)
+  memberProfile?: GroupMemberProfile; // Level 2 — localStorage only (ndo_group_profiles_v1)
 }
 ```
 
-**Invite links** encode the `GroupDescriptor` as `btoa(JSON.stringify(group))` in a URL query parameter.
+**Lifecycle**: `createGroup` → `createCloneCell` → `create_group` → `join_group` → `announce_group` (Lobby DNA). **Invite links** encode `{ network_seed, group_dna_hash, group_name }` as `?group=<base64>`.
 
-When Group DNA lands, only `LobbyService.createGroup` / `joinGroup` and the `GroupDescriptor` persistence need to change. All component and store logic remains identical.
+**NDO association**: NDOs live in the shared `nondominium` cell. A group's NDO list = `get_soft_links(group_hash)` on the group clone cell → resolve each `target_ndo_hash` via `resource.getNdo`.
 
 ---
 
@@ -167,7 +170,7 @@ When Group DNA lands, only `LobbyService.createGroup` / `joinGroup` and the `Gro
 
 | Component | File | Description |
 |-----------|------|-------------|
-| `GroupView` | `group/GroupView.svelte` | Group header, Create NDO button, group-scoped NdoBrowser, MemberList stub |
+| `GroupView` | `group/GroupView.svelte` | Group header, invite link, Create NDO, group-scoped NdoBrowser, MemberList (DHT) |
 | `NdoCreateModal` | `group/NdoCreateModal.svelte` | 5-field NDO creation form (name, regime, nature, stage, description) |
 | `GroupProfileModal` | `group/GroupProfileModal.svelte` | Per-group profile presentation choice (first entry only) |
 
@@ -222,8 +225,9 @@ Singleton per-session; `loadGroupData(groupId)` switches context:
 
 | Field | Source |
 |-------|--------|
-| `group` | `localStorage` (`ndo_groups_v1`) |
-| `groupNdos` | `NdoServiceTag.getGroupNdoDescriptors(groupId)` |
+| `group` | `LobbyServiceTag.getMyGroups()` |
+| `groupNdos` | `NdoServiceTag.getGroupNdoDescriptors(groupId)` via SoftLinks |
+| `members` | `GroupServiceTag.getMembers(cellId)` |
 
 ---
 
@@ -244,21 +248,32 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 
 | Method | Delegates to |
 |--------|-------------|
-| `getLobbyNdoDescriptors()` | `resource.getAllResourceSpecifications()` + `resource.getAllNdos()` joined by name |
-| `getNdoDescriptorForSpecActionHash(hash)` | Same join, filtered by hash |
-| `createNdo(input, groupId)` | `resource.createNdo(input)` + localStorage group link |
+| `getLobbyNdoDescriptors()` | Union of SoftLink targets across all group clone cells → `resource.getNdo` |
+| `getNdoDescriptorForSpecActionHash(hash)` | Direct `resource.getNdo(hash)` first; fallbacks to listings/cache |
+| `createNdo(input, groupId)` | `resource.createNdo(input)` + `create_soft_link` on group cell |
 | `updateLifecycleStage(input)` | `resource.updateLifecycleStage(input)` |
-| `getNdoTransitionHistory(hash)` | `resource.getNdoTransitionHistory(hash)` (returns `[]` gracefully) |
-| `getGroupNdoDescriptors(groupId)` | All descriptors filtered by group's `ndoHashes` |
+| `getNdoTransitionHistory(hash)` | `resource.getNdoTransitionHistory(hash)` (zome fn not yet implemented; returns `[]`) |
+| `getGroupNdoDescriptors(groupId)` | `get_soft_links` → resolve each target via `resource.getNdo` |
+| `getAssociatedGroupIds(ndoHashB64)` | SoftLink scan across agent's groups |
+| `joinNdo` / `getNdoMembers` | Stub — `NdoNotImplementedError` until `zome_resource` implements membership |
 
-### `lobby.service.ts` — LobbyServiceTag (localStorage-backed)
+### `lobby.service.ts` — LobbyServiceTag (Group + Lobby DNA)
 
-| Method | Storage |
-|--------|---------|
-| `getMyGroups()` | `localStorage[ndo_groups_v1]` |
-| `createGroup(name, createdBy)` | Appends to `localStorage[ndo_groups_v1]` |
-| `joinGroup(inviteCode)` | Decodes base64 invite, appends if not already present |
-| `generateInviteLink(groupId)` | `btoa(JSON.stringify(group))` → URL param |
+| Method | Behaviour |
+|--------|-----------|
+| `getMyGroups()` | Enumerate group clone cells from `appInfo` + `get_my_group` per cell |
+| `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` |
+| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → `join_group` if not member |
+| `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |
+| `getGroupCell(groupId)` | Resolve clone `CellId` by `network_seed` |
+| `saveGroupMemberProfile(groupId, profile)` | `localStorage[ndo_group_profiles_v1]` (Level 2 identity) |
+
+### `group.service.ts` — GroupServiceTag
+
+| Method | Zome call |
+|--------|-----------|
+| `getMembers(cellId)` | `get_group_members` |
+| `getSoftLinks` / `createSoftLink` | `get_soft_links` / `create_soft_link` |
 
 ---
 
@@ -336,7 +351,8 @@ The following UI capabilities are documented but not yet implemented:
 
 | Track | Trigger | Design reference |
 |-------|---------|-----------------|
-| Group DNA backend | When `zome_group` lands — replace `LobbyService` localStorage impl | `lobby-dna.md`, `lobby-architecture.md` |
+| NDO membership (`join_ndo`) | Backend stub in UI; implement `NdoMembership` in `zome_resource` | `documentation/zomes/resource_zome.md § NDO membership` |
+| `get_ndo_transition_history` | Lifecycle audit panel empty until zome fn lands | `TransitionHistoryPanel.svelte` |
 | NDO cell cloning | Per-NDO DHT once Holochain cloning stabilises | `ndo_prima_materia.md §4` |
 | PPR / Reputation dashboard | After PPR zome functions are complete (#14–#21) | `specifications/governance/private-participation-receipt.md` |
 | Economic Process workflows | After Phase 2.2 process infrastructure lands | `requirements.md §4.2`, `implementation_plan.md §5 Phase 2.2` |

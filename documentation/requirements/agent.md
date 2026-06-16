@@ -109,18 +109,20 @@ The MVP UI introduces three distinct identity layers that reflect the Lobby → 
 - Created via `UserProfileForm.svelte` (modal on first launch; page-mode for editing).
 - Exists before any `Person` DHT entry is created. An agent can browse the Lobby anonymously (no profile) or under a pseudonym (nickname only).
 
-#### Level 2 — Group (UI-only, `localStorage`)
+#### Level 2 — Group (`GroupMemberProfile`, localStorage presentation + Group DNA membership)
 
-**`GroupMemberProfile`** is a per-group presentation choice derived from `LobbyUserProfile`. It is also never written to the DHT (Groups are localStorage-persisted shells for the MVP; Group DNA is a post-MVP deliverable).
+**Groups** are **DNA-backed**: each group is a cloned Group cell (`clone_cell` with unique `network_seed`). `GroupProfile` and membership live on the group DHT via `zome_group` (`create_group`, `join_group`, `get_group_members`). The Lobby DNA announces groups for discovery (`announce_group`).
+
+**`GroupMemberProfile`** is a per-group **presentation choice** derived from `LobbyUserProfile`. It controls how much of the Lobby profile the agent consents to show other group members. It is **not** the same as DHT membership — it is a UI-only disclosure layer.
 
 | Field | Type | Notes |
 |---|---|---|
 | `isAnonymous` | `boolean` | If true, the agent appears only by pseudonym |
 | `shownFields` | `(keyof LobbyUserProfile)[]` | Fields from `LobbyUserProfile` the agent explicitly consents to share |
 
-- Stored alongside the `GroupDescriptor` in `localStorage` under `ndo_groups_v1`.
+- Stored in `localStorage` under `ndo_group_profiles_v1`, keyed by group `network_seed` (not in `GroupProfile` entry).
 - Prompted via `GroupProfileModal.svelte` on first entry to each group.
-- No consensus or DHT record required; this is a purely local choice. 
+- **NDO-level pseudonymity**: an agent may browse the Lobby with no profile, join groups under a nickname-only presentation (Level 2 anonymous), and defer creating a `Person` entry until a DHT-active economic action (Level 3).
 
 #### Level 3 — NDO / Agent (DHT, `zome_person`)
 
@@ -133,7 +135,7 @@ The MVP UI introduces three distinct identity layers that reflect the Lobby → 
 
 This three-level model enables permissionless browsing (Level 1 not required), group participation under a pseudonym (Level 2), and full economic participation (Level 3), without conflating disclosure requirements across contexts.
 
-> Cross-reference: `ui_design.md` MVP section describes the intended UI flow. Implementation lives in `app.context.svelte.ts` (`lobbyUserProfile`), `lobby.service.ts` (`GroupDescriptor.memberProfile`), `UserProfileForm.svelte`, `GroupProfileModal.svelte`, and `GroupSidebar.svelte`.
+> Cross-reference: `ui_design.md` MVP section describes the intended UI flow. Implementation lives in `app.context.svelte.ts` (`lobbyUserProfile`), `lobby.service.ts` (Group DNA + `saveGroupMemberProfile`), `group.service.ts` (`getMembers`, SoftLinks), `UserProfileForm.svelte`, `GroupProfileModal.svelte`, and `Sidebar.svelte`.
 
 ---
 

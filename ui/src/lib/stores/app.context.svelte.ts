@@ -1,7 +1,8 @@
 import type { ActionHash, AgentPubKey } from '@holochain/client';
 import type { LobbyUserProfile, Person } from '@nondominium/shared-types';
+import { devStorageKey } from '$lib/utils/hc-connect';
 
-const LOBBY_PROFILE_KEY = 'ndo_lobby_profile_v1';
+const LOBBY_PROFILE_KEY = devStorageKey('ndo_lobby_profile_v1');
 
 function loadProfileFromStorage(): LobbyUserProfile | null {
   try {
