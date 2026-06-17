@@ -30,9 +30,10 @@ This hierarchy maps to the three concentric organizational scopes in `ui_design.
 | Styling | UnoCSS (atomic CSS, preset-wind) |
 | Headless components | Melt UI next-gen (`melt`) |
 | Async / error handling | Effect-TS (`effect` package) — `Context.Tag`, `Layer`, `E.gen` |
-| Holochain client | `@holochain/client` 0.19.0 |
+| Holochain client | `@holochain/client` ^0.20.0 |
 | Shared types | `@nondominium/shared-types` (workspace package) |
-| Build | Vite 6.2.5 |
+| Build | Vite 7 |
+| Dev runtime | Browser (web) — Electron/`hc-spin` superseded by a per-agent Vite harness (§15) |
 
 ---
 
@@ -262,8 +263,8 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 | Method | Behaviour |
 |--------|-----------|
 | `getMyGroups()` | Enumerate group clone cells from `appInfo` + `get_my_group` per cell |
-| `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` |
-| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → `join_group` if not member |
+| `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` (the `join_group`/`announce_group` post-steps are best-effort via `E.catchAll`, so transient contention never aborts creation) |
+| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → best-effort `join_group` → `fetchGroupProfileWithRetry` (poll `get_my_group`, 6× / ~2.4 s for DHT gossip) → on miss, build a `GroupDescriptor` from the invite payload so the group still appears immediately. `TODO(signals)`: replace the poll with a Holochain remote signal once available |
 | `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |
 | `getGroupCell(groupId)` | Resolve clone `CellId` by `network_seed` |
 | `saveGroupMemberProfile(groupId, profile)` | `localStorage[ndo_group_profiles_v1]` (Level 2 identity) |
@@ -401,3 +402,60 @@ export const lobbyStore = pipe(
 ### Error handling
 
 All zome errors are domain-tagged (`ResourceError`, `PersonError`, etc.) with `context` strings for debugging. Effects that may fail are run with `E.runPromiseExit`, and `Exit.isSuccess(exit)` guards all state mutations.
+
+---
+
+## 15. Local Development & Multi-Agent Web Harness
+
+The dev runtime is the **browser**, not Electron. The previous `hc-spin` flow streamed the full `.happ` (~8 MB) over the admin websocket and timed out, so local development is now orchestrated by `scripts/launch-happ.mjs` (invoked by `bun run start` / `AGENTS=N bun run network`).
+
+### 15.1 Launcher responsibilities (`scripts/launch-happ.mjs`)
+
+1. **Bootstrap + signaling**: spawns `kitsune2-bootstrap-srv` and parses its listening URLs.
+2. **Sandboxes**: `hc sandbox --piped create -n N … webrtc <signal>` then `hc sandbox --piped run` (LAIR password piped on stdin).
+3. **Path-based install**: connects an `AdminWebsocket` per conductor and calls `installApp({ source: { type: 'path', value: happPath } })` + `enableApp` — avoids the websocket bundle-streaming timeout.
+4. **Connection manifest**: writes `ui/static/hc-connection.json` (`{ appId, agents: [{ agent, adminWsUrl, appWsUrl }], updatedAt }`), updated incrementally as each conductor comes up.
+5. **One Vite server per agent**: `startUiServers()` spawns `bun run start` from `ui/` for each agent with `UI_PORT = basePort + (agent-1)` and `VITE_DEV_AGENT = agent`. Agent _n_ → `http://localhost:{5173 + n - 1}`.
+6. **Auto-open**: when a Vite server prints its `Local:` URL, the launcher opens a browser tab (`open` / `start` / `xdg-open`). Set `NO_OPEN=1` to disable (headless/CI).
+7. **Shutdown**: `SIGINT`/`SIGTERM` tears down all UI servers, the sandbox, and the bootstrap server.
+
+### 15.2 Why a port per agent
+
+Each agent gets a **dedicated port = dedicated origin**, which yields fully isolated browser `localStorage` per agent while keeping URLs clean (no `?agent=` noise in permalinks). This replaced an earlier single-origin `?agent=N` approach. The query param is retained only as a manual override for advanced cases.
+
+### 15.3 Agent selection (`ui/src/lib/utils/hc-connect.ts`)
+
+`getDevAgentIndex()` resolves which conductor a window binds to, in priority order:
+
+1. `?agent=N` query param (manual override).
+2. `VITE_DEV_AGENT` env var (the primary mechanism — injected per Vite server by the launcher).
+3. `localStorage[ndo_dev_agent]`, else default `1`.
+
+### 15.4 Connection modes (`connectHolochainClient`)
+
+| Mode | Trigger | Notes |
+|------|---------|-------|
+| `launcher` | `window.__HC_LAUNCHER_ENV__` present | hc-spin Electron path (legacy/optional) |
+| `manifest` | `/hc-connection.json` has agents | **Primary web path**; picks the entry matching `getDevAgentIndex()`; polls up to 5 min while conductors install |
+| `env` | `VITE_HC_ADMIN_WS_URL` + `VITE_HC_APP_WS_URL` | manual override |
+
+In `manifest`/`env` modes the result carries the `adminWsUrl` so the UI can authorize signing credentials for **runtime-created group clone cells**.
+
+### 15.5 Signing-credential authorization & resilience
+
+- On connect, the UI calls `authorizeSigningCredentials` for **every** `provisioned` **and** `cloned` cell (clone cells lose in-memory signing credentials on reload, so their zome calls would otherwise fail).
+- Grants are serialized (each is a source-chain commit); concurrent grants raise **"source chain head has moved"**, so `authorizeWithRetry` retries with backoff (5 attempts).
+- `authorizeCellSigning(adminWsUrl, cellId)` is exported so a group clone cell created _after_ initial connect (create/join group) is authorized on demand.
+
+### 15.6 Per-agent UI-state namespacing
+
+Because two windows _can_ share an origin (the `?agent=` override), all UI-only `localStorage` keys are namespaced via `devStorageKey(base)` → `${base}__a{agentIndex}`:
+
+| Base key | Owner |
+|----------|-------|
+| `ndo_lobby_profile_v1` | `app.context.svelte.ts` (Level 1 profile) |
+| `ndo_group_profiles_v1` | `lobby.service.ts` (Level 2 disclosure prefs) |
+| `ndo_group_visited_v1` | `GroupView.svelte` (first-visit prompt) |
+| `ndo_dev_agent` | dev agent index (not namespaced — it _is_ the namespace) |
+
+> Note: DHT-backed state (groups, NDOs, members) is isolated by the conductor itself; namespacing only protects the UI-only localStorage layer when origins are shared.

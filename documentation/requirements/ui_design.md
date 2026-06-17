@@ -27,17 +27,18 @@ The Lobby is a permissionless digital environment that anyone can join. It is th
 
 ### Groups
 
-Groups are organizational contexts for NDOs. A user can create a solo Group or join an existing one. At MVP, group membership and NDO associations are tracked in `localStorage` (no DHT-backed group entries yet).
+Groups are organizational contexts for NDOs. A user can create a solo Group or join an existing one. Groups are **DNA-backed**: each group is a cloned Group DNA cell (`clone_cell`, `zome_group`) with its own isolated DHT, announced for discovery via the Lobby DNA. Only the **Level 2 presentation choice** (`GroupMemberProfile` — anonymous vs. selected fields) remains in `localStorage`; membership and NDO associations live on the DHT (SoftLinks).
 
 **Implemented:**
-- **Group panel** (`/group/:id`): shows group name, list of NDO cards, and a "Create NDO" button
+- **Group panel** (`/group/:id`): shows group name, list of NDO cards, member list, and a "Create NDO" button
 - **Group profile prompt**: on first visit to a group the user is asked how they wish to present themselves (anonymous / custom); stored in `localStorage`
 - **NDO cards** in group: each card shows name, lifecycle-stage badge, property-regime badge, resource-nature badge, and description excerpt; clicking a card navigates to the NDO detail page
 - **Switching groups**: navigating from one group to another correctly reloads the group name and NDO list
+- **Invite links** (multi-member groups): `generateInviteLink` encodes `{ network_seed, group_dna_hash, group_name }` as `?group=<base64>`; Sidebar and GroupView expose "Copy invite"; `joinGroup` provisions the clone cell and calls `join_group`
+- **Group members from DHT**: `MemberList` is wired to `groupService.getMembers(cellId)` on the group clone cell
+- **Reactive join**: a joined group appears in the sidebar immediately. `joinGroup` polls `get_my_group` (`fetchGroupProfileWithRetry`) to absorb DHT gossip latency, and falls back to an invite-payload `GroupDescriptor` if the profile has not yet synced, so no page reload is needed. `TODO(signals)`: replace polling with a Holochain remote signal once available.
 
 **Not yet implemented:**
-- Invite other users to a group (multi-member groups; sharing an invite link)
-- Displaying group members from DHT
 - Group-level governance
 
 ---

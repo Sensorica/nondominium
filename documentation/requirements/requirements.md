@@ -197,15 +197,15 @@ These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `
 - **REQ-UI-ID-02: GroupMemberProfile (Level 2)**: On first entry to each Group, agents must be prompted to choose how their `LobbyUserProfile` data is presented to other Group members (anonymous vs. selective disclosure). This choice is stored per-Group in `localStorage`.
 - **REQ-UI-ID-03: Person entry (Level 3)**: A `Person` entry in `zome_person` is created at most once — on the agent's first DHT-active action (e.g., NDO creation, acceptance of a Commitment). Lobby browsing and Group membership do not require a `Person` entry.
 
-### Groups (MVP Shell)
+### Groups (DNA-backed)
 
-- **REQ-UI-GRP-01: Group as localStorage shell**: In the MVP, Groups are persisted as `GroupDescriptor` entries in `localStorage` (no Group DNA). The `LobbyService` implementation must be replaceable with a Group DNA backend without requiring component changes.
-- **REQ-UI-GRP-02: Invite Links**: Groups must support invite links (base64-encoded `GroupDescriptor`) that allow another agent to join by pasting a link.
+- **REQ-UI-GRP-01: Group as cloned DNA cell**: Groups are DNA-backed (PR #107). Each group is a cloned Group DNA cell (`clone_cell`, `zome_group`) with its own isolated DHT, announced for discovery via the Lobby DNA. The `LobbyService`/`GroupService` interface remained stable across the localStorage→DNA migration so components were not changed. Only the Level 2 `GroupMemberProfile` presentation choice (REQ-UI-ID-02) remains in `localStorage`. *(Originally specified as a localStorage shell; superseded by the Group DNA backend.)*
+- **REQ-UI-GRP-02: Invite Links**: Groups must support invite links that allow another agent to join by pasting a link. Implemented as a base64-encoded `{ network_seed, group_dna_hash, group_name }` payload (`?group=<base64>`); joining provisions the same-seed clone cell and calls `join_group`. The joined group must appear without a page reload (gossip-retry on `get_my_group` with an invite-payload fallback).
 - **REQ-UI-GRP-03: Group-scoped NdoBrowser**: The Group view must display only NDOs created within that Group, using the same filter chip UI as the Lobby NdoBrowser.
 
 ### NDO Management
 
-- **REQ-UI-NDO-01: NDO Creation Form**: The NDO creation form must include: `name` (text), `property_regime` (select, 6 options with tooltips), `resource_nature` (select, 5 options with tooltips), `lifecycle_stage` (select, 10 options), `description` (textarea). Name uniqueness is checked client-side against existing lobby NDOs (warning, not block).
+- **REQ-UI-NDO-01: NDO Creation Form**: The NDO creation form must include: `name` (text), `property_regime` (select, 4 canonical options — Private, Commons, Nondominium, CommonPool — with tooltips; Collective and Pool removed after design review), `resource_nature` (select, 5 options with tooltips), `lifecycle_stage` (select, 7 creatable-at-registration stages — Ideation through Active; Hibernating and terminal stages are transition-only), `description` (textarea). Name uniqueness is checked client-side against existing lobby NDOs (warning, not block).
 - **REQ-UI-NDO-02: Initiator Display**: The NDO identity panel must display the initiator's `Person.name` as a profile link, or fall back to a truncated `AgentPubKey` if no `Person` entry exists.
 - **REQ-UI-NDO-03: Lifecycle Transition**: The initiator of an NDO must have access to a lifecycle transition button. The frontend must encode the full valid transition table (mirroring the Rust validation). Special cases: `Deprecated` requires successor NDO selection; `Hibernating` requires confirmation.
 - **REQ-UI-NDO-04: Transition History**: NDO identity panels must show a collapsible transition history panel listing `from_stage`, `to_stage`, `agent`, `timestamp`, and `event_hash` (with copy-to-clipboard) for each recorded transition.
