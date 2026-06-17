@@ -2,16 +2,17 @@
 
 **Type**: Archive / Knowledge Base Document  
 **Created**: 2026-03-11  
-**Relates to**: `ndo_prima_materia.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`, `flowsta-integration.md`  
-**Sources**: MVP code (`zome_resource`), post-MVP design documents, [OVN wiki — Resource](https://ovn.world/index.php?title=Resource), [OVN wiki — Resource type](https://ovn.world/index.php?title=Resource_type)
+**Last updated**: 2026-06-16 (synced with NDO Layer 0 + federation code)  
+**Relates to**: `ndo_prima_materia.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`, `flowsta-integration.md`, `IMPLEMENTATION_STATUS.md`  
+**Sources**: MVP code (`zome_resource`, `zome_gouvernance`), shared types ([`crates/shared/src/types.rs`](../../crates/shared/src/types.rs)), NDO coordinator ([`dnas/nondominium/zomes/coordinator/zome_resource/src/ndo_identity.rs`](../../dnas/nondominium/zomes/coordinator/zome_resource/src/ndo_identity.rs)), federation modules (`zome_gouvernance` `hard_link.rs`, `contribution.rs`, `agreement.rs`), post-MVP design documents, [OVN wiki — Resource](https://ovn.world/index.php?title=Resource), [OVN wiki — Resource type](https://ovn.world/index.php?title=Resource_type)
 
 ---
 
 ## Purpose
 
-This document maps the three states of Resource understanding in the Nondominium / NDO project:
+This document maps the three states of Resource understanding in this Nondominium / NDO project:
 
-1. **Implemented** — what exists today in the MVP `zome_resource` codebase
+1. **Implemented** — what exists today in the MVP `zome_resource` and `zome_gouvernance` codebases (including NDO Layer 0 and federation extensions)
 2. **Planned** — what is designed in the post-MVP requirements documents
 3. **Remaining** — what the OVN wiki's 15 years of commons-based peer production practice contains that NDO does not yet plan to implement, and which should inform the generic NDO design
 
@@ -27,11 +28,11 @@ Before mapping what is and is not implemented, it is necessary to establish what
 
 In standard REA accounting, a Resource is simply an entity that has economic value and can be tracked as it flows through Events performed by Agents. This is a correct but minimal definition — adequate for accounting, inadequate for governance.
 
-In P2P peer production, a resource is also:
+In peer production, a resource is also:
 - An **information carrier**: it encodes design intent, provenance, contribution history, and quality evidence
 - A **coordination node**: agents discover it, express intent to use it, negotiate access, and coordinate around it
 - A **trust anchor**: its history of use (how it has been treated, maintained, transacted) is evidence about the agents who interacted with it
-- An **economic attractor**: governance rules embedded in a resource determine who can create value with it, and therefore shape the economic topology of the network around it
+- An **economic attractor**: governance rules embedded in a resource determine who can access it (to improve / develop use, maintain it), and therefore shape the economic topology of the network around it.
 
 This richer conception changes the design requirements fundamentally. A Resource is not merely a record in a ledger — it is a *socially embedded DHT object* with its own identity, governance constitution, and economic role.
 
@@ -50,7 +51,7 @@ Benkler (*The Wealth of Networks*, 2006) identifies the rivalry or non-rivalry o
 - **Non-rivalrous resources** (digital designs, methods, documentation, software): can be copied and shared at near-zero marginal cost. Restricting access does not preserve the resource — it only reduces total value creation. Default governance: open access, attribution-based, copy-left.
 - **Rivalrous resources** (physical tools, equipment, spaces, materials): use by one agent excludes others. Restricting access is necessary to prevent overuse and ensure maintenance. Default governance: Ostromian embedded rules, reputation-gated access, stewardship requirements.
 
-This distinction has profound implications for NDO Resource modeling. A resource's governance defaults, access rules, lifecycle requirements, and Unyt integration patterns should all differ based on rivalry. The current implementation does not model rivalry explicitly — this is a fundamental gap.
+This distinction has profound implications for NDO Resource modeling. A resource's governance defaults, access rules, lifecycle requirements, and Unyt integration patterns should all differ based on rivalry. The current implementation does not model rivalry explicitly — this is a fundamental gap. - ToDo
 
 ### 1.4 Complexity Matching: Governance Overhead Must Match Resource Complexity
 
@@ -60,7 +61,7 @@ Bar-Yam's complexity matching principle states that the governance complexity of
 - A design file shared across a network requires moderate governance (attribution, versioning, integrity)
 - A physical CNC machine used by 50 agents requires substantial governance (access rules, maintenance scheduling, custody chains, reliability tracking)
 
-The NDO's three-layer model (`ndo_prima_materia.md`) directly implements this principle. The LifecycleStage enum ensures that governance overhead is matched to the resource's current social complexity. But this document will argue that even the NDO plan needs further refinement to model the full spectrum of resource types that exist in practice.
+The NDO's three-layer model (`ndo_prima_materia.md`) directly implements this principle. **`LifecycleStage` on Layer 0 is implemented** (10 stages, integrity-validated transitions); governance overhead can now be matched to maturity for NDO identity. This document still argues the forward map needs further refinement — `OperationalState` split, rivalry/scope classification, and Layers 1 & 2 activation — to model the full spectrum of resource types in practice.
 
 ### 1.5 Resources as Social Infrastructure
 
@@ -76,7 +77,47 @@ The NDO does not need to *track* intangible resources in the same way it tracks 
 
 ### 2.1 Entry Types in `zome_resource` Integrity
 
-The MVP implements three entry types:
+The MVP implements **four** entry types in `zome_resource` integrity, plus shared NDO enums in [`crates/shared/src/types.rs`](../../crates/shared/src/types.rs) (imported by both integrity and coordinator zomes):
+
+**`NondominiumIdentity`** (NDO Layer 0 — ✅ implemented, PR #80/#84)
+
+```rust
+pub struct NondominiumIdentity {
+    pub name: String,
+    pub initiator: AgentPubKey,
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub lifecycle_stage: LifecycleStage,
+    pub created_at: Timestamp,
+    pub description: Option<String>,
+    pub successor_ndo_hash: Option<ActionHash>,   // set once on Deprecated (REQ-NDO-LC-06)
+    pub hibernation_origin: Option<LifecycleStage>, // set on → Hibernating; cleared on resume
+}
+```
+
+The original `create_ndo` action hash is the stable Layer 0 identity for all time. `property_regime`, `resource_nature`, and `lifecycle_stage` live on Layer 0 (not on `ResourceSpecification` or `EconomicResource`). Only `lifecycle_stage`, `successor_ndo_hash` (once), and `hibernation_origin` (Hibernating transitions) may change after creation; all other fields are integrity-validated as immutable. Deletes are always invalid (permanent tombstone at EndOfLife).
+
+Coordinator API: `create_ndo`, `get_ndo`, `get_all_ndos`, `get_my_ndos`, `update_lifecycle_stage`, `get_ndos_by_lifecycle_stage`, `get_ndos_by_nature`, `get_ndos_by_property_regime` — see `ndo_identity.rs`.
+
+**Shared enums on Layer 0** (defined in `crates/shared/src/types.rs`):
+
+```rust
+pub enum LifecycleStage {
+    Ideation, Specification, Development, Prototype,
+    Stable, Distributed, Active,
+    Hibernating, Deprecated, EndOfLife,
+}
+
+pub enum PropertyRegime {
+    Private, Commons, Collective, Pool, CommonPool, Nondominium,
+}
+
+pub enum ResourceNature {
+    Physical, Digital, Service, Hybrid, Information,
+}
+```
+
+> **Doc/code consistency:** `PropertyRegime` has six variants in Rust but the UI (`packages/shared-types`) and `IMPLEMENTATION_STATUS.md` document four (Collective and Pool described as removed after design review). See §2.6. `ResourceNature` in code adds `Service` and `Information` beyond the three-variant design in `ndo_prima_materia.md`; forward-map variants `Space`, `Method`, and `Currency` (§6.2) are not yet in code.
 
 **`ResourceSpecification`**
 ```rust
@@ -113,21 +154,26 @@ pub struct GovernanceRule {
     pub enforced_by: Option<String>,
 }
 ```
-Economic rules governing access and use. Currently entirely untyped — `rule_data` is a free-form JSON string with no schema enforcement.
+Economic rules governing access and use. Currently entirely untyped — `rule_data` is a free-form JSON string with no schema enforcement. - ToDo: explore how to make governance rules machine readable and executable, typed. 
 
-**`ResourceState`** (enum) — *conflated, pending split*
+**`ResourceState`** (enum on `EconomicResource`) — *still conflated; `OperationalState` split pending (`REQ-NDO-OS-06`)*
+
 ```
 PendingValidation | Active | Maintenance | Retired | Reserved
 ```
-The code contains a `TODO` comment noting this enum conflates two orthogonal dimensions:
-- **`LifecycleStage`** (maturity/evolutionary phase — advances rarely, almost irreversibly)
-- **`OperationalState`** (current process acting on the instance — cycles frequently)
 
-`Maintenance` and `Reserved` are operational conditions imposed by active processes; they are not lifecycle milestones. A resource being repaired is still `LifecycleStage::Active` — it just has `OperationalState::InMaintenance`. Similarly, `InTransit` and `InStorage` are operational states valid at any lifecycle stage.
+`LifecycleStage` is **implemented** on `NondominiumIdentity` (see above). The legacy `ResourceState` on `EconomicResource` still conflates maturity and operational condition. The code contains an explicit `TODO` to split into:
+
+- **`LifecycleStage`** — on `NondominiumIdentity` (✅ implemented)
+- **`OperationalState`** — on `EconomicResource` (🔄 not implemented): `PendingValidation | Available | Reserved | InTransit | InStorage | InMaintenance | InUse`
+
+`Maintenance` and `Reserved` in the current enum are operational conditions, not lifecycle milestones. A resource being repaired is still `LifecycleStage::Active` — it would have `OperationalState::InMaintenance` once the split lands.
 
 ### 2.2 Link Graph
 
 The link types model resource discovery and navigation:
+
+**Legacy resource/spec links** (`zome_resource`):
 - Anchor links for global discovery (`AllResourceSpecifications`, `AllEconomicResources`, `AllGovernanceRules`)
 - Hierarchical links (`SpecificationToResource`, `SpecificationToGovernanceRule`)
 - Agent-centric links (`CustodianToResource`, `AgentToOwnedSpecs`, `AgentToManagedResources`)
@@ -135,49 +181,125 @@ The link types model resource discovery and navigation:
 - Governance links (`ResourceToValidation`)
 - Update chain links (for Holochain's append-only update pattern)
 
+**NDO Layer 0 links** (✅ implemented, PR #80/#84):
+- `AllNdos` — global anchor at path `"ndo_identities"` → all `NondominiumIdentity` action hashes
+- `AgentToNdo` — initiator `AgentPubKey` → NDOs they created
+- `NdoByLifecycleStage` — path `"ndo.lifecycle.{Stage}"` → NDOs at that stage (moved on transition)
+- `NdoByNature` — path `"ndo.nature.{Nature}"` → NDOs of that nature (immutable after creation)
+- `NdoByPropertyRegime` — path `"ndo.regime.{Regime}"` → NDOs under that regime (immutable after creation)
+- `NdoToSuccessor` — deprecated NDO → successor `NondominiumIdentity` (REQ-NDO-LC-06)
+- `NdoToTransitionEvent` — NDO → triggering `EconomicEvent` action hash (REQ-NDO-L0-05; link only, cross-zome event validation deferred)
+
+> **Not yet implemented:** `NDOToSpecification` and `NDOToProcess` links (Layers 1 & 2 activation per `ndo_prima_materia.md` §4).
+
 ### 2.3 What the MVP Does Well
 
+- **Permanent Layer 0 identity anchor** — `NondominiumIdentity` with field-level immutability and integrity-validated lifecycle state machine (forward chain, Hibernating resume, Deprecated + successor, EndOfLife tombstone)
+- **Faceted NDO discovery** — global, per-agent, and categorization anchors by lifecycle stage, nature, and property regime
 - Clean separation of specification (type/template) from resource (instance) — consistent with ValueFlows Knowledge/Observation layering
 - Single-custodian model is appropriate for the current Artcoin/simple sharing use case
 - GovernanceRule linked to ResourceSpecification rather than EconomicResource is architecturally correct: rules belong to the type, not the instance
 - The anchor link pattern enables permissionless discovery
+- **Cross-NDO federation primitives** — typed hard links, peer-validated contributions, and benefit-redistribution agreements in `zome_gouvernance` (PR #103; see §2.5)
 
 ### 2.4 Known Gaps in the MVP
 
-| Gap | Impact | Planned fix |
+| Gap | Impact | Status / planned fix |
 |---|---|---|
-| `ResourceState` conflates lifecycle and operational dimensions (TODO in code) | Cannot model in-transit, in-storage, or in-maintenance resources independently of lifecycle stage | Split into `LifecycleStage` (on `NondominiumIdentity`) + `OperationalState` (on `EconomicResource`) — see `ndo_prima_materia.md` Section 5 |
-| No property regime field | Cannot distinguish nondominium from commons from individual stewardship | `PropertyRegime` enum (`ndo_prima_materia.md`) |
-| No resource nature field | Cannot distinguish digital from physical from hybrid | `ResourceNature` enum (`ndo_prima_materia.md`) |
-| `GovernanceRule.rule_data` is untyped JSON string | No schema enforcement, no tooling support, no peer validation of rule semantics | `GovernanceRuleType` enum with typed schemas (`ndo_prima_materia.md` + `unyt-integration.md`) |
-| No lifecycle before `PendingValidation` | Cannot model resources in ideation, design, development stages | `LifecycleStage` (`ndo_prima_materia.md`) |
-| Single custodian only | Cannot model shared tools, collective custody, resource pools | Many-to-many flows (post-MVP) |
-| No resource-level identity separate from specification hash | Identity changes when specification is updated | `NondominiumIdentity` (`ndo_prima_materia.md` Layer 0) |
-| No versioning | Cannot track design evolution, forks, repairs | Versioning DAG (post-MVP) |
-| No digital integrity | Cannot verify downloaded digital resource data | Digital Resource Integrity (post-MVP) |
+| `ResourceState` conflates lifecycle and operational dimensions on `EconomicResource` | Cannot model in-transit, in-storage, or in-maintenance instances independently of Layer 0 lifecycle | 🔄 **`OperationalState` split pending** (`REQ-NDO-OS-06`); `LifecycleStage` on Layer 0 is ✅ done |
+| ~~No property regime field~~ | ~~Cannot distinguish nondominium from commons from individual stewardship~~ | ✅ **`PropertyRegime` on `NondominiumIdentity`** (see §2.6 for 6-vs-4 variant reconciliation) |
+| ~~No resource nature field~~ | ~~Cannot distinguish digital from physical from hybrid~~ | ✅ **`ResourceNature` on `NondominiumIdentity`** (5 variants in code; see §2.6) |
+| `GovernanceRule.rule_data` is untyped JSON string | No schema enforcement, no tooling support, no peer validation of rule semantics | 🔄 `GovernanceRuleType` enum with typed schemas (`ndo_prima_materia.md` + `unyt-integration.md`) |
+| ~~No lifecycle before `PendingValidation`~~ | ~~Cannot model resources in ideation, design, development stages~~ | ✅ **`LifecycleStage` (10 stages) on Layer 0** with full transition validation |
+| Single custodian only | Cannot model shared tools, collective custody, resource pools | 🔄 Many-to-many flows (post-MVP) |
+| ~~No resource-level identity separate from specification hash~~ | ~~Identity changes when specification is updated~~ | ✅ **`NondominiumIdentity` Layer 0** — stable action hash independent of spec updates |
+| No full versioning DAG | Cannot track all design-evolution relations (fork, merge, repair, augment) | 🔄 Partial via `NdoHardLink` (§2.5); full DAG in `versioning.md` |
+| No digital integrity | Cannot verify downloaded digital resource data | 🔄 Digital Resource Integrity (post-MVP) |
 | No rivalry/non-rivalry modeling | Governance defaults are the same for all resource types | Gap — see Section 5 |
 | No scope classification | Cannot determine network-wide vs. project-specific visibility | Gap — see Section 5 |
 | No resource reliability | No way to track a tool's track record independent of custodian reputation | Gap — see Section 5 |
-| No cross-app identity or DID | Agents cannot prove identity across Holochain apps or networks; reputation is local to this DHT; no key recovery mechanism | `FlowstaIdentity` CapabilitySlot on `Person` entry hash (`ndo_prima_materia.md` Section 6.7); W3C DID via Flowsta agent linking; Vault key recovery |
-| No agent key recovery | If agent loses device, signing key (and all private entries/PPRs) are inaccessible; no deterministic key regeneration | Flowsta Vault BIP39 recovery phrases; auto-backup; CAL-compliant data export (`ndo_prima_materia.md` Section 6.7) |
+| No cross-app identity or DID | Agents cannot prove identity across Holochain apps or networks; reputation is local to this DHT; no key recovery mechanism | 🔄 `FlowstaIdentity` CapabilitySlot on `Person` entry hash (`ndo_prima_materia.md` Section 6.7) |
+| No agent key recovery | If agent loses device, signing key (and all private entries/PPRs) are inaccessible; no deterministic key regeneration | 🔄 Flowsta Vault BIP39 recovery phrases; auto-backup; CAL-compliant data export (`ndo_prima_materia.md` Section 6.7) |
+| Layers 1 & 2 not linked to Layer 0 | Specification and process activity not activated via `NDOToSpecification` / `NDOToProcess` | 🔄 `ndo_prima_materia.md` §4 |
+| Governance-as-operator for lifecycle transitions | Transitions validated in integrity zome only; no automatic EconomicEvent generation | 🔄 REQ-NDO-LC-02, REQ-NDO-LC-03, REQ-NDO-LC-07 |
+
+### 2.5 Federation, versioning & contribution layer (`zome_gouvernance`, ✅ PR #103)
+
+Beyond `zome_resource`, the governance zome implements NDO federation and contribution primitives that partially address versioning, composability, and OVN contribution tracking:
+
+**`NdoHardLink`** — typed cross-NDO (cross-DNA) relationships:
+
+```rust
+pub enum NdoLinkType { Component, DerivedFrom, Supersedes }
+
+pub struct NdoHardLink {
+    pub from_ndo_identity_hash: ActionHash,
+    pub to_ndo_dna_hash: DnaHash,
+    pub to_ndo_identity_hash: ActionHash,
+    pub link_type: NdoLinkType,
+    pub fulfillment_hash: ActionHash, // EconomicEvent backing this link
+    // ...
+}
+```
+
+Partial coverage of the versioning DAG (`versioning.md`): `DerivedFrom` and `Supersedes` map to evolution/supersession relations; `Component` supports composable/fractal resource architecture. Not a full DAG (no `ForkedFrom`, `MergedFrom`, `RepairedFrom`, etc.).
+
+**`Contribution`** — peer-validated work on an NDO (ValueFlows Work/Modify semantics):
+
+```rust
+pub struct Contribution {
+    pub provider: AgentPubKey,
+    pub action: VfAction,
+    pub ndo_identity_hash: ActionHash,
+    pub validated_by: Vec<AgentPubKey>, // min 1 AccountableAgent
+    pub effort_quantity: Option<f64>,
+    // optional cross-DNA WorkLog reference (Group DNA)
+    // ...
+}
+```
+
+**`Agreement`** — benefit redistribution clauses on an NDO (partial Unyt/BRD primitive):
+
+```rust
+pub struct Agreement {
+    pub ndo_identity_hash: ActionHash,
+    pub version: u32,
+    pub clauses: Vec<BenefitClause>,
+    pub primary_accountable: Vec<AgentPubKey>,
+    // ...
+}
+```
+
+Coordinator modules: `hard_link.rs`, `contribution.rs`, `agreement.rs`. Sweettest coverage in `dnas/nondominium/tests/src/governance/mod.rs`. Not yet wired to Unyt RAVE validation or full upstream contribution propagation.
+
+### 2.6 Doc/code consistency notes (reconciliation recommended)
+
+| Topic | Code (ground truth) | Other docs | Recommendation |
+|---|---|---|---|
+| **`PropertyRegime` variant count** | 6 variants in `crates/shared/src/types.rs` and integrity validation | `IMPLEMENTATION_STATUS.md` and UI shared-types document 4 (Private, Commons, Nondominium, CommonPool — "Collective and Pool removed after design review") | Reconcile in a dedicated pass: either remove Collective/Pool from Rust or restore them in UI/docs |
+| **`ResourceNature` variants** | `Physical, Digital, Service, Hybrid, Information` (5) | This doc §6.2 forward map adds `Space, Method, Currency`; `ndo_prima_materia.md` specifies 3 | Treat code's 5 variants as implemented; forward-map additions remain post-MVP |
+| **Lifecycle governance** | Initiator-only `update_lifecycle_stage` (MVP) | REQ-NDO-LC-07 role-based authorization | Defer to governance-as-operator integration |
+| **Transition events** | `NdoToTransitionEvent` link optional; `transition_event_hash` often `null` in UI | REQ-NDO-LC-03 automatic EconomicEvent generation | Backend Phase 2.3 |
 
 ---
 
 ## 3. Post-MVP Roadmap
 
-The following improvements are designed in the post-MVP documentation. Each is described briefly here; full specifications are in the referenced documents.
+The following improvements are designed in the post-MVP documentation. Items marked **✅ Implemented** are live in the codebase; others remain planned or partial. Full specifications are in the referenced documents.
 
 ### 3.1 NDO Three-Layer Model (`ndo_prima_materia.md`)
 
 The most significant architectural change. Replaces the flat `ResourceSpecification + EconomicResource` model with a progressive three-layer structure:
 
-- **Layer 0 — NondominiumIdentity**: A permanent, immutable identity anchor. The genesis entry whose action hash becomes the stable identifier for the resource across its entire existence. Contains `name`, `description`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`. Never voided — serves as the tombstone at end of life.
-- **Layer 1 — ResourceSpecification** (activated by `NDOToSpecification` link): The form of the resource — design, governance rules, assets, digital integrity manifests. Activated when the resource has a form worth sharing.
-- **Layer 2 — Process** (activated by `NDOToProcess` link): The activity around the resource — EconomicEvents, Commitments, Claims, PPRs. Activated when multi-agent coordination begins.
+- **Layer 0 — NondominiumIdentity**: ✅ **Implemented** (PR #80/#84). A permanent, immutable identity anchor. The genesis entry whose action hash becomes the stable identifier for the resource across its entire existence. Contains `name`, `description`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `successor_ndo_hash`, `hibernation_origin`. Never voided — serves as the tombstone at end of life.
+- **Layer 1 — ResourceSpecification** (activated by `NDOToSpecification` link): 🔄 **Not started**. The form of the resource — design, governance rules, assets, digital integrity manifests. Activated when the resource has a form worth sharing. Legacy `ResourceSpecification` entries exist but are not yet linked to Layer 0.
+- **Layer 2 — Process** (activated by `NDOToProcess` link): 🔄 **Not started**. The activity around the resource — EconomicEvents, Commitments, Claims, PPRs. Activated when multi-agent coordination begins. ValueFlows cycle exists in `zome_gouvernance` but is not yet linked to NDO identity via `NDOToProcess`.
 
 This model directly implements the complexity matching principle: coordination overhead grows with actual social complexity, not at resource creation. The three-layer structure describes the **resource face** of any entity — including collective entities. When a collective (project-organisation, cooperative, network) has an associated NDO, that NDO is its digital twin as a Resource: its permanent identity, lifecycle, specification, and governance. The collective also has an **agent face** (`AgentContext`) through which it participates in economic events. These are distinct — see `agent.md §3.1` for the dual-face model.
 
 ### 3.2 Property Regime and Resource Nature
+
+✅ **Implemented on `NondominiumIdentity`** (shared crate + integrity validation). Canonical Rust definitions:
 
 ```rust
 pub enum PropertyRegime {
@@ -190,19 +312,21 @@ pub enum PropertyRegime {
 }
 
 pub enum ResourceNature {
-    Digital,   // Software, data, design files, documents
-    Physical,  // Material objects, equipment, spaces
-    Hybrid,    // Digital twin of a physical resource
+    Physical,     // Material objects, equipment, consumables
+    Digital,      // Software, data, design files, documents
+    Service,      // Software services, knowledge assets (extends spec's 3-variant set)
+    Hybrid,       // Digital twin of a physical resource
+    Information,  // Knowledge assets, data sets (extends spec's 3-variant set)
 }
 ```
 
-These enums are part of `NondominiumIdentity` (Layer 0) — they classify the resource at creation and remain stable across its lifecycle. The `PropertyRegime` enum is reconciled from the OVN property regime taxonomy (§4.4.3) — see §4.4.6 for the full analysis.
+These enums are part of `NondominiumIdentity` (Layer 0) — they classify the resource at creation and remain stable across its lifecycle (integrity-enforced). The `PropertyRegime` enum is reconciled from the OVN property regime taxonomy (§4.4.3) — see §4.4.6 for the full analysis.
+
+> **Consistency caveat:** UI and `IMPLEMENTATION_STATUS.md` document four `PropertyRegime` variants; Rust retains six. See §2.6.
 
 ### 3.3 LifecycleStage and OperationalState
 
-The current 5-state `ResourceState` enum is replaced by two orthogonal enums:
-
-**`LifecycleStage`** (10 stages on `NondominiumIdentity`) — the maturity/evolutionary phase of the resource, advancing rarely and mostly irreversibly:
+**`LifecycleStage`** — ✅ **Implemented** on `NondominiumIdentity` (10 stages, integrity-validated state machine, initiator-only updates in MVP):
 
 ```
 Ideation → Specification → Development → Prototype →
@@ -210,19 +334,23 @@ Stable → Distributed → Active →
 Hibernating → Deprecated → EndOfLife
 ```
 
-**`OperationalState`** (7 states on `EconomicResource`) — the current process acting on a specific instance, cycling frequently as processes begin and end:
+Hibernating records `hibernation_origin` and resumes to that stage. Deprecated requires `successor_ndo_hash` (REQ-NDO-LC-06). EndOfLife is terminal.
+
+**`OperationalState`** — 🔄 **Not implemented** on `EconomicResource`. The legacy 5-state `ResourceState` enum still conflates both dimensions (`REQ-NDO-OS-06`):
 
 ```
 PendingValidation | Available | Reserved | InTransit | InStorage | InMaintenance | InUse
 ```
 
-`Maintenance` and `Reserved` move from `LifecycleStage` to `OperationalState`. Transport, storage, and maintenance are *processes* that can apply to a resource at *any* lifecycle stage (a `Prototype` can be `InTransit` between labs; an `Active` resource can be `InMaintenance`).
+`Maintenance` and `Reserved` in the current `ResourceState` enum are operational conditions, not lifecycle milestones. Transport, storage, and maintenance are *processes* that can apply to a resource at *any* lifecycle stage (a `Prototype` can be `InTransit` between labs; an `Active` resource can be `InMaintenance`).
 
-Each transition is governance-validated (the governance zome is the state transition operator), generates an economic event, and creates a lifecycle history audit trail.
+Each lifecycle transition **should** be governance-validated (the governance zome as state transition operator), generate an economic event, and create a lifecycle history audit trail (REQ-NDO-LC-02/03). Today: integrity zome validates transitions; automatic EconomicEvent generation and governance-as-operator evaluation are deferred.
 
 ### 3.4 Versioning (`versioning.md`)
 
-A DAG-based version graph applicable to material resources (physical instances and designs), digital resources (code, documents, CAD), and the Nondominium hApp itself. Typed relations: `EvolvedFrom`, `ForkedFrom`, `MergedFrom`, `RepairedFrom`, `AugmentedFrom`, `PortedToPlatform`. OVN-compliant contribution propagation upstream through the version graph.
+🔄 **Partially implemented** via `NdoHardLink` (`NdoLinkType`: Component, DerivedFrom, Supersedes) in `zome_gouvernance` (PR #103). Cross-DNA hard links support federation-scale composition and supersession.
+
+Full DAG-based version graph (typed relations: `EvolvedFrom`, `ForkedFrom`, `MergedFrom`, `RepairedFrom`, `AugmentedFrom`, `PortedToPlatform`) and OVN-compliant contribution propagation upstream through the version graph remain planned — see `versioning.md`.
 
 ### 3.5 Digital Resource Integrity (`digital-resource-integrity.md`)
 
@@ -234,11 +362,13 @@ Extension of the single-custodian model to shared custody with weights and roles
 
 ### 3.7 Unyt Integration (`unyt-integration.md`)
 
-Economic settlement layer via Unyt Smart Agreements and RAVEs. `EconomicAgreement` GovernanceRule type, RAVE validation as state transition precondition, PPR↔RAVE provenance chain, reputation-derived credit limits.
+🔄 **Planned (post-MVP).** Economic settlement layer via Unyt Smart Agreements and RAVEs. `EconomicAgreement` GovernanceRule type, RAVE validation as state transition precondition, PPR↔RAVE provenance chain, reputation-derived credit limits.
+
+> **Partial primitive:** `Agreement` + `BenefitClause` entries exist in `zome_gouvernance` (PR #103) as a benefit-redistribution data model on NDO identity hashes. Not yet wired to Unyt cells, RHAI scripts, or RAVE validation.
 
 ### 3.8 Flowsta Integration (`flowsta-integration.md`)
 
-Decentralized identity and authentication layer via Flowsta agent linking. `FlowstaIdentity` CapabilitySlot on `Person` entry hash, providing W3C DID (`did:flowsta:uhCAk...`) without modifying the `Person` entry schema. Two-tier identity authority: Tier 1 (permissionless attestation via CapabilitySlot link) and Tier 2 (governance-enforced identity verification for role promotions and high-value transitions). Flowsta Vault provides BIP39 key recovery and auto-backup for agent data resilience (CAL-compliant). PPR `ReputationSummary` becomes attributable to a cross-app DID, enabling portable reputation across Flowsta-linked Holochain apps.
+🔄 **Planned (post-MVP).** Decentralized identity and authentication layer via Flowsta agent linking. `FlowstaIdentity` CapabilitySlot on `Person` entry hash, providing W3C DID (`did:flowsta:uhCAk...`) without modifying the `Person` entry schema. Two-tier identity authority: Tier 1 (permissionless attestation via CapabilitySlot link) and Tier 2 (governance-enforced identity verification for role promotions and high-value transitions). Flowsta Vault provides BIP39 key recovery and auto-backup for agent data resilience (CAL-compliant). PPR `ReputationSummary` becomes attributable to a cross-app DID, enabling portable reputation across Flowsta-linked Holochain apps.
 
 ---
 
@@ -526,16 +656,18 @@ For the generic NDO, the implication is: **do not model intangible resources as 
 | OVN concept | NDO implementation | Status |
 |---|---|---|
 | Resource Type (specification/instance distinction) | `ResourceSpecification` + `EconomicResource` | ✅ Implemented |
-| Property regimes (Private, Commons, Collective, Pool, CommonPool, Nondominium) | `PropertyRegime` enum | 🔄 Planned (`ndo_prima_materia.md`) |
-| Value chain maturity stages | `LifecycleStage` enum (10 stages) | 🔄 Planned (`ndo_prima_materia.md`) |
+| NDO Layer 0 identity anchor | `NondominiumIdentity` + discovery anchors | ✅ Implemented (PR #80/#84) |
+| Property regimes (Private, Commons, Collective, Pool, CommonPool, Nondominium) | `PropertyRegime` enum on Layer 0 | ✅ Implemented in Rust (6 variants; UI/docs show 4 — see §2.6) |
+| Value chain maturity stages | `LifecycleStage` enum (10 stages) on Layer 0 | ✅ Implemented |
 | Embedded governance rules | `GovernanceRule` entries linked to `ResourceSpecification` | ✅ Implemented (weakly typed) |
 | Physical resource custody | `EconomicResource.custodian`, custody transfer | ✅ Implemented (single custodian, assumed individual agent — gap: collective agent custodianship not supported; TODO G1) |
 | Multi-custodian / shared custody | Many-to-many flows | 🔄 Planned |
-| Capture resistance | DHT architecture + Holochain's append-only model | ✅ Architectural property |
+| Capture resistance | DHT architecture + Holochain's append-only model + Layer 0 permanence | ✅ Architectural property |
 | Digital resources (composable, integrity) | Digital Resource Integrity | 🔄 Planned |
-| Versioning / DAG evolution | Versioning DAG | 🔄 Planned |
-| Contribution tracking | PPR system, Layer 2 EconomicEvents | ✅ Implemented |
-| OVN license / contribution propagation | Versioning + PPR upstream propagation | 🔄 Planned |
+| Versioning / DAG evolution | `NdoHardLink` (Component/DerivedFrom/Supersedes) + `versioning.md` full DAG | 🔄 Partial (`NdoHardLink` ✅; full DAG planned) |
+| Contribution tracking | PPR system, `Contribution` entry, Layer 2 EconomicEvents | ✅ Implemented (PPR structures + `Contribution`; Layer 2 NDO link pending) |
+| OVN license / contribution propagation | `Contribution` + versioning upstream propagation | 🔄 Partial (`Contribution` ✅; upstream propagation not) |
+| Benefit redistribution / economic agreements | `Agreement` + `BenefitClause` on NDO identity | 🔄 Partial (data model ✅; Unyt/RAVE wiring not) |
 | Economic settlement | Unyt integration | 🔄 Planned (post-MVP) |
 | Cross-app identity / DID | `FlowstaIdentity` CapabilitySlot via Flowsta agent linking (`ndo_prima_materia.md` Section 6.7) | 🔄 Planned (post-MVP) |
 | Agent key recovery | Flowsta Vault BIP39 recovery, auto-backup, CAL-compliant data export | 🔄 Planned (post-MVP) |
@@ -544,13 +676,15 @@ For the generic NDO, the implication is: **do not model intangible resources as 
 
 | OVN concept | NDO partial coverage | Gap |
 |---|---|---|
-| Resource nature (physical/digital/media) | `ResourceNature` enum (Digital, Physical, Hybrid) | Missing `Mental` analog; media channel vs. media item distinction absent |
+| Resource nature (physical/digital/media) | `ResourceNature` enum on Layer 0 (`Physical, Digital, Service, Hybrid, Information`) | Missing `Mental` analog (represented by Ideation-stage NDOs); media channel vs. media item distinction absent; forward-map `Space`/`Method`/`Currency` (§6.2) not in code |
+| Operational vs lifecycle state | `LifecycleStage` on Layer 0 ✅; legacy `ResourceState` on `EconomicResource` | `OperationalState` split not implemented (`REQ-NDO-OS-06`) |
 | Governance of access (role-based) | Role-based `enforced_by` in GovernanceRule | Rule types are untyped strings; no first-class accessibility classification |
-| Material/Immaterial behavior | Physical vs. Digital nature | No formal rivalrous/non-rivalrous property |
-| Method as resource | Covered as `Digital` resources | Not explicitly modelled; no template/recipe entry type |
-| Property regime: Nondominium vs. Commons | `Nondominium` now a distinct variant in `PropertyRegime` (§6.3) | Resolved — `Nondominium` has no-enclosure guarantees distinct from `Commons` |
+| Material/Immaterial behavior | Physical vs. Digital/Information/Service nature | No formal rivalrous/non-rivalrous property |
+| Method as resource | `Digital` or `Information` nature covers some cases | No dedicated `Method` variant or template/recipe entry type |
+| Property regime: Nondominium vs. Commons | `Nondominium` distinct variant in `PropertyRegime` (§6.3) | ✅ Resolved in code — no-enclosure guarantees distinct from `Commons`; UI may expose subset |
 | Transferability | Custody transfer + PPR non-transferability | No formal `transferability` classification on resources |
 | Reliability | Not modelled at resource level | PPR tracks agent quality, not resource condition/reliability |
+| NDO three-layer activation | Layer 0 ✅ | Layers 1 & 2 link types (`NDOToSpecification`, `NDOToProcess`) not implemented |
 
 ### 5.3 Missing — OVN concepts not yet planned in NDO
 
@@ -561,9 +695,9 @@ These represent the forward agenda for the generic NDO design:
 | **Rivalrous / Non-rivalrous** | Fundamental governance fork not modelled; all resources treated equivalently | Add `rivalry: Rivalrous \| NonRivalrous` field to `NondominiumIdentity` (Layer 0, see §6.1); derive governance defaults from this property |
 | **Resource scope** (Project / Network / Public) | Visibility and governance should differ by scope; not modelled | Add `ResourceScope` enum to `NondominiumIdentity`; drive discovery anchor selection from scope |
 | **Resource source** (OVN / Partner / Purchased) | Provenance matters for attribution and governance | Add `ResourceSource` enum to `NondominiumIdentity` |
-| **Space as resource type** | Physical spaces need scheduling, booking, temporal availability | Add `Space` to `ResourceNature`; design temporal availability governance patterns |
-| **Method / Recipe as resource type** | Process documentation is a resource with its own governance | Add `Method` to `ResourceNature`; link methods to the physical resources they govern |
-| **Currency as resource type** | Currencies (including Unyt Base Units) are resources in the OVN model | Add `Currency` to `ResourceNature`; Unyt Alliance represents a currency resource |
+| **Space as resource type** | Physical spaces need scheduling, booking, temporal availability | Add `Space` to `ResourceNature` (§6.2 forward map); **not in code** — design temporal availability governance patterns |
+| **Method / Recipe as resource type** | Process documentation is a resource with its own governance | Add `Method` to `ResourceNature` (§6.2 forward map); **not in code** — link methods to the physical resources they govern |
+| **Currency as resource type** | Currencies (including Unyt Base Units) are resources in the OVN model | Add `Currency` to `ResourceNature` (§6.2 forward map); **not in code** — Unyt Alliance represents a currency resource |
 | **Resource reliability** | A tool's track record (failure rate, repair history) is independent of custodian reputation | Add `reliability_score: Option<f64>` derived from EconomicEvents (repair, incident PPRs); update on each Repair/Maintenance event |
 | **Accessibility classification** | Free / Protected / Restricted as a first-class property | Add `Accessibility` enum; governance defaults derived from this |
 | **Transferability classification** | Formal encoding of transferable / non-transferable / shareable | Add `Transferability` enum; informs custody transfer governance |
@@ -580,6 +714,8 @@ These represent the forward agenda for the generic NDO design:
 Based on the gap analysis, the generic NDO should extend its resource classification to the following model. This is a design proposal, not a requirements document — it will be refined as the generic NDO project begins.
 
 ### 6.1 Extended `NondominiumIdentity` (Layer 0)
+
+> **Implementation status:** Core Layer 0 fields (`name`, `description`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `successor_ndo_hash`, `hibernation_origin`) are ✅ implemented. Classification fields below marked NEW are forward-map additions not yet in code.
 
 ```rust
 pub struct NondominiumIdentity {
@@ -603,19 +739,25 @@ pub struct NondominiumIdentity {
 
 ### 6.2 Extended `ResourceNature`
 
+> **Implementation status:** Code implements `Physical, Digital, Service, Hybrid, Information` (see §2.1). Forward-map variants `Space`, `Method`, and `Currency` below are **not yet in code**.
+
 ```rust
 pub enum ResourceNature {
-    Physical,   // Material objects: tools, equipment, consumables
-    Digital,    // Software, data, design files, documents
-    Hybrid,     // Digital twin of a physical resource
-    Space,      // Physical or virtual locations with temporal availability
-    Method,     // Documented process, recipe, protocol
-    Currency,   // Symbolic value exchange system (including Unyt Alliance Base Units)
+    Physical,   // ✅ Material objects: tools, equipment, consumables
+    Digital,    // ✅ Software, data, design files, documents
+    Service,    // ✅ Software services, knowledge assets (in code, not in original forward map)
+    Hybrid,     // ✅ Digital twin of a physical resource
+    Information,// ✅ Knowledge assets, data sets (in code, not in original forward map)
+    Space,      // 🔄 Physical or virtual locations with temporal availability
+    Method,     // 🔄 Documented process, recipe, protocol
+    Currency,   // 🔄 Symbolic value exchange system (including Unyt Alliance Base Units)
     // Note: Mental resources are represented by Ideation-stage NDOs, not a separate type
 }
 ```
 
 ### 6.3 Extended `PropertyRegime`
+
+> **Implementation status:** All six variants below are ✅ in Rust (`crates/shared/src/types.rs`). UI may expose a subset of four — see §2.6.
 
 ```rust
 pub enum PropertyRegime {
