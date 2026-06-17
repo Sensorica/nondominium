@@ -230,6 +230,9 @@ Singleton per-session; `loadGroupData(groupId)` switches context:
 | `groupNdos` | `NdoServiceTag.getGroupNdoDescriptors(groupId)` via SoftLinks |
 | `members` | `GroupServiceTag.getMembers(cellId)` |
 
+- `loadGroupData(groupId, { silent? })` — on a full (non-silent) load it first runs `lobbyService.ensureMembership(groupId)` (idempotent self-heal so a joined agent always becomes a committed member), then fetches NDOs + members. A **silent** load (used by the pull layer) skips the membership reconcile, does not toggle `isLoading`, and keeps existing data on transient failure (no flicker/blanking).
+- `refreshCurrentGroup()` — silent re-fetch of the currently-open group; driven by `GroupView`'s pull-based reactivity (tab focus / visibility change + gentle ~8 s poll while visible). `TODO(signals)`: replace the pull layer with Holochain remote signals (focus/poll kept only as an offline/missed-signal fallback).
+
 ---
 
 ## 8. Service Layer
@@ -264,7 +267,8 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 |--------|-----------|
 | `getMyGroups()` | Enumerate group clone cells from `appInfo` + `get_my_group` per cell |
 | `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` (the `join_group`/`announce_group` post-steps are best-effort via `E.catchAll`, so transient contention never aborts creation) |
-| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → best-effort `join_group` → `fetchGroupProfileWithRetry` (poll `get_my_group`, 6× / ~2.4 s for DHT gossip) → on miss, build a `GroupDescriptor` from the invite payload so the group still appears immediately. `TODO(signals)`: replace the poll with a Holochain remote signal once available |
+| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → `fetchGroupProfileWithRetry` (poll `get_my_group`, 6× / ~2.4 s for DHT gossip) → `is_member` guard → best-effort `join_group` → on profile miss, build a `GroupDescriptor` from the invite payload so the group still appears immediately. `TODO(signals)`: replace the poll with a Holochain remote signal once available |
+| `ensureMembership(groupId)` | Idempotent membership self-heal: resolve group hash via `get_my_group` → `is_member` → best-effort `join_group` if missing. Covers joins that missed the membership commit (payload-fallback path / swallowed `join_group`). Called on every full `loadGroupData` so a joined agent always reconciles into the member list |
 | `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |
 | `getGroupCell(groupId)` | Resolve clone `CellId` by `network_seed` |
 | `saveGroupMemberProfile(groupId, profile)` | `localStorage[ndo_group_profiles_v1]` (Level 2 identity) |
@@ -273,8 +277,19 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 
 | Method | Zome call |
 |--------|-----------|
-| `getMembers(cellId)` | `get_group_members` |
+| `getMembers(cellId)` | `get_group_members` (each member = action author of a `GroupMembership` linked from the group hash) |
 | `getSoftLinks` / `createSoftLink` | `get_soft_links` / `create_soft_link` |
+
+### Shared-group reactivity & data freshness
+
+Shared-group items (members, NDO SoftLinks, work logs) live on the group clone-cell DHT and reach other members via **gossip**. The UI keeps views fresh with a **pull-only** model today (no push):
+
+1. **Per-open reconciliation** — `loadGroupData` runs `ensureMembership` (self-heal) then re-reads members + NDOs whenever a group view mounts or `groupId` changes.
+2. **Tab focus / visibility** — `GroupView` calls `refreshCurrentGroup()` (silent) when the window regains focus or the tab becomes visible.
+3. **Gentle poll** — a ~8 s interval silent refresh while the group is open and the tab is visible (paused when hidden).
+4. **Join gossip-retry + fallback** — `fetchGroupProfileWithRetry` in `joinGroup` absorbs the gossip latency of a freshly-cloned cell.
+
+Consequence: a change made by another member appears within the poll interval, on focus, or on reload — not instantly. The **push** upgrade (`TODO(signals)`) is to have `zome_group` `remote_signal` members on `join_group` / `create_soft_link` / `log_work`, with the UI refreshing on those signals and the pull layer kept only as an offline/missed-signal fallback (consolidated design note in `dnas/group/zomes/coordinator/zome_group/src/lib.rs`).
 
 ---
 
@@ -361,6 +376,7 @@ The following UI capabilities are documented but not yet implemented:
 | Role management UI | After agent promotion workflow (#33, #34) | `requirements.md §4.3` |
 | Moss WeApplet | Post-MVP deployment target | `implementation_plan.md §12.6` |
 | Unyt / Flowsta integration UI | Phases 12.2–12.3 in implementation plan | `post-mvp/unyt-integration.md`, `post-mvp/flowsta-integration.md` |
+| Push reactivity via Holochain signals | Replace the pull layer (focus + poll + per-open reconcile) with `remote_signal` from `zome_group` on member/SoftLink/work-log mutations | `TODO(signals)` in `zome_group/src/lib.rs`, `GroupView.svelte`, `lobby.service.ts` |
 
 ---
 

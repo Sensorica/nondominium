@@ -35,11 +35,14 @@ Groups are organizational contexts for NDOs. A user can create a solo Group or j
 - **NDO cards** in group: each card shows name, lifecycle-stage badge, property-regime badge, resource-nature badge, and description excerpt; clicking a card navigates to the NDO detail page
 - **Switching groups**: navigating from one group to another correctly reloads the group name and NDO list
 - **Invite links** (multi-member groups): `generateInviteLink` encodes `{ network_seed, group_dna_hash, group_name }` as `?group=<base64>`; Sidebar and GroupView expose "Copy invite"; `joinGroup` provisions the clone cell and calls `join_group`
-- **Group members from DHT**: `MemberList` is wired to `groupService.getMembers(cellId)` on the group clone cell
+- **Group members from DHT**: `MemberList` is wired to `groupService.getMembers(cellId)` on the group clone cell (each member is the action author of a `GroupMembership` entry linked from the group hash)
 - **Reactive join**: a joined group appears in the sidebar immediately. `joinGroup` polls `get_my_group` (`fetchGroupProfileWithRetry`) to absorb DHT gossip latency, and falls back to an invite-payload `GroupDescriptor` if the profile has not yet synced, so no page reload is needed. `TODO(signals)`: replace polling with a Holochain remote signal once available.
+- **Membership self-heal**: because `joinGroup`'s membership commit is best-effort (it can take the payload-fallback path before the group profile gossips, and the `join_group` call is non-fatal), opening a group runs an idempotent `lobbyService.ensureMembership(groupId)` (resolve group hash → `is_member` → `join_group` if missing). This guarantees a joined agent is eventually a committed member and appears in everyone's member list, even if the original join missed.
+- **Pull-based reactivity for shared items**: while a group is open, `GroupView` silently re-fetches it (members + NDOs via `groupStore.refreshCurrentGroup()`) on tab focus / visibility change and on a gentle ~8s poll (paused when the tab is hidden). New items gossiped from other members therefore surface without a manual reload. `TODO(signals)`: replace this pull layer with Holochain remote signals (focus/poll kept only as an offline/missed-signal fallback).
 
 **Not yet implemented:**
 - Group-level governance
+- Push-based reactivity via Holochain signals (currently pull-based: focus + poll + per-open reconciliation). Cross-member changes appear within the poll interval / on focus / on reload rather than instantly.
 
 ---
 

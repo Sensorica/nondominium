@@ -44,6 +44,10 @@ pub fn join_group(group_hash: ActionHash) -> ExternResult<Record> {
         (),
     )?;
 
+    // TODO(signals): remote_signal other members with { kind: Member, group_hash }
+    // so their member list refreshes push-style instead of via poll/reload.
+    // See the consolidated design note in lib.rs.
+
     Ok(record)
 }
 

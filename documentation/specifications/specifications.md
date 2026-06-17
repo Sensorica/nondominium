@@ -1450,7 +1450,8 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 |----------|-----------|
 | `getMyGroups()` | Enumerate group clone cells from `appInfo` + `get_my_group` per cell |
 | `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` (post-steps best-effort via `E.catchAll`) |
-| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → best-effort `join_group` → `fetchGroupProfileWithRetry` (poll `get_my_group` 6× / ~2.4 s) → invite-payload `GroupDescriptor` fallback so the group appears without reload. `TODO(signals)` |
+| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → `fetchGroupProfileWithRetry` (poll `get_my_group` 6× / ~2.4 s) → `is_member` guard → best-effort `join_group` → invite-payload `GroupDescriptor` fallback so the group appears without reload. `TODO(signals)` |
+| `ensureMembership(groupId)` | Idempotent membership self-heal: resolve group hash via `get_my_group` → `is_member` → best-effort `join_group` if missing. Run on every full `loadGroupData` so a joined agent reliably appears in the DHT member list even if the initial join missed the commit |
 | `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |
 | `saveGroupMemberProfile(groupId, profile)` | `localStorage[ndo_group_profiles_v1]` (Level 2 identity — only remaining localStorage state) |
 
@@ -1511,7 +1512,9 @@ Filter logic: OR within each dimension, AND across dimensions. Empty set = show 
 | `groupNdos` | `NdoService.getGroupNdoDescriptors(groupId)` via `SoftLink`s on the group cell |
 | `members` | `GroupService.getMembers(cellId)` (DHT) |
 
-`loadGroupData(groupId)` switches the store's active group context. `createNdo(input)` creates on DHT then reloads.
+`loadGroupData(groupId, { silent? })` switches the store's active group context. A full (non-silent) load runs `LobbyService.ensureMembership(groupId)` (membership self-heal) before fetching NDOs + members; a **silent** load (used by the reactivity layer) skips the reconcile, leaves `isLoading` untouched, and keeps existing data on transient failure. `refreshCurrentGroup()` is a silent re-fetch of the open group. `createNdo(input)` creates on DHT then reloads.
+
+**Shared-group reactivity (pull model).** `GroupView` keeps the open group fresh as peers' changes gossip in by calling `refreshCurrentGroup()` on tab focus / visibility change and on a gentle ~8 s poll (paused when the tab is hidden), in addition to the per-open reconcile in `loadGroupData`. This is pull-only; the push upgrade is `TODO(signals)` — `zome_group` `remote_signal` to members on `join_group` / `create_soft_link` / `log_work`, with focus/poll retained as an offline/missed-signal fallback (design note in `dnas/group/zomes/coordinator/zome_group/src/lib.rs`).
 
 ### 7.5 LifecycleStage State Machine
 

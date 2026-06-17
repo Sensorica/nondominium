@@ -504,7 +504,7 @@ _Optimizing the system for large-scale network operation_
 
 ### Current Frontend Status
 
-- **MVP UI**: ✅ Implemented — persistent Lobby sidebar + Group panel + NDO detail page with full NDO lifecycle management, Join NDO placeholder ("Coming soon"), **Associate with group** modal, multi-member group invites + DHT member lists + reactive join, fork friction modal, and reliable NDO data display via cache + DHT refresh
+- **MVP UI**: ✅ Implemented — persistent Lobby sidebar + Group panel + NDO detail page with full NDO lifecycle management, Join NDO placeholder ("Coming soon"), **Associate with group** modal, multi-member group invites + DHT member lists + reactive join + idempotent membership self-heal (`ensureMembership`), pull-based reactivity for shared-group items (tab focus + gentle poll; `TODO(signals)` for push), fork friction modal, and reliable NDO data display via cache + DHT refresh
 - **Stack**: SvelteKit 2 + Svelte 5 runes + TypeScript + UnoCSS + Melt UI next-gen + Effect-TS
 - **Dev runtime**: Browser (web) — `hc-spin`/Electron superseded by `scripts/launch-happ.mjs`, which runs one Vite dev server per agent on consecutive ports (`VITE_DEV_AGENT`-pinned), writes `ui/static/hc-connection.json`, and auto-opens a browser tab per agent (`NO_OPEN=1` to disable). See `ui_architecture.md §15`
 - **Service Layer**: ✅ Complete (PR #97 + MVP UI work) — all three zome services + NDO/Lobby services with Effect-TS `Context.Tag` / `Layer` / `E.gen` pattern
@@ -526,7 +526,8 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 - [x] **Shared types**: `NdoInput`, `UpdateLifecycleStageInput`, `NdoTransitionHistoryEvent`, `LobbyUserProfile`, `GroupMemberProfile`, extended `GroupDescriptor` and `NdoDescriptor`; `PropertyRegime` reduced to 4 canonical variants (Private, Commons, Nondominium, CommonPool) — `packages/shared-types/src/resource.types.ts`
 - [x] **NDO service methods**: `createNdo`, `updateLifecycleStage`, `getNdoTransitionHistory`, `getGroupNdoDescriptors`, `getLobbyNdoDescriptors` — `ndo.service.ts`
 - [x] **Resource service methods**: `createNdo`, `getNdo` (return type corrected to `NondominiumIdentity | null` matching Rust `Option<NondominiumIdentity>`), `updateLifecycleStage`, filtered queries, history — `resource.service.ts`
-- [x] **Lobby/Group service (Group + Lobby DNA)**: `getMyGroups`, `createGroup` (clone cell → `create_group` → `join_group` → `announce_group`), `joinGroup` (clone cell + `join_group`, gossip-retry `fetchGroupProfileWithRetry` + invite-payload fallback for reactive sidebar; `TODO(signals)`), `generateInviteLink`; only the Level 2 `GroupMemberProfile` stays in `localStorage` — `lobby.service.ts` (Group DNA backend complete, PR #107)
+- [x] **Lobby/Group service (Group + Lobby DNA)**: `getMyGroups`, `createGroup` (clone cell → `create_group` → `join_group` → `announce_group`), `joinGroup` (clone cell + `is_member` guard + best-effort `join_group`, gossip-retry `fetchGroupProfileWithRetry` + invite-payload fallback for reactive sidebar; `TODO(signals)`), `ensureMembership` (idempotent membership self-heal so a joined agent always reconciles into the member list), `generateInviteLink`; only the Level 2 `GroupMemberProfile` stays in `localStorage` — `lobby.service.ts` (Group DNA backend complete, PR #107)
+- [x] **Shared-group pull reactivity**: `group.store.refreshCurrentGroup()` + `GroupView` tab-focus/visibility + gentle ~8 s poll keep members/NDOs fresh as peers' changes gossip in, without a manual reload; `loadGroupData` silent mode avoids flicker. Push upgrade tracked as `TODO(signals)` (`remote_signal` from `zome_group`)
 - [x] **app.context**: `lobbyUserProfile` state with localStorage hydration
 - [x] **lobby.store**: `activeFilters`, `filteredNdos`, `createGroup`, `joinGroup`; `loadLobby()` now invoked from root layout
 - [x] **group.store**: `group`, `groupNdos`, `loadGroupData`, `createNdo`, **`associateNdoWithGroup`** (append spec hash to `GroupDescriptor.ndoHashes` in `localStorage`; `TODO` hook for Group DHT when DNA lands)
@@ -578,6 +579,7 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 ### Phase 6: Group DNA Backend & Post-MVP UI 🌐
 
 - [x] **Group DNA backend** ✅ Complete (PR #107): cloned-cell `zome_group` (4 entry types, 15 coordinator externs, 13 Sweettest cases); `LobbyService`/`GroupService` now call the Group + Lobby DNAs directly (clone cells, `announce_group`, `get_my_group`, SoftLinks). Only the Level 2 `GroupMemberProfile` presentation choice remains in `localStorage`
+- [ ] **Push reactivity via Holochain signals** (`TODO(signals)`): `zome_group` `remote_signal`s members on `join_group` / `create_soft_link` / `log_work`; UI refreshes `refreshCurrentGroup()` on those signals; the current pull layer (per-open reconcile + focus + poll) is kept only as an offline/missed-signal fallback. Design note in `dnas/group/zomes/coordinator/zome_group/src/lib.rs`
 - [ ] **NDO cell cloning**: Per-NDO DHT, once Holochain cloning stabilises
 - [ ] **Fork submission flow**: Claim, vote, and Unyt stake (after Unyt integration §12.2)
 - [ ] **Moss WeApplet**: `ui/src/we-applet.ts` — `search`, `getAssetInfo`, `openAsset` (see §12.6)

@@ -18,6 +18,13 @@ export type GroupStore = {
   readonly isLoading: boolean;
   readonly errorMessage: string | null;
   loadGroupData: (groupId: string) => Promise<void>;
+  /**
+   * Silently re-fetches the currently-open group (members + NDOs) without
+   * toggling the loading state or clearing data on transient failure. Used by
+   * the pull-based reactivity layer (tab focus + gentle poll) so newly-gossiped
+   * items from other members appear without a manual reload.
+   */
+  refreshCurrentGroup: () => Promise<void>;
   createNdo: (input: NdoInput) => Promise<string | null>;
   associateNdoWithGroup: (ndoHashB64: string, targetGroupId: string) => Promise<void>;
 };
@@ -30,9 +37,12 @@ function createGroupStore(): GroupStore {
   let errorMessage = $state<string | null>(null);
   let currentGroupId = $state<string | null>(null);
 
-  async function loadGroupData(groupId: string): Promise<void> {
+  async function loadGroupData(groupId: string, opts?: { silent?: boolean }): Promise<void> {
     currentGroupId = groupId;
-    isLoading = true;
+    const silent = opts?.silent ?? false;
+    if (!silent) {
+      isLoading = true;
+    }
     errorMessage = null;
 
     const exit = await E.runPromiseExit(
@@ -51,6 +61,17 @@ function createGroupStore(): GroupStore {
             E.catchAll(() => E.succeed(null))
           );
           if (cell) {
+            // Self-heal membership only on a full (non-silent) load: if this agent
+            // joined via an invite but the join missed (group profile had not
+            // gossiped yet, so joinGroup took the payload-fallback path without
+            // committing membership), commit it now so the agent appears in the
+            // group's member list. Skipped on silent polls — it is idempotent but
+            // a profile fetch + is_member check every interval is wasteful.
+            if (!silent) {
+              yield* lobbyService.ensureMembership(groupId).pipe(
+                E.catchAll(() => E.succeed(false))
+              );
+            }
             memberList = yield* groupService.getMembers(cell.cellId).pipe(
               E.catchAll(() => E.succeed([]))
             );
@@ -66,13 +87,22 @@ function createGroupStore(): GroupStore {
       group = exit.value.found;
       groupNdos = exit.value.ndos;
       members = exit.value.memberList;
-    } else {
+    } else if (!silent) {
+      // On a silent refresh we keep whatever is already on screen rather than
+      // clearing it for a transient fetch failure.
       errorMessage = 'Failed to load group data.';
       group = null;
       groupNdos = [];
       members = [];
     }
-    isLoading = false;
+    if (!silent) {
+      isLoading = false;
+    }
+  }
+
+  async function refreshCurrentGroup(): Promise<void> {
+    if (!currentGroupId) return;
+    await loadGroupData(currentGroupId, { silent: true });
   }
 
   async function createNdo(input: NdoInput): Promise<string | null> {
@@ -158,6 +188,7 @@ function createGroupStore(): GroupStore {
       return errorMessage;
     },
     loadGroupData,
+    refreshCurrentGroup,
     createNdo,
     associateNdoWithGroup
   };

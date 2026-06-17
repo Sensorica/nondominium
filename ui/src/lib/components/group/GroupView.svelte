@@ -107,6 +107,42 @@
     }
   });
 
+  // Pull-based reactivity for shared-group items (members, NDOs): silently
+  // re-fetch when the tab regains focus and on a gentle poll while this group
+  // is open, so changes gossiped from other members surface without a manual
+  // reload. Keyed on groupId so listeners/interval are torn down and re-created
+  // when navigating between groups.
+  // TODO(signals): replace this pull layer with Holochain remote signals — the
+  // group zome should remote_signal members on join_group / create_soft_link /
+  // create_work_log, and the UI should refresh on those signals (keeping a
+  // focus/poll fallback only for offline/missed-signal cases).
+  $effect(() => {
+    // Reference groupId so the effect re-runs when the open group changes.
+    void groupId;
+    if (typeof window === 'undefined') return;
+
+    const POLL_INTERVAL_MS = 8000;
+    const refresh = () => {
+      void groupStore.refreshCurrentGroup();
+    };
+    const onFocus = () => refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(intervalId);
+    };
+  });
+
   $effect(() => {
     if (autoOpenCreateModal) {
       showCreateModal = true;

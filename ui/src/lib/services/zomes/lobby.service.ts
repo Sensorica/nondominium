@@ -60,6 +60,14 @@ export interface LobbyService {
   getMyGroups: () => E.Effect<GroupDescriptor[], LobbyError>;
   createGroup: (name: string, createdBy?: string) => E.Effect<GroupDescriptor, LobbyError>;
   joinGroup: (inviteCode: string) => E.Effect<GroupDescriptor, LobbyError>;
+  /**
+   * Idempotently ensures the calling agent holds a committed GroupMembership for
+   * the given group. Self-heals memberships that were missed during joinGroup
+   * (e.g. the group profile had not yet gossiped to the freshly-cloned cell, so
+   * the join took the payload-fallback path without committing membership).
+   * Returns true if the agent is (now) a member.
+   */
+  ensureMembership: (groupId: string) => E.Effect<boolean, LobbyError>;
   generateInviteLink: (groupId: string) => E.Effect<string, LobbyError>;
   getGroupCell: (groupId: string) => E.Effect<GroupCellInfo | null, LobbyError>;
   saveGroupMemberProfile: (groupId: string, profile: NonNullable<GroupDescriptor['memberProfile']>) => E.Effect<void, LobbyError>;
@@ -389,6 +397,55 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
               dnaHash: cell.dnaHash,
               memberProfile: getStoredGroupMemberProfile(cell.networkSeed)
             } satisfies GroupDescriptor;
+          }),
+
+        ensureMembership: (groupId) =>
+          E.gen(function* () {
+            const cell = yield* E.tryPromise({
+              try: async () => {
+                if (!holochainClient.isConnected) await holochainClient.connectClient();
+                return getGroupCellHandleBySeed(holochainClient.client!, groupId);
+              },
+              catch: (e) => LobbyError.fromError(e, 'ENSURE_MEMBERSHIP')
+            });
+            if (!cell) return false;
+
+            // The group profile must be present locally before we can resolve the
+            // group hash needed by join_group. By the time a group view is opened
+            // it has usually gossiped; if not, reconciliation simply happens on a
+            // later load.
+            const profile = yield* fetchGroupProfile(cell.cellId).pipe(
+              E.catchAll(() => E.succeed(null))
+            );
+            if (!profile) return false;
+
+            const groupHash = decodeHashFromBase64(profile.groupHashB64) as ActionHash;
+            const agentPubKey = yield* E.tryPromise({
+              try: () => holochainClient.getMyAgentPubKey(),
+              catch: (e) => LobbyError.fromError(e, 'ENSURE_MEMBERSHIP')
+            });
+
+            const isMember = yield* callGroupZome<boolean>(
+              cell.cellId,
+              'is_member',
+              [agentPubKey, groupHash],
+              'IS_MEMBER'
+            ).pipe(E.catchAll(() => E.succeed(false)));
+
+            if (isMember) return true;
+
+            yield* callGroupZome<GroupHolochainRecord>(
+              cell.cellId,
+              'join_group',
+              groupHash,
+              'JOIN_GROUP'
+            ).pipe(
+              E.catchAll((e) => {
+                console.warn('[lobby] ensureMembership join_group failed (non-fatal):', e);
+                return E.succeed(null as unknown as GroupHolochainRecord);
+              })
+            );
+            return true;
           }),
 
         generateInviteLink: (groupId) =>
