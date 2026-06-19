@@ -70,6 +70,15 @@ export interface LobbyService {
   ensureMembership: (groupId: string) => E.Effect<boolean, LobbyError>;
   generateInviteLink: (groupId: string) => E.Effect<string, LobbyError>;
   getGroupCell: (groupId: string) => E.Effect<GroupCellInfo | null, LobbyError>;
+  /**
+   * Resolves the live GroupProfile ActionHash (base64) for a group by fetching it
+   * from the group clone cell. Use this instead of a cached
+   * GroupDescriptor.groupHash when the hash must be current — e.g. right after a
+   * join, where the descriptor may have taken the invite-payload fallback path
+   * and carries no groupHash yet. Returns null if the cell or profile has not
+   * gossiped in yet.
+   */
+  getGroupHash: (groupId: string) => E.Effect<string | null, LobbyError>;
   saveGroupMemberProfile: (groupId: string, profile: NonNullable<GroupDescriptor['memberProfile']>) => E.Effect<void, LobbyError>;
   // Lobby DHT (zome-backed)
   announceGroup: (input: AnnounceGroupInput) => E.Effect<unknown, LobbyError>;
@@ -217,10 +226,9 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
             if (!holochainClient.isConnected) await holochainClient.connectClient();
             let cell = await getGroupCellHandleBySeed(holochainClient.client!, networkSeed);
             if (!cell) {
+              // createGroupCloneCell invalidates the client's cached AppInfo, so
+              // the re-read below sees the freshly-provisioned cell.
               await holochainClient.createGroupCloneCell(networkSeed);
-              if (holochainClient.client) {
-                holochainClient.client.cachedAppInfo = undefined;
-              }
               cell = await getGroupCellHandleBySeed(holochainClient.client!, networkSeed);
             }
             if (!cell) {
@@ -307,6 +315,22 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
               return getGroupCellHandleBySeed(holochainClient.client!, groupId);
             },
             catch: (e) => LobbyError.fromError(e, 'GET_GROUP_CELL')
+          }),
+
+        getGroupHash: (groupId) =>
+          E.gen(function* () {
+            const cell = yield* E.tryPromise({
+              try: async () => {
+                if (!holochainClient.isConnected) await holochainClient.connectClient();
+                return getGroupCellHandleBySeed(holochainClient.client!, groupId);
+              },
+              catch: (e) => LobbyError.fromError(e, 'GET_GROUP_HASH')
+            });
+            if (!cell) return null;
+            const profile = yield* fetchGroupProfile(cell.cellId).pipe(
+              E.catchAll(() => E.succeed(null))
+            );
+            return profile?.groupHashB64 ?? null;
           }),
 
         saveGroupMemberProfile: (groupId, profile) =>

@@ -1,7 +1,6 @@
 ---
 author:
 - Max Wardeh
-bibliography: /tmp/tmp-52DjIe0bQROV9R.json
 copyright:
   link: "https://creativecommons.org/licenses/by/4.0/"
   text: Creative Commons Attribution 4.0 International License

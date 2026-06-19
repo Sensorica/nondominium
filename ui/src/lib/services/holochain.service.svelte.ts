@@ -182,6 +182,17 @@ function createHolochainClientService(): HolochainClientService {
     }
   }
 
+  /**
+   * Drops the AppWebsocket's memoized AppInfo so the next appInfo() call reflects
+   * a just-changed cell topology (clone created/enabled). Called at the write
+   * boundary so every read path — getAppInfo, enumerateGroupCells,
+   * getGroupCellHandleBySeed — sees the new cell without each having to poke the
+   * private cache field itself.
+   */
+  function invalidateAppInfoCache(): void {
+    if (client) client.cachedAppInfo = undefined;
+  }
+
   async function enableGroupCloneCell(dnaHash: Uint8Array): Promise<ClonedCell> {
     if (!client) {
       throw new Error('Client not connected');
@@ -189,6 +200,8 @@ function createHolochainClientService(): HolochainClientService {
     const enabled = await client.enableCloneCell({
       clone_cell_id: { type: 'dna_hash', value: dnaHash }
     });
+    // Enabling changes cell topology — the cached AppInfo is now stale.
+    invalidateAppInfoCache();
     await authorizeCloneCellSigning(enabled.cell_id);
     return enabled;
   }
@@ -202,6 +215,9 @@ function createHolochainClientService(): HolochainClientService {
       modifiers: { network_seed: networkSeed },
       name: networkSeed
     });
+    // Creating a clone changes cell topology — invalidate immediately so a read
+    // through any path (not just the one that created the cell) sees it.
+    invalidateAppInfoCache();
     if (!cloned.enabled) {
       // enableGroupCloneCell authorizes signing credentials for the cell.
       return enableGroupCloneCell(cloned.cell_id[0]);

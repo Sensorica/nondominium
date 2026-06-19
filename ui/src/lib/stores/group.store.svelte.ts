@@ -1,4 +1,4 @@
-import { Effect as E, Exit, pipe } from 'effect';
+import { Effect as E, Either, Exit, pipe } from 'effect';
 import type { GroupDescriptor, NdoDescriptor, NdoInput } from '@nondominium/shared-types';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
 import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
@@ -45,6 +45,11 @@ function createGroupStore(): GroupStore {
     }
     errorMessage = null;
 
+    // Each fetch is captured as an Either so a transient failure of one part
+    // (e.g. getMembers while the DHT is gossiping) does not look like a
+    // successful empty result. On a silent refresh we only overwrite a field
+    // when its own fetch genuinely succeeded — otherwise we keep what is on
+    // screen. On a full load we still clear and surface the error.
     const exit = await E.runPromiseExit(
       pipe(
         E.gen(function* () {
@@ -52,14 +57,16 @@ function createGroupStore(): GroupStore {
           const ndoService = yield* NdoServiceTag;
           const groupService = yield* GroupServiceTag;
 
-          const groups = yield* lobbyService.getMyGroups();
-          const found = groups.find((g) => g.id === groupId) ?? null;
-          const ndos = yield* ndoService.getGroupNdoDescriptors(groupId);
+          const groupsRes = yield* E.either(lobbyService.getMyGroups());
+          const ndosRes = yield* E.either(ndoService.getGroupNdoDescriptors(groupId));
 
-          let memberList: { id: string; name: string; role?: string }[] = [];
           const cell = yield* lobbyService.getGroupCell(groupId).pipe(
             E.catchAll(() => E.succeed(null))
           );
+
+          // members default to "not fetched" (Left) when there is no cell yet.
+          let membersRes: Either.Either<{ id: string; name: string; role?: string }[], unknown> =
+            Either.left(undefined);
           if (cell) {
             // Self-heal membership only on a full (non-silent) load: if this agent
             // joined via an invite but the join missed (group profile had not
@@ -72,21 +79,46 @@ function createGroupStore(): GroupStore {
                 E.catchAll(() => E.succeed(false))
               );
             }
-            memberList = yield* groupService.getMembers(cell.cellId).pipe(
-              E.catchAll(() => E.succeed([]))
-            );
+            membersRes = yield* E.either(groupService.getMembers(cell.cellId));
           }
 
-          return { found, ndos, memberList };
+          return { groupsRes, ndosRes, hasCell: cell !== null, membersRes };
         }),
         E.provide(GroupStoreServicesResolved)
       )
     );
 
     if (Exit.isSuccess(exit)) {
-      group = exit.value.found;
-      groupNdos = exit.value.ndos;
-      members = exit.value.memberList;
+      const { groupsRes, ndosRes, hasCell, membersRes } = exit.value;
+      let anyFailed = false;
+
+      if (Either.isRight(groupsRes)) {
+        group = groupsRes.right.find((g) => g.id === groupId) ?? null;
+      } else {
+        anyFailed = true;
+        if (!silent) group = null;
+      }
+
+      if (Either.isRight(ndosRes)) {
+        groupNdos = ndosRes.right;
+      } else {
+        anyFailed = true;
+        if (!silent) groupNdos = [];
+      }
+
+      // Only treat members as authoritative when a cell existed and the fetch
+      // succeeded. A missing cell or a failed fetch must not blank an existing
+      // member list during a silent poll.
+      if (hasCell && Either.isRight(membersRes)) {
+        members = membersRes.right;
+      } else {
+        if (hasCell) anyFailed = true;
+        if (!silent) members = [];
+      }
+
+      if (anyFailed && !silent) {
+        errorMessage = 'Failed to load group data.';
+      }
     } else if (!silent) {
       // On a silent refresh we keep whatever is already on screen rather than
       // clearing it for a transient fetch failure.
@@ -147,15 +179,20 @@ function createGroupStore(): GroupStore {
             return yield* E.fail(new Error('Group cell not found'));
           }
 
+          // Prefer the cached descriptor's groupHash, but fall back to a live
+          // resolve when it is missing — a group joined via the invite-payload
+          // fallback path carries no groupHash until its profile gossips in.
           const groups = yield* lobbyService.getMyGroups();
           const g = groups.find((x) => x.id === targetGroupId);
-          if (!g?.groupHash) {
+          const groupHash =
+            g?.groupHash ?? (yield* lobbyService.getGroupHash(targetGroupId));
+          if (!groupHash) {
             return yield* E.fail(new Error('Group profile hash not available'));
           }
 
           yield* groupService.createSoftLink(
             cell.cellId,
-            g.groupHash,
+            groupHash,
             ndoHashB64,
             'Associated from NDO view'
           );

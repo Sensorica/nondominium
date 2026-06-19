@@ -1,4 +1,4 @@
-import type { AppClient, CellId, ClonedCell, DnaHash, AppInfo } from '@holochain/client';
+import type { AppClient, CellId, DnaHash, AppInfo } from '@holochain/client';
 import { encodeHashToBase64 } from '@holochain/client';
 import {
   getGroupCellByNetworkSeed,

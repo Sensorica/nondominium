@@ -123,6 +123,14 @@ function startBootstrapServer() {
     let bootstrapUrl;
     let signalUrl;
     let running = false;
+    // Single settle guard so a later `close`/`error` after a successful resolve
+    // cannot reject an already-settled promise (which would mask the real error).
+    let settled = false;
+    const done = (/** @type {() => void} */ fn) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
 
     pipeLines(bootstrapProc, 'kitsune2-bootstrap-srv', (line) => {
       if (line.includes('#kitsune2_bootstrap_srv#listening#')) {
@@ -134,13 +142,13 @@ function startBootstrapServer() {
         running = true;
       }
       if (running && bootstrapUrl && signalUrl) {
-        resolve({ bootstrapUrl, signalUrl });
+        done(() => resolve({ bootstrapUrl, signalUrl }));
       }
     });
 
-    bootstrapProc.on('error', reject);
+    bootstrapProc.on('error', (err) => done(() => reject(err)));
     bootstrapProc.on('close', (code) => {
-      if (!running) reject(new Error(`kitsune2-bootstrap-srv exited with code ${code ?? 'unknown'}`));
+      if (!running) done(() => reject(new Error(`kitsune2-bootstrap-srv exited with code ${code ?? 'unknown'}`)));
     });
   });
 }
@@ -191,6 +199,12 @@ function startSandboxes(nAgents, bootstrapUrl, signalUrl, appPorts) {
     /** @type {Record<number, { admin_port: number; app_ports: number[] }>} */
     const portsInfo = {};
     let ready = 0;
+    let settled = false;
+    const done = (/** @type {() => void} */ fn) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
 
     pipeLines(sandboxProc, 'hc sandbox', (line) => {
       const match = line.match(/Conductor launched #!(\d+)\s+(\{.+?\})/);
@@ -200,16 +214,16 @@ function startSandboxes(nAgents, bootstrapUrl, signalUrl, appPorts) {
         const ports = JSON.parse(match[2]);
         portsInfo[agentNum] = ports;
         ready += 1;
-        if (ready === nAgents) resolve(portsInfo);
+        if (ready === nAgents) done(() => resolve(portsInfo));
       } catch (error) {
-        reject(error);
+        done(() => reject(error));
       }
     });
 
-    sandboxProc.on('error', reject);
+    sandboxProc.on('error', (err) => done(() => reject(err)));
     sandboxProc.on('close', (code) => {
       if (ready < nAgents) {
-        reject(new Error(`hc sandbox run exited before all conductors launched (code ${code ?? 'unknown'})`));
+        done(() => reject(new Error(`hc sandbox run exited before all conductors launched (code ${code ?? 'unknown'})`)));
       }
     });
   });
