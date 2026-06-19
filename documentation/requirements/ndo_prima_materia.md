@@ -1,9 +1,11 @@
 # Nondominium Prima Materia
 
-**Status**: Post-MVP Design Document  
+**Status**: Normative architecture document — **Layer 0 implemented in MVP**; Layers 1–2, capability slots, and full governance-as-operator lifecycle remain post-MVP targets  
 **Created**: 2026-03-10  
+**Last updated**: 2026-06-16  
 **Authors**: Nondominium project  
-**Relates to**: `many-to-many-flows.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`, `flowsta-integration.md`, `lobby-dna.md`
+**Relates to**: `post-mvp/many-to-many-flows.md`, `post-mvp/ndo-versioning.md`, `post-mvp/digital-resource-integrity.md`, `post-mvp/unyt-integration.md`, `post-mvp/flowsta-integration.md`, `lobby-dna.md`, `post-mvp/project-type-ndo-specifications.md`  
+**Implementation reference**: `documentation/IMPLEMENTATION_STATUS.md` (NDO Layer 0 ✅ PR #80; NDO DNA extensions ✅ PR #103; Layers 1 & 2 ❌)
 
 ---
 
@@ -13,11 +15,11 @@
 2. [Complexity Economics as Architectural Foundation](#2-complexity-economics-as-architectural-foundation)
 3. [Complexity Oriented Programming](#3-complexity-oriented-programming)
 4. [The Three-Layer Model: The Prima Materia](#4-the-three-layer-model-the-prima-materia)
-5. [Lifecycle State Machine](#5-lifecycle-state-machine)
+5. [Resource State Model — Lifecycle & Operational State](#5-resource-state-model-two-orthogonal-dimensions)
 6. [The Surface of Attachment — Capability Slots](#6-the-surface-of-attachment--capability-slots)
 7. [Design Patterns](#7-design-patterns)
 8. [DHT Data Structures](#8-dht-data-structures)
-9. [Requirements](#9-requirements)
+9. [Requirements](#9-requirements) (including [§9.0 Implementation Status](#90-implementation-status-matrix))
 10. [Migration from Current Architecture](#10-migration-from-current-architecture)
 11. [Relationship to Other Post-MVP Work](#11-relationship-to-other-post-mvp-work)
 
@@ -29,29 +31,31 @@ In medieval alchemy, the *prima materia* is the primordial, undifferentiated sub
 
 This document borrows that metaphor deliberately. A Nondominium Object (NDO) is the prima materia of the Nondominium system: a minimal DHT structure that carries the potential to become any kind of resource — digital or physical, simple or composite, idea or fabricated artifact — and that grows in structure and function as the resource it represents grows in complexity and social embeddedness.
 
-### 1.1 The Gap in the Current Model
+### 1.1 The Gap in the Legacy Model — and What Remains
 
-The current Nondominium data model contains two primary entry types for resources:
+The **original flat resource model** consisted of two primary entry types:
 
 - `ResourceSpecification` — the type or template of a resource: name, description, category, governance rules
 - `EconomicResource` — an instance of a resource: quantity, unit, custodian, location, state
 
-This model is well-grounded in the ValueFlows standard and works well for resources that already exist in a stable, operational form. But it has a fundamental limitation: **it represents being, not becoming.**
+That model is well-grounded in the ValueFlows standard and works well for resources that already exist in a stable, operational form. Its fundamental limitation was that **it represented being, not becoming**: there was no first-class object for a resource from ideation through archival memory — no placeholder for an idea not yet designed, a project in active development, a design under peer review before any physical instance exists, an artifact in hibernation (distinct from end-of-life), or a record that persists as institutional memory after activity has ceased.
 
-There is no structure in the current model for a resource that is:
-- an idea that has not yet been designed
-- a project in active development
-- a design under peer review before any physical instance exists
-- an artifact entering hibernation, not end-of-life
-- a project record that persists as institutional memory after activity has ceased
+**Partially addressed — Layer 0 (MVP, implemented PR #80):** `NondominiumIdentity` is the permanent Layer 0 anchor. It carries `LifecycleStage` (Ideation through EndOfLife, including Hibernating and Deprecated), `PropertyRegime`, and `ResourceNature`. An NDO can be created at `Ideation` with name and intent only; lifecycle transitions are integrity-validated and discoverable by stage, nature, and regime. The UI implements Lobby → Group → NDO creation and lifecycle transition against this entry type. See `documentation/IMPLEMENTATION_STATUS.md` §NDO Layer 0.
 
-The current `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`) conflates two orthogonal dimensions: the maturity/evolutionary phase of the resource (`LifecycleStage`) and the transient operational condition imposed by active processes (`OperationalState`). It also does not describe the emergence of a resource from nothing, nor its graceful retirement into archival memory.
+**Still outstanding** (this document remains the normative target for these gaps):
+
+- **Layers 1 & 2 not activated:** `ResourceSpecification`, `EconomicResource`, and process entries are not yet linked to Layer 0 via `NDOToSpecification` or `NDOToProcess`. Legacy resource specs can still exist without an NDO parent; specification assets are not yet attached via `DigitalAsset` capability slots (REQ-NDO-L1-06).
+- **Specification richness:** Structured project-type know-how bundles ([`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md)) are post-MVP requirements only — the MVP `ResourceSpecification` entry remains a thin summary (name, description, category, tags).
+- **`ResourceState` conflation:** On `EconomicResource`, the `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`) still mixes lifecycle maturity with transient operational conditions. The split into `LifecycleStage` (on identity) + `OperationalState` (on instance) defined in Section 5 is not yet implemented in code (REQ-NDO-OS-01).
+- **Governance-as-operator for lifecycle:** MVP allows only the NDO `initiator` to call `update_lifecycle_stage`. Governance-validated transitions, role authorization per Section 5.3, and automatic `EconomicEvent` generation on each transition (REQ-NDO-LC-02, REQ-NDO-LC-03) remain deferred.
+
+The three-layer prima materia model closes the original gap **progressively**: Layer 0 addresses identity and lifecycle *becoming*; Layers 1 (form) and 2 (process) will complete the model when linked and enriched as specified in Sections 4 and 9.
 
 ### 1.2 The Intent of the Prima Materia
 
 The prima materia defines a **minimal DHT object** that:
 
-1. **Exists as a placeholder from the moment of conception** — before design, before specification, before any physical instantiation
+1. **Exists as a placeholder from the moment of conception** — before the lifecycle phases of design, specification, as well as before any physical instantiation
 2. **Grows in structure progressively** — gaining specification, governance rules, assets, and process infrastructure as the resource matures
 3. **Carries a permanent, stable identity** — a content-addressed anchor that persists through all transformations, including end-of-life
 4. **Provides a surface of attachment** for capabilities that cannot be anticipated in advance — external hApps, governance tools, fabrication queues, issue trackers
@@ -59,9 +63,11 @@ The prima materia defines a **minimal DHT object** that:
 
 ### 1.3 The Key Example: Nondominium Itself
 
-The Nondominium hApp is itself an NDO. It began as an idea (Ideation), passed through design (Specification), prototype implementation (Development → Prototype), and is now moving toward its first stable release. Its assets are code on GitHub. Its process is the collaborative work of contributors. Its governance rules are embedded in the code. Its identity is stable across all versions.
+The Nondominium hApp is itself an NDO, of a digital type (a computer program). It began as an idea (Ideation), passed through design (Specification), prototype implementation (Development → Prototype), and is now moving toward its first stable release. Its assets are code on GitHub (the location). Its process is the collaborative work of contributors. Its governance rules will be embedded in the code. Its identity is stable across all versions.
 
-When someone starts a hardware design project for a shared CNC machine, they create an NDO. When they publish the 3D files for distributed fabrication, Layer 1 (Specification) is activated. When contributors begin working, Layer 2 (Process) is activated. When the design is mature and being fabricated by many, all three layers are fully active. When the design becomes obsolete, Layers 1 and 2 are archived, but the NDO identity remains — a permanent record that the thing existed, who created it, and what happened to it.
+When someone starts a hardware design project for a shared CNC machine, they create an NDO (the identity first). When they publish design files and documentation for distributed fabrication (3D models, bill of materials, manuals, etc.), Layer 1 (Specification) is activated. When contributors begin working, Layer 2 (Process) is activated. When the design is mature and being fabricated by many, all three layers are fully active. When the design becomes obsolete, Layers 1 and 2 are archived, but the NDO identity remains — a permanent record that the thing existed, who created it, and what happened to it.
+
+> **MVP today:** Group-scoped `create_ndo` creates Layer 0 only. Layer 1 and Layer 2 activation links are not yet in the codebase; lifecycle stage on Layer 0 can still advance independently (see §5.3). Know-how bundle requirements for project-type NDOs are specified in [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md).
 
 ---
 
@@ -73,7 +79,7 @@ The three-layer design of the NDO is not an arbitrary architectural preference. 
 
 Yaneer Bar-Yam's central thesis in *Complexity Rising* is that **a system's behavioral complexity must match the complexity of the challenges it faces**. When the environment's complexity exceeds a system's adaptive capacity, the system fails. Hierarchical command-and-control structures have cognitive ceilings — there is only so much complexity a centralized decision-maker can handle. As the environment grows more complex, decentralized, networked systems with distributed decision-making become necessary.
 
-Applied to DHT data design, this principle has a direct corollary: **do not pre-classify a resource at creation time**. At the moment a resource is conceived, its full lifecycle complexity is unknowable. A project started as a personal experiment may become a global standard. A community tool may be adopted by thousands of fabrication networks. A hardware design may spawn dozens of forks and regional variants. Committing to a fixed classification at t=0 is the data equivalent of hierarchical overreach — assuming a knowledge of the future that no agent possesses.
+Applied to DHT data design, this principle has a direct corollary: **do not pre-classify a resource at creation time**. At the moment a resource is conceived, its full lifecycle complexity is unknowable. A project started as a personal experiment may become a global standard. A community tool may be adopted and fabricated by thousands of people, communities and networks. A hardware design may spawn dozens of forks and regional variants. Committing to a fixed classification at t=0 is the data equivalent of hierarchical overreach — assuming a knowledge of the future that no agent possesses.
 
 The OVN computational model (ovn.world) demonstrates this formally: Finite State Machines, the computational model underlying most fixed-classification systems, require a number of states that grows exponentially with social complexity — quickly reaching numbers exceeding the atoms in the observable universe for even modestly complex communities. FSMs are not inadequate; they are categorically incompatible with governing complex human systems. A resource data model built on fixed state at creation is an FSM in disguise.
 
@@ -93,15 +99,15 @@ In a hierarchical system, all resources would bear the full overhead of the rich
 
 ### 2.3 Morin: The Seven Principles of Complexity
 
-Edgar Morin's seven principles of complex thought, applied in the SENSORICA complexity economics framework, provide a philosophical grounding for the NDO's structure. Each principle finds direct expression in the design:
+Edgar Morin's seven principles of complex thought, applied in the Sensorica complexity economics framework, provide a philosophical grounding for the NDO's structure. Each principle finds direct expression in the design:
 
 | Morin's Principle | Expression in the NDO |
 |---|---|
 | **Systemic** (interdependence) | Every NDO exists in relation to agents, processes, and other NDOs; its identity is defined by its links, not its content alone |
 | **Holographic** (part reflects whole) | Every NDO carries the full three-layer potential, regardless of its current activation state |
 | **Retroactive** (feedback loops) | Lifecycle stage changes are triggered by economic events (outputs of the system feeding back as inputs) |
-| **Recursive** (products as producers) | An NDO representing a project produces NDOs representing its outputs; Nondominium-the-hApp produces Nondominium-as-resource |
-| **Dialogical** (antagonisms coexist) | The NDO holds the tension between digital and physical, between stability (identity) and change (process), between public (spec) and private (governance) |
+| **Recursive** (products as producers) | A project-type NDO (representing a resource in development, going through life stages from idea to design, to prototype, to stable) produces NDOs representing its outputs; Nondominium-the-hApp produces Nondominium-as-resource |
+| **Dialogical** (antagonisms coexist) | The NDO holds the tension between resource and agent, between digital and physical, between stability (identity) and change (process), between public (spec) and private (governance) |
 | **Reintroduction of the subject** | Agent motivation and contribution are first-class: PPRs, custody, and contribution tracking are built into the NDO's process layer |
 | **Ecology of action** | No action guarantees its outcome; the NDO's stigmergic capability surface allows unforeseen capabilities to attach — the system is never fully knowable from the source code alone |
 
@@ -111,9 +117,11 @@ The NDO is a **holon** in the sense used by the OVN model: an entity that is sim
 
 An NDO is:
 - **A whole**: it has its own identity, specification, and process — it is a complete self-describing object
-- **A part**: it is embedded in networks of other NDOs — a Project NDO contains Resource NDOs, which contain Design NDOs, which reference Component NDOs
+- **A part**: it is embedded in networks of other NDOs. for example, a project-type NDO contains Resource NDOs, which contain Design NDOs, which reference Component NDOs
 
 This recursive self-similarity is what makes the NDO fractal. Each NDO carries the same structural potential; the difference between a sub-component and a top-level project is only one of social context and activation state, not of structural type.
+
+See **fractal composablity** and fractal-composable-resource-architecture.md 
 
 ---
 
@@ -166,7 +174,7 @@ The NDO is the fundamental COP primitive in the Nondominium system. Its design e
 - **Lifecycle transitions** are not deterministic state machine edges — they are *feedback arcs* driven by economic events (agents' actions feeding back into the resource's representation of itself)
 - **The tombstone** at end of life is not a deletion — it is the *permanent memory* that the system was alive, respecting the append-only nature of the DHT as a feature, not a constraint
 
-The honest challenge of COP, noted in the complexity_oriented_programming archive: tooling. Debuggers, type systems, and unit tests all assume reducibility. COP requires new verification paradigms — closer to simulation and formal methods than conventional testing. This is reflected in the Nondominium testing strategy, which relies on multi-agent Tryorama scenarios rather than isolated unit tests.
+The honest challenge of COP, noted in the complexity_oriented_programming archive: tooling. Debuggers, type systems, and unit tests all assume reducibility. COP requires new verification paradigms — closer to simulation and formal methods than conventional testing. The Nondominium testing strategy relies on **Sweettest** (Rust, multi-agent) for backend validation; legacy Tryorama tests in `tests/` are deprecated.
 
 ---
 
@@ -176,7 +184,7 @@ The prima materia is realized in the NDO as a **three-layer structure**, where e
 
 ![NDO Three-Layer Architecture — identity, specification, and process activated progressively](../assets/diagrams/ndo-three-layer-model.png)
 
-*Layer 0 (NondominiumIdentity) is always present. Layer 1 (ResourceSpecification) activates when form is ready to share. Layer 2 (Process) activates when multi-agent coordination begins. Each layer adds overhead only when the environment demands it.*
+*Layer 0 (`NondominiumIdentity`) is always present — **implemented in MVP**. Layer 1 (`ResourceSpecification` via `NDOToSpecification`) and Layer 2 (Process via `NDOToProcess`) are **normative targets not yet wired in code**; each layer adds overhead only when the environment demands it.*
 
 ### 4.1 The Brain Architecture Analogy
 
@@ -189,6 +197,8 @@ The human brain provides the most vivid structural analogy. It did not evolve as
 - The **brainstem** handles vital functions: breathing, heartbeat, arousal. It is always active. The organism cannot survive without it. It is the oldest evolutionary layer.
 - The **cerebellum** handles coordination, posture, and procedural memory — the *form* of the body's activity. It evolved on top of the brainstem and is coupled to it, but can be understood as a distinct functional layer.
 - The **cortex** handles higher cognition, agency, and deliberate action. It evolved on top of the cerebellum and is the most recently evolved layer. It is situational — not all cognitive tasks require cortical engagement.
+
+This is also a manifestation of path dependency in evolution. 
 
 These layers do not replace each other. They are **coupled and co-active**. The cortex does not work without the brainstem. But the brainstem can sustain basic life without the cortex (as in the case of brain death with brainstem function preserved). And at death, the cortex goes first.
 
@@ -214,32 +224,50 @@ The NDO mirrors this exactly:
 
 Layer 0 is the prima materia in its most essential form. It is the minimum viable NDO — the smallest structure that gives a resource a stable, cryptographically-anchored identity in the DHT.
 
-**Structure:**
+**Status:** ✅ **Implemented in MVP** (`zome_resource` integrity + coordinator `ndo_identity.rs`; UI via Group-scoped NDO creation and lifecycle transition modals). Layers 1 and 2 remain post-MVP (see §1.1).
+
+**Structure** (as implemented in `dnas/nondominium/zomes/integrity/zome_resource/src/lib.rs`):
+
 ```rust
-struct NondominiumIdentity {
-    name: String,
-    initiator: AgentPubKey,
-    property_regime: PropertyRegime,
-    resource_nature: ResourceNature,
-    lifecycle_stage: LifecycleStage,
-    created_at: Timestamp,
-    // Optional: a brief human-readable description
-    description: Option<String>,
+pub struct NondominiumIdentity {
+    pub name: String,
+    pub initiator: AgentPubKey,
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub lifecycle_stage: LifecycleStage,
+    pub created_at: Timestamp,
+    pub description: Option<String>,
+    /// Set once when entering `Deprecated` (REQ-NDO-LC-06); also linked via `NdoToSuccessor`.
+    pub successor_ndo_hash: Option<ActionHash>,
+    /// Set on → `Hibernating` (records pre-pause stage); cleared on resume from hibernation.
+    pub hibernation_origin: Option<LifecycleStage>,
 }
 ```
 
-**Key properties:**
-- The **action hash** of this genesis entry becomes the permanent, stable identity of the NDO — a DID-like namespace that all other layers and capabilities link to
-- It is **never voided** — Holochain's append-only DHT makes deletion impossible, and this is correct: the identity of a resource that ever existed should be permanently accessible
-- The only field that evolves is `lifecycle_stage`, updated through governance-validated transitions
-- At end of life, Layer 0 alone remains as the **tombstone**: a permanent record that the resource existed, who created it, its nature, and when it concluded
+Shared enums live in `crates/shared/src/types.rs`. `PropertyRegime` has six variants (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`); `ResourceNature` includes `Physical`, `Digital`, `Service`, `Hybrid`, and `Information`. The UI `packages/shared-types` currently exposes four `PropertyRegime` options — reconciliation with the Rust enum is deferred.
 
-**When Layer 0 exists alone:**
-- A stub registration: "this thing exists, I intend to develop it"
-- A tombstone: all other layers have been archived, the identity remains
-- The minimal representation of an idea that has not yet been designed
+**Key properties:**
+
+- The **original `create_ndo` action hash** is the permanent, stable Layer 0 identity — a namespace that future layers and capability slots link to (REQ-NDO-L0-02).
+- It is **never deleted** — integrity validation rejects all deletes (`validate_delete_nondominium_identity`); Holochain's append-only model plus explicit validation ensures the identity remains readable as a tombstone at `EndOfLife` (REQ-NDO-L0-03, REQ-NDO-L0-06).
+- **Immutable after creation:** `name`, `initiator`, `property_regime`, `resource_nature`, `created_at`, and `description` cannot change on update. This is stricter than a free-text “living description”; editorial history belongs in Layer 1 or process records post-MVP.
+- **Mutable on lifecycle update only:**
+  - `lifecycle_stage` — integrity-validated state machine (§5.3); forward chain is monotonic (no skipping stages); `Hibernating` and terminal transitions (`Deprecated`, `EndOfLife`) have special rules.
+  - `successor_ndo_hash` — set exactly once when entering `Deprecated`; must reference an existing DHT record (REQ-NDO-LC-06).
+  - `hibernation_origin` — set when entering `Hibernating`, cleared when resuming to the recorded origin stage.
+- **Authorization (MVP):** only the `initiator` may call `update_lifecycle_stage`. Full governance-as-operator role checks (REQ-NDO-LC-07) and automatic `EconomicEvent` generation per transition (REQ-NDO-LC-03) are deferred; `NdoToTransitionEvent` links exist for future wiring.
+- **Discovery:** global and faceted anchors — `AllNdos`, `AgentToNdo`, `NdoByLifecycleStage`, `NdoByNature`, `NdoByPropertyRegime` (REQ-NDO-L0-07). The Lobby/Group UI browses and filters NDOs on these dimensions.
+
+**When Layer 0 exists alone** (typical today — Layers 1 & 2 not yet linked):
+
+- A stub registration at `Ideation`: “this thing exists; I intend to develop it” (UI default initial stage).
+- An identity carrying full classification (`property_regime`, `resource_nature`, `lifecycle_stage`) before any linked `ResourceSpecification` or process entries.
+- A tombstone at `EndOfLife` (or archived identity at `Deprecated` with successor): Layer 0 remains; upper layers are design targets, not yet activated in code.
+- The minimal representation of an idea that has not yet been designed — sufficient for discovery and lifecycle progression without Layer 1 assets.
 
 ### 4.3 Layer 1: Specification — The Form
+
+> **Status:** 🔄 **Post-MVP (not activated in code).** Legacy `ResourceSpecification` entries exist in `zome_resource` but are not linked to Layer 0 via `NDOToSpecification`. Project-type know-how bundles are specified in [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md).
 
 Layer 1 is activated when a resource has a form that needs to be communicated to others — when the resource is ready to be described, shared, peer-reviewed, or replicated.
 
@@ -265,6 +293,8 @@ Layer 1 is activated when a resource has a form that needs to be communicated to
 **The design file as the product:** In the distributed fabrication context (cosmolocal production), the Layer 1 specification *is* the product in the most meaningful sense. When a hardware design reaches `Stable` lifecycle stage, anyone with a 3D printer and the fabrication spec can produce a local instance. The spec is not documentation for a product — it *is* the shareable, replicable artifact. This is the nondominium model's most radical departure from capitalist product logic.
 
 ### 4.4 Layer 2: Process — The Activity
+
+> **Status:** 🔄 **Post-MVP (not activated in code).** `EconomicEvent`, `Commitment`, and `Claim` exist in `zome_gouvernance` but are not linked to NDO identity via `NDOToProcess`. Federation extensions **`NdoHardLink`**, **`Contribution`**, and **`Agreement`** (#103) provide partial cross-NDO process semantics; see §11.7.
 
 Layer 2 is activated when there is active multi-agent economic work around the resource — when contributions are being tracked, custody is being transferred, use events are being recorded, or commitments are being made.
 
@@ -335,7 +365,9 @@ graph TD
 
 ## 5. Resource State Model: Two Orthogonal Dimensions
 
-The current `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`) conflates two independent dimensions of a resource's state. The NDO requires their explicit separation:
+> **Implementation snapshot (MVP):** `LifecycleStage` **is implemented** on `NondominiumIdentity` (10 stages, integrity-validated transitions, initiator-only authorization in the coordinator). `OperationalState` **is not yet implemented** — `EconomicResource` still uses the conflated `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`). The split described below remains the **target architecture**.
+
+The current `ResourceState` enum conflates two independent dimensions of a resource's state. The NDO requires their explicit separation:
 
 - **`LifecycleStage`** — the maturity or evolutionary phase of the resource as an artefact. Advances rarely and (mostly) irreversibly, driven by significant events (design completion, peer validation, fabrication, end-of-life declaration). Lives on the `NondominiumIdentity` (Layer 0).
 - **`OperationalState`** — what process is currently acting on a specific resource instance. Cycles frequently as processes begin and end. Managed by the governance zome. Lives on the `EconomicResource` instance (Layer 2).
@@ -374,6 +406,8 @@ pub enum LifecycleStage {
 
 ### 5.2 Lifecycle → Layer Activation Table
 
+> **Normative target:** Layer activation via `NDOToSpecification` / `NDOToProcess` links is **not yet enforced in code**. Today, lifecycle stage advances on Layer 0 independently; the table below describes intended coupling once Layers 1 and 2 are wired.
+
 | Lifecycle Stage | Layer 0 | Layer 1 | Layer 2 | Notes |
 |---|---|---|---|---|
 | `Ideation` | Active | — | — | Pure stub: name + property regime |
@@ -391,7 +425,7 @@ pub enum LifecycleStage {
 
 ### 5.3 Lifecycle Transitions and Governing Events
 
-Each transition between lifecycle stages is driven by a **VfAction economic event**, validated by the governance zome acting as state transition operator. This is consistent with the existing governance-as-operator architecture (`REQ-ARCH-07`).
+Each transition between lifecycle stages **shall** be driven by a **VfAction economic event**, validated by the governance zome acting as state transition operator (`REQ-ARCH-07`). **MVP today:** transitions are validated in the **integrity zome** (`validate_update_nondominium_identity`); the **initiator** may call `update_lifecycle_stage` without a cross-zome governance evaluation. Optional `transition_event_hash` creates an `NdoToTransitionEvent` link when provided, but the referenced `EconomicEvent` is **not yet validated** cross-zome. Role-based authorization in the table below is **target behaviour** (REQ-NDO-LC-07), not current enforcement.
 
 ```mermaid
 stateDiagram-v2
@@ -438,7 +472,7 @@ stateDiagram-v2
 > The Mermaid above shows representative "Raise" arrows; in practice, the valid resume target
 > is always `hibernation_origin`, enforced by the integrity zome.
 
-**Transition authorization by role:**
+**Transition authorization by role** *(target — REQ-NDO-LC-07; MVP: initiator only)*:
 
 | Transition | Authorized by |
 |---|---|
@@ -454,6 +488,8 @@ stateDiagram-v2
 | Any → EndOfLife | Custodian + challenge period (see REQ-GOV-11 to REQ-GOV-13) |
 
 ### 5.4 OperationalState Enum
+
+> **Status:** ❌ **Not implemented.** `EconomicResource.state` still uses `ResourceState`. See REQ-NDO-OS-01 through REQ-NDO-OS-06 and the TODO in `zome_resource` `LinkTypes::ResourcesByState`.
 
 Lives on `EconomicResource` (Layer 2). Describes *what process is currently acting on a specific resource instance*. Set and cleared by the governance zome when processes begin and end.
 
@@ -510,6 +546,8 @@ pub enum OperationalState {
 
 ## 6. The Surface of Attachment — Capability Slots
 
+> **Implementation snapshot:** `CapabilitySlot` links and the `SlotType` enum are **not yet in `zome_resource`**. Federation extensions **`NdoHardLink`**, **`Contribution`**, and **`Agreement`** (#103) in `zome_gouvernance` provide a **partial** cross-NDO attachment and process record — related in purpose but structurally distinct from the stigmergic `CapabilitySlot` pattern defined here. Unyt and Flowsta integrations (§6.6–6.7) remain post-MVP.
+
 A central requirement of the NDO is that it must not need to anticipate all future capabilities at design time. Like Discord channels to which anyone can add integrations, or like the MOSS Weave Interaction Pattern where hApps can link to any Weave Asset, the NDO must provide a **surface of attachment** for capabilities that do not yet exist.
 
 ### 6.1 The COP Principle of the Attachment Surface
@@ -538,7 +576,7 @@ NDO_identity_hash →[LinkType: CapabilitySlot, tag: { slot_type, author, attach
 | `IssueTracker` | Bug reports, feature requests | Issue tracker hApp cell hash |
 | `FabricationQueue` | Distributed manufacturing requests | Fabrication process hash |
 | `GovernanceDAO` | Governance proposals and voting | DAO hApp cell hash |
-| `VersionGraph` | Version history and forks | Versioned entity hash (see `versioning.md`) |
+| `VersionGraph` | Version history and forks | Versioned entity hash (see `post-mvp/ndo-versioning.md`) |
 | `DigitalAsset` | Files, 3D models, code, manifests | Asset manifest hash |
 | `WeaveWAL` | Moss/Weave Asset Link | WAL (Weave Asset Locator) |
 | `FlowstaIdentity` | Cross-app identity attestation | `IsSamePersonEntry` action hash |
@@ -554,6 +592,8 @@ The [Weave Interaction Pattern](https://dev.theweave.social/concepts/introductio
 3. As the NDO gains lifecycle stages, MOSS tools can respond to those transitions — a fabrication queue tool might automatically activate when the NDO reaches `Stable`
 
 ### 6.4 Governance of the Attachment Surface
+
+> **Status:** ❌ **Not implemented** for `CapabilitySlot` trust filtering. The rules below describe target governance behaviour once capability slots land in `zome_resource`.
 
 The stigmergic surface is permissionless at the DHT level — any agent can create a capability link. But the governance layer determines which links are **trusted** and surfaced to other agents, versus which are ignored or filtered:
 
@@ -709,7 +749,7 @@ Commitment
 
 The PPR is the **participation proof**: who did what, at what quality, in which role. The RAVE is the **economic proof**: what value flowed, to whom, under what rules, verified by Unyt peers. Together, they constitute a full, mutually-reinforcing record of a resource interaction that neither system alone can provide.
 
-This linkage also feeds back into the credit system: agents whose PPRs consistently carry RAVEs (meaning they reliably execute their economic obligations) earn higher reputation scores, which in turn increases their Unyt credit limits (see `unyt-integration.md`). Reputation and credit become two readings of the same underlying participation data.
+This linkage also feeds back into the credit system: agents whose PPRs consistently carry RAVEs (meaning they reliably execute their economic obligations) earn higher reputation scores, which in turn increases their Unyt credit limits (see `post-mvp/unyt-integration.md`). Reputation and credit become two readings of the same underlying participation data.
 
 #### The Resource as Economic Actor
 
@@ -880,7 +920,11 @@ Add `IdentityVerification` variant to `GovernanceRuleType` (or use existing rule
 
 The NDO embodies six named design patterns. These patterns are architectural idioms that recur throughout the system and should guide implementation decisions.
 
+> **Implementation snapshot:** **Pattern 1** (Identity Anchor) and **Pattern 5** (Tombstone, Layer 0 only) are reflected in MVP code. **Pattern 4** is partially reflected in the UI (default `Ideation` creation, lifecycle progression). **Patterns 2, 3, and 6** depend on link types not yet in `zome_resource`. Federation **`NdoHardLink`** (#103) is a related cross-NDO attachment mechanism in `zome_gouvernance`, distinct from **Pattern 6**'s `CapabilitySlot` surface.
+
 ### Pattern 1: Identity Anchor
+
+> **Status:** ✅ **Implemented (MVP)** — `create_ndo`, discovery anchors, immutable delete rejection.
 
 **Intent:** Give every resource a stable, cryptographically-secure identity anchor that persists through all transformations, including end of life.
 
@@ -898,6 +942,8 @@ let ndo_hash = create_entry(&EntryTypes::NondominiumIdentity(identity))?;
 ---
 
 ### Pattern 2: Complexity-Matched Layer Activation
+
+> **Status:** 🔄 **Post-MVP** — `NDOToSpecification` and `NDOToProcess` link types not yet in code.
 
 **Intent:** Activate only the structural complexity that the current coordination environment demands. Do not pay coordination costs in advance of need.
 
@@ -918,11 +964,13 @@ create_link(ndo_hash, process_hash, LinkTypes::NDOToProcess, ())?;
 
 ### Pattern 3: Holonic Composition
 
-**Intent:** Allow NDOs to contain other NDOs, creating fractal hierarchies where every level of organization has the same structural potential.
+> **Status:** 🔄 **Post-MVP** — `NDOToComponent` not yet in code. See `post-mvp/fractal-composable-resource-architecture.md`.
+
+**Intent:** Allow NDOs to contain other NDOs, creating fractal hierarchies where every level has the same structural potential.
 
 **Structure:** `NDOToComponent` links from a parent NDO's identity hash to child NDO identity hashes. A Project NDO links to Resource NDOs. A Resource NDO links to Design NDOs. A Design NDO links to Component NDOs.
 
-**Rationale:** Morin's holographic principle and the fractal composable resource architecture (documented in `digital-resource-integrity.md`). In complex systems, the same structure appears at every scale. The NDO's three-layer potential is the same whether the resource is an atomic component or a multi-organization project.
+**Rationale:** Morin's holographic principle and the fractal composable resource architecture (documented in `post-mvp/digital-resource-integrity.md`). In complex systems, the same structure appears at every scale. The NDO's three-layer potential is the same whether the resource is an atomic component or a composable object.
 
 **Holochain idiom:**
 ```rust
@@ -939,6 +987,8 @@ create_link(
 
 ### Pattern 4: Progressive Disclosure
 
+> **Status:** 🔄 **Partial (UI)** — creation form defaults to `Ideation`; full layer-aware archetypes await L1/L2 activation.
+
 **Intent:** Present resources at the appropriate level of complexity for the current context, without exposing structural complexity that is not yet active.
 
 **Structure:** Three starting archetypes that correspond to common initialization states, presented as UI choices that set the initial lifecycle stage. These are starting configurations, not permanent classifications.
@@ -954,6 +1004,8 @@ create_link(
 ---
 
 ### Pattern 5: Tombstone
+
+> **Status:** ✅ **Partial (MVP)** — Layer 0 is never deleted; `EndOfLife` and `Deprecated` stages work. Layer 1/2 archival (spec `is_active`, terminal events) awaits L1/L2 implementation.
 
 **Intent:** Preserve permanent identity records for all resources that have ever existed, including those that have reached end of life, been deprecated, or been abandoned.
 
@@ -980,6 +1032,8 @@ create_entry(&EntryTypes::EconomicEvent(EconomicEvent {
 ---
 
 ### Pattern 6: Stigmergic Capability Attachment
+
+> **Status:** 🔄 **Post-MVP** — `CapabilitySlot` link type not in `zome_resource`. See §6 implementation note for federation partial (`NdoHardLink`).
 
 **Intent:** Allow any agent or external hApp to attach capabilities to an NDO without modifying the NDO entry, without requiring permission from the NDO's custodian, and without needing to have been anticipated by the NDO's designer.
 
@@ -1011,23 +1065,15 @@ create_link(
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct NondominiumIdentity {
-    // Core identity fields
     pub name: String,
-    pub description: Option<String>,
     pub initiator: AgentPubKey, // TODO (G1, REQ-AGENT-02): replace with AgentContext post-MVP
-                                // to support Collective, Project, Network, and Bot agents as
-                                // initiators. Currently assumes individual agent. Aligns with
-                                // the same change needed for EconomicResource.custodian.
-
-    // Classification
     pub property_regime: PropertyRegime,
     pub resource_nature: ResourceNature,
-
-    // Initial lifecycle state
     pub lifecycle_stage: LifecycleStage,
-
-    // Timestamp
     pub created_at: Timestamp,
+    pub description: Option<String>,       // immutable after creation (MVP)
+    pub successor_ndo_hash: Option<ActionHash>,   // set once on Deprecated (REQ-NDO-LC-06)
+    pub hibernation_origin: Option<LifecycleStage>, // set on → Hibernating; cleared on resume
 }
 ```
 
@@ -1047,10 +1093,14 @@ pub enum PropertyRegime {
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
-    Digital,   // Software, data, design files, documents
-    Physical,  // Material objects, equipment, spaces
-    Hybrid,    // Digital twin of a physical resource, or physical+digital bundle
+    Physical,     // Material objects, equipment, spaces
+    Digital,      // Software, data, design files, documents
+    Service,      // Software services, knowledge-as-service assets
+    Hybrid,       // Digital twin of a physical resource, or physical+digital bundle
+    Information,  // Knowledge assets, datasets, documented methods
 }
+// MVP canonical definition: crates/shared/src/types.rs (5 variants).
+// Post-MVP forward map may add Space, Method, Currency — see documentation/archives/resources.md §6.2.
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
 pub enum LifecycleStage {
@@ -1102,45 +1152,61 @@ pub enum SlotType {
 }
 ```
 
-### 8.4 New Link Types (additions to zome_resource integrity)
+### 8.4 Link Types — Implemented vs Planned
+
+**Implemented in `zome_resource` integrity (MVP — PR #80):**
 
 ```rust
-// In zome_resource integrity LinkTypes enum — new variants to add:
-pub enum LinkTypes {
-    // ... existing link types ...
-
-    // --- NDO Three-Layer Links ---
-    NDOToSpecification,     // NondominiumIdentity → ResourceSpecification (Layer 1 activation)
-    NDOToProcess,           // NondominiumIdentity → Process (Layer 2 activation)
-    NDOToComponent,         // NondominiumIdentity → NondominiumIdentity (holonic composition)
-
-    // --- Capability Surface ---
-    CapabilitySlot,         // NondominiumIdentity → capability target (typed by tag)
-
-    // --- Discovery ---
-    AllNDOs,                // Anchor → NondominiumIdentity (global discovery)
-    NDOsByLifecycleStage,   // LifecyclePath → NondominiumIdentity
-    NDOsByNature,           // NaturePath → NondominiumIdentity
-    NDOsByRegime,           // RegimePath → NondominiumIdentity
-
-    // --- Lifecycle History ---
-    NDOLifecycleHistory,    // NondominiumIdentity → LifecycleEvent (audit trail)
-}
+// Layer 0 discovery and lifecycle (actual enum names in code)
+AllNdos,              // Path "ndo_identities" → NondominiumIdentity action hashes
+AgentToNdo,           // initiator AgentPubKey → NondominiumIdentity
+NdoByLifecycleStage,  // Path "ndo.lifecycle.{Stage:?}" → NondominiumIdentity
+NdoByNature,          // Path "ndo.nature.{Nature:?}" → NondominiumIdentity
+NdoByPropertyRegime,  // Path "ndo.regime.{Regime:?}" → NondominiumIdentity
+NdoToSuccessor,       // deprecated NDO → successor NondominiumIdentity (REQ-NDO-LC-06)
+NdoToTransitionEvent, // NDO → EconomicEvent (link only; cross-zome event validation deferred)
 ```
+
+Legacy resource links (`SpecificationToResource`, `ResourcesByState`, etc.) remain for pre-NDO `ResourceSpecification` / `EconomicResource` flows.
+
+**Planned additions (post-MVP — not yet in `LinkTypes` enum):**
+
+```rust
+NDOToSpecification,     // NondominiumIdentity → ResourceSpecification (Layer 1 activation)
+NDOToProcess,           // NondominiumIdentity → Process (Layer 2 activation)
+NDOToComponent,         // NondominiumIdentity → NondominiumIdentity (holonic composition)
+CapabilitySlot,         // NondominiumIdentity → capability target (typed by tag)
+NDOLifecycleHistory,    // NondominiumIdentity → LifecycleEvent (audit trail alternative/complement to NdoToTransitionEvent)
+ResourcesByLifecycleStage,   // split from ResourcesByState (REQ-NDO-OS-06)
+ResourcesByOperationalState, // split from ResourcesByState (REQ-NDO-OS-06)
+```
+
+**Implemented in `zome_gouvernance` (federation — PR #103):** `NdoToHardLinks`, `HardLinkByType` (for `NdoHardLink` entries). See §11.7.
 
 ### 8.5 NondominiumIdentity Updates
 
-Layer 0 entries may be updated only to change `lifecycle_stage`. All other fields are immutable after creation. This preserves the identity anchor property: the content of the NDO changes as little as possible, while the DHT link graph around it grows freely.
+Layer 0 entries may be updated only for **lifecycle-related fields**. Identity, classification, and descriptive fields are immutable after creation. This preserves the identity anchor property: the content of the NDO changes as little as possible, while the DHT link graph around it grows freely.
+
+**MVP permitted updates** (integrity zome `validate_update_nondominium_identity`):
+
+| Field | When |
+|---|---|
+| `lifecycle_stage` | Valid forward transition (or Hibernating resume via `hibernation_origin`) |
+| `hibernation_origin` | Set when entering `Hibernating`; cleared on resume |
+| `successor_ndo_hash` | Set once when transitioning to `Deprecated` (REQ-NDO-LC-06) |
 
 ```rust
-// Only lifecycle_stage updates are permitted
-pub struct UpdateNDOLifecycleInput {
+// Coordinator input (zome_resource — actual MVP struct name)
+pub struct UpdateLifecycleStageInput {
     pub original_action_hash: ActionHash,
-    pub previous_action_hash: ActionHash,
     pub new_stage: LifecycleStage,
-    pub transition_event_hash: ActionHash, // Must reference a valid EconomicEvent
+    pub successor_ndo_hash: Option<ActionHash>,   // required when new_stage == Deprecated
+    pub transition_event_hash: Option<ActionHash>, // creates NdoToTransitionEvent link when Some;
+                                                   // EconomicEvent validation deferred cross-zome
 }
 ```
+
+> **REQ-NDO-L0-05 target:** every lifecycle update shall reference a validated triggering `EconomicEvent`. MVP accepts an optional hash and creates the link without cross-zome proof.
 
 ### 8.6 Holonic Composition Diagram
 
@@ -1209,19 +1275,39 @@ affiliation_state(agent) = f(
 
 ## 9. Requirements
 
+### 9.0 Implementation Status Matrix
+
+Normative requirements below remain valid as design targets. Status reflects the codebase as of 2026-06 (see `documentation/IMPLEMENTATION_STATUS.md`).
+
+| Track | Status | Notes |
+|---|---|---|
+| Layer 0 (`NondominiumIdentity`, discovery, lifecycle validation) | ✅ MVP (#80) | Initiator-only transitions; optional `NdoToTransitionEvent` |
+| Layer 1 activation (`NDOToSpecification`) | ❌ Post-MVP | Legacy `ResourceSpecification` exists unlinked |
+| Layer 2 activation (`NDOToProcess`) | ❌ Post-MVP | Governance events exist unlinked to NDO identity |
+| `OperationalState` split | ❌ Post-MVP | `ResourceState` still conflated on `EconomicResource` |
+| Governance-as-operator lifecycle (REQ-NDO-LC-02/03/07) | 🔄 Partial | Integrity validation only; no role-gated governance zome path |
+| `CapabilitySlot` surface (`zome_resource`) | ❌ Post-MVP | Unyt / Flowsta slot types specified, not coded |
+| Federation (`NdoHardLink`, `Contribution`, `Agreement`) | ✅ MVP (#103) | `zome_gouvernance`; distinct from CapabilitySlot |
+| Lobby / Group DNA UI shell | ✅ MVP | Group-scoped NDO creation; localStorage + Group DNA per IMPLEMENTATION_STATUS |
+| Agent ontology (§9.7) | ❌ Post-MVP | Individual agents only |
+
+Legend: ✅ implemented · 🔄 partial · ❌ not started
+
 ### 9.1 Layer 0 — Identity Requirements
 
-- **REQ-NDO-L0-01**: The system shall support the creation of a `NondominiumIdentity` entry as the minimal representation of any Nondominium Object, requiring only `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, and an optional `description`.
-- **REQ-NDO-L0-02**: The action hash of the `NondominiumIdentity` genesis entry shall be the stable, permanent identity of the NDO for its entire existence and shall never be voided or replaced.
-- **REQ-NDO-L0-03**: A `NondominiumIdentity` entry shall never be deletable by any agent or governance action. Its permanent presence in the DHT is a design guarantee, not a policy choice.
-- **REQ-NDO-L0-04**: Only the `lifecycle_stage` field of a `NondominiumIdentity` entry may be updated after creation. All other fields are immutable.
-- **REQ-NDO-L0-05**: Every update to `lifecycle_stage` shall reference a valid `EconomicEvent` action hash as the triggering transition event.
-- **REQ-NDO-L0-06**: At end of life (`LifecycleStage::EndOfLife`), the `NondominiumIdentity` entry shall remain fully readable and discoverable, serving as a tombstone.
-- **REQ-NDO-L0-07**: The system shall support discovery of NDOs by `lifecycle_stage`, `resource_nature`, and `property_regime` via DHT path-based anchors.
+- **REQ-NDO-L0-01** ✅: The system shall support the creation of a `NondominiumIdentity` entry as the minimal representation of any Nondominium Object, requiring only `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, and an optional `description`.
+- **REQ-NDO-L0-02** ✅: The action hash of the `NondominiumIdentity` genesis entry shall be the stable, permanent identity of the NDO for its entire existence and shall never be voided or replaced.
+- **REQ-NDO-L0-03** ✅: A `NondominiumIdentity` entry shall never be deletable by any agent or governance action. Its permanent presence in the DHT is a design guarantee, not a policy choice.
+- **REQ-NDO-L0-04** ✅ *(MVP scope)*: After creation, only lifecycle-related fields may be updated: `lifecycle_stage`, `hibernation_origin`, and `successor_ndo_hash` (the latter set once on `Deprecated`). All other fields (`name`, `initiator`, `property_regime`, `resource_nature`, `description`, `created_at`) are immutable.
+- **REQ-NDO-L0-05** 🔄: Every update to `lifecycle_stage` shall reference a valid `EconomicEvent` action hash as the triggering transition event. MVP: optional `transition_event_hash` creates `NdoToTransitionEvent` link without cross-zome event validation.
+- **REQ-NDO-L0-06** ✅: At end of life (`LifecycleStage::EndOfLife`), the `NondominiumIdentity` entry shall remain fully readable and discoverable, serving as a tombstone.
+- **REQ-NDO-L0-07** ✅: The system shall support discovery of NDOs by `lifecycle_stage`, `resource_nature`, and `property_regime` via DHT path-based anchors.
 
 ### 9.2 Layer 1 — Specification Requirements
 
-- **REQ-NDO-L1-01**: Layer 1 shall be activated by creating an `NDOToSpecification` link from the NDO identity hash to a `ResourceSpecification` entry. No modification of the `NondominiumIdentity` entry is required for activation.
+> **Status:** ❌ Post-MVP (requirements normative; `NDOToSpecification` not in code). Project-type know-how bundles: [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md).
+
+- **REQ-NDO-L1-01** ❌: Layer 1 shall be activated by creating an `NDOToSpecification` link from the NDO identity hash to a `ResourceSpecification` entry. No modification of the `NondominiumIdentity` entry is required for activation.
 - **REQ-NDO-L1-02**: Layer 1 may be activated at any lifecycle stage at or after `Ideation`. Retroactive activation (for NDOs that began at `Ideation` without a spec) shall be fully supported.
 - **REQ-NDO-L1-03**: Multiple `ResourceSpecification` entries may be linked to one NDO identity, representing version evolution. The most recent link shall be considered the canonical Layer 1 specification.
 - **REQ-NDO-L1-04**: When Layer 1 enters dormant state (hibernation or end of life), the specification shall be marked `is_active: false`. The `NDOToSpecification` link shall remain readable.
@@ -1230,7 +1316,9 @@ affiliation_state(agent) = f(
 
 ### 9.3 Layer 2 — Process Requirements
 
-- **REQ-NDO-L2-01**: Layer 2 shall be activated by creating an `NDOToProcess` link from the NDO identity hash to a ValueFlows `Process` entry.
+> **Status:** ❌ Post-MVP for `NDOToProcess`. Partial: `NdoHardLink`, `Contribution`, `Agreement` in `zome_gouvernance` (#103).
+
+- **REQ-NDO-L2-01** ❌: Layer 2 shall be activated by creating an `NDOToProcess` link from the NDO identity hash to a ValueFlows `Process` entry.
 - **REQ-NDO-L2-02**: Layer 2 may be activated at any lifecycle stage at or after `Specification`.
 - **REQ-NDO-L2-03**: All `EconomicEvent`, `Commitment`, `Claim`, and `PrivateParticipationClaim` entries associated with an NDO shall be linked through the active Layer 2 process.
 - **REQ-NDO-L2-04**: When a process concludes (all commitments fulfilled or cancelled), a terminal `EconomicEvent` with `VfAction::Consume` shall be recorded, formally concluding Layer 2.
@@ -1241,17 +1329,19 @@ affiliation_state(agent) = f(
 
 #### LifecycleStage Requirements
 
-- **REQ-NDO-LC-01**: The system shall implement the `LifecycleStage` enum as defined in Section 5.1 on the `NondominiumIdentity` entry, replacing the lifecycle dimension of the current `ResourceState` enum. The migration mapping in Section 10 shall be used for backward compatibility.
-- **REQ-NDO-LC-02**: Lifecycle stage transitions shall be validated by the governance zome acting as state transition operator, consistent with `REQ-ARCH-07` (governance-as-operator).
-- **REQ-NDO-LC-03**: Each lifecycle transition shall generate a corresponding `EconomicEvent` with the triggering `VfAction`, creating an auditable lifecycle history.
-- **REQ-NDO-LC-04**: The `Hibernating` stage shall be clearly distinguished from `Deprecated` and `EndOfLife`. A hibernating resource may be reactivated; deprecated and end-of-life resources may not be reactivated.
-- **REQ-NDO-LC-05**: Transition to `EndOfLife` shall respect the challenge period defined in `REQ-GOV-13`.
-- **REQ-NDO-LC-06**: The `Deprecated` stage shall require a link to a successor NDO identity hash. Deprecation without a declared successor is not permitted.
-- **REQ-NDO-LC-07**: The governance zome shall enforce the authorized role for each lifecycle transition as defined in Section 5.3.
+- **REQ-NDO-LC-01** ✅: The system shall implement the `LifecycleStage` enum as defined in Section 5.1 on the `NondominiumIdentity` entry. The legacy `ResourceState` enum on `EconomicResource` remains until REQ-NDO-OS-01 lands (see Section 10.3 migration map).
+- **REQ-NDO-LC-02** 🔄: Lifecycle stage transitions shall be validated by the governance zome acting as state transition operator, consistent with `REQ-ARCH-07` (governance-as-operator). MVP: integrity zome validation + initiator-only coordinator.
+- **REQ-NDO-LC-03** 🔄: Each lifecycle transition shall generate a corresponding `EconomicEvent` with the triggering `VfAction`, creating an auditable lifecycle history. MVP: optional `transition_event_hash` link; automatic event generation deferred.
+- **REQ-NDO-LC-04** ✅: The `Hibernating` stage shall be clearly distinguished from `Deprecated` and `EndOfLife`. A hibernating resource may be reactivated; deprecated and end-of-life resources may not be reactivated.
+- **REQ-NDO-LC-05** ❌: Transition to `EndOfLife` shall respect the challenge period defined in `REQ-GOV-13`.
+- **REQ-NDO-LC-06** ✅: The `Deprecated` stage shall require a link to a successor NDO identity hash. Deprecation without a declared successor is not permitted.
+- **REQ-NDO-LC-07** ❌: The governance zome shall enforce the authorized role for each lifecycle transition as defined in Section 5.3.
 
 #### OperationalState Requirements
 
-- **REQ-NDO-OS-01**: The system shall implement the `OperationalState` enum as defined in Section 5.4 on the `EconomicResource` entry, replacing the process-related dimension of the current `ResourceState` enum.
+> **Status:** ❌ All REQ-NDO-OS-* not started.
+
+- **REQ-NDO-OS-01** ❌: The system shall implement the `OperationalState` enum as defined in Section 5.4 on the `EconomicResource` entry, replacing the process-related dimension of the current `ResourceState` enum.
 - **REQ-NDO-OS-02**: `OperationalState` transitions shall be managed exclusively by the governance zome. The resource zome stores the field; only the governance zome may initiate valid transitions.
 - **REQ-NDO-OS-03**: Each `OperationalState` transition shall correspond to an open or completed `EconomicEvent`. The governance zome shall reject state transitions for which no corresponding event exists.
 - **REQ-NDO-OS-04**: `OperationalState` and `LifecycleStage` are orthogonal. An `OperationalState` transition shall never cause a `LifecycleStage` transition, and vice versa.
@@ -1262,7 +1352,9 @@ affiliation_state(agent) = f(
 
 ### 9.5 Capability Surface Requirements
 
-- **REQ-NDO-CS-01**: The system shall support `CapabilitySlot` links from any NDO identity hash to any DHT hash or external reference, using the `CapabilitySlotTag` structure defined in Section 8.3.
+> **Status:** ❌ Post-MVP for `CapabilitySlot` in `zome_resource`. Unyt / Flowsta phased integration paths in §6.6–6.7.
+
+- **REQ-NDO-CS-01** ❌: The system shall support `CapabilitySlot` links from any NDO identity hash to any DHT hash or external reference, using the `CapabilitySlotTag` structure defined in Section 8.3.
 - **REQ-NDO-CS-02**: Any Accountable Agent shall be able to create a `CapabilitySlot` link to any NDO, without requiring permission from the NDO's custodian. Permissionless attachment at the DHT level is a design guarantee.
 - **REQ-NDO-CS-03**: The governance zome shall support validation of `CapabilitySlot` links, allowing custodians and Accountable Agents to mark specific slots as trusted or untrusted.
 - **REQ-NDO-CS-04**: The system shall support all `SlotType` variants defined in Section 8.3, including `CustomApp(String)` for extensibility.
@@ -1305,7 +1397,11 @@ affiliation_state(agent) = f(
 
 ### 10.1 Current Architecture Overview
 
-The current Nondominium zome architecture has three resource-related entry types:
+The Nondominium zome architecture runs **two parallel resource tracks**:
+
+**Track A — NDO Layer 0 (MVP, #80):** new NDOs created via `create_ndo` with `NondominiumIdentity`, facet discovery, and lifecycle transitions.
+
+**Track B — Legacy resource model (still present):** pre-NDO and parallel flows using:
 
 ```
 ResourceSpecification  (zome_resource)
@@ -1313,7 +1409,8 @@ ResourceSpecification  (zome_resource)
 EconomicResource       (zome_resource)
   - custodian: AgentPubKey
   - state: ResourceState  { PendingValidation, Active, Maintenance, Retired, Reserved }
-    ↑ TODO: split into LifecycleStage (on NondominiumIdentity) + OperationalState (on EconomicResource)
+    ↑ TODO: split into OperationalState on EconomicResource (REQ-NDO-OS-06);
+            LifecycleStage now lives on NondominiumIdentity (Track A)
 
 GovernanceRule         (zome_resource)
   (linked from ResourceSpecification via SpecificationToGovernanceRule)
@@ -1322,7 +1419,11 @@ EconomicEvent          (zome_gouvernance)
   - provider: AgentPubKey
   - receiver: AgentPubKey
   - resource_inventoried_as: ActionHash → EconomicResource
+
+NdoHardLink / Contribution / Agreement  (zome_gouvernance — federation #103)
 ```
+
+New Group-scoped NDO creation uses Track A. Track B remains for existing specs/instances until Layer 1/2 linking and migration (§10.4) complete.
 
 ### 10.2 Migration Mapping
 
@@ -1389,11 +1490,11 @@ The pre-operational stages (`Ideation`, `Specification`, `Development`) have no 
 
 The migration is **strictly additive** — no existing entries are modified or deleted. The append-only nature of the DHT is respected throughout.
 
-**Phase 1 — Forward compatibility (immediate):**
-- All new resources created after the NDO model lands must begin with `NondominiumIdentity` creation
-- New `NDOToSpecification` and `NDOToProcess` link types are added to the integrity zome
-- `LifecycleStage` (on `NondominiumIdentity`) and `OperationalState` (on `EconomicResource`) replace `ResourceState` for new resources
-- `ResourcesByState` link type is split into `ResourcesByLifecycleStage` and `ResourcesByOperationalState`
+**Phase 1 — Forward compatibility** *(partially complete)*:
+- ✅ New NDOs created via `create_ndo` begin with `NondominiumIdentity` (Group-scoped UI)
+- ❌ `NDOToSpecification` and `NDOToProcess` link types not yet added
+- ✅ `LifecycleStage` on `NondominiumIdentity`; ❌ `OperationalState` split not yet done
+- ❌ `ResourcesByState` not yet split into lifecycle vs operational facets
 
 **Phase 2 — Retroactive anchoring (migration coordinator):**
 - For each existing `ResourceSpecification` entry, create a `NondominiumIdentity` entry and the corresponding `NDOToSpecification` link
@@ -1417,7 +1518,7 @@ The migration is **strictly additive** — no existing entries are modified or d
 
 ### 11.1 Many-to-Many Flows
 
-`many-to-many-flows.md` defines shared custody and multi-party resource transfers. In the NDO model:
+`post-mvp/many-to-many-flows.md` defines shared custody and multi-party resource transfers. In the NDO model:
 
 - Shared custody (co-custodians) is expressed at **Layer 0**: the `NondominiumIdentity` carries a reference to shared custodianship state, or the governance zome maintains co-custodian records linked from the identity hash
 - Multi-party transfer events (`REQ-MMF-06` through `REQ-MMF-14`) are Layer 2 `EconomicEvent` records with multiple providers/receivers
@@ -1425,7 +1526,7 @@ The migration is **strictly additive** — no existing entries are modified or d
 
 ### 11.2 Versioning
 
-`versioning.md` defines a DAG of versions for resources. In the NDO model:
+`post-mvp/ndo-versioning.md` defines a DAG of versions for resources. In the NDO model:
 
 - The `R-VERS-01` requirement for "base identity vs version nodes" maps directly to the NDO: **Layer 0 is the base identity**; `ResourceSpecification` versions linked via `NDOToSpecification` are the version nodes
 - The version DAG is expressed as a `VersionGraph` capability slot linking the NDO identity to a versioning system
@@ -1434,7 +1535,7 @@ The migration is **strictly additive** — no existing entries are modified or d
 
 ### 11.3 Digital Resource Integrity
 
-`digital-resource-integrity.md` defines cryptographic integrity manifests for digital resources. In the NDO model:
+`post-mvp/digital-resource-integrity.md` defines cryptographic integrity manifests for digital resources. In the NDO model:
 
 - Digital asset manifests are attached to the NDO via `CapabilitySlot` links of type `DigitalAsset`
 - The fractal composable resource architecture (atomic → component → composite) maps directly to the **Holonic Composition Pattern**: each component is itself an NDO, with `NDOToComponent` links expressing the assembly hierarchy
@@ -1450,7 +1551,7 @@ The Weave Interaction Pattern defines how hApps create, search, link, and organi
 
 ### 11.5 Unyt Integration
 
-`unyt-integration.md` defines Unyt as the transactional layer for Nondominium — peer-to-peer accounting infrastructure built on Holochain, providing currencies, Smart Agreements, and agent-centric value flows. In the NDO model, Unyt integrates at three points:
+`post-mvp/unyt-integration.md` defines Unyt as the transactional layer for Nondominium — peer-to-peer accounting infrastructure built on Holochain, providing currencies, Smart Agreements, and agent-centric value flows. In the NDO model, Unyt integrates at three points:
 
 - **Capability surface**: `UnytAgreement` slot type (Section 6.6) is the permissionless attachment point — any agent can propose economic terms for any NDO
 - **Layer 1**: `GovernanceRule` entries of type `EconomicAgreement` carry endorsed Unyt Smart Agreement references as Layer 1 assets, sitting alongside other governance rules in the resource's specification
@@ -1462,7 +1563,7 @@ The PPR system and Unyt credit limits form a feedback loop: agents' `ReputationS
 
 ### 11.6 Flowsta Integration
 
-`flowsta-integration.md` defines Flowsta as the identity and authentication layer for the NDO — decentralized authentication built on Holochain, providing cross-app identity linking, W3C DIDs, and zero-knowledge privacy. In the NDO model, Flowsta integrates at three points:
+`post-mvp/flowsta-integration.md` defines Flowsta as the identity and authentication layer for the NDO — decentralized authentication built on Holochain, providing cross-app identity linking, W3C DIDs, and zero-knowledge privacy. In the NDO model, Flowsta integrates at three points:
 
 - **Capability surface**: `FlowstaIdentity` slot type (Section 6.7) is the permissionless **Tier 1** attachment point — any agent can link their `Person` entry to a Vault dual-signed `IsSamePersonEntry`, making their cross-app DID discoverable (no governance enforcement at this tier)
 - **Agent identity (G15)**: The `FlowstaIdentity` slot is the first concrete implementation of the `PersonCapabilitySlot` pattern defined in Section 6.5 — a DID-backed attestation attached to the agent's identity anchor without modifying the `Person` entry schema
@@ -1473,6 +1574,8 @@ The NDO three-layer model and Flowsta are architecturally complementary: the NDO
 Flowsta Vault's BIP39 recovery and auto-backup mechanisms address a gap in the current NDO architecture: agent key recovery. The non-deletable, append-only nature of `Person` entries and PPRs assumes the agent retains access to their signing key. Vault's deterministic key regeneration from a 24-word mnemonic ensures that the permanent records the NDO creates remain accessible to their authors across device loss and hardware failure.
 
 ### 11.7 Lobby DNA Integration
+
+> **Status:** 🔄 **Partial.** `NdoHardLink`, `Contribution`, and `Agreement` entry types and anchors are **implemented** in `zome_gouvernance` (#103). Full Lobby DNA + Group DNA federation UI and descriptor sync remain in progress — see `lobby-dna.md` and `IMPLEMENTATION_STATUS.md`.
 
 `lobby-dna.md` defines the multi-network federation layer that sits above the NDO DHT: a public Lobby DHT (permissionless agent and NDO descriptor registry), per-group Group DHTs (invite-only coordination spaces), and three extensions to the existing NDO DNA (`zome_gouvernance`).
 
@@ -1489,4 +1592,4 @@ See `lobby-dna.md` for normative requirements (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO
 
 ---
 
-*This document is post-MVP. The NDO Three-Layer Model will be implemented after the first Nondominium proof-of-concept is complete. The proof-of-concept uses `ResourceSpecification` + `EconomicResource` + `GovernanceRule` as defined in the current `zome_resource` integrity zome. The migration described in Section 10 will be the bridge between the two architectures.*
+*This document is the normative NDO architecture reference. **Layer 0 is implemented in MVP** (`NondominiumIdentity`, lifecycle validation, discovery — PR #80). **Layers 1 and 2, the capability slot surface, operational-state split, and full governance-as-operator lifecycle** remain post-MVP targets documented here for incremental delivery. The legacy `ResourceSpecification` + `EconomicResource` + `GovernanceRule` model coexists until migration (Section 10) links retroactive anchors and activates layer links. Federation extensions (`NdoHardLink`, `Contribution`, `Agreement` — PR #103) are partial Layer 2 semantics in `zome_gouvernance`. See `documentation/IMPLEMENTATION_STATUS.md` for the live checklist.*

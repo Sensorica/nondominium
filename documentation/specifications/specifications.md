@@ -4,7 +4,7 @@
 
 ### 1.1 Purpose
 
-This document provides the detailed technical specifications for the nondominium Holochain application (hApp). It is based on the requirements outlined in `requirements.md` and the architecture described in the nondominium project document. It is intended for Holochain developers.
+This document provides the detailed technical specifications for the nondominium Holochain application (hApp). It is based on the requirements outlined in `requirements.md` and the architecture described in other nondominium project documents. It is intended for Holochain developers.
 
 ### 1.2 Guiding Principles
 
@@ -1389,14 +1389,17 @@ interface NdoTransitionHistoryEvent {
   event_hash: ActionHash;
 }
 
-// Group shell (localStorage-persisted in MVP)
+// Group descriptor (DNA-backed — one cloned Group DNA cell per group; PR #107)
 interface GroupDescriptor {
-  id: string;
+  id: string;              // canonical key = network_seed
+  networkSeed: string;
   name: string;
-  createdBy?: string;
+  description?: string;
+  createdBy?: string;      // LobbyUserProfile.nickname at creation
   createdAt?: number;
-  ndoHashes?: string[];         // base64 ActionHash[] of NDOs created in this group
-  memberProfile?: GroupMemberProfile;
+  dnaHash?: string;        // clone cell DNA hash (base64)
+  groupHash?: string;      // GroupProfile ActionHash (base64)
+  memberProfile?: GroupMemberProfile; // Level 2 — localStorage only (ndo_group_profiles_v1)
 }
 
 // Level 1 identity — Lobby user profile
@@ -1441,23 +1444,27 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 | `getNdosByPropertyRegime(regime)` | `get_ndos_by_property_regime` |
 | `getNdoTransitionHistory(hash)` | `get_ndo_transition_history` |
 
-**`lobby.service.ts`** — localStorage-backed (Group DNA deferred):
+**`lobby.service.ts`** — Group + Lobby DNA backed (Group DNA complete, PR #107):
 
 | Function | Behaviour |
 |----------|-----------|
-| `getMyGroups()` | Reads `localStorage[ndo_groups_v1]` |
-| `createGroup(name, createdBy)` | Appends to localStorage; generates `grp_<ts>_<rand>` id |
-| `joinGroup(inviteCode)` | Decodes base64 invite, deduplicates by id |
-| `generateInviteLink(groupId)` | Returns `btoa(JSON.stringify(group))` |
+| `getMyGroups()` | Enumerate group clone cells from `appInfo` + `get_my_group` per cell |
+| `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` (post-steps best-effort via `E.catchAll`) |
+| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → `fetchGroupProfileWithRetry` (poll `get_my_group` 6× / ~2.4 s) → `is_member` guard → best-effort `join_group` → invite-payload `GroupDescriptor` fallback so the group appears without reload. `TODO(signals)` |
+| `ensureMembership(groupId)` | Idempotent membership self-heal: resolve group hash via `get_my_group` → `is_member` → best-effort `join_group` if missing. Run on every full `loadGroupData` so a joined agent reliably appears in the DHT member list even if the initial join missed the commit |
+| `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |
+| `saveGroupMemberProfile(groupId, profile)` | `localStorage[ndo_group_profiles_v1]` (Level 2 identity — only remaining localStorage state) |
 
-**`ndo.service.ts`** — higher-level aggregation:
+**`ndo.service.ts`** — higher-level aggregation (NDO–Group association is DHT-backed via `SoftLink` entries on the group clone cell):
 
 | Function | Behaviour |
 |----------|-----------|
-| `getLobbyNdoDescriptors()` | Calls `resource.getAllNdos()` |
-| `createNdo(input, groupId)` | Calls `resource.createNdo`, then appends hash to group's `ndoHashes` in localStorage |
-| `getGroupNdoDescriptors(groupId)` | Filters all descriptors by `group.ndoHashes` |
+| `getLobbyNdoDescriptors()` | Union of `SoftLink` targets across all the agent's group clone cells → resolve each via `resource.getNdo` |
+| `createNdo(input, groupId)` | `resource.createNdo` → `create_soft_link(group_cell, group_hash, ndo_hash)` on the group clone cell (best-effort) |
+| `getGroupNdoDescriptors(groupId)` | `get_soft_links` on the group cell → resolve each target via `resource.getNdo` |
+| `getAssociatedGroupIds(ndoHashB64)` | Scan SoftLinks across the agent's groups |
 | `getNdoTransitionHistory(hash)` | Calls `resource.getNdoTransitionHistory`; returns `[]` gracefully on 404 |
+| `joinNdo` / `getNdoMembers` | Stub (`NdoNotImplementedError`) until `zome_resource` implements NDO membership |
 
 ### 7.3 Error Context Registry
 
@@ -1501,10 +1508,13 @@ Filter logic: OR within each dimension, AND across dimensions. Empty set = show 
 
 | State | Source |
 |-------|--------|
-| `group` | localStorage lookup by `groupId` |
-| `groupNdos` | `NdoService.getGroupNdoDescriptors(groupId)` |
+| `group` | `LobbyService.getMyGroups()` (group clone cells) |
+| `groupNdos` | `NdoService.getGroupNdoDescriptors(groupId)` via `SoftLink`s on the group cell |
+| `members` | `GroupService.getMembers(cellId)` (DHT) |
 
-`loadGroupData(groupId)` switches the store's active group context. `createNdo(input)` creates on DHT then reloads.
+`loadGroupData(groupId, { silent? })` switches the store's active group context. A full (non-silent) load runs `LobbyService.ensureMembership(groupId)` (membership self-heal) before fetching NDOs + members; a **silent** load (used by the reactivity layer) skips the reconcile, leaves `isLoading` untouched, and keeps existing data on transient failure. `refreshCurrentGroup()` is a silent re-fetch of the open group. `createNdo(input)` creates on DHT then reloads.
+
+**Shared-group reactivity (pull model).** `GroupView` keeps the open group fresh as peers' changes gossip in by calling `refreshCurrentGroup()` on tab focus / visibility change and on a gentle ~8 s poll (paused when the tab is hidden), in addition to the per-open reconcile in `loadGroupData`. This is pull-only; the push upgrade is `TODO(signals)` — `zome_group` `remote_signal` to members on `join_group` / `create_soft_link` / `log_work`, with focus/poll retained as an offline/missed-signal fallback (design note in `dnas/group/zomes/coordinator/zome_group/src/lib.rs`).
 
 ### 7.5 LifecycleStage State Machine
 
@@ -1527,3 +1537,13 @@ Special transition behaviours:
 - **→ Deprecated**: `successor_ndo_hash` required; searched from `lobbyStore.ndos` by name.
 - **→ Hibernating**: confirmation prompt shown; `hibernation_origin` = current stage preserved in entry.
 - **`transition_event_hash`**: passed as `null` in MVP; automatic `EconomicEvent` generation is deferred to backend Phase 2.3 (PPR system).
+
+### 7.6 Local Development & Multi-Agent Web Harness
+
+The dev runtime is the **browser** (Electron/`hc-spin` superseded). `scripts/launch-happ.mjs` (`bun run start` / `AGENTS=N bun run network`) starts `kitsune2-bootstrap-srv`, creates/runs `hc sandbox` conductors, installs the `.happ` via **path-based** `installApp` (avoids the admin-websocket bundle-streaming timeout), writes the `ui/static/hc-connection.json` connection manifest, and launches **one Vite dev server per agent** on consecutive ports (`5173 + agent-1`, pinned via `VITE_DEV_AGENT`), auto-opening a browser tab per agent (`NO_OPEN=1` to disable).
+
+- **Isolation by origin**: one port per agent → isolated `localStorage`, clean permalinks. The `?agent=N` query param remains as a manual override only.
+- **Connection** (`ui/src/lib/utils/hc-connect.ts`): `connectHolochainClient` resolves `launcher` / `manifest` / `env` modes; `getDevAgentIndex()` prefers `?agent=N` → `VITE_DEV_AGENT` → `localStorage`. Signing credentials are authorized for **provisioned and cloned** cells with `authorizeWithRetry` (survives "source chain head has moved"); `authorizeCellSigning` covers group clone cells created after connect.
+- UI-only `localStorage` keys are namespaced via `devStorageKey(base)` → `${base}__a{agent}`.
+
+Full detail: `documentation/specifications/ui_architecture.md §15`.

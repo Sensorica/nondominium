@@ -5,6 +5,7 @@
   import type { NdoDescriptor } from '@nondominium/shared-types';
   import { appContext } from '$lib/stores/app.context.svelte';
   import { NdoServiceTag, NdoServiceResolved } from '$lib/services/zomes/ndo.service';
+  import MemberList from '$lib/components/group/MemberList.svelte';
   import { ndoDescriptorCache } from '$lib/stores/ndo-cache';
   import ResourcesTab from './ResourcesTab.svelte';
   import GovernanceTab from './GovernanceTab.svelte';
@@ -28,7 +29,12 @@
   let loadError = $state<string | null>(null);
   let showForkModal = $state(false);
   let showAssociateModal = $state(false);
-  let showJoinSoon = $state(false);
+  let showJoinPanel = $state(false);
+  let joinMessage = $state<string | null>(null);
+  let joinLoading = $state(false);
+  let ndoMembers = $state<{ id: string; name: string; role?: string }[]>([]);
+  let membersLoading = $state(false);
+  let membersStubMessage = $state<string | null>(null);
 
   $effect(() => {
     try {
@@ -84,6 +90,57 @@
     if (specActionHash) void loadDescriptor(specActionHash);
   }
 
+  async function loadNdoMembers() {
+    membersLoading = true;
+    membersStubMessage = null;
+    const exit = await E.runPromiseExit(
+      pipe(
+        E.gen(function* () {
+          const svc = yield* NdoServiceTag;
+          return yield* svc.getNdoMembers(specHashB64);
+        }),
+        E.provide(NdoServiceResolved)
+      )
+    );
+    membersLoading = false;
+    if (Exit.isFailure(exit)) {
+      membersStubMessage =
+        'NDO member listing is not yet implemented on the DHT. See documentation/zomes/resource_zome.md § NDO membership (planned).';
+      ndoMembers = [];
+    } else {
+      ndoMembers = exit.value.map((m) => ({ ...m, role: 'Member' }));
+    }
+  }
+
+  async function handleJoinNdo() {
+    joinLoading = true;
+    joinMessage = null;
+    const exit = await E.runPromiseExit(
+      pipe(
+        E.gen(function* () {
+          const svc = yield* NdoServiceTag;
+          return yield* svc.joinNdo(specHashB64);
+        }),
+        E.provide(NdoServiceResolved)
+      )
+    );
+    joinLoading = false;
+    if (Exit.isFailure(exit)) {
+      joinMessage =
+        'NDO membership is not yet implemented on the DHT. See documentation/zomes/resource_zome.md § NDO membership (planned).';
+    } else {
+      joinMessage = 'You have joined this NDO.';
+      void loadNdoMembers();
+    }
+    showJoinPanel = true;
+  }
+
+  $effect(() => {
+    if (showJoinPanel && ndoMembers.length === 0 && !membersLoading && !membersStubMessage) {
+      void loadNdoMembers();
+    }
+  });
+
   const tabs = [
     { id: 'resources' as const, label: 'Resources' },
     { id: 'governance' as const, label: 'Governance' },
@@ -100,14 +157,21 @@
   </div>
 {:else if specActionHash}
   {#if showForkModal && ndoDescriptor}
-    <ForkNdoModal descriptor={ndoDescriptor} onclose={() => { showForkModal = false; }} />
+    <ForkNdoModal
+      descriptor={ndoDescriptor}
+      onclose={() => {
+        showForkModal = false;
+      }}
+    />
   {/if}
 
   {#if showAssociateModal}
     <AssociateNdoModal
       ndoHashB64={specHashB64}
       ndoName={ndoDescriptor?.name ?? 'this NDO'}
-      onclose={() => { showAssociateModal = false; }}
+      onclose={() => {
+        showAssociateModal = false;
+      }}
     />
   {/if}
 
@@ -124,27 +188,24 @@
         <p class="mt-1 font-mono text-xs text-gray-400">{specHashB64.slice(0, 20)}…</p>
       </div>
       <div class="ml-4 flex shrink-0 items-center gap-2">
-        <!-- Join NDO: placeholder, no backend yet -->
-        <div class="relative">
-          <button
-            type="button"
-            onclick={() => { showJoinSoon = !showJoinSoon; }}
-            class="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-          >
-            Join NDO
-          </button>
-          {#if showJoinSoon}
-            <div class="absolute right-0 top-full z-10 mt-1 whitespace-nowrap rounded border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-500 shadow-md">
-              Coming soon
-            </div>
-          {/if}
-        </div>
-
-        <!-- Associate with group: always shown; localStorage-only, no auth needed.
-             Modal handles the "no groups yet" edge case gracefully. -->
         <button
           type="button"
-          onclick={() => { showAssociateModal = true; }}
+          disabled={joinLoading}
+          onclick={() => {
+            showJoinPanel = !showJoinPanel;
+            if (showJoinPanel) void loadNdoMembers();
+          }}
+          class="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {joinLoading ? 'Joining…' : 'Join NDO'}
+        </button>
+
+        <!-- Associate with group: writes SoftLink on group DHT -->
+        <button
+          type="button"
+          onclick={() => {
+            showAssociateModal = true;
+          }}
           class="rounded border border-blue-300 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
         >
           Associate with a group
@@ -154,7 +215,9 @@
         {#if isAuthenticated}
           <button
             type="button"
-            onclick={() => { showForkModal = true; }}
+            onclick={() => {
+              showForkModal = true;
+            }}
             class="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
           >
             Fork this NDO
@@ -166,7 +229,8 @@
       {#each tabs as t}
         <button
           type="button"
-          class="rounded-t border border-b-0 px-3 py-2 text-sm font-medium transition-colors {tab === t.id
+          class="rounded-t border border-b-0 px-3 py-2 text-sm font-medium transition-colors {tab ===
+          t.id
             ? 'border-gray-200 bg-gray-50 text-gray-900'
             : 'border-transparent text-gray-500 hover:text-gray-800'}"
           onclick={() => {
@@ -182,11 +246,9 @@
   {#if loadError}
     <div class="mx-6 mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
       {loadError}
-      <button
-        type="button"
-        onclick={handleRefresh}
-        class="ml-3 underline hover:text-red-900"
-      >Retry</button>
+      <button type="button" onclick={handleRefresh} class="ml-3 underline hover:text-red-900"
+        >Retry</button
+      >
     </div>
   {/if}
 
@@ -202,15 +264,21 @@
         {/if}
         <div>
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Property regime</p>
-          <p class="mt-1 text-sm font-medium text-gray-800">{ndoDescriptor.property_regime ?? '—'}</p>
+          <p class="mt-1 text-sm font-medium text-gray-800">
+            {ndoDescriptor.property_regime ?? '—'}
+          </p>
         </div>
         <div>
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Resource nature</p>
-          <p class="mt-1 text-sm font-medium text-gray-800">{ndoDescriptor.resource_nature ?? '—'}</p>
+          <p class="mt-1 text-sm font-medium text-gray-800">
+            {ndoDescriptor.resource_nature ?? '—'}
+          </p>
         </div>
         <div>
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Lifecycle stage</p>
-          <p class="mt-1 text-sm font-medium text-gray-800">{ndoDescriptor.lifecycle_stage ?? '—'}</p>
+          <p class="mt-1 text-sm font-medium text-gray-800">
+            {ndoDescriptor.lifecycle_stage ?? '—'}
+          </p>
         </div>
         {#if ndoDescriptor.created_at}
           <div>
@@ -224,17 +292,54 @@
     </div>
   {/if}
 
+  {#if showJoinPanel}
+    <div class="mx-6 mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <h2 class="text-sm font-semibold text-gray-800">NDO membership</h2>
+      <p class="mt-1 text-xs text-gray-500">
+        Joining an NDO records your participation on the DHT. This is distinct from associating the
+        NDO with a group (a curated short list for group members).
+      </p>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={joinLoading}
+          onclick={handleJoinNdo}
+          class="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {joinLoading ? 'Requesting…' : 'Request to join'}
+        </button>
+      </div>
+      {#if joinMessage}
+        <p
+          class="mt-2 text-xs {joinMessage.includes('not yet implemented')
+            ? 'text-amber-700'
+            : 'text-gray-600'}"
+        >
+          {joinMessage}
+        </p>
+      {/if}
+      <div class="mt-4">
+        <MemberList members={ndoMembers} />
+        {#if membersLoading}
+          <p class="mt-2 text-xs text-gray-400 italic">Loading members…</p>
+        {:else if membersStubMessage}
+          <p class="mt-2 text-xs text-amber-700">{membersStubMessage}</p>
+        {/if}
+      </div>
+    </div>
+  {/if}
+
   <NdoIdentityLayer descriptor={ndoDescriptor} onrefresh={handleRefresh} />
 
   <div class="p-6">
     {#if tab === 'resources'}
-      <ResourcesTab specActionHash={specActionHash} />
+      <ResourcesTab {specActionHash} />
     {:else if tab === 'governance'}
-      <GovernanceTab specActionHash={specActionHash} />
+      <GovernanceTab {specActionHash} />
     {:else if tab === 'composition'}
       <CompositionTab />
     {:else}
-      <ActivityTab specActionHash={specActionHash} />
+      <ActivityTab {specActionHash} />
     {/if}
   </div>
 {/if}

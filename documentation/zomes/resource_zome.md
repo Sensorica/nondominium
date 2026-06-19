@@ -64,6 +64,39 @@ All other fields are permanently immutable after creation. Delete is always `Inv
 
 **Lifecycle links**: `NdoToSuccessor` (deprecated NDO → successor NDO, REQ-NDO-LC-06), `NdoToTransitionEvent` (NDO → triggering `EconomicEvent`, REQ-NDO-L0-05)
 
+### NDO membership (planned — MVP UI stub)
+
+> **Status**: UI flow exists in `NdoView.svelte`; coordinator functions are **not yet implemented** in `zome_resource`. Distinct from **Group `SoftLink`** association (curated NDO list per group).
+
+When implemented, NDO membership lets an agent join an NDO as a participant/contributor independent of group membership.
+
+**Planned coordinator API** (`zome_resource`):
+
+| Function | Input | Output | Notes |
+|---|---|---|---|
+| `join_ndo` | `ndo_identity_hash: ActionHash` | `Record` (`NdoMembership`) | Agent signs membership; creates discovery links |
+| `get_ndo_members` | `ndo_identity_hash: ActionHash` | `Vec<Record>` | Public member list for UI |
+
+**Planned integrity entries**:
+
+```rust
+pub struct NdoMembership {
+    pub ndo_hash: ActionHash,
+    pub agent: AgentPubKey,
+    pub joined_at: Timestamp,
+    pub role: Option<String>, // e.g. "contributor", "observer" — community-defined
+}
+```
+
+**Planned links**:
+
+- `NdoToMembers` — NDO identity hash → membership entry hashes (discovery)
+- `AgentToNdoMemberships` — agent pubkey → membership entry hashes (agent-centric query)
+
+**UI contract** (`ndo.service.ts`): `joinNdo(hashB64)` and `getNdoMembers(hashB64)` return `NdoNotImplementedError` until the zome functions above land.
+
+**TODO (post-MVP)**: `get_ndo_transition_history(ndo_hash) -> Vec<NdoTransitionHistoryEvent>` for lifecycle audit panel (`TransitionHistoryPanel.svelte`).
+
 ### ResourceSpecification Entry
 
 ```rust

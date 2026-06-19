@@ -27,6 +27,7 @@ dist/
 .hc*
 .running
 .hc
+ui/static/hc-connection.json
 **.tmp
 
 # local files and folders

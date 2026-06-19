@@ -14,6 +14,7 @@ A decentralized, interconnected infrastructure that enables autonomous digital e
 
 ### Physical Fabric Properties → Digital Analogues
 
+
 | Physical Fabric Property    | Digital Fabric Equivalent                     |
 | --------------------------- | --------------------------------------------- |
 | **Interwoven Threads**      | Interconnected autonomous agents/resources    |
@@ -23,6 +24,7 @@ A decentralized, interconnected infrastructure that enables autonomous digital e
 | **Tear-Resistant**          | Anti-fragile, capture-resistant design        |
 | **Breathable & Permeable**  | Permissionless access and interoperability    |
 | **Self-Repairing**          | Autonomous healing and adaptation mechanisms  |
+
 
 ## Distinguishing Characteristics
 
@@ -99,7 +101,7 @@ A decentralized, interconnected infrastructure that enables autonomous digital e
 ### 1. **Coordination Fabrics**
 
 - **Purpose**: Enable stigmergic resource coordination
-- **Examples**: True Commons, supply chain coordination systems
+- **Examples**: Nondominium, supply chain coordination systems
 - **Key Features**: Resource tracking, event flows, governance embedding
 
 ### 2. **Identity Fabrics**
@@ -177,6 +179,7 @@ A decentralized, interconnected infrastructure that enables autonomous digital e
 
 ### Digital Fabrics vs. Platforms
 
+
 | Aspect               | Platforms        | Digital Fabrics     |
 | -------------------- | ---------------- | ------------------- |
 | **Control**          | Centralized      | Decentralized       |
@@ -186,7 +189,9 @@ A decentralized, interconnected infrastructure that enables autonomous digital e
 | **Data Ownership**   | Platform-owned   | User/Resource-owned |
 | **Interoperability** | Walled gardens   | Open protocols      |
 
+
 ### Digital Fabrics vs. Networks
+
 
 | Aspect               | Networks             | Digital Fabrics       |
 | -------------------- | -------------------- | --------------------- |
@@ -196,7 +201,9 @@ A decentralized, interconnected infrastructure that enables autonomous digital e
 | **Governance**       | Technical protocols  | Social/economic rules |
 | **Value Creation**   | Connectivity utility | Coordination value    |
 
+
 ### Digital Fabrics vs. dApps
+
 
 | Aspect             | dApps                | Digital Fabrics         |
 | ------------------ | -------------------- | ----------------------- |
@@ -205,6 +212,7 @@ A decentralized, interconnected infrastructure that enables autonomous digital e
 | **Governance**     | Token voting         | Embedded rules          |
 | **Scalability**    | Blockchain-limited   | P2P scalable            |
 | **Economic Model** | Token speculation    | Real value flows        |
+
 
 ## Use Cases and Applications
 
@@ -250,4 +258,11 @@ True Commons stands as a pioneering implementation of a **Coordination Fabric**,
 
 ---
 
-_This framework provides a foundation for understanding and developing Digital Fabrics as a new category of decentralized infrastructure that enables post-platform coordination and collaboration._
+*This framework provides a foundation for understanding and developing Digital Fabrics as a new category of decentralized infrastructure that enables post-platform coordination and collaboration.*
+
+## Derived Work
+
+Concepts from this document — subsidiarity-based coordination, anti-fragile architecture, resource-centric design, and the platform-to-fabric paradigm shift — have been integrated into the Complexity Driven Development methodology and AI skill:
+
+- **Methodology**: `nondominium-design-system/.cursor/skills/complexity-oriented-programming/methodology.md`
+- **AI Skill**: `nondominium-design-system/.cursor/skills/complexity-oriented-programming/SKILL.md`

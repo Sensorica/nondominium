@@ -114,14 +114,21 @@ export interface NdoDescriptor {
 }
 
 export interface GroupDescriptor {
+  /** Canonical key — the cloned cell's `network_seed`. */
   id: string;
   name: string;
   createdBy?: string;
   createdAt?: number;
+  /** @deprecated Derived from Group DHT SoftLinks; not persisted. */
   ndoHashes?: string[];
   memberProfile?: GroupMemberProfile;
-  /** DnaHash of the cloned group cell — present once the group has been provisioned on the DHT. */
+  /** DnaHash of the cloned group cell. */
   dnaHash?: Uint8Array;
+  /** Same as `id` — explicit network seed for cloned-cell addressing. */
+  networkSeed?: string;
+  /** Base64 ActionHash of the GroupProfile entry in the group cell. */
+  groupHash?: string;
+  description?: string;
 }
 
 // ─── UI-only identity types (localStorage, no DHT entry) ─────────────────────

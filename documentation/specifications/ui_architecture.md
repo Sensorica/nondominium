@@ -30,9 +30,10 @@ This hierarchy maps to the three concentric organizational scopes in `ui_design.
 | Styling | UnoCSS (atomic CSS, preset-wind) |
 | Headless components | Melt UI next-gen (`melt`) |
 | Async / error handling | Effect-TS (`effect` package) — `Context.Tag`, `Layer`, `E.gen` |
-| Holochain client | `@holochain/client` 0.19.0 |
+| Holochain client | `@holochain/client` ^0.20.0 |
 | Shared types | `@nondominium/shared-types` (workspace package) |
-| Build | Vite 6.2.5 |
+| Build | Vite 7 |
+| Dev runtime | Browser (web) — Electron/`hc-spin` superseded by a per-agent Vite harness (§15) |
 
 ---
 
@@ -130,24 +131,27 @@ interface GroupMemberProfile {
 
 ---
 
-## 5. Group Architecture (MVP Shell)
+## 5. Group Architecture (DNA-backed)
 
-Groups are the mandatory context for NDO creation. In the MVP, Group DNA does not yet exist; groups are persisted as `GroupDescriptor[]` in `localStorage` (key `ndo_groups_v1`).
+Groups are the mandatory context for NDO creation. Each group is a **cloned Group DNA cell** (`role_name: 'group'`, unique `network_seed`, `clone_limit: 64` in `workdir/happ.yaml`).
 
 ```typescript
 interface GroupDescriptor {
-  id: string;          // generated: grp_<timestamp>_<random>
+  id: string;              // canonical key = network_seed
+  networkSeed: string;
   name: string;
-  createdBy?: string;  // LobbyUserProfile.nickname
+  description?: string;
+  createdBy?: string;      // LobbyUserProfile.nickname at creation
   createdAt?: number;
-  ndoHashes?: string[];        // ActionHash[]  (base64) of NDOs created in this group
-  memberProfile?: GroupMemberProfile;
+  dnaHash?: string;        // clone cell DNA hash (base64)
+  groupHash?: string;      // GroupProfile ActionHash (base64)
+  memberProfile?: GroupMemberProfile; // Level 2 — localStorage only (ndo_group_profiles_v1)
 }
 ```
 
-**Invite links** encode the `GroupDescriptor` as `btoa(JSON.stringify(group))` in a URL query parameter.
+**Lifecycle**: `createGroup` → `createCloneCell` → `create_group` → `join_group` → `announce_group` (Lobby DNA). **Invite links** encode `{ network_seed, group_dna_hash, group_name }` as `?group=<base64>`.
 
-When Group DNA lands, only `LobbyService.createGroup` / `joinGroup` and the `GroupDescriptor` persistence need to change. All component and store logic remains identical.
+**NDO association**: NDOs live in the shared `nondominium` cell. A group's NDO list = `get_soft_links(group_hash)` on the group clone cell → resolve each `target_ndo_hash` via `resource.getNdo`.
 
 ---
 
@@ -167,7 +171,7 @@ When Group DNA lands, only `LobbyService.createGroup` / `joinGroup` and the `Gro
 
 | Component | File | Description |
 |-----------|------|-------------|
-| `GroupView` | `group/GroupView.svelte` | Group header, Create NDO button, group-scoped NdoBrowser, MemberList stub |
+| `GroupView` | `group/GroupView.svelte` | Group header, invite link, Create NDO, group-scoped NdoBrowser, MemberList (DHT) |
 | `NdoCreateModal` | `group/NdoCreateModal.svelte` | 5-field NDO creation form (name, regime, nature, stage, description) |
 | `GroupProfileModal` | `group/GroupProfileModal.svelte` | Per-group profile presentation choice (first entry only) |
 
@@ -222,8 +226,12 @@ Singleton per-session; `loadGroupData(groupId)` switches context:
 
 | Field | Source |
 |-------|--------|
-| `group` | `localStorage` (`ndo_groups_v1`) |
-| `groupNdos` | `NdoServiceTag.getGroupNdoDescriptors(groupId)` |
+| `group` | `LobbyServiceTag.getMyGroups()` |
+| `groupNdos` | `NdoServiceTag.getGroupNdoDescriptors(groupId)` via SoftLinks |
+| `members` | `GroupServiceTag.getMembers(cellId)` |
+
+- `loadGroupData(groupId, { silent? })` — on a full (non-silent) load it first runs `lobbyService.ensureMembership(groupId)` (idempotent self-heal so a joined agent always becomes a committed member), then fetches NDOs + members. A **silent** load (used by the pull layer) skips the membership reconcile, does not toggle `isLoading`, and keeps existing data on transient failure (no flicker/blanking).
+- `refreshCurrentGroup()` — silent re-fetch of the currently-open group; driven by `GroupView`'s pull-based reactivity (tab focus / visibility change + gentle ~8 s poll while visible). `TODO(signals)`: replace the pull layer with Holochain remote signals (focus/poll kept only as an offline/missed-signal fallback).
 
 ---
 
@@ -244,21 +252,44 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 
 | Method | Delegates to |
 |--------|-------------|
-| `getLobbyNdoDescriptors()` | `resource.getAllResourceSpecifications()` + `resource.getAllNdos()` joined by name |
-| `getNdoDescriptorForSpecActionHash(hash)` | Same join, filtered by hash |
-| `createNdo(input, groupId)` | `resource.createNdo(input)` + localStorage group link |
+| `getLobbyNdoDescriptors()` | Union of SoftLink targets across all group clone cells → `resource.getNdo` |
+| `getNdoDescriptorForSpecActionHash(hash)` | Direct `resource.getNdo(hash)` first; fallbacks to listings/cache |
+| `createNdo(input, groupId)` | `resource.createNdo(input)` + `create_soft_link` on group cell |
 | `updateLifecycleStage(input)` | `resource.updateLifecycleStage(input)` |
-| `getNdoTransitionHistory(hash)` | `resource.getNdoTransitionHistory(hash)` (returns `[]` gracefully) |
-| `getGroupNdoDescriptors(groupId)` | All descriptors filtered by group's `ndoHashes` |
+| `getNdoTransitionHistory(hash)` | `resource.getNdoTransitionHistory(hash)` (zome fn not yet implemented; returns `[]`) |
+| `getGroupNdoDescriptors(groupId)` | `get_soft_links` → resolve each target via `resource.getNdo` |
+| `getAssociatedGroupIds(ndoHashB64)` | SoftLink scan across agent's groups |
+| `joinNdo` / `getNdoMembers` | Stub — `NdoNotImplementedError` until `zome_resource` implements membership |
 
-### `lobby.service.ts` — LobbyServiceTag (localStorage-backed)
+### `lobby.service.ts` — LobbyServiceTag (Group + Lobby DNA)
 
-| Method | Storage |
-|--------|---------|
-| `getMyGroups()` | `localStorage[ndo_groups_v1]` |
-| `createGroup(name, createdBy)` | Appends to `localStorage[ndo_groups_v1]` |
-| `joinGroup(inviteCode)` | Decodes base64 invite, appends if not already present |
-| `generateInviteLink(groupId)` | `btoa(JSON.stringify(group))` → URL param |
+| Method | Behaviour |
+|--------|-----------|
+| `getMyGroups()` | Enumerate group clone cells from `appInfo` + `get_my_group` per cell |
+| `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` (the `join_group`/`announce_group` post-steps are best-effort via `E.catchAll`, so transient contention never aborts creation) |
+| `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → `fetchGroupProfileWithRetry` (poll `get_my_group`, 6× / ~2.4 s for DHT gossip) → `is_member` guard → best-effort `join_group` → on profile miss, build a `GroupDescriptor` from the invite payload so the group still appears immediately. `TODO(signals)`: replace the poll with a Holochain remote signal once available |
+| `ensureMembership(groupId)` | Idempotent membership self-heal: resolve group hash via `get_my_group` → `is_member` → best-effort `join_group` if missing. Covers joins that missed the membership commit (payload-fallback path / swallowed `join_group`). Called on every full `loadGroupData` so a joined agent always reconciles into the member list |
+| `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |
+| `getGroupCell(groupId)` | Resolve clone `CellId` by `network_seed` |
+| `saveGroupMemberProfile(groupId, profile)` | `localStorage[ndo_group_profiles_v1]` (Level 2 identity) |
+
+### `group.service.ts` — GroupServiceTag
+
+| Method | Zome call |
+|--------|-----------|
+| `getMembers(cellId)` | `get_group_members` (each member = action author of a `GroupMembership` linked from the group hash) |
+| `getSoftLinks` / `createSoftLink` | `get_soft_links` / `create_soft_link` |
+
+### Shared-group reactivity & data freshness
+
+Shared-group items (members, NDO SoftLinks, work logs) live on the group clone-cell DHT and reach other members via **gossip**. The UI keeps views fresh with a **pull-only** model today (no push):
+
+1. **Per-open reconciliation** — `loadGroupData` runs `ensureMembership` (self-heal) then re-reads members + NDOs whenever a group view mounts or `groupId` changes.
+2. **Tab focus / visibility** — `GroupView` calls `refreshCurrentGroup()` (silent) when the window regains focus or the tab becomes visible.
+3. **Gentle poll** — a ~8 s interval silent refresh while the group is open and the tab is visible (paused when hidden).
+4. **Join gossip-retry + fallback** — `fetchGroupProfileWithRetry` in `joinGroup` absorbs the gossip latency of a freshly-cloned cell.
+
+Consequence: a change made by another member appears within the poll interval, on focus, or on reload — not instantly. The **push** upgrade (`TODO(signals)`) is to have `zome_group` `remote_signal` members on `join_group` / `create_soft_link` / `log_work`, with the UI refreshing on those signals and the pull layer kept only as an offline/missed-signal fallback (consolidated design note in `dnas/group/zomes/coordinator/zome_group/src/lib.rs`).
 
 ---
 
@@ -336,7 +367,8 @@ The following UI capabilities are documented but not yet implemented:
 
 | Track | Trigger | Design reference |
 |-------|---------|-----------------|
-| Group DNA backend | When `zome_group` lands — replace `LobbyService` localStorage impl | `lobby-dna.md`, `lobby-architecture.md` |
+| NDO membership (`join_ndo`) | Backend stub in UI; implement `NdoMembership` in `zome_resource` | `documentation/zomes/resource_zome.md § NDO membership` |
+| `get_ndo_transition_history` | Lifecycle audit panel empty until zome fn lands | `TransitionHistoryPanel.svelte` |
 | NDO cell cloning | Per-NDO DHT once Holochain cloning stabilises | `ndo_prima_materia.md §4` |
 | PPR / Reputation dashboard | After PPR zome functions are complete (#14–#21) | `specifications/governance/private-participation-receipt.md` |
 | Economic Process workflows | After Phase 2.2 process infrastructure lands | `requirements.md §4.2`, `implementation_plan.md §5 Phase 2.2` |
@@ -344,6 +376,7 @@ The following UI capabilities are documented but not yet implemented:
 | Role management UI | After agent promotion workflow (#33, #34) | `requirements.md §4.3` |
 | Moss WeApplet | Post-MVP deployment target | `implementation_plan.md §12.6` |
 | Unyt / Flowsta integration UI | Phases 12.2–12.3 in implementation plan | `post-mvp/unyt-integration.md`, `post-mvp/flowsta-integration.md` |
+| Push reactivity via Holochain signals | Replace the pull layer (focus + poll + per-open reconcile) with `remote_signal` from `zome_group` on member/SoftLink/work-log mutations | `TODO(signals)` in `zome_group/src/lib.rs`, `GroupView.svelte`, `lobby.service.ts` |
 
 ---
 
@@ -385,3 +418,60 @@ export const lobbyStore = pipe(
 ### Error handling
 
 All zome errors are domain-tagged (`ResourceError`, `PersonError`, etc.) with `context` strings for debugging. Effects that may fail are run with `E.runPromiseExit`, and `Exit.isSuccess(exit)` guards all state mutations.
+
+---
+
+## 15. Local Development & Multi-Agent Web Harness
+
+The dev runtime is the **browser**, not Electron. The previous `hc-spin` flow streamed the full `.happ` (~8 MB) over the admin websocket and timed out, so local development is now orchestrated by `scripts/launch-happ.mjs` (invoked by `bun run start` / `AGENTS=N bun run network`).
+
+### 15.1 Launcher responsibilities (`scripts/launch-happ.mjs`)
+
+1. **Bootstrap + signaling**: spawns `kitsune2-bootstrap-srv` and parses its listening URLs.
+2. **Sandboxes**: `hc sandbox --piped create -n N … webrtc <signal>` then `hc sandbox --piped run` (LAIR password piped on stdin).
+3. **Path-based install**: connects an `AdminWebsocket` per conductor and calls `installApp({ source: { type: 'path', value: happPath } })` + `enableApp` — avoids the websocket bundle-streaming timeout.
+4. **Connection manifest**: writes `ui/static/hc-connection.json` (`{ appId, agents: [{ agent, adminWsUrl, appWsUrl }], updatedAt }`), updated incrementally as each conductor comes up.
+5. **One Vite server per agent**: `startUiServers()` spawns `bun run start` from `ui/` for each agent with `UI_PORT = basePort + (agent-1)` and `VITE_DEV_AGENT = agent`. Agent _n_ → `http://localhost:{5173 + n - 1}`.
+6. **Auto-open**: when a Vite server prints its `Local:` URL, the launcher opens a browser tab (`open` / `start` / `xdg-open`). Set `NO_OPEN=1` to disable (headless/CI).
+7. **Shutdown**: `SIGINT`/`SIGTERM` tears down all UI servers, the sandbox, and the bootstrap server.
+
+### 15.2 Why a port per agent
+
+Each agent gets a **dedicated port = dedicated origin**, which yields fully isolated browser `localStorage` per agent while keeping URLs clean (no `?agent=` noise in permalinks). This replaced an earlier single-origin `?agent=N` approach. The query param is retained only as a manual override for advanced cases.
+
+### 15.3 Agent selection (`ui/src/lib/utils/hc-connect.ts`)
+
+`getDevAgentIndex()` resolves which conductor a window binds to, in priority order:
+
+1. `?agent=N` query param (manual override).
+2. `VITE_DEV_AGENT` env var (the primary mechanism — injected per Vite server by the launcher).
+3. `localStorage[ndo_dev_agent]`, else default `1`.
+
+### 15.4 Connection modes (`connectHolochainClient`)
+
+| Mode | Trigger | Notes |
+|------|---------|-------|
+| `launcher` | `window.__HC_LAUNCHER_ENV__` present | hc-spin Electron path (legacy/optional) |
+| `manifest` | `/hc-connection.json` has agents | **Primary web path**; picks the entry matching `getDevAgentIndex()`; polls up to 5 min while conductors install |
+| `env` | `VITE_HC_ADMIN_WS_URL` + `VITE_HC_APP_WS_URL` | manual override |
+
+In `manifest`/`env` modes the result carries the `adminWsUrl` so the UI can authorize signing credentials for **runtime-created group clone cells**.
+
+### 15.5 Signing-credential authorization & resilience
+
+- On connect, the UI calls `authorizeSigningCredentials` for **every** `provisioned` **and** `cloned` cell (clone cells lose in-memory signing credentials on reload, so their zome calls would otherwise fail).
+- Grants are serialized (each is a source-chain commit); concurrent grants raise **"source chain head has moved"**, so `authorizeWithRetry` retries with backoff (5 attempts).
+- `authorizeCellSigning(adminWsUrl, cellId)` is exported so a group clone cell created _after_ initial connect (create/join group) is authorized on demand.
+
+### 15.6 Per-agent UI-state namespacing
+
+Because two windows _can_ share an origin (the `?agent=` override), all UI-only `localStorage` keys are namespaced via `devStorageKey(base)` → `${base}__a{agentIndex}`:
+
+| Base key | Owner |
+|----------|-------|
+| `ndo_lobby_profile_v1` | `app.context.svelte.ts` (Level 1 profile) |
+| `ndo_group_profiles_v1` | `lobby.service.ts` (Level 2 disclosure prefs) |
+| `ndo_group_visited_v1` | `GroupView.svelte` (first-visit prompt) |
+| `ndo_dev_agent` | dev agent index (not namespaced — it _is_ the namespace) |
+
+> Note: DHT-backed state (groups, NDOs, members) is isolated by the conductor itself; namespacing only protects the UI-only localStorage layer when origins are shared.

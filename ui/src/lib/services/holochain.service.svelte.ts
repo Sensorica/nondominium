@@ -1,5 +1,10 @@
-import { type AgentPubKey, type AppInfoResponse, type CellId, AppWebsocket } from '@holochain/client';
+import { type AgentPubKey, type AppInfoResponse, type CellId, type ClonedCell, AppWebsocket } from '@holochain/client';
 import { Context, Layer } from 'effect';
+import {
+  authorizeCellSigning,
+  connectHolochainClient,
+  type HolochainConnectionMode
+} from '$lib/utils/hc-connect';
 
 export type ZomeName = 'zome_person' | 'zome_resource' | 'zome_gouvernance' | 'zome_group';
 // group_${string} removed: group cells are now addressed by CellId, not role-name strings.
@@ -9,6 +14,8 @@ export interface HolochainClientService {
   readonly appId: string;
   readonly client: AppWebsocket | null;
   readonly isConnected: boolean;
+  readonly connectionUrl: string | null;
+  readonly connectionMode: HolochainConnectionMode | null;
 
   connectClient(): Promise<void>;
 
@@ -26,6 +33,10 @@ export interface HolochainClientService {
   ): Promise<unknown>;
 
   verifyConnection(): Promise<boolean>;
+
+  createGroupCloneCell(networkSeed: string): Promise<ClonedCell>;
+
+  enableGroupCloneCell(dnaHash: Uint8Array): Promise<ClonedCell>;
 }
 
 /**
@@ -39,26 +50,54 @@ function createHolochainClientService(): HolochainClientService {
   const appId: string = 'nondominium';
   let client: AppWebsocket | null = $state(null);
   let isConnected: boolean = $state(false);
+  let connectionUrl: string | null = $state(null);
+  let connectionMode: HolochainConnectionMode | null = $state(null);
+  // Admin URL retained so runtime-created group clone cells can have signing
+  // credentials authorized (provisioned cells are authorized at connect time).
+  let adminWsUrl: string | null = null;
+  // Guards against concurrent connects (remount, Retry-while-connecting, HMR),
+  // which would each authorize signing credentials and race the source chain.
+  let connectInFlight: Promise<void> | null = null;
 
   /**
    * Connects the client to the Host backend with retry logic.
+   * Reentrant calls share the same in-flight promise instead of racing.
    */
   async function connectClient(): Promise<void> {
-    // Reset connection state
-    isConnected = false;
-    client = null;
+    if (isConnected && client) return;
+    if (connectInFlight) return connectInFlight;
 
-    try {
-      console.log('Attempting to connect to Holochain conductor...');
-      client = await AppWebsocket.connect();
-      isConnected = true;
-      console.log('✅ Successfully connected to Holochain');
-    } catch (error) {
-      console.warn('❌ Connection failed:', error);
+    connectInFlight = (async () => {
       isConnected = false;
       client = null;
-      throw error;
-    }
+      connectionUrl = null;
+      connectionMode = null;
+      adminWsUrl = null;
+
+      try {
+        console.log('Attempting to connect to Holochain conductor...');
+        const result = await connectHolochainClient(appId);
+        client = result.client;
+        connectionUrl = result.connectionUrl;
+        connectionMode = result.connectionMode;
+        adminWsUrl = result.adminWsUrl ?? null;
+        isConnected = true;
+        console.log(
+          `✅ Connected to Holochain (${result.connectionMode}) at ${result.connectionUrl}`
+        );
+      } catch (error) {
+        console.warn('❌ Connection failed:', error);
+        isConnected = false;
+        client = null;
+        connectionUrl = null;
+        connectionMode = null;
+        throw error;
+      } finally {
+        connectInFlight = null;
+      }
+    })();
+
+    return connectInFlight;
   }
 
   /**
@@ -143,6 +182,60 @@ function createHolochainClientService(): HolochainClientService {
     }
   }
 
+  /**
+   * Drops the AppWebsocket's memoized AppInfo so the next appInfo() call reflects
+   * a just-changed cell topology (clone created/enabled). Called at the write
+   * boundary so every read path — getAppInfo, enumerateGroupCells,
+   * getGroupCellHandleBySeed — sees the new cell without each having to poke the
+   * private cache field itself.
+   */
+  function invalidateAppInfoCache(): void {
+    if (client) client.cachedAppInfo = undefined;
+  }
+
+  async function enableGroupCloneCell(dnaHash: Uint8Array): Promise<ClonedCell> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+    const enabled = await client.enableCloneCell({
+      clone_cell_id: { type: 'dna_hash', value: dnaHash }
+    });
+    // Enabling changes cell topology — the cached AppInfo is now stale.
+    invalidateAppInfoCache();
+    await authorizeCloneCellSigning(enabled.cell_id);
+    return enabled;
+  }
+
+  async function createGroupCloneCell(networkSeed: string): Promise<ClonedCell> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+    const cloned = await client.createCloneCell({
+      role_name: 'group',
+      modifiers: { network_seed: networkSeed },
+      name: networkSeed
+    });
+    // Creating a clone changes cell topology — invalidate immediately so a read
+    // through any path (not just the one that created the cell) sees it.
+    invalidateAppInfoCache();
+    if (!cloned.enabled) {
+      // enableGroupCloneCell authorizes signing credentials for the cell.
+      return enableGroupCloneCell(cloned.cell_id[0]);
+    }
+    // A freshly cloned, already-enabled cell still needs signing credentials.
+    await authorizeCloneCellSigning(cloned.cell_id);
+    return cloned;
+  }
+
+  /**
+   * Authorizes signing credentials for a clone cell created at runtime.
+   * No-op in launcher mode (no admin URL; the launcher handles signing).
+   */
+  async function authorizeCloneCellSigning(cellId: CellId): Promise<void> {
+    if (!adminWsUrl) return;
+    await authorizeCellSigning(adminWsUrl, cellId);
+  }
+
   return {
     // Getters
     get appId() {
@@ -154,13 +247,21 @@ function createHolochainClientService(): HolochainClientService {
     get isConnected() {
       return isConnected;
     },
+    get connectionUrl() {
+      return connectionUrl;
+    },
+    get connectionMode() {
+      return connectionMode;
+    },
 
     // Methods
     connectClient,
     getAppInfo,
     getMyAgentPubKey,
     callZome,
-    verifyConnection
+    verifyConnection,
+    createGroupCloneCell,
+    enableGroupCloneCell
   };
 }
 
@@ -172,7 +273,7 @@ export default holochainClientService;
 export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
   HolochainClientServiceTag,
   HolochainClientService
->() {}
+>() { }
 
 /** Wraps the singleton in a Layer so services can be composed with E.provide. */
 export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> = Layer.succeed(

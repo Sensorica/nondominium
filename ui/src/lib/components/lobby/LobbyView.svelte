@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { appContext } from '$lib/stores/app.context.svelte';
   import NdoBrowser from './NdoBrowser.svelte';
@@ -27,5 +28,9 @@
     onclearfilters={() => lobbyStore.clearFilters()}
     isLoading={lobbyStore.isLoading}
     errorMessage={lobbyStore.errorMessage}
+    hasGroups={lobbyStore.groups.length > 0}
+    showOnboarding={true}
+    onCreateGroup={() => goto('/?openCreateGroup=1')}
+    onJoinGroup={() => goto('/?openJoinGroup=1')}
   />
 </div>

@@ -218,13 +218,13 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 
 - `resource.service.ts` — `createNdo`, `getNdo` (returns `NondominiumIdentity | null`, matching Rust's `Option<NondominiumIdentity>`), `updateLifecycleStage`, `getMyNdos`, `getNdosByLifecycleStage/Nature/Regime`, `getNdoTransitionHistory`
 - `ndo.service.ts` — `getLobbyNdoDescriptors`, `createNdo(input, groupId)`, `getGroupNdoDescriptors`, `getNdoTransitionHistory`; `getNdoDescriptorForSpecActionHash` uses `getMyNdos → getAllNdos → ResourceSpec` lookup chain with reliable base64 hash comparison
-- `lobby.service.ts` — localStorage-backed: `getMyGroups`, `createGroup`, `joinGroup`, `generateInviteLink`
+- `lobby.service.ts` — Group + Lobby DNA backed: `getMyGroups` (enumerate group clone cells + `get_my_group`), `createGroup` (`createCloneCell` → `create_group` → `join_group` → `announce_group`), `joinGroup` (provision clone cell + `is_member` guard + best-effort `join_group`, with `fetchGroupProfileWithRetry` gossip polling and invite-payload fallback so the group appears without a reload — `TODO(signals)`), `ensureMembership(groupId)` (idempotent membership self-heal — resolve group hash → `is_member` → `join_group` if missing — so a joined agent always reconciles into the member list even if the original join missed), `generateInviteLink`. Only the Level 2 `GroupMemberProfile` presentation choice stays in `localStorage` (`saveGroupMemberProfile`)
 
 #### Store Layer
 
 - `app.context.svelte.ts` — `lobbyUserProfile` state with localStorage hydration + persistence
 - `lobby.store.svelte.ts` — `ndos`, `filteredNdos`, `activeFilters`, `groups`, `createGroup`, `joinGroup`; `loadLobby()` now called from root layout
-- `group.store.svelte.ts` — `group`, `groupNdos`, `loadGroupData`, `createNdo`, **`associateNdoWithGroup(ndoHashB64, groupId)`** — appends hash to group’s `ndoHashes` in `localStorage`; includes TODO for Group DNA propagation
+- `group.store.svelte.ts` — `group`, `groupNdos`, `members`, `loadGroupData(groupId, { silent? })` (full load runs `ensureMembership` then fetches NDOs + members; silent load skips reconcile, keeps data on transient failure, no spinner), `refreshCurrentGroup()` (silent re-fetch for the pull-based reactivity layer — driven by `GroupView` tab-focus/visibility + ~8 s poll; `TODO(signals)`), `createNdo`, **`associateNdoWithGroup(ndoHashB64, groupId)`** (writes a `SoftLink` on the target group clone cell)
 - `ndo-cache.ts` *(new)* — in-memory `Map<hashB64, NdoDescriptor>` populated on card click so the NDO detail page renders immediately without a DHT round-trip
 
 #### Components — Shell / Layout
@@ -261,18 +261,26 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 - `/group/[id]` (`GroupView`) — group-scoped NDO list + Create NDO; `?createNdo=1` auto-opens modal
 - `/ndo/[id]` (`NdoView`) — full NDO detail page with detail card, actions, and tabs
 
+### Multi-Agent Web Dev Harness ✅ Implemented
+
+The dev runtime is the **browser** (Electron/`hc-spin` superseded). `scripts/launch-happ.mjs` (`bun run start` / `AGENTS=N bun run network`) orchestrates: `kitsune2-bootstrap-srv` → `hc sandbox` conductors → path-based `installApp` (avoids the websocket bundle-streaming timeout) → `ui/static/hc-connection.json` connection manifest → **one Vite dev server per agent** on consecutive ports (`5173 + agent-1`, pinned via `VITE_DEV_AGENT`) → auto-opened browser tab per agent (`NO_OPEN=1` to disable).
+
+- Each agent = dedicated port = dedicated origin = isolated `localStorage`, with clean permalinks (no `?agent=` in URLs; the param is retained only as a manual override).
+- `connectHolochainClient` (`hc-connect.ts`) resolves `launcher` / `manifest` / `env` modes; `getDevAgentIndex()` prefers `?agent=N` → `VITE_DEV_AGENT` → `localStorage`.
+- Signing credentials are authorized for **provisioned and cloned** cells, serialized with `authorizeWithRetry` to survive "source chain head has moved"; `authorizeCellSigning` handles group clone cells created after connect.
+- UI-only `localStorage` keys are namespaced via `devStorageKey(base)` (`__a{agent}`) for the shared-origin override case.
+
 ### Not Yet Implemented (UI)
 
-- Multi-member groups: invite-link generation and redemption (issue related to group backend)
-- Group member list display (GroupView stub shows empty `MemberList`)
-- "Join NDO" backend implementation (button is a placeholder)
+- "Join NDO" backend implementation (button is a placeholder; UI flow + API contract only)
 - Person management components (issue #8)
 - Resource management components (issue #9)
 - Capability-based private data sharing UI (issue #39)
 - PPR reputation visualization (issue #22)
 - Economic Process workflow UI (issues #28–#32)
 - Role management / agent progression UI (issues #33–#34)
-- Group DNA backend ✅ Complete (PR #107) — cloned-cell architecture, 4 entry types, 15 coordinator externs, 13 Sweettest cases
+
+> Group DNA backend ✅ Complete (PR #107) — cloned-cell architecture, 4 entry types, 15 coordinator externs, 13 Sweettest cases. Multi-member group invites, DHT member lists, reactive join, idempotent membership self-heal (`ensureMembership`), and pull-based reactivity (tab focus + gentle poll) for shared-group items are wired in the UI (see Group Level components above). Push reactivity via Holochain `remote_signal` is the documented next step (`TODO(signals)` markers in `zome_group/src/lib.rs`, `GroupView.svelte`, `lobby.service.ts`).
 
 ---
 
@@ -340,6 +348,12 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | MVP UI — Associate NDO with group modal                | ✅ Complete    |
 | MVP UI — Join NDO (placeholder)                        | ✅ Complete (placeholder) |
 | MVP UI — First-time user profile modal (root layout)   | ✅ Complete    |
+| MVP UI — Multi-member group invites + DHT member list   | ✅ Complete    |
+| MVP UI — Reactive group join (gossip-retry + fallback)  | ✅ Complete    |
+| MVP UI — Membership self-heal (`ensureMembership`)      | ✅ Complete    |
+| MVP UI — Pull reactivity for shared-group items (focus + poll) | ✅ Complete |
+| Push reactivity via Holochain signals                   | ❌ Not started (`TODO(signals)`) |
+| Dev harness — per-agent web instances (ports, auto-open) | ✅ Complete   |
 | PropertyRegime reduced to 4 canonical variants         | ✅ Complete    |
 | Sweettest scaffold + person tests                      | ✅ Complete    |
 | Economic processes (Use/Transport/Storage/Repair)      | ❌ Not started |

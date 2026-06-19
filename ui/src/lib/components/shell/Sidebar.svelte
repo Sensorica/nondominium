@@ -17,13 +17,54 @@
   let isCreating = $state(false);
   let isJoining = $state(false);
   let showProfileModal = $state(false);
+  let copiedGroupId = $state<string | null>(null);
+
+  $effect(() => {
+    const params = $page.url.searchParams;
+    if (params.get('openCreateGroup') === '1') {
+      showCreateForm = true;
+      showJoinForm = false;
+    }
+    if (params.get('openJoinGroup') === '1') {
+      showJoinForm = true;
+      showCreateForm = false;
+    }
+    const groupInvite = params.get('group');
+    if (groupInvite) {
+      joinCode = groupInvite.includes('?group=') ? groupInvite : `?group=${groupInvite}`;
+      showJoinForm = true;
+      showCreateForm = false;
+    }
+  });
+
+  async function copyInviteLink(groupId: string, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const link = await lobbyStore.generateInviteLink(groupId);
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      copiedGroupId = groupId;
+      setTimeout(() => {
+        copiedGroupId = null;
+      }, 2000);
+    } catch {
+      // clipboard unavailable
+    }
+  }
 
   async function handleCreate() {
-    if (!createName.trim()) { createError = 'Group name is required.'; return; }
+    if (!createName.trim()) {
+      createError = 'Group name is required.';
+      return;
+    }
     isCreating = true;
     createError = '';
     try {
-      const group = await lobbyStore.createGroup(createName.trim(), appContext.lobbyUserProfile?.nickname);
+      const group = await lobbyStore.createGroup(
+        createName.trim(),
+        appContext.lobbyUserProfile?.nickname
+      );
       createName = '';
       showCreateForm = false;
       if (group) await goto(`/group/${group.id}`);
@@ -35,7 +76,10 @@
   }
 
   async function handleJoin() {
-    if (!joinCode.trim()) { joinError = 'Paste an invite link or code.'; return; }
+    if (!joinCode.trim()) {
+      joinError = 'Paste an invite link or code.';
+      return;
+    }
     isJoining = true;
     joinError = '';
     try {
@@ -54,8 +98,12 @@
 {#if showProfileModal}
   <UserProfileForm
     mode="modal"
-    onclose={() => { showProfileModal = false; }}
-    onsave={() => { showProfileModal = false; }}
+    onclose={() => {
+      showProfileModal = false;
+    }}
+    onsave={() => {
+      showProfileModal = false;
+    }}
   />
 {/if}
 
@@ -79,15 +127,25 @@
   {#if lobbyStore.groups.length > 0}
     <ul class="mb-2 space-y-0.5">
       {#each lobbyStore.groups as g (g.id)}
-        <li>
+        <li class="group flex items-center gap-0.5">
           <a
             href="/group/{g.id}"
-            class="block truncate rounded px-2 py-1 text-sm transition-colors {isActive(`/group/${g.id}`)
+            class="block min-w-0 flex-1 truncate rounded px-2 py-1 text-sm transition-colors {isActive(
+              `/group/${g.id}`
+            )
               ? 'bg-white font-medium text-gray-900 shadow-sm'
               : 'text-gray-700 hover:bg-white hover:text-gray-900'}"
           >
             {g.name}
           </a>
+          <button
+            type="button"
+            title="Copy invite link"
+            onclick={(e) => copyInviteLink(g.id, e)}
+            class="shrink-0 rounded px-1.5 py-0.5 text-xs text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white hover:text-blue-600"
+          >
+            {copiedGroupId === g.id ? '✓' : '⎘'}
+          </button>
         </li>
       {/each}
     </ul>
@@ -104,7 +162,9 @@
         bind:value={createName}
         placeholder="Group name"
         class="mb-1.5 w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-        onkeydown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+        onkeydown={(e) => {
+          if (e.key === 'Enter') handleCreate();
+        }}
       />
       {#if createError}
         <p class="mb-1 text-xs text-red-600">{createError}</p>
@@ -120,7 +180,11 @@
         </button>
         <button
           type="button"
-          onclick={() => { showCreateForm = false; createName = ''; createError = ''; }}
+          onclick={() => {
+            showCreateForm = false;
+            createName = '';
+            createError = '';
+          }}
           class="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
         >
           Cancel
@@ -130,7 +194,10 @@
   {:else}
     <button
       type="button"
-      onclick={() => { showCreateForm = true; showJoinForm = false; }}
+      onclick={() => {
+        showCreateForm = true;
+        showJoinForm = false;
+      }}
       class="mb-1 flex w-full items-center gap-1 rounded px-2 py-1.5 text-xs text-blue-600 hover:bg-white"
     >
       <span class="font-bold">+</span> New Group
@@ -146,7 +213,9 @@
         bind:value={joinCode}
         placeholder="Paste invite link"
         class="mb-1.5 w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-        onkeydown={(e) => { if (e.key === 'Enter') handleJoin(); }}
+        onkeydown={(e) => {
+          if (e.key === 'Enter') handleJoin();
+        }}
       />
       {#if joinError}
         <p class="mb-1 text-xs text-red-600">{joinError}</p>
@@ -162,7 +231,11 @@
         </button>
         <button
           type="button"
-          onclick={() => { showJoinForm = false; joinCode = ''; joinError = ''; }}
+          onclick={() => {
+            showJoinForm = false;
+            joinCode = '';
+            joinError = '';
+          }}
           class="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
         >
           Cancel
@@ -172,7 +245,10 @@
   {:else}
     <button
       type="button"
-      onclick={() => { showJoinForm = true; showCreateForm = false; }}
+      onclick={() => {
+        showJoinForm = true;
+        showCreateForm = false;
+      }}
       class="flex w-full items-center gap-1 rounded px-2 py-1.5 text-xs text-gray-600 hover:bg-white"
     >
       <span class="font-bold">→</span> Join Group
@@ -183,7 +259,9 @@
   <div class="mt-auto border-t border-gray-200 pt-3">
     <button
       type="button"
-      onclick={() => { showProfileModal = true; }}
+      onclick={() => {
+        showProfileModal = true;
+      }}
       class="w-full rounded px-2 py-1.5 text-left text-xs text-gray-500 hover:bg-white hover:text-gray-700"
     >
       {#if appContext.lobbyUserProfile?.nickname}

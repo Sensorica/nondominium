@@ -1,7 +1,15 @@
 <script lang="ts">
-  import type { GroupMemberProfile, LifecycleStage, NdoDescriptor, PropertyRegime, ResourceNature } from '@nondominium/shared-types';
+  import type {
+    GroupMemberProfile,
+    LifecycleStage,
+    NdoDescriptor,
+    PropertyRegime,
+    ResourceNature
+  } from '@nondominium/shared-types';
   import { appContext } from '$lib/stores/app.context.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
+  import { lobbyStore } from '$lib/stores/lobby.store.svelte';
+  import { devStorageKey } from '$lib/utils/hc-connect';
   import type { ActiveFilters } from '$lib/stores/lobby.store.svelte';
   import NdoBrowser from '$lib/components/lobby/NdoBrowser.svelte';
   import NdoCreateModal from './NdoCreateModal.svelte';
@@ -16,6 +24,7 @@
   let { groupId, autoOpenCreateModal = false }: Props = $props();
 
   let activeFilters = $state<ActiveFilters>({ stages: [], natures: [], regimes: [] });
+  let inviteCopied = $state(false);
 
   function setFilters(partial: Partial<ActiveFilters>): void {
     activeFilters = { ...activeFilters, ...partial };
@@ -25,30 +34,20 @@
     activeFilters = { stages: [], natures: [], regimes: [] };
   }
 
-  const members = $derived.by(() => {
-    const creatorName = groupStore.group?.createdBy;
-    const myNickname = appContext.lobbyUserProfile?.nickname;
-    const result: { id: string; name: string; role?: string }[] = [];
-
-    if (creatorName) {
-      result.push({ id: `creator-${groupId}`, name: creatorName, role: 'Creator' });
-    }
-
-    if (myNickname && myNickname !== creatorName) {
-      result.push({ id: `me-${groupId}`, name: myNickname, role: 'Member' });
-    }
-
-    return result;
-  });
-
   const filteredNdos = $derived.by(() => {
     const { stages, natures, regimes } = activeFilters;
     const noFilter = stages.length === 0 && natures.length === 0 && regimes.length === 0;
     if (noFilter) return groupStore.groupNdos;
     return groupStore.groupNdos.filter((d: NdoDescriptor) => {
-      const stageOk = stages.length === 0 || (d.lifecycle_stage !== null && stages.includes(d.lifecycle_stage as LifecycleStage));
-      const natureOk = natures.length === 0 || (d.resource_nature !== null && natures.includes(d.resource_nature as ResourceNature));
-      const regimeOk = regimes.length === 0 || (d.property_regime !== null && regimes.includes(d.property_regime as PropertyRegime));
+      const stageOk =
+        stages.length === 0 ||
+        (d.lifecycle_stage !== null && stages.includes(d.lifecycle_stage as LifecycleStage));
+      const natureOk =
+        natures.length === 0 ||
+        (d.resource_nature !== null && natures.includes(d.resource_nature as ResourceNature));
+      const regimeOk =
+        regimes.length === 0 ||
+        (d.property_regime !== null && regimes.includes(d.property_regime as PropertyRegime));
       return stageOk && natureOk && regimeOk;
     });
   });
@@ -56,7 +55,7 @@
   let showCreateModal = $state(false);
   let showProfileModal = $state(false);
 
-  const VISITED_KEY = 'ndo_group_visited_v1';
+  const VISITED_KEY = devStorageKey('ndo_group_visited_v1');
 
   function hasVisited(id: string): boolean {
     try {
@@ -81,18 +80,22 @@
   }
 
   function saveGroupProfile(profile: GroupMemberProfile): void {
-    try {
-      const raw = localStorage.getItem('ndo_groups_v1');
-      const groups: { id: string; memberProfile?: GroupMemberProfile }[] = raw ? JSON.parse(raw) : [];
-      const idx = groups.findIndex((g) => g.id === groupId);
-      if (idx >= 0) {
-        groups[idx].memberProfile = profile;
-        localStorage.setItem('ndo_groups_v1', JSON.stringify(groups));
-      }
-    } catch {
-      // localStorage unavailable
-    }
+    void lobbyStore.saveGroupMemberProfile(groupId, profile);
     markVisited(groupId);
+  }
+
+  async function copyInviteLink() {
+    const link = await lobbyStore.generateInviteLink(groupId);
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      inviteCopied = true;
+      setTimeout(() => {
+        inviteCopied = false;
+      }, 2000);
+    } catch {
+      // clipboard unavailable
+    }
   }
 
   $effect(() => {
@@ -104,6 +107,42 @@
     }
   });
 
+  // Pull-based reactivity for shared-group items (members, NDOs): silently
+  // re-fetch when the tab regains focus and on a gentle poll while this group
+  // is open, so changes gossiped from other members surface without a manual
+  // reload. Keyed on groupId so listeners/interval are torn down and re-created
+  // when navigating between groups.
+  // TODO(signals): replace this pull layer with Holochain remote signals — the
+  // group zome should remote_signal members on join_group / create_soft_link /
+  // create_work_log, and the UI should refresh on those signals (keeping a
+  // focus/poll fallback only for offline/missed-signal cases).
+  $effect(() => {
+    // Reference groupId so the effect re-runs when the open group changes.
+    void groupId;
+    if (typeof window === 'undefined') return;
+
+    const POLL_INTERVAL_MS = 8000;
+    const refresh = () => {
+      void groupStore.refreshCurrentGroup();
+    };
+    const onFocus = () => refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(intervalId);
+    };
+  });
+
   $effect(() => {
     if (autoOpenCreateModal) {
       showCreateModal = true;
@@ -112,14 +151,25 @@
 </script>
 
 {#if showCreateModal}
-  <NdoCreateModal {groupId} onclose={() => { showCreateModal = false; }} />
+  <NdoCreateModal
+    {groupId}
+    onclose={() => {
+      showCreateModal = false;
+    }}
+  />
 {/if}
 
 {#if showProfileModal}
   <GroupProfileModal
     {groupId}
-    onclose={() => { showProfileModal = false; markVisited(groupId); }}
-    onsave={(profile) => { saveGroupProfile(profile); showProfileModal = false; }}
+    onclose={() => {
+      showProfileModal = false;
+      markVisited(groupId);
+    }}
+    onsave={(profile) => {
+      saveGroupProfile(profile);
+      showProfileModal = false;
+    }}
   />
 {/if}
 
@@ -132,13 +182,24 @@
       </h1>
       <p class="mt-1 font-mono text-sm text-gray-400">{groupId}</p>
     </div>
-    <button
-      type="button"
-      onclick={() => { showCreateModal = true; }}
-      class="flex items-center gap-1.5 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-    >
-      <span class="text-base leading-none">+</span> Create NDO
-    </button>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        onclick={copyInviteLink}
+        class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+      >
+        {inviteCopied ? 'Invite link copied!' : 'Copy invite link'}
+      </button>
+      <button
+        type="button"
+        onclick={() => {
+          showCreateModal = true;
+        }}
+        class="flex items-center gap-1.5 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+      >
+        <span class="text-base leading-none">+</span> Create NDO
+      </button>
+    </div>
   </div>
 
   {#if groupStore.errorMessage}
@@ -156,8 +217,8 @@
     isLoading={groupStore.isLoading}
   />
 
-  <!-- Member list stub -->
+  <!-- Member list -->
   <div class="mt-6">
-    <MemberList {members} />
+    <MemberList members={groupStore.members} />
   </div>
 </div>
