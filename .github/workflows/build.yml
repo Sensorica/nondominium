@@ -34,3 +34,53 @@ jobs:
 
       - name: Build happ
         run: nix develop --command bun run build:happ
+
+  # Browser-level e2e against real conductors (ui/tests/e2e). Gated behind the
+  # build job; when a Sweettest CI job lands, gate this behind that instead so
+  # backend regressions fail fast before the slower browser suite runs.
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: cachix/install-nix-action@v26
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v14
+        with:
+          name: holochain-ci
+          skipPush: true
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            vendor/hrea -> vendor/hrea/target
+
+      - name: Install dependencies
+        run: nix develop --command bun install
+
+      - name: Build happ
+        run: nix develop --command bun run build:happ
+
+      - name: Build shared types
+        run: nix develop --command bash -c "cd packages/shared-types && bun run build"
+
+      - name: Install Playwright chromium
+        run: nix develop --command bash -c "cd ui && bunx playwright install --with-deps chromium"
+
+      - name: Run e2e suite
+        run: nix develop --command bun run e2e
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: |
+            ui/test-results/
+          retention-days: 14
