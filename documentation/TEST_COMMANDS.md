@@ -49,7 +49,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test
 CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby -- --nocapture
 
 # Run a single test
-CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby announce_ndo_cross_conductor
+CARGO_TARGET_DIR=target/native-tests cargo test --package lobby_sweettest --test lobby announce_group_cross_conductor
 ```
 
 ### Group DNA Sweettest

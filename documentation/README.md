@@ -12,7 +12,9 @@ Infrastructure for organization-agnostic, uncapturable, self-governed resources 
 
 - [Architecture Components](ARCHITECTURE_COMPONENTS.md) - System design and zome interactions
 - [NDO v1 Architecture Design](specifications/ndo-v1-architecture-design.md) - NDO three-layer model
-- [Zomes Overview](zomes/architecture_overview.md) - Person, Resource, Governance zome breakdown
+- [Zomes Overview](zomes/architecture_overview.md) - Multi-DNA topology and the Person, Resource, Governance core
+- [Lobby Zome](zomes/lobby_zome.md) - Lobby DNA: agent presence and the global group registry
+- [Group Zome](zomes/group_zome.md) - Group DNA: cloned-cell coordination, membership, soft links, NDO anchors
 - [hREA Integration](hREA/README.md) - ValueFlows / hREA integration strategy
 
 ## Requirements

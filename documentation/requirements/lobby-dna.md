@@ -142,14 +142,16 @@ For the comparative table and worked example, see
 
 ## 4. Lobby DNA Requirements
 
-> **Implementation note (PR #103):** The Lobby is a **separate DNA** (`dnas/lobby/`), not a zome inside
-> the nondominium DNA. The `lobby` role in `workdir/happ.yaml` uses canonical
-> `network_seed: "nondominium-lobby-v1"`. Entry types are `LobbyAgentProfile` and
-> **`NdoAnnouncement`** (not `NdoDescriptor` — see ADR-LOBBY-04 in `lobby-architecture.md`).
-> Coordinator APIs: `upsert_lobby_agent_profile`, `get_lobby_agent_profile`, `get_all_lobby_agents`,
-> `announce_ndo`, `get_all_ndo_announcements`, `get_my_ndo_announcements`,
-> `get_ndo_announcements_by_lifecycle`, `update_ndo_announcement`, `get_ndo_announcement`.
-> `get_my_groups` returns a solo-workspace **stub** until Group DNA (#101) lands.
+> **Implementation note (PR #103, revised by PR #107):** The Lobby is a **separate DNA** (`dnas/lobby/`),
+> not a zome inside the nondominium DNA. The `lobby` role in `workdir/happ.yaml` uses canonical
+> `network_seed: "nondominium-lobby-v1"`. PR #103 initially shipped `LobbyAgentProfile` plus an
+> `NdoAnnouncement` registry; **PR #107 removed the NDO registry** (`NdoAnnouncement`, `announce_ndo`,
+> `get_all_ndo_announcements`, `update_ndo_announcement`) and replaced it with the **group registry**:
+> entry types are now `LobbyAgentProfile` and `GroupAnnouncement`, with coordinator APIs
+> `upsert_lobby_agent_profile`, `get_lobby_agent_profile`, `announce_group`,
+> `get_my_group_announcements`, `get_all_group_announcements`. NDOs are group-scoped; the
+> NDO-per-cell design (issue #112) resurrects the descriptor idea as the group-level `NdoAnchor`.
+> Authoritative reference: `documentation/zomes/lobby_zome.md`.
 
 ### 4.1 Agent profile
 
@@ -165,19 +167,24 @@ For the comparative table and worked example, see
 
 ### 4.2 NDO descriptor registry
 
-Normative name: **`NdoDescriptor`**. Implemented entry type: **`NdoAnnouncement`** (same role,
-same fields; see `documentation/zomes/lobby_zome.md`).
+Normative name: **`NdoDescriptor`**. Initially implemented as **`NdoAnnouncement`** in PR #103,
+then **removed in PR #107**: the Lobby became a group registry and NDO visibility became
+group-scoped. The descriptor concept survives at group level as **`NdoAnchor`** (issue #112),
+which carries the same clone coordinates (name, DnaHash, network_seed, Layer 0 identity hash,
+lifecycle_stage, property_regime, resource_nature) inside each group cell.
 
 - **REQ-LOBBY-04**: Any agent may register an `NdoDescriptor` / `NdoAnnouncement` entry in the
   Lobby DHT for an NDO they initiated. The descriptor contains: NDO name, DnaHash, network_seed,
   Layer 0 identity hash, lifecycle_stage, property_regime, resource_nature, and description.
-  **Status:** ✅ Implemented (`announce_ndo`).
+  **Status:** ⚠️ Superseded — removed from the Lobby in PR #107; fulfilled at group scope by
+  `NdoAnchor` (#112). A future Lobby-level NDO index remains an explicit option.
 - **REQ-LOBBY-05**: Only the registrant may update a descriptor. Descriptors cannot be
   deleted (mirroring the permanent nature of NondominiumIdentity in the NDO DHT).
-  **Status:** ✅ Implemented (integrity zome rejects deletes; author check on update).
+  **Status:** ⚠️ Superseded — see REQ-LOBBY-04; anchor updates are author-gated in `zome_group`.
 - **REQ-LOBBY-06**: The only mutable field on a descriptor after registration is
   `lifecycle_stage`, which mirrors transitions on the NDO's `NondominiumIdentity`.
-  **Status:** ✅ Implemented (`update_ndo_announcement`).
+  **Status:** ⚠️ Superseded — `NdoAnchor` allows cached descriptor sync (name, description,
+  lifecycle_stage) while its identity coordinates stay immutable.
 - **REQ-LOBBY-07**: Descriptors are discoverable via global anchors and categorization paths
   by lifecycle stage, resource nature, and property regime.
   **Status:** 🔄 Partial — global anchor (`lobby.ndos`) and lifecycle paths
@@ -470,57 +477,35 @@ an actual deployed DNA (discoverable by peers who attempt to connect).
 
 ## 10. Current State vs Planned Enforcement
 
-*Last reconciled with `IMPLEMENTATION_STATUS.md` and the codebase, 2026-05-23.*
+*Last reconciled with the codebase, 2026-07-19.*
 
 ### 10.1 What is implemented
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| **Lobby DNA** | ✅ PR #103 | `dnas/lobby/` — `LobbyAgentProfile`, `NdoAnnouncement`; `lobby` role in `happ.yaml` with `network_seed: "nondominium-lobby-v1"`; Sweettest (`lobby_sweettest`) |
+| **Lobby DNA** | ✅ PR #103, revised #107 | `dnas/lobby/` — `LobbyAgentProfile` + `GroupAnnouncement` (group registry); `lobby` role in `happ.yaml` with `network_seed: "nondominium-lobby-v1"`; Sweettest (`lobby_sweettest`, 5 tests) |
+| **Group DNA** | ✅ PR #107 | `dnas/group/` — `GroupProfile`, `GroupMembership`, `WorkLog`, `SoftLink`; `group` role (`deferred: true`, `clone_limit: 64`); Sweettest (`group_sweettest`, 13 tests) |
+| **DHT-backed group UI** | ✅ PR #111 | `createCloneCell` group provisioning, invite links, DHT member list, SoftLink NDO association; multi-agent web harness (`scripts/launch-happ.mjs`) |
 | **NDO federation extensions** | ✅ PR #103 | `NdoHardLink`, `Contribution`, `Agreement` in `zome_gouvernance`; coordinator APIs + partial Sweettest |
-| **NDO Layer 0** | ✅ PR #80 | `NondominiumIdentity` on single shared NDO DHT (`clone_limit: 0`) — Stage 2 hard-link deployment |
-| **MVP UI shell** | ✅ | Persistent Lobby sidebar, Group panel, NDO detail (`ui_design.md`); groups + lobby profile in **localStorage**; NDO data on **nondominium** DHT |
-| **Lobby service (UI)** | 🔄 Partial | `ui/src/lib/services/zomes/lobby.service.ts` exposes `announce_ndo` and `upsert_lobby_agent_profile` zome calls, but main flows still use localStorage profile + `get_all_ndos` on resource zome for browse — **Lobby DHT not yet wired end-to-end** |
+| **NDO Layer 0** | ✅ PR #80 | `NondominiumIdentity` on the shared nondominium DHT |
+| **NDO DNA + NdoAnchor** | 🔄 Issue #112 | `ndo` role (`deferred: true`, `clone_limit: 512`) bundling existing resource + governance WASMs; `NdoAnchor` in `zome_group` with clone coordinates; one NDO = one cloned cell |
 
 ### 10.2 In progress or not started
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| **Group DNA** | 🔄 Issue #101 | No `dnas/group/` yet; `get_my_groups` stub in Lobby coordinator; UI `Associate with group` writes localStorage only |
-| **`group` hApp role** | ❌ | `happ.yaml` has `lobby` + `nondominium` + `hrea`; `group` role with `clone_limit: 255` not yet added |
-| **Per-NDO cell cloning** | ❌ | `nondominium` role still `clone_limit: 0` — Stage 3 multi-DHT not active |
+| **NDO-per-cell UI cutover** | 🔄 Issue #110 (amended) | `NdoCreateModal` provisions an NDO cell + `NdoAnchor` instead of a shared-DHT entry + SoftLink; group NDO grid renders from anchors |
+| **Lobby profile UI sync** | 🔄 Issue #106 / PR #114 | Profile bar + fire-and-forget `upsert_lobby_agent_profile` |
 | **Moss WeApplet** | ❌ | `ui/src/we-applet.ts` contract specified in architecture doc; not in repo |
-| **Lobby ↔ NDO lifecycle sync** | ❌ | `update_ndo_announcement` not called automatically on `update_lifecycle_stage` |
-| **Facet discovery (nature / regime)** | ❌ | REQ-LOBBY-07 nature and property-regime path anchors not in Lobby DNA |
+| **Facet discovery (nature / regime)** | ❌ | REQ-LOBBY-07 nature and property-regime path anchors not in Lobby DNA (NDO announcements removed; facets now group-scoped via anchors) |
 | **Governance-as-operator** | ❌ | #41–#44 — blocks full AccountableAgent enforcement on Contribution / Agreement / hard links |
 
-### 10.3 MVP UI alignment (`ui_design.md`)
+### 10.3 Planned next steps
 
-The MVP implements the **Lobby → Group → NDO** hierarchy in the frontend while the backend
-catches up:
-
-- **Lobby profile (Level 1):** `LobbyUserProfile` in `localStorage` — not yet synced to
-  `LobbyAgentProfile` on the Lobby DHT (service method exists).
-- **Groups (Level 2):** `GroupDescriptor` in `localStorage` — replace with Group DNA when #101
-  lands; `LobbyService` interface designed for swap without component changes (REQ-UI-GRP-01).
-- **NDO browse:** Aggregates NDOs linked to the agent's local groups via `get_all_ndos` on the
-  resource zome, not yet via `get_all_ndo_announcements` on the Lobby DHT.
-- **Associate NDO with group:** localStorage only; Group DHT write pending (MVP ToDo #7 in
-  `ui_design.md`).
-- **PropertyRegime:** UI and Rust use **4 variants** (Private, Commons, Nondominium, CommonPool);
-  Collective and Pool removed after design review — Lobby `NdoAnnouncement` uses the same enum
-  via `nondominium_shared::types`.
-
-### 10.4 Planned next steps (see `implementation_plan.md §12.6`)
-
-1. **Group DNA (#101)** — `GroupDescriptor`, `GroupMembership`, `WorkLog`, `SoftLink`,
-   `GroupGovernanceRule`; add `group` role to `happ.yaml`.
-2. **Wire UI to Lobby DHT** — profile upsert, `announce_ndo` on NDO creation, browse via
-   `get_all_ndo_announcements`; mirror lifecycle updates to `update_ndo_announcement`.
-3. **Replace localStorage groups** — `LobbyService.getMyGroups()` → Group DNA; propagate
-   `associateNdoWithGroup` to Group DHT.
-4. **Governance-as-operator (#41–#44)** — enforce AccountableAgent on federation extension writes.
-5. **Stage 3 federation** — per-NDO `clone_limit`, Moss WeApplet, Flowsta identity bridge.
+1. **NDO-per-cell (#112 + amended #110)** — backend anchor plumbing, then UI cutover.
+2. **Per-LinkType validation (#85)** — scope extended to lobby, group, and ndo DNAs.
+3. **Governance-as-operator (#41–#44)** — the operator evaluates inside each NDO cell.
+4. **Post-MVP** — cross-cell reputation aggregation, optional Lobby-level NDO index, Moss WeApplet, Flowsta identity bridge.
 
 The companion architecture specification
 (`documentation/specifications/post-mvp/lobby-architecture.md`) remains the detailed schema,

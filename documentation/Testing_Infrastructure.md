@@ -40,7 +40,7 @@ dnas/
     └── src/
         ├── common/
         │   └── conductors.rs # setup_two_lobby_agents()
-        └── lobby/mod.rs      # announce_ndo, upsert_lobby_agent_profile, get_my_groups tests
+        └── lobby/mod.rs      # announce_group, upsert_lobby_agent_profile, get_my_groups tests
 ```
 
 Per-zome test modules are co-evolved alongside implementation PRs. Each PR that adds new `#[hdk_extern]` functions adds corresponding tests in the relevant module.

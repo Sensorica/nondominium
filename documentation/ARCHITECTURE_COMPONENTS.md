@@ -9,7 +9,15 @@
 
 ## 🎯 Executive Summary
 
-Nondominium implements a sophisticated **3-zome Holochain architecture** that enables distributed resource sharing with embedded governance, capability-based security, and cryptographically-secured reputation tracking. The system supports **four structured Economic Processes** (Use, Transport, Storage, Repair) with role-based access control and **14-category PPR reputation system** for trustworthy agent interactions.
+Nondominium implements a **multi-DNA Holochain architecture** that enables distributed resource sharing with embedded governance, capability-based security, and cryptographically-secured reputation tracking. The hApp composes five DNA roles into a fractal **Lobby → Group → NDO** holarchy:
+
+- **Nondominium DNA** (provisioned, shared): the 3-zome core (`zome_person`, `zome_resource`, `zome_gouvernance`) detailed throughout this document
+- **Lobby DNA** (provisioned, fixed network seed): permissionless entry point — agent presence and the global group registry (PR #103; see `zomes/lobby_zome.md`)
+- **Group DNA** (one cloned cell per group, `deferred: true`): per-group coordination DHT with network isolation (PR #107; see `zomes/group_zome.md`)
+- **NDO DNA** (one cloned cell per NDO, `deferred: true`): per-NDO resource network bundling the existing resource and governance zome WASMs; the clone's DNA hash is the NDO's permanent identity (issue #112, ADR-010/011/012)
+- **hREA DNA** (vendored): canonical ValueFlows event recording via the hREA bridge
+
+The core supports **four structured Economic Processes** (Use, Transport, Storage, Repair) with role-based access control and a **16-category PPR reputation system** for trustworthy agent interactions.
 
 ---
 
@@ -26,11 +34,23 @@ graph TB
 
     subgraph "Holochain Runtime"
         WASM[WASM Compilation]
-        DHT[DHT-based P2P Network]
+        DHT[DHT-based P2P Networks]
         CapSec[Capability-Based Security]
     end
 
-    subgraph "Zome Layer"
+    subgraph "Lobby DNA (provisioned)"
+        Lobby["zome_lobby<br/>Agent presence + group registry"]
+    end
+
+    subgraph "Group DNA (cloned per group)"
+        Group["zome_group<br/>Membership, work logs, soft links, NDO anchors"]
+    end
+
+    subgraph "NDO DNA (cloned per NDO)"
+        NdoCell["zome_resource + zome_gouvernance<br/>One network per NDO"]
+    end
+
+    subgraph "Nondominium DNA (3-zome core)"
         Person["zome_person<br/>Identity and Access"]
         Resource["zome_resource<br/>Resource Management"]
         Gov["zome_gouvernance<br/>Governance and Reputation"]
@@ -41,6 +61,9 @@ graph TB
     WASM --> DHT
     WASM --> CapSec
 
+    Lobby --> DHT
+    Group --> DHT
+    NdoCell --> DHT
     Person --> DHT
     Resource --> DHT
     Gov --> DHT
@@ -1120,6 +1143,14 @@ Encryption Performance:
 **Rationale**: Clear separation of concerns, focused responsibility domains
 **Alternatives Considered**: Single monolithic zome, 5+ specialized zomes
 **Impact**: Simplified development, clear API boundaries, cross-zome coordination complexity
+**Status note**: The 3-zome design still describes the Nondominium DNA core, but the hApp is no longer a single DNA — see ADR-013.
+
+### ADR-013: Multi-DNA Split — Lobby, Group, and NDO Networks
+
+**Decision**: Split the hApp into multiple DNA roles: a provisioned Lobby DNA (global group registry + agent presence), a cloned Group DNA per group (isolated coordination DHT), and a cloned NDO DNA per Nondominium Object (isolated resource network reusing the existing resource and governance zome WASMs), alongside the provisioned Nondominium core and vendored hREA DNA.
+**Rationale**: Complexity matching — coordination overhead activates when coordination begins, not at install. Group data does not belong in a global DHT; an NDO must not be captive to any single group's DHT (REQ-RES-02). Placing immutable Layer 0 fields in the NDO clone's DNA properties makes the DNA hash the NDO's permanent, organization-agnostic identity, enforced by hash physics rather than validation code (ADR-010 in the NDO-per-cell design).
+**Alternatives Considered**: Single shared DHT for everything (rejected: no network isolation, group-scoped visibility impossible); a Lobby-level global NDO registry (rejected in PR #107; group-level `NdoAnchor` entries carry clone coordinates instead, ADR-011); a dedicated slim NDO zome (rejected for MVP: code fork, ADR-012).
+**Impact**: Delivered incrementally by PR #103 (Lobby), PR #107 (Group), and issue #112 (NDO DNA + NdoAnchor). Browsing NDOs reads group-cell anchors and never requires joining NDO cells; PPRs and governance run inside each NDO network; `Person` identity and the hREA bridge stay in the provisioned cells.
 
 ### ADR-002: PPR-Based Reputation System
 

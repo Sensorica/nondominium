@@ -8,10 +8,19 @@ scope: post-mvp
 
 # Nondominium Lobby DNA — Architecture Design
 
+> **⚠️ Superseded in part (2026-07-19).** The Lobby DNA (PR #103) and Group DNA (PR #107) shipped
+> with the registry model **inverted** relative to this design: the Lobby is a **group registry**
+> (`GroupAnnouncement`); NDOs are group-scoped, and the Lobby-level `NdoDescriptor` registry
+> described below was removed in PR #107. The NDO-per-cell architecture (issue #112) partially
+> resurrects the `NdoDescriptor` idea as the **group-level `NdoAnchor`** entry, which carries the
+> same clone coordinates (`ndo_dna_hash`, `network_seed`) at group scope. Implementation-accurate
+> references: `documentation/zomes/lobby_zome.md` and `documentation/zomes/group_zome.md`.
+> This document is kept for the decision trail (entry sketches, Moss contract, ADRs).
+
 **Design session:** 2026-04-14
 **Basis:** Requirements discovery session + Moss/Weave ecosystem research
 **Scope:** Lobby DNA + Group DNA (new) + NDO DNA extensions (zome_gouvernance)
-**Requirements:** `documentation/requirements/post-mvp/lobby-dna.md`
+**Requirements:** `documentation/requirements/lobby-dna.md`
 
 ---
 

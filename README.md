@@ -23,16 +23,25 @@ Built on the Holochain framework and using the ValueFlows standard, nondominium 
 
 ## Overview
 
-Nondominium is a 3-zome Holochain hApp that enables decentralized resource sharing through:
+Nondominium is a multi-DNA Holochain hApp that enables decentralized resource sharing through:
 
 - **Agent identity management** with role-based access control
 - **Resource lifecycle tracking** following ValueFlows standards
 - **Embedded governance** for access and transfer rules
 - **Capability-based security** using Holochain's native features
+- **A fractal Lobby → Group → NDO holarchy** of DHT networks
 
 ### Architecture
 
-**Governance-as-Operator Design:**
+**Multi-DNA topology:**
+
+- **Nondominium DNA** (provisioned, shared): the 3-zome core described below
+- **Lobby DNA** (provisioned, fixed network seed): permissionless entry point — agent presence (`LobbyAgentProfile`) and the global group registry (`GroupAnnouncement`)
+- **Group DNA** (cloned cell per group, `deferred: true`): per-group coordination with network isolation — `GroupProfile`, `GroupMembership`, `WorkLog`, `SoftLink`
+- **NDO DNA** (cloned cell per NDO, `deferred: true`): one DHT network per Nondominium Object, bundling the existing resource and governance zomes; the clone's DNA hash is the NDO's permanent identity (issue #112)
+- **hREA DNA** (vendored): canonical ValueFlows event recording via the hREA bridge
+
+**Governance-as-Operator Design (Nondominium DNA core):**
 
 nondominium implements a modular governance-as-operator architecture that separates data management from business logic enforcement:
 
@@ -166,10 +175,15 @@ All zomes follow consistent patterns for:
 
 **Primary: Sweettest (Rust)**
 
-All new tests are written in Sweettest (`dnas/nondominium/tests/src/`). Shared setup utilities:
+All new tests are written in Sweettest. Each DNA has its own suite:
 
-- `setup_two_agents()` — two conductors, nondominium DNA
-- `setup_three_agents()` — three conductors, nondominium DNA
+- `dnas/nondominium/tests/` (`nondominium_sweettest`) — person, resource, governance, NDO Layer 0, hREA bridge
+- `dnas/lobby/tests/` (`lobby_sweettest`) — lobby agent profiles and group announcements
+- `dnas/group/tests/` (`group_sweettest`) — group lifecycle, membership, work logs, soft links, NDO anchors
+
+Shared setup utilities (per suite `common::conductors`):
+
+- `setup_two_agents()` / `setup_three_agents()` — multi-conductor setups for the suite's DNA
 - `setup_dual_dna_two_agents()` — two conductors, nondominium + hREA DNAs
 
 **Deprecated: Tryorama (TypeScript)**
@@ -193,8 +207,10 @@ This generates:
 
 - ✅ **Phase 1 (Backend)**: Person management, resource specifications, economic resources, governance foundation, PPR data structures, hREA Person/ReaAgent bridge, NDO Layer 0 identity anchor
 - ✅ **MVP UI**: Lobby → Group → NDO three-level hierarchy with three-level identity model, NDO creation, lifecycle transitions, filter browser, fork friction modal
-- 🔄 **Phase 2 (In Progress)**: Economic processes (Use/Transport/Storage/Repair), PPR receipt generation, governance-as-operator architecture, agent promotion workflows
-- 📋 **Post-MVP**: Group DNA backend, NDO cell cloning, PPR reputation UI, Unyt/Flowsta integrations
+- ✅ **Lobby DNA** (#103): agent presence + global group registry, with Sweettest suite
+- ✅ **Group DNA** (#107): per-group cloned-cell coordination DHT, with Sweettest suite; DHT-backed group UI (#111)
+- 🔄 **Phase 2 (In Progress)**: NDO-per-cell architecture (#112: NDO DNA role, NdoAnchor), economic processes (Use/Transport/Storage/Repair), PPR receipt generation, governance-as-operator architecture, agent promotion workflows
+- 📋 **Post-MVP**: PPR reputation UI, Unyt/Flowsta integrations, cross-cell reputation aggregation
 
 ## Documentation
 

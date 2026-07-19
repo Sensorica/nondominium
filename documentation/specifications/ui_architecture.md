@@ -15,7 +15,7 @@ The Nondominium frontend is a SvelteKit application using Svelte 5 runes, Effect
 
 This hierarchy maps to the three concentric organizational scopes in `ui_design.md`:
 
-- **Lobby** — the entry point: all NDOs visible to any connected agent, Groups listed in sidebar.
+- **Lobby** — the entry point: the NDOs aggregated from the agent's own groups, Groups listed in sidebar (no global public NDO registry).
 - **Group** — organizational context: NDOs scoped to a group, where new NDOs are created.
 - **NDO** — the resource identity detail view: Layer 0 metadata, lifecycle transitions, fork friction.
 
@@ -80,8 +80,10 @@ This hierarchy maps to the three concentric organizational scopes in `ui_design.
 └──────────────────────────────────────────────────────────────────┘
                                 ↓
 ┌──────────────────────────────────────────────────────────────────┐
-│ HOLOCHAIN CONDUCTOR (3-Zome DNA)                                  │
-│ zome_person · zome_resource · zome_gouvernance                    │
+│ HOLOCHAIN CONDUCTOR (multi-DNA hApp)                              │
+│ nondominium DNA: zome_person · zome_resource · zome_gouvernance   │
+│ lobby DNA (provisioned) · group DNA (cloned per group)            │
+│ ndo DNA (cloned per NDO, #112) · hrea DNA (vendored)              │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
