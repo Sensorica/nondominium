@@ -91,8 +91,8 @@ test.describe.serial('nondominium multi-agent flows', () => {
     // The silent focus/poll refresh path deliberately skips ensureMembership,
     // so if bob's join-time commit missed (GroupProfile not yet gossiped within
     // its ~2.4s retry window), only RE-OPENING the group view reconciles it.
-    // The fallback below emulates that user action — see
-    // .local/e2e-discovered-bugs.md ("membership self-heal window").
+    // The fallback below emulates that user action — tracked as issue #119;
+    // once fixed, this test should pass without the fallback.
     const converged = (page: Page) => async () => {
       expect(await memberRows(page).count()).toBeGreaterThanOrEqual(2);
     };
