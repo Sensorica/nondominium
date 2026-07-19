@@ -38,10 +38,15 @@
   );
 </script>
 
+<!-- SoftLink-backed cards render dashed: planning-level references, not committed
+     resources. Anchor-backed and legacy cards render solid (#110 section 5). -->
 <a
   href="/ndo/{encodeURIComponent(descriptor.hash)}"
   onclick={navigate}
-  class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+  class="block rounded-lg border bg-white p-4 shadow-sm transition-shadow hover:shadow-md {descriptor.source ===
+  'softlink'
+    ? 'border-dashed border-gray-400'
+    : 'border-gray-200'}"
 >
   <div class="mb-2 flex flex-wrap items-center gap-2">
     <span class={`rounded px-2 py-0.5 text-xs font-medium ${lifecycleClass}`}>

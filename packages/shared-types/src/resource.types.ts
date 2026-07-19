@@ -111,6 +111,45 @@ export interface NdoDescriptor {
   created_at: number | null;
   successor_ndo_hash: string | null;
   hibernation_origin: string | null;
+  /**
+   * Where this descriptor came from. `anchor` = authoritative NdoAnchor in a group
+   * cell (NDO-per-cell, #112); `softlink` = planning-level SoftLink reference
+   * (rendered dashed); `shared` = legacy shared-DHT NondominiumIdentity.
+   */
+  source?: 'anchor' | 'softlink' | 'shared';
+  /** Clone coordinates (present when source === 'anchor'). */
+  ndoDnaHashB64?: string;
+  networkSeed?: string;
+}
+
+/**
+ * Immutable Layer 0 fields bound into an NDO clone's DNA properties (ADR-010).
+ * The same (network_seed, properties) pair always derives the same DnaHash —
+ * that hash IS the NDO's permanent identity. Field order matters: msgpack
+ * serialization of this object is part of the DNA hash derivation, so all
+ * writers must construct it through `ndoCellProperties()` in cell.manager.
+ */
+export interface NdoCellProperties {
+  name: string;
+  initiator: Uint8Array; // AgentPubKey (39 bytes)
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  created_at: number; // Timestamp micros
+}
+
+/** Read-side view of a zome_group NdoAnchor entry (hashes base64-encoded). */
+export interface NdoAnchorStub {
+  groupHashB64: string;
+  name: string;
+  description: string | null;
+  ndoDnaHashB64: string;
+  networkSeed: string;
+  identityActionHashB64: string;
+  initiatorB64: string;
+  ndoCreatedAt: number;
+  lifecycleStage: string;
+  propertyRegime: string;
+  resourceNature: string;
 }
 
 export interface GroupDescriptor {

@@ -1,4 +1,5 @@
 import { type AgentPubKey, type AppInfoResponse, type CellId, type ClonedCell, AppWebsocket } from '@holochain/client';
+import type { NdoCellProperties } from '@nondominium/shared-types';
 import { Context, Layer } from 'effect';
 import {
   authorizeCellSigning,
@@ -37,6 +38,14 @@ export interface HolochainClientService {
   createGroupCloneCell(networkSeed: string): Promise<ClonedCell>;
 
   enableGroupCloneCell(dnaHash: Uint8Array): Promise<ClonedCell>;
+
+  /**
+   * Provisions an NDO clone cell with the immutable Layer 0 fields in DNA
+   * properties (ADR-010): the resulting cell's DnaHash is the NDO's permanent
+   * identity. Also used to JOIN an existing NDO network — identical
+   * (networkSeed, properties) derive the identical DnaHash/network.
+   */
+  createNdoCloneCell(networkSeed: string, properties: NdoCellProperties): Promise<ClonedCell>;
 }
 
 /**
@@ -227,6 +236,31 @@ function createHolochainClientService(): HolochainClientService {
     return cloned;
   }
 
+  async function createNdoCloneCell(
+    networkSeed: string,
+    properties: NdoCellProperties
+  ): Promise<ClonedCell> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+    const cloned = await client.createCloneCell({
+      role_name: 'ndo',
+      modifiers: { network_seed: networkSeed, properties },
+      name: networkSeed
+    });
+    invalidateAppInfoCache();
+    if (!cloned.enabled) {
+      const enabled = await client.enableCloneCell({
+        clone_cell_id: { type: 'dna_hash', value: cloned.cell_id[0] }
+      });
+      invalidateAppInfoCache();
+      await authorizeCloneCellSigning(enabled.cell_id);
+      return enabled;
+    }
+    await authorizeCloneCellSigning(cloned.cell_id);
+    return cloned;
+  }
+
   /**
    * Authorizes signing credentials for a clone cell created at runtime.
    * No-op in launcher mode (no admin URL; the launcher handles signing).
@@ -261,6 +295,7 @@ function createHolochainClientService(): HolochainClientService {
     callZome,
     verifyConnection,
     createGroupCloneCell,
+    createNdoCloneCell,
     enableGroupCloneCell
   };
 }
