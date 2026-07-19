@@ -47,3 +47,14 @@ roles:
         properties: ~
         origin_time: 1716323893645
       clone_limit: 64  # Hard ceiling per conductor: max 64 groups per agent install
+  - name: ndo
+    provisioning:
+      strategy: create
+      deferred: true  # One clone per NDO, created on demand; immutable Layer 0 fields go in clone DNA properties (ADR-010)
+    dna:
+      path: "../dnas/ndo/workdir/ndo.dna"
+      modifiers:
+        network_seed: ~
+        properties: ~
+        origin_time: 1716323893645
+      clone_limit: 512  # Hard ceiling per conductor: max 512 engaged NDO cells per agent install

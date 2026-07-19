@@ -8294,6 +8294,7 @@ version = "0.0.1"
 dependencies = [
  "hdi",
  "holochain_serialized_bytes",
+ "nondominium_shared",
  "serde",
 ]
 

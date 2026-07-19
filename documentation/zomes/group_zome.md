@@ -57,6 +57,27 @@ Link from a group to an NDO. This is the Group → NDO relationship in the `Lobb
 
 **Derived from action header**: created_by = `record.action().author()`, created_at = `record.action().timestamp()`.
 
+### `NdoAnchor`
+Authoritative pointer from the group to an NDO cell (one NDO = one cloned DHT cell, ADR-010/ADR-011). Fixes the bare-ActionHash weakness of `SoftLink`: the anchor carries the full clone coordinates — `(ndo_dna_hash, network_seed)` plus the DNA property inputs — so any reader can re-derive the clone, verify `ndo_dna_hash` as a pinning check, and join the NDO network. Browsing NDOs never requires joining their cells: anchors carry enough cached descriptor data to render cards. `SoftLink` survives as a planning-level reference to anything, including NDOs the group does not participate in.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `group_hash` | `ActionHash` | Parent group hash |
+| `name` | `String` | Cached from DNA properties (1–100 characters) |
+| `description` | `Option<String>` | Optional description |
+| `ndo_dna_hash` | `DnaHash` | THE permanent NDO identity (ADR-010) |
+| `network_seed` | `String` | Needed to clone/join the NDO cell (non-empty) |
+| `identity_action_hash` | `ActionHash` | Layer 0 genesis entry inside the NDO cell |
+| `initiator` | `AgentPubKey` | DNA property input — the NDO's initiator (not the anchor author) |
+| `ndo_created_at` | `Timestamp` | DNA property input — the NDO's creation time |
+| `lifecycle_stage` | `LifecycleStage` | Cached, best-effort synced via `update_ndo_anchor` |
+| `property_regime` | `PropertyRegime` | Immutable classification (DNA property) |
+| `resource_nature` | `ResourceNature` | Immutable classification (DNA property) |
+
+**Derived from action header**: anchored_by = `record.action().author()`, anchored_at = `record.action().timestamp()`.
+
+**Immutability split**: the identity coordinates (`ndo_dna_hash`, `network_seed`, `identity_action_hash`, `initiator`, `ndo_created_at`, regime, nature) are copied from the original entry on every update — only the cached descriptor fields (`name`, `description`, `lifecycle_stage`) are mutable.
+
 ## Link Types
 
 | Link type | Source | Target | Purpose |
@@ -68,6 +89,8 @@ Link from a group to an NDO. This is the Group → NDO relationship in the `Lobb
 | `GroupToWorkLogs` | `GroupProfile` | `WorkLog` | Work log enumeration |
 | `AgentToWorkLogs` | `AgentPubKey` | `WorkLog` | Per-agent work log lookup |
 | `GroupToSoftLinks` | `GroupProfile` | `SoftLink` | Soft link enumeration |
+| `GroupToNdoAnchors` | `GroupProfile` | `NdoAnchor` | NDO anchor enumeration |
+| `NdoAnchorUpdates` | `NdoAnchor` | `NdoAnchor` | Cached descriptor version chain |
 
 ## Coordinator Functions
 
@@ -106,11 +129,21 @@ Link from a group to an NDO. This is the Group → NDO relationship in the `Lobb
 | `get_soft_links` | `ActionHash` (group hash) | `Vec<Record>` | Returns Records for all soft links; creator = `record.action().author()` |
 | `delete_soft_link` | `ActionHash` (soft link hash) | `ActionHash` | Removes the `GroupToSoftLinks` discovery link and deletes the entry; only the original creator may call this |
 
+### NDO Anchors
+
+| Function | Input | Output | Description |
+|----------|-------|--------|-------------|
+| `create_ndo_anchor` | `NdoAnchorInput { group_hash, name, description, ndo_dna_hash, network_seed, identity_action_hash, initiator, ndo_created_at, lifecycle_stage, property_regime, resource_nature }` | `Record` | Anchors an NDO cell in this group's DHT with full clone coordinates |
+| `get_ndo_anchors` | `ActionHash` (group hash) | `Vec<Record>` | Returns the latest Record per anchor, resolving the `NdoAnchorUpdates` chain |
+| `update_ndo_anchor` | `UpdateNdoAnchorInput { original_action_hash, previous_action_hash, updated_name, updated_description, updated_lifecycle_stage }` | `Record` | Refreshes cached descriptor fields; identity coordinates are copied from the original entry |
+
 ## Validation Rules
 
 - `GroupProfile.name` must be non-empty and ≤ 100 characters
 - `WorkLog.description` must be non-empty
 - `WorkLog.hours` must be > 0
+- `NdoAnchor.name` must be non-empty and ≤ 100 characters
+- `NdoAnchor.network_seed` must be non-empty
 
 > Hash fields (`group_hash`, `target_ndo_hash`) are always 39 bytes and cannot be "empty". Existence of the referenced entry is validated at the coordinator level, not in the integrity zome (which has no DHT access).
 
@@ -135,20 +168,27 @@ Domain errors are defined in `nondominium_shared::GroupError`:
 
 **ADR-GROUP-04**: `WorkLog` and `SoftLink` entries are planning-only and do not generate `EconomicEvent` entries or PPRs. Generating PPRs for planning-level actions would misrepresent intent and inflate reputation counts.
 
+**ADR-010 / ADR-011 (NDO-per-cell)**: one NDO = one cloned cell of the `ndo` DNA (`dnas/ndo/workdir/dna.yaml`, bundling the existing `zome_resource` and `zome_gouvernance` WASMs). The NDO's immutable Layer 0 fields live in the clone's DNA properties, so the `DnaHash` is the permanent, organization-agnostic NDO identity. Groups hold `NdoAnchor` entries instead of a global NDO registry; the Lobby stays a group registry.
+
 ## Testing
 
-Tests live in `dnas/group/tests/src/group/mod.rs`. All tests use `setup_two_agents()` from `common::conductors` and `await_consistency_20_s` for cross-agent DHT sync.
+Tests live in `dnas/group/tests/src/group/mod.rs` (group lifecycle) and `dnas/group/tests/src/ndo_anchor/mod.rs` (NDO-per-cell + anchors). All tests use `setup_two_agents()` / `ndo_dna_with_coordinates()` from `common::conductors` and `await_consistency_20_s` for cross-agent DHT sync.
 
-Test coverage: group creation, `get_group` (fetch by hash), `get_my_group`, membership (join/leave/is_member/duplicate-join error), work logs (`log_work`, `get_work_logs`, `get_my_work_logs`, `delete_work_log`), soft links (`create_soft_link`, `get_soft_links`, `delete_soft_link`), `update_group`, and validation rejection cases (empty name, zero hours). 13 tests total — `--test-threads 6` required to avoid port exhaustion.
+Group target coverage: group creation, `get_group` (fetch by hash), `get_my_group`, membership (join/leave/is_member/duplicate-join error), work logs (`log_work`, `get_work_logs`, `get_my_work_logs`, `delete_work_log`), soft links (`create_soft_link`, `get_soft_links`, `delete_soft_link`), `update_group`, and validation rejection cases (empty name, zero hours). 13 tests — `--test-threads 6` required to avoid port exhaustion.
+
+NDO anchor target coverage: DNA-hash-as-identity derivation (same coordinates → same hash, different properties → different network), genesis identity round trip inside an NDO cell, anchor round trip with clone coordinates, cached descriptor update chain, empty-name validation rejection, and the full second-agent join-via-anchor-coordinates flow with the DnaHash pinning check. 6 tests.
 
 ```bash
 # Prerequisites
 bun run build:happ
 
-# Run all group tests (thread-limited — 12 tests × 2 conductors each)
+# Run all group tests (thread-limited — 13 tests × 2 conductors each)
 CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group -- --test-threads 6
+
+# Run the NDO anchor / NDO-per-cell tests
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test ndo_anchor -- --test-threads 6
 
 # Run a specific test
 CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group create_group_returns_profile
-CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group get_group_by_hash
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test ndo_anchor second_agent_joins_ndo_via_anchor_coordinates
 ```

@@ -1,6 +1,9 @@
 use hdi::prelude::*;
+use nondominium_shared::{LifecycleStage, PropertyRegime, ResourceNature};
 // AgentPubKey and Timestamp are not stored in entries — identity and timestamps
 // come from action headers (record.action().author() / record.action().timestamp()).
+// Exception: NdoAnchor carries the referenced NDO's initiator and created_at — those
+// describe the NDO (DNA property inputs), not the anchor's author.
 
 /// Public profile for a group within a cloned cell.
 /// Identity (initiator) and timestamp come from the action header — not stored in the entry.
@@ -42,6 +45,30 @@ pub struct SoftLink {
     pub description: Option<String>,
 }
 
+/// Authoritative pointer from a group to an NDO cell (one NDO = one cloned DHT cell).
+/// Fixes the bare-ActionHash weakness of SoftLink: the anchor carries the full
+/// `(ndo_dna_hash, network_seed)` coordinates plus the DNA property inputs
+/// (name, initiator, ndo_created_at, regime, nature), so any reader can re-derive
+/// the clone, verify `ndo_dna_hash` as a pinning check, and join the NDO network.
+/// `lifecycle_stage`, `name`, and `description` are best-effort caches for browsing;
+/// the source of truth is the NondominiumIdentity genesis entry inside the NDO cell.
+/// Anchor author and anchoring timestamp come from the action header.
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct NdoAnchor {
+    pub group_hash: ActionHash,
+    pub name: String,                     // cached from DNA properties
+    pub description: Option<String>,
+    pub ndo_dna_hash: DnaHash,            // THE permanent NDO identity (ADR-010)
+    pub network_seed: String,             // needed to clone/join the cell
+    pub identity_action_hash: ActionHash, // Layer 0 genesis entry inside the NDO cell
+    pub initiator: AgentPubKey,           // DNA property input — the NDO's initiator
+    pub ndo_created_at: Timestamp,        // DNA property input — the NDO's creation time
+    pub lifecycle_stage: LifecycleStage,  // cached, best-effort synced
+    pub property_regime: PropertyRegime,  // immutable classification (DNA property)
+    pub resource_nature: ResourceNature,  // immutable classification (DNA property)
+}
+
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
@@ -49,6 +76,7 @@ pub enum EntryTypes {
     GroupMembership(GroupMembership),
     WorkLog(WorkLog),
     SoftLink(SoftLink),
+    NdoAnchor(NdoAnchor),
 }
 
 #[hdk_link_types]
@@ -60,6 +88,8 @@ pub enum LinkTypes {
     GroupToWorkLogs, // GroupProfile → WorkLog
     AgentToWorkLogs, // AgentPubKey → WorkLog
     GroupToSoftLinks, // GroupProfile → SoftLink
+    GroupToNdoAnchors, // GroupProfile → NdoAnchor
+    NdoAnchorUpdates,  // NdoAnchor → NdoAnchor (cached descriptor sync)
 }
 
 #[hdk_extern]
@@ -92,6 +122,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                     }
                     EntryTypes::SoftLink(soft_link) => {
                         return validate_soft_link(soft_link);
+                    }
+                    EntryTypes::NdoAnchor(ndo_anchor) => {
+                        return validate_ndo_anchor(ndo_anchor);
                     }
                 }
             }
@@ -140,5 +173,27 @@ pub fn validate_work_log(work_log: WorkLog) -> ExternResult<ValidateCallbackResu
 pub fn validate_soft_link(_soft_link: SoftLink) -> ExternResult<ValidateCallbackResult> {
     // ActionHash is always 39 bytes; existence cannot be verified from the integrity
     // context. Semantic validation happens in the coordinator.
+    Ok(ValidateCallbackResult::Valid)
+}
+
+pub fn validate_ndo_anchor(ndo_anchor: NdoAnchor) -> ExternResult<ValidateCallbackResult> {
+    if ndo_anchor.name.trim().is_empty() {
+        return Ok(ValidateCallbackResult::Invalid(
+            "NdoAnchor name cannot be empty".to_string(),
+        ));
+    }
+    if ndo_anchor.name.len() > 100 {
+        return Ok(ValidateCallbackResult::Invalid(
+            "NdoAnchor name too long (max 100 characters)".to_string(),
+        ));
+    }
+    if ndo_anchor.network_seed.trim().is_empty() {
+        return Ok(ValidateCallbackResult::Invalid(
+            "NdoAnchor network_seed cannot be empty".to_string(),
+        ));
+    }
+    // The (ndo_dna_hash, network_seed, properties) coordinates cannot be verified from
+    // the integrity context — cross-cell verification is the reader's pinning check:
+    // re-derive the clone from the anchor fields and compare the resulting DnaHash.
     Ok(ValidateCallbackResult::Valid)
 }
