@@ -115,6 +115,14 @@ export const HOLOCHAIN_CLIENT_CONTEXTS = {
   GET_APP_INFO: 'Failed to get app info'
 } as const;
 
+export const LOBBY_CONTEXTS = {
+  ANNOUNCE_GROUP: 'Failed to announce group to Lobby',
+  GET_ALL_GROUP_ANNOUNCEMENTS: 'Failed to get all group announcements',
+  GET_MY_GROUP_ANNOUNCEMENTS: 'Failed to get my group announcements',
+  UPSERT_LOBBY_AGENT_PROFILE: 'Failed to upsert lobby agent profile',
+  GET_LOBBY_AGENT_PROFILE: 'Failed to get lobby agent profile'
+} as const;
+
 export const GROUP_CONTEXTS = {
   CREATE_GROUP: 'Failed to create group',
   GET_GROUP: 'Failed to get group',
