@@ -90,18 +90,18 @@ export async function expectEventually(
  * to call at the start of any story.
  */
 export async function ensureLobbyProfile(page: Page, nickname: string): Promise<void> {
-  const modalTitle = page.getByText('Set up your Lobby profile');
+  const nicknameField = page.locator('#lup-nickname');
   const nicknameInSidebar = page.locator('nav').getByText(nickname);
 
-  const appeared = await modalTitle
+  const appeared = await nicknameField
     .waitFor({ state: 'visible', timeout: 15_000 })
     .then(() => true)
     .catch(() => false);
 
   if (appeared) {
-    await page.locator('#lup-nickname').fill(nickname);
+    await nicknameField.fill(nickname);
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(modalTitle).toBeHidden();
+    await expect(nicknameField).toBeHidden();
   }
   await expect(nicknameInSidebar).toBeVisible({ timeout: 10_000 });
 }
