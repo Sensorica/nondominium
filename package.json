@@ -15,6 +15,8 @@
     "sweettest:verbose": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest -- --nocapture",
     "sweettest:only": "CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest",
     "launch:happ": "node scripts/launch-happ.mjs",
+    "e2e": "bun run --filter ui test:e2e",
+    "e2e:ui": "bun run --filter ui test:e2e:ui",
     "package": "npm run build:happ && npm run --filter ui package && hc web-app pack workdir --recursive",
     "build:happ": "npm run build:zomes && npm run build:zomes:hrea && hc dna pack vendor/hrea/dnas/hrea/workdir && hc app pack workdir --recursive",
     "build:zomes": "RUSTFLAGS='--cfg getrandom_backend=\"custom\"' cargo build --release --target wasm32-unknown-unknown",
