@@ -21,6 +21,28 @@ const LAIR_PASS = 'pass';
 const INSTALL_TIMEOUT_MS = 300_000;
 const WS_ORIGIN = 'nondominium-launch';
 
+/**
+ * E2E mode (E2E=1): used by the Playwright harness (ui/tests/setup/global-setup.ts).
+ * - Sandboxes live under a fixed short workdir (default /tmp/ndo-e2e) instead of
+ *   the project root: lair-keystore's unix-socket path must stay under the
+ *   ~108-byte SUN_LEN limit, and $TMPDIR is unstable across nested `nix develop`
+ *   shells, so the path is fixed and short. The `.hc` index also lands there,
+ *   keeping e2e sandboxes fully isolated from `bun run network` dev sandboxes.
+ * - Once every conductor is installed AND every per-agent Vite server is
+ *   listening, a machine-readable ready file (<workdir>/ready.json) is written
+ *   with per-agent admin/app websocket URLs, UI ports, and this process's pid.
+ * - Pair with NO_OPEN=1 for headless runs. E2E_PLAYGROUND=1 additionally starts
+ *   `hc playground` for interactive DHT inspection alongside the tests.
+ */
+const isE2E = process.env.E2E === '1';
+const e2eWorkdir = process.env.E2E_WORKDIR || '/tmp/ndo-e2e';
+// Sandboxes live in their own subdirectory so the fresh-run cleanup below can
+// wipe them without unlinking files the Playwright globalSetup owns at the
+// workdir root (launcher.log, .launcher.pid).
+const e2eSandboxDir = path.join(e2eWorkdir, 'sandbox');
+const sandboxCwd = isE2E ? e2eSandboxDir : root;
+const readyPath = path.join(e2eWorkdir, 'ready.json');
+
 const agents = Number.parseInt(process.env.AGENTS || '2', 10);
 const uiPort = process.env.UI_PORT;
 if (!uiPort) {
@@ -44,8 +66,33 @@ if (!fs.existsSync(happPath)) {
 let bootstrapProc = null;
 /** @type {import('node:child_process').ChildProcessWithoutNullStreams | null} */
 let sandboxProc = null;
+/** @type {import('node:child_process').ChildProcess | null} */
+let playgroundProc = null;
 /** @type {import('node:child_process').ChildProcess[]} */
 const uiProcs = [];
+
+// E2E readiness tracking: ready.json is written only once conductors are
+// installed AND every per-agent UI server is listening.
+let conductorsInstalled = false;
+/** @type {Map<number, number>} agentNum -> listening UI port */
+const uiReadyPorts = new Map();
+
+function maybeWriteReadyFile() {
+  if (!isE2E) return;
+  if (!conductorsInstalled || uiReadyPorts.size < agents) return;
+  const ready = {
+    appId,
+    workdir: e2eWorkdir,
+    launcherPid: process.pid,
+    agents: manifest.agents.map((a) => ({
+      ...a,
+      uiPort: uiReadyPorts.get(a.agent) ?? uiPortForAgent(a.agent)
+    })),
+    updatedAt: new Date().toISOString()
+  };
+  fs.writeFileSync(readyPath, `${JSON.stringify(ready, null, 2)}\n`);
+  console.log(`[launch-happ] E2E ready file written → ${readyPath}`);
+}
 
 const basePort = Number.parseInt(uiPort, 10);
 
@@ -166,6 +213,8 @@ function startSandboxes(nAgents, bootstrapUrl, signalUrl, appPorts) {
       'sandbox',
       '--piped',
       'create',
+      // E2E: pin the sandbox root to the short fixed workdir (see header note).
+      ...(isE2E ? ['--root', e2eSandboxDir] : []),
       '-n',
       String(nAgents),
       'network',
@@ -177,7 +226,7 @@ function startSandboxes(nAgents, bootstrapUrl, signalUrl, appPorts) {
 
     console.log(`[launch-happ] Running: hc ${createArgs.join(' ')}`);
     const createResult = spawnSync('hc', createArgs, {
-      cwd: root,
+      cwd: sandboxCwd,
       encoding: 'utf8',
       input: `${LAIR_PASS}\n`,
       stdio: ['pipe', 'pipe', 'pipe']
@@ -192,7 +241,9 @@ function startSandboxes(nAgents, bootstrapUrl, signalUrl, appPorts) {
     const portsCsv = appPorts.join(',');
     const runArgs = ['sandbox', '--piped', 'run', '-a', '-p', portsCsv];
     console.log(`[launch-happ] Running: hc ${runArgs.join(' ')}`);
-    sandboxProc = spawn('hc', runArgs, { cwd: root, stdio: ['pipe', 'pipe', 'pipe'] });
+    // `hc sandbox run` reads sandbox indices from `<cwd>/.hc`, so cwd must
+    // match the create call above.
+    sandboxProc = spawn('hc', runArgs, { cwd: sandboxCwd, stdio: ['pipe', 'pipe', 'pipe'] });
     sandboxProc.stdin.write(`${LAIR_PASS}\n`);
     sandboxProc.stdin.end();
 
@@ -318,6 +369,8 @@ function startUiServers() {
         opened = true;
         const url = match[1].replace(/\/+$/, '');
         console.log(`[launch-happ] Agent ${agentNum} UI ready → ${url} (opening browser tab)`);
+        uiReadyPorts.set(agentNum, port);
+        maybeWriteReadyFile();
         openBrowser(match[1]);
       }
     });
@@ -332,6 +385,7 @@ function startUiServers() {
 
 function shutdown(code = 0) {
   for (const proc of uiProcs) proc.kill('SIGTERM');
+  playgroundProc?.kill('SIGTERM');
   sandboxProc?.kill('SIGTERM');
   bootstrapProc?.kill('SIGTERM');
   process.exit(code);
@@ -342,6 +396,16 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 }
 
 try {
+  if (isE2E) {
+    // Fresh, isolated e2e sandbox dir every run (equivalent of `hc sandbox
+    // clean` for the dev path — sandboxes, keystore, and `.hc` index all live
+    // here). Only sandbox/ and ready.json are wiped: the workdir root holds
+    // globalSetup-owned files (launcher.log, .launcher.pid).
+    fs.rmSync(e2eSandboxDir, { recursive: true, force: true });
+    fs.rmSync(readyPath, { force: true });
+    fs.mkdirSync(e2eSandboxDir, { recursive: true });
+    console.log(`[launch-happ] E2E mode: sandbox workdir ${e2eSandboxDir}`);
+  }
   console.log(`[launch-happ] Starting ${agents} conductor(s) with path-based install (${happPath})`);
   // Start the per-agent UI servers up front; each polls /hc-connection.json and
   // waits until its conductor is ready, so the user can open them immediately.
@@ -362,6 +426,18 @@ try {
       installHappOnConductor(Number.parseInt(agentKey, 10), ports)
     )
   );
+
+  conductorsInstalled = true;
+  maybeWriteReadyFile();
+
+  if (isE2E && process.env.E2E_PLAYGROUND === '1') {
+    // Optional interactive DHT inspector alongside the e2e run.
+    playgroundProc = spawn('hc', ['playground'], { cwd: sandboxCwd, stdio: ['ignore', 'pipe', 'pipe'] });
+    pipeLines(/** @type {any} */ (playgroundProc), 'hc playground');
+    playgroundProc.on('error', (error) =>
+      console.error('[launch-happ] hc playground failed to start:', error)
+    );
+  }
 
   console.log('[launch-happ] All conductors installed. Press Ctrl+C to stop.');
 } catch (error) {

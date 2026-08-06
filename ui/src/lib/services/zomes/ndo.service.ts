@@ -2,6 +2,7 @@ import { Context, Effect as E, Layer, pipe } from 'effect';
 import type { ActionHash } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import type {
+  NdoAnchorStub,
   NdoDescriptor,
   NdoOutput,
   NondominiumIdentity,
@@ -11,6 +12,13 @@ import type {
 } from '@nondominium/shared-types';
 import { NdoNotFoundError, NdoNotImplementedError } from '$lib/errors/ndo.errors';
 import { ResourceError } from '$lib/errors/resource.errors';
+import { GROUP_CONTEXTS } from '$lib/errors/error-contexts';
+import { ndoCellProperties } from '../cell.manager';
+import { generateNdoNetworkSeed } from '../group-clone.helpers';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '../holochain.service.svelte';
 import {
   ResourceServiceTag,
   ResourceServiceResolved,
@@ -90,22 +98,43 @@ const mapListingToDescriptor = (
   };
 };
 
+/** Anchor cache → browsable descriptor. Browsing never requires joining NDO cells. */
+function anchorToDescriptor(anchor: NdoAnchorStub): NdoDescriptor {
+  return {
+    hash: anchor.identityActionHashB64,
+    name: anchor.name,
+    lifecycle_stage: anchor.lifecycleStage,
+    property_regime: anchor.propertyRegime,
+    resource_nature: anchor.resourceNature,
+    description: anchor.description,
+    initiator: anchor.initiatorB64,
+    created_at: anchor.ndoCreatedAt,
+    successor_ndo_hash: null,
+    hibernation_origin: null,
+    source: 'anchor',
+    ndoDnaHashB64: anchor.ndoDnaHashB64,
+    networkSeed: anchor.networkSeed
+  };
+}
+
 const NdoServiceDepsResolved = Layer.mergeAll(
   ResourceServiceResolved,
   LobbyServiceResolved,
-  GroupServiceResolved
+  GroupServiceResolved,
+  HolochainClientServiceLive
 );
 
 export const NdoServiceLive: Layer.Layer<
   NdoServiceTag,
   never,
-  ResourceServiceTag | LobbyServiceTag | GroupServiceTag
+  ResourceServiceTag | LobbyServiceTag | GroupServiceTag | HolochainClientServiceTag
 > = Layer.effect(
   NdoServiceTag,
   E.gen(function* () {
     const resource = yield* ResourceServiceTag;
     const lobby = yield* LobbyServiceTag;
     const groupService = yield* GroupServiceTag;
+    const holochainClient = yield* HolochainClientServiceTag;
 
     const resolveNdoDescriptor = (
       hashB64: string
@@ -155,24 +184,46 @@ export const NdoServiceLive: Layer.Layer<
         return groupToHashes;
       });
 
+    const collectAnchors = (): E.Effect<NdoAnchorStub[], ResourceError> =>
+      E.gen(function* () {
+        const groups = yield* lobby.getMyGroups().pipe(E.catchAll(() => E.succeed([])));
+        const anchors: NdoAnchorStub[] = [];
+        for (const g of groups) {
+          const cell = yield* lobby.getGroupCell(g.id).pipe(E.catchAll(() => E.succeed(null)));
+          if (!cell) continue;
+          const groupAnchors = yield* groupService.getNdoAnchors(cell.cellId).pipe(
+            E.catchAll(() => E.succeed([] as NdoAnchorStub[]))
+          );
+          anchors.push(...groupAnchors);
+        }
+        return anchors;
+      });
+
     return {
       getLobbyNdoDescriptors: () =>
         E.gen(function* () {
+          // Anchors are authoritative (NDO-per-cell, #112); SoftLinks remain as
+          // planning-level references and legacy shared-DHT associations.
+          const anchors = yield* collectAnchors().pipe(E.catchAll(() => E.succeed([])));
+          const descriptors: NdoDescriptor[] = [];
+          const seen = new Set<string>();
+          for (const anchor of anchors) {
+            if (seen.has(anchor.identityActionHashB64)) continue;
+            seen.add(anchor.identityActionHashB64);
+            descriptors.push(anchorToDescriptor(anchor));
+          }
+
           const groupToHashes = yield* collectSoftLinkHashes();
           const allHashes = new Set<string>();
           for (const hashes of groupToHashes.values()) {
             for (const h of hashes) allHashes.add(h);
           }
-          if (allHashes.size === 0) return [];
-
-          const descriptors: NdoDescriptor[] = [];
-          const seen = new Set<string>();
           for (const hb64 of allHashes) {
             if (seen.has(hb64)) continue;
             const d = yield* resolveNdoDescriptor(hb64).pipe(E.catchAll(() => E.succeed(null)));
             if (d) {
               seen.add(hb64);
-              descriptors.push(d);
+              descriptors.push({ ...d, source: d.source ?? 'softlink' });
             }
           }
           return descriptors;
@@ -187,14 +238,58 @@ export const NdoServiceLive: Layer.Layer<
           const resolved = yield* resolveNdoDescriptor(hashB64);
           if (resolved) return resolved;
 
+          // Cell-based NDOs (#112) do not exist on the shared DHT: resolve deep
+          // links from the group anchors' cached descriptors instead.
+          const anchors = yield* collectAnchors().pipe(E.catchAll(() => E.succeed([])));
+          const anchored = anchors.find((a) => a.identityActionHashB64 === hashB64);
+          if (anchored) return anchorToDescriptor(anchored);
+
           return yield* E.fail(new NdoNotFoundError({ hash: hashB64 }));
         }),
 
       createNdo: (input, groupId) =>
         E.gen(function* () {
-          const ndoOut = yield* resource.createNdo(input);
-          const hashB64 = encodeHashToBase64(ndoOut.action_hash);
+          // NDO-per-cell flow (#110 section 5 amended, #112): provision a cloned
+          // NDO cell whose DNA properties carry the immutable Layer 0 fields, write
+          // the genesis NondominiumIdentity inside it, then anchor it in the group
+          // cell. The clone's DnaHash is the NDO's permanent identity (ADR-010).
+          const networkSeed = generateNdoNetworkSeed();
 
+          const { cloned, initiator, propertiesCreatedAt } = yield* E.tryPromise({
+            try: async () => {
+              if (!holochainClient.isConnected) await holochainClient.connectClient();
+              const initiator = (await holochainClient.getMyAgentPubKey()) as Uint8Array;
+              const propertiesCreatedAt = Date.now() * 1000;
+              const properties = ndoCellProperties(
+                input.name,
+                initiator,
+                input.property_regime,
+                input.resource_nature,
+                propertiesCreatedAt
+              );
+              const cloned = await holochainClient.createNdoCloneCell(networkSeed, properties);
+              return { cloned, initiator, propertiesCreatedAt };
+            },
+            catch: (error) => ResourceError.fromError(error, GROUP_CONTEXTS.CREATE_NDO_CELL)
+          });
+
+          // Genesis identity inside the NDO cell (existing zome_resource code path).
+          const ndoOut = yield* E.tryPromise({
+            try: () =>
+              holochainClient.callZome(
+                'zome_resource',
+                'create_ndo',
+                input,
+                undefined,
+                undefined,
+                cloned.cell_id
+              ) as Promise<NdoOutput>,
+            catch: (error) => ResourceError.fromError(error, GROUP_CONTEXTS.CREATE_NDO_CELL)
+          });
+
+          // Anchor in the group cell — the authoritative group-to-NDO pointer.
+          // Best-effort like the former SoftLink write: the NDO cell exists even
+          // if anchoring fails; re-anchoring is possible from the NDO cell data.
           const cell = yield* lobby.getGroupCell(groupId).pipe(
             E.catchAll(() => E.succeed(null))
           );
@@ -204,12 +299,21 @@ export const NdoServiceLive: Layer.Layer<
 
           if (cell && group?.groupHash) {
             yield* groupService
-              .createSoftLink(
-                cell.cellId,
-                group.groupHash,
-                hashB64,
-                input.description ?? input.name
-              )
+              .createNdoAnchor(cell.cellId, {
+                groupHashB64: group.groupHash,
+                name: input.name,
+                description: input.description ?? null,
+                ndoDnaHashB64: encodeHashToBase64(cloned.cell_id[0]),
+                networkSeed,
+                identityActionHashB64: encodeHashToBase64(ndoOut.action_hash),
+                initiatorB64: encodeHashToBase64(initiator),
+                // The DNA property input, NOT the genesis entry's sys_time: joiners
+                // reconstruct the clone properties from this value (pinning check).
+                ndoCreatedAt: propertiesCreatedAt,
+                lifecycleStage: String(input.lifecycle_stage),
+                propertyRegime: String(input.property_regime),
+                resourceNature: String(input.resource_nature)
+              })
               .pipe(E.catchAll(() => E.void));
           }
 
@@ -227,15 +331,30 @@ export const NdoServiceLive: Layer.Layer<
           );
           if (!cell) return [];
 
+          // Anchors render directly from their cached descriptor fields — no
+          // per-NDO round trip, no NDO cell join required (#112, ADR-011).
+          const anchors = yield* groupService.getNdoAnchors(cell.cellId).pipe(
+            E.catchAll(() => E.succeed([] as NdoAnchorStub[]))
+          );
+          const descriptors: NdoDescriptor[] = [];
+          const seen = new Set<string>();
+          for (const anchor of anchors) {
+            if (seen.has(anchor.identityActionHashB64)) continue;
+            seen.add(anchor.identityActionHashB64);
+            descriptors.push(anchorToDescriptor(anchor));
+          }
+
+          // SoftLinks stay as planning-level references (dashed cards).
           const hashes = yield* groupService.getSoftLinkTargetHashes(cell.cellId).pipe(
             E.catchAll(() => E.succeed([] as string[]))
           );
-          if (hashes.length === 0) return [];
-
-          const descriptors: NdoDescriptor[] = [];
           for (const hb64 of hashes) {
+            if (seen.has(hb64)) continue;
             const d = yield* resolveNdoDescriptor(hb64).pipe(E.catchAll(() => E.succeed(null)));
-            if (d) descriptors.push(d);
+            if (d) {
+              seen.add(hb64);
+              descriptors.push({ ...d, source: d.source ?? 'softlink' });
+            }
           }
           return descriptors;
         }),

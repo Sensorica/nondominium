@@ -1,12 +1,35 @@
 import type { AppClient, CellId, DnaHash, AppInfo } from '@holochain/client';
 import { encodeHashToBase64 } from '@holochain/client';
+import type { NdoCellProperties, PropertyRegime, ResourceNature } from '@nondominium/shared-types';
 import {
   getGroupCellByNetworkSeed,
   listGroupCells,
+  listNdoCells,
   type GroupCellInfo
 } from './group-clone.helpers';
 
 export type { GroupCellInfo };
+
+/**
+ * Constructs the immutable Layer 0 DNA properties for an NDO clone (ADR-010).
+ * Single construction point so the msgpack field order — part of the DnaHash
+ * derivation — is identical for creators and joiners.
+ */
+export function ndoCellProperties(
+  name: string,
+  initiator: Uint8Array,
+  propertyRegime: PropertyRegime,
+  resourceNature: ResourceNature,
+  createdAtMicros: number
+): NdoCellProperties {
+  return {
+    name,
+    initiator,
+    property_regime: propertyRegime,
+    resource_nature: resourceNature,
+    created_at: createdAtMicros
+  };
+}
 
 /**
  * Returns the CellId of the Lobby cell if the conductor has one provisioned.
@@ -58,6 +81,38 @@ export async function getGroupCellHandle(
     if (!appInfo) return null;
     const targetHashB64 = encodeHashToBase64(dnaHash);
     for (const cell of listGroupCells(appInfo)) {
+      if (encodeHashToBase64(cell.dnaHash) === targetHashB64) {
+        return cell.cellId;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns all NDO cloned cells installed for this agent.
+ */
+export function enumerateNdoCells(appInfo: AppInfo | null): GroupCellInfo[] {
+  if (!appInfo) return [];
+  return listNdoCells(appInfo);
+}
+
+/**
+ * Returns the CellId of an NDO cloned cell matching the given DNA hash — the
+ * NDO's permanent identity (ADR-010). Null when the agent has not engaged
+ * (cloned) this NDO's network.
+ */
+export async function getNdoCellHandle(
+  client: AppClient,
+  dnaHash: DnaHash
+): Promise<CellId | null> {
+  try {
+    const appInfo = await client.appInfo();
+    if (!appInfo) return null;
+    const targetHashB64 = encodeHashToBase64(dnaHash);
+    for (const cell of listNdoCells(appInfo)) {
       if (encodeHashToBase64(cell.dnaHash) === targetHashB64) {
         return cell.cellId;
       }

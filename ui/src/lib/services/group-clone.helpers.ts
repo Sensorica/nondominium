@@ -16,6 +16,15 @@ export interface DecodedGroupEntry {
   description?: string;
   group_hash?: Uint8Array;
   target_ndo_hash?: Uint8Array;
+  // NdoAnchor fields (#112)
+  ndo_dna_hash?: Uint8Array;
+  network_seed?: string;
+  identity_action_hash?: Uint8Array;
+  initiator?: Uint8Array;
+  ndo_created_at?: number;
+  lifecycle_stage?: string;
+  property_regime?: string;
+  resource_nature?: string;
 }
 
 /** Minimal Holochain Record shape returned by group zome calls. */
@@ -60,6 +69,10 @@ export function generateNetworkSeed(): string {
   return `grp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+export function generateNdoNetworkSeed(): string {
+  return `ndo_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function parseClonedCellInfo(cellInfo: CellInfo | Record<string, unknown>): GroupCellInfo | null {
   // Holochain client may serialize as { type, value } or { cloned: value }
   if ('type' in cellInfo && cellInfo.type === CellType.Cloned && 'value' in cellInfo) {
@@ -90,6 +103,18 @@ export function listGroupCells(appInfo: AppInfo | null): GroupCellInfo[] {
   const groupCells = appInfo.cell_info?.['group'] ?? [];
   const results: GroupCellInfo[] = [];
   for (const cellInfo of groupCells) {
+    const parsed = parseClonedCellInfo(cellInfo as CellInfo);
+    if (parsed) results.push(parsed);
+  }
+  return results;
+}
+
+/** All cloned NDO cells installed for this agent (one clone per engaged NDO, #112). */
+export function listNdoCells(appInfo: AppInfo | null): GroupCellInfo[] {
+  if (!appInfo) return [];
+  const ndoCells = appInfo.cell_info?.['ndo'] ?? [];
+  const results: GroupCellInfo[] = [];
+  for (const cellInfo of ndoCells) {
     const parsed = parseClonedCellInfo(cellInfo as CellInfo);
     if (parsed) results.push(parsed);
   }

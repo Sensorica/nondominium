@@ -125,5 +125,8 @@ export const GROUP_CONTEXTS = {
   LOG_WORK: 'Failed to log work',
   GET_WORK_LOGS: 'Failed to get work logs',
   CREATE_SOFT_LINK: 'Failed to create soft link',
-  GET_SOFT_LINKS: 'Failed to get soft links'
+  GET_SOFT_LINKS: 'Failed to get soft links',
+  CREATE_NDO_ANCHOR: 'Failed to anchor NDO in group',
+  GET_NDO_ANCHORS: 'Failed to get NDO anchors',
+  CREATE_NDO_CELL: 'Failed to provision NDO cell'
 } as const;

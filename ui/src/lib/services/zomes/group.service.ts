@@ -7,7 +7,7 @@ import {
 } from '../holochain.service.svelte';
 import { GroupError } from '$lib/errors/group.errors';
 import { GROUP_CONTEXTS } from '$lib/errors/error-contexts';
-import type { SoftLink } from '@nondominium/shared-types';
+import type { NdoAnchorStub, SoftLink } from '@nondominium/shared-types';
 import {
   decodeGroupEntry,
   groupProfileFromRecord,
@@ -38,6 +38,10 @@ export interface GroupService {
     targetNdoHashB64: string,
     description?: string
   ) => E.Effect<void, GroupError>;
+  /** Anchors an NDO cell in the group DHT with its full clone coordinates (#112). */
+  createNdoAnchor: (groupCellId: CellId, anchor: NdoAnchorStub) => E.Effect<void, GroupError>;
+  /** Reads the group's NDO anchors (latest cached descriptors). */
+  getNdoAnchors: (groupCellId: CellId) => E.Effect<NdoAnchorStub[], GroupError>;
 }
 
 export class GroupServiceTag extends Context.Tag('GroupService')<GroupServiceTag, GroupService>() { }
@@ -183,6 +187,69 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
                 description: description ?? null
               },
               GROUP_CONTEXTS.CREATE_SOFT_LINK
+            );
+          }),
+
+        createNdoAnchor: (groupCellId, anchor) =>
+          E.gen(function* () {
+            yield* callGroupZome<GroupHolochainRecord>(
+              groupCellId,
+              'create_ndo_anchor',
+              {
+                group_hash: decodeHashFromBase64(anchor.groupHashB64),
+                name: anchor.name,
+                description: anchor.description,
+                ndo_dna_hash: decodeHashFromBase64(anchor.ndoDnaHashB64),
+                network_seed: anchor.networkSeed,
+                identity_action_hash: decodeHashFromBase64(anchor.identityActionHashB64),
+                initiator: decodeHashFromBase64(anchor.initiatorB64),
+                ndo_created_at: anchor.ndoCreatedAt,
+                lifecycle_stage: anchor.lifecycleStage,
+                property_regime: anchor.propertyRegime,
+                resource_nature: anchor.resourceNature
+              },
+              GROUP_CONTEXTS.CREATE_NDO_ANCHOR
+            );
+          }),
+
+        getNdoAnchors: (groupCellId) =>
+          E.flatMap(resolveGroupHash(groupCellId), (groupHash) => {
+            if (!groupHash) return E.succeed([] as NdoAnchorStub[]);
+            return E.map(
+              callGroupZome<GroupHolochainRecord[]>(
+                groupCellId,
+                'get_ndo_anchors',
+                groupHash,
+                GROUP_CONTEXTS.GET_NDO_ANCHORS
+              ),
+              (records) =>
+                records
+                  .map((r) => {
+                    const a = decodeGroupEntry(r);
+                    if (
+                      !a?.ndo_dna_hash ||
+                      !a.network_seed ||
+                      !a.identity_action_hash ||
+                      !a.initiator ||
+                      !a.group_hash
+                    ) {
+                      return null;
+                    }
+                    return {
+                      groupHashB64: encodeHashToBase64(a.group_hash),
+                      name: a.name ?? '(unnamed NDO)',
+                      description: a.description ?? null,
+                      ndoDnaHashB64: encodeHashToBase64(a.ndo_dna_hash),
+                      networkSeed: a.network_seed,
+                      identityActionHashB64: encodeHashToBase64(a.identity_action_hash),
+                      initiatorB64: encodeHashToBase64(a.initiator),
+                      ndoCreatedAt: Number(a.ndo_created_at ?? 0),
+                      lifecycleStage: String(a.lifecycle_stage ?? 'Ideation'),
+                      propertyRegime: String(a.property_regime ?? 'Nondominium'),
+                      resourceNature: String(a.resource_nature ?? 'Physical')
+                    } satisfies NdoAnchorStub;
+                  })
+                  .filter((a): a is NdoAnchorStub => a !== null)
             );
           })
       } satisfies GroupService;
