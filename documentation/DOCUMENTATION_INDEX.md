@@ -76,7 +76,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | **[`zome_resource`](zomes/resource_zome.md)** | Pure data model | EconomicResource & EconomicEvent data structures, resource state management only, cross-zome interface for governance requests, no business logic |
 | **[`zome_gouvernance`](zomes/governance_zome.md)** | State transition operator | Governance rule evaluation, state transition validation, economic event generation, PPR issuance (16 categories), agent promotion & capability progression |
 | **[`zome_group`](zomes/group_zome.md)** | Per-group coordination (cloned cell) | Group profiles, membership, work logs, soft links; one cloned cell per group; `all_groups` anchor; 13 `#[hdk_extern]` functions |
-| **[`zome_lobby`](zomes/lobby_zome.md)** | Lobby coordination | NDO announcement/discovery across groups |
+| **[`zome_lobby`](zomes/lobby_zome.md)** | Global group registry (provisioned Lobby DHT) | `LobbyAgentProfile` presence, `GroupAnnouncement` group registry; NDO announcements were removed in PR #107 (NDOs are group-scoped) |
 
 ### Governance-as-Operator Architecture
 
@@ -121,7 +121,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | Document | Description | Status |
 | --- | --- | --- |
 | **[NDO v1.0 Architecture Design](specifications/ndo-v1-architecture-design.md)** | Dual-DNA architecture, VF 1.0 class mapping, entry type specs, ADRs, migration notes | ✅ Active |
-| **[Lobby DNA Architecture](specifications/post-mvp/lobby-architecture.md)** | Full design: Lobby + Group DNAs, NDO extensions, entry types, coordinator APIs, Moss contract, 7 ADRs | 🔄 Post-MVP |
+| **[Lobby DNA Architecture](specifications/lobby-architecture.md)** | Original design: Lobby + Group DNAs, NDO extensions, entry types, coordinator APIs, Moss contract, 7 ADRs | ⚠️ Superseded in part — Lobby (#103) and Group (#107) DNAs shipped with the registry model inverted (Lobby registers groups, not NDOs); `zomes/lobby_zome.md` and `zomes/group_zome.md` are authoritative |
 | **[hREA Integration Strategy](hREA/integration-strategy.md)** | Cross-DNA call architecture, zome-level integration pattern, migration plan | ✅ Active |
 | **[hREA VF 1.0 Compliance Analysis](hREA/valueflows-1.0-compliance.md)** | Field-by-field audit of hREA main-0.6 against VF 1.0 ontology (~65% compliance) | ✅ Active |
 | **[hREA Strategic Roadmap](hREA/strategic-roadmap.md)** | Phase 1+2 maintainership proposal: VF 1.0 gap closure and JSON-LD API | ✅ Active |
@@ -149,10 +149,10 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 | Document | Description | Status |
 | --- | --- | --- |
-| **[Lobby DNA Requirements](requirements/post-mvp/lobby-dna.md)** | Multi-network federation: Lobby DNA, Group DNA, NDO extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) | 🔄 Post-MVP |
+| **[Lobby DNA Requirements](requirements/lobby-dna.md)** | Multi-network federation: Lobby DNA, Group DNA, NDO extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) | ✅ Lobby + Group DNAs shipped (#103, #107); NDO-level extensions in progress (#112) |
 | **[Unyt Integration](requirements/post-mvp/unyt-integration.md)** | Economic settlement, Smart Agreements, RAVE proofs, PPR↔RAVE provenance | 🔄 Post-MVP |
 | **[Flowsta Integration](requirements/post-mvp/flowsta-integration.md)** | Cross-app identity (IsSamePersonEntry, FlowstaIdentity, DID, key recovery) | 🔄 Post-MVP |
-| **[Versioning](requirements/post-mvp/versioning.md)** | DAG-based version graph, fork/merge/repair relations, contribution propagation | 🔄 Post-MVP |
+| **[NDO Versioning](requirements/post-mvp/ndo-versioning.md)** | DAG-based version graph, fork/merge/repair relations, contribution propagation | 🔄 Post-MVP |
 | **[Digital Resource Integrity](requirements/post-mvp/digital-resource-integrity.md)** | Cryptographic integrity verification, Merkle tree, composable architecture | 🔄 Post-MVP |
 | **[Many-to-Many Flows](requirements/post-mvp/many-to-many-flows.md)** | Multi-custodian custody, shared ownership, resource pools | 🔄 Post-MVP |
 | **[Resource Transport Flow Protocol](requirements/post-mvp/resource-transport-flow-protocol.md)** | Resource transport specifications | 🔄 Post-MVP |
