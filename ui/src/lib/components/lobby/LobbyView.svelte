@@ -1,16 +1,30 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { appContext } from '$lib/stores/app.context.svelte';
   import NdoBrowser from './NdoBrowser.svelte';
+  import LobbyProfileBar from './LobbyProfileBar.svelte';
+  import ProfileSetupModal from './ProfileSetupModal.svelte';
 
+  let showProfileModal = $state(false);
+
+  // Keep the Person sync reactive; fetch NDOs once on mount (not on every
+  // reactive dependency change — issue #106 section 2).
   $effect(() => {
     appContext.myPerson = lobbyStore.myPerson;
+  });
+
+  onMount(() => {
     void lobbyStore.loadNdos();
   });
 </script>
 
-<div class="flex min-h-full flex-col p-6">
+<div class="flex min-h-full flex-col">
+  <LobbyProfileBar onOpenProfile={() => (showProfileModal = true)} />
+  <ProfileSetupModal bind:open={showProfileModal} />
+
+  <div class="flex min-h-full flex-col p-6">
   <header class="mb-6">
     <h1 class="text-2xl font-bold text-gray-900">Browse NDOs</h1>
     <p class="mt-1 text-gray-600">All NDOs across your groups.</p>
@@ -28,9 +42,11 @@
     onclearfilters={() => lobbyStore.clearFilters()}
     isLoading={lobbyStore.isLoading}
     errorMessage={lobbyStore.errorMessage}
+    onRetry={() => void lobbyStore.loadNdos()}
     hasGroups={lobbyStore.groups.length > 0}
     showOnboarding={true}
     onCreateGroup={() => goto('/?openCreateGroup=1')}
     onJoinGroup={() => goto('/?openJoinGroup=1')}
   />
+  </div>
 </div>

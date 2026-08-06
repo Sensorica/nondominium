@@ -15,6 +15,8 @@
     activeFilters?: ActiveFilters;
     onfilterchange?: (partial: Partial<ActiveFilters>) => void;
     onclearfilters?: () => void;
+    /** Retry the NDO load after a fetch failure */
+    onRetry?: () => void;
     /** Lobby view: distinguish no-groups vs groups-with-no-NDOs */
     hasGroups?: boolean;
     showOnboarding?: boolean;
@@ -29,6 +31,7 @@
     activeFilters = { stages: [], natures: [], regimes: [] },
     onfilterchange,
     onclearfilters,
+    onRetry,
     hasGroups = true,
     showOnboarding = false,
     onCreateGroup,
@@ -185,12 +188,33 @@
     </div>
 
     {#if errorMessage}
-      <p class="mb-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">
-        {errorMessage}
-      </p>
+      <div
+        role="alert"
+        class="mb-3 flex items-center justify-between gap-3 rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700"
+      >
+        <span>{errorMessage}</span>
+        {#if onRetry}
+          <button
+            type="button"
+            onclick={() => onRetry?.()}
+            class="shrink-0 rounded border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+          >
+            Retry
+          </button>
+        {/if}
+      </div>
     {/if}
 
-    {#if descriptors.length === 0 && !isLoading}
+    <div aria-busy={isLoading}>
+    {#if isLoading}
+      <div class="flex items-center justify-center py-10 text-sm text-gray-500">
+        <span
+          class="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
+          aria-hidden="true"
+        ></span>
+        Loading NDOs…
+      </div>
+    {:else if descriptors.length === 0 && !errorMessage}
       {#if showOnboarding && !hasGroups}
         <div class="rounded-lg border border-dashed border-blue-200 bg-blue-50 p-6 text-center">
           <p class="text-sm font-medium text-gray-800">Create or join a group to see NDOs</p>
@@ -218,13 +242,13 @@
         <p class="text-sm text-gray-500">
           {hasFilters
             ? 'No NDOs match the selected filters.'
-            : 'No NDOs in your groups yet. Open a group and create one.'}
+            : 'No NDOs yet. Create one inside a group to see it here.'}
         </p>
       {:else}
         <p class="text-sm text-gray-500">
           {hasFilters
             ? 'No NDOs match the selected filters.'
-            : 'No NDOs yet. Create one from within a group.'}
+            : 'No NDOs yet. Create one inside a group to see it here.'}
         </p>
       {/if}
     {:else}
@@ -236,5 +260,6 @@
         {/each}
       </ul>
     {/if}
+    </div>
   </div>
 </section>
