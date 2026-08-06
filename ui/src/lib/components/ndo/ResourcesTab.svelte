@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActionHash } from '@holochain/client';
   import type { EconomicResourceRow } from '$lib/utils/holochain-records';
+  import { operationalStateLabel } from '$lib/utils/operational-state-labels';
   import { onMount } from 'svelte';
   import { Effect as E, Exit, pipe } from 'effect';
   import { resourceStore } from '$lib/stores/resource.store.svelte';
@@ -82,8 +83,8 @@
       {#each instances as row, i (i)}
         <li class="rounded border border-gray-200 bg-white p-3 text-sm">
           <span class="font-medium">Qty</span> {row.resource.quantity} {row.resource.unit} ·
-          <span class="font-medium">State</span>
-          {row.resource.state}
+          <span class="font-medium">Operational state</span>
+          {operationalStateLabel(row.resource.operational_state)}
         </li>
       {/each}
     </ul>

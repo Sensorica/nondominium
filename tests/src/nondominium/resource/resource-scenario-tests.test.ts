@@ -138,7 +138,7 @@ test(
         console.log(
           `✅ Created economic resource: ${printerResource.resource_hash}`,
         );
-        assert.equal(printerResource.resource.state, RESOURCE_STATES.PENDING);
+        assert.equal(printerResource.resource.operational_state, RESOURCE_STATES.PENDING);
         assert.equal(
           printerResource.resource.custodian.toString(),
           lynn.agentPubKey.toString(),
@@ -152,7 +152,7 @@ test(
         // Lynn validates and activates the resource
         const activationResult = await updateResourceState(lynn.cells[0], {
           resource_hash: printerResource.resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         assert.ok(activationResult);
@@ -216,7 +216,7 @@ test(
         // Bob performs maintenance
         const maintenanceResult = await updateResourceState(bob.cells[0], {
           resource_hash: custodyTransfer.updated_resource_hash,
-          new_state: RESOURCE_STATES.MAINTENANCE,
+          new_operational_state: RESOURCE_STATES.MAINTENANCE,
         });
 
         assert.ok(maintenanceResult);
@@ -239,7 +239,7 @@ test(
         // Return to active state after maintenance
         await updateResourceState(bob.cells[0], {
           resource_hash: custodyTransfer.updated_resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -501,28 +501,28 @@ test(
         // Activate resources sequentially to avoid source chain conflicts
         await updateResourceState(lynn.cells[0], {
           resource_hash: spaceResource.resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(lynn.cells[0], {
           resource_hash: toolsResource.resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(bob.cells[0], {
           resource_hash: printingResource.resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(bob.cells[0], {
           resource_hash: electronicsResource.resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -742,7 +742,7 @@ test(
 
         const activationResult = await updateResourceState(bob.cells[0], {
           resource_hash: initialTransfer.updated_resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         assert.ok(activationResult);
@@ -771,7 +771,7 @@ test(
         // Bob performs scheduled maintenance
         const maintenanceStart = await updateResourceState(bob.cells[0], {
           resource_hash: activationResult.signed_action.hashed.hash,
-          new_state: RESOURCE_STATES.MAINTENANCE,
+          new_operational_state: RESOURCE_STATES.MAINTENANCE,
         });
 
         assert.ok(maintenanceStart);
@@ -792,7 +792,7 @@ test(
         // Complete maintenance and return to active
         const maintenanceComplete = await updateResourceState(bob.cells[0], {
           resource_hash: maintenanceStart.signed_action.hashed.hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);
@@ -1078,28 +1078,28 @@ test(
         // Update resource states sequentially to avoid source chain conflicts
         await updateResourceState(lynn.cells[0], {
           resource_hash: courseResource.resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(lynn.cells[0], {
           resource_hash: kitchenResource.resource_hash,
-          new_state: RESOURCE_STATES.MAINTENANCE, // Kitchen under renovation
+          new_operational_state: RESOURCE_STATES.MAINTENANCE, // Kitchen under renovation
         });
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(bob.cells[0], {
           resource_hash: webDevResource.resource_hash,
-          new_state: RESOURCE_STATES.ACTIVE,
+          new_operational_state: RESOURCE_STATES.ACTIVE,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         await updateResourceState(bob.cells[0], {
           resource_hash: vanResource.resource_hash,
-          new_state: RESOURCE_STATES.RESERVED, // Vans reserved for special project
+          new_operational_state: RESOURCE_STATES.RESERVED, // Vans reserved for special project
         });
 
         await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);

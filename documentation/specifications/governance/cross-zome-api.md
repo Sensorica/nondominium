@@ -155,22 +155,24 @@ pub fn get_resources_by_specification(
 **Returns:**
 - `Vec<EconomicResource>` - Resources conforming to the specification
 
-#### get_resources_by_state
+#### get_resources_by_operational_state
 
-Retrieves resources in a specific state.
+Retrieves resources in a specific operational state.
 
 ```rust
 #[hdk_extern]
-pub fn get_resources_by_state(
-    state: ResourceState,
-) -> ExternResult<Vec<EconomicResource>>
+pub fn get_resources_by_operational_state(
+    state: OperationalState,
+) -> ExternResult<Vec<Record>>
 ```
 
 **Parameters:**
-- `state: ResourceState` - State to filter by
+- `state: OperationalState` - Operational state to filter by
 
 **Returns:**
-- `Vec<EconomicResource>` - Resources in the specified state
+- `Vec<Record>` - Economic resource records in the specified operational state
+
+> Lifecycle maturity queries use `get_ndos_by_lifecycle_stage` on Layer 0 (`NdoByLifecycleStage`), not economic-resource links.
 
 ## 2. Governance Zome API
 

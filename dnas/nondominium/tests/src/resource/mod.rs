@@ -4,6 +4,9 @@
 //! `action_hashes` field is returned in parallel with `specifications` and
 //! that both vectors have the same length and order.
 //!
+//! Covers `OperationalState` on `EconomicResource`: default on create,
+//! `update_operational_state`, and `get_resources_by_operational_state`.
+//!
 //! Prerequisites (runtime — not compile-time):
 //!   bun run build:happ   # builds nondominium.dna
 //!
@@ -11,6 +14,7 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --test resource
 
 use holochain::prelude::*;
+use nondominium_shared::types::OperationalState;
 use serde::{Deserialize, Serialize};
 
 use nondominium_sweettest::common::*;
@@ -58,6 +62,44 @@ struct CreateResourceSpecificationOutput {
 struct GetAllResourceSpecificationsOutput {
     pub specifications: Vec<ResourceSpecification>,
     pub action_hashes: Vec<ActionHash>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct EconomicResourceInput {
+    pub spec_hash: ActionHash,
+    pub quantity: f64,
+    pub unit: String,
+    pub current_location: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct EconomicResource {
+    pub quantity: f64,
+    pub unit: String,
+    pub custodian: AgentPubKey,
+    pub current_location: Option<String>,
+    pub operational_state: OperationalState,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CreateEconomicResourceOutput {
+    pub resource_hash: ActionHash,
+    pub resource: EconomicResource,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct UpdateOperationalStateInput {
+    pub resource_hash: ActionHash,
+    pub new_operational_state: OperationalState,
+}
+
+fn decode_record_entry<T: serde::de::DeserializeOwned>(record: &Record) -> T {
+    match record.entry().as_option() {
+        Some(Entry::App(app_bytes)) => {
+            holochain_serialized_bytes::decode(app_bytes.bytes()).expect("entry deserialization failed")
+        }
+        _ => panic!("expected Present App entry"),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -134,4 +176,110 @@ async fn get_all_resource_specifications_returns_parallel_hashes() {
             i
         );
     }
+}
+
+/// New economic resources default to `PendingValidation`; custodian can update
+/// operational state and query by operational state anchor.
+#[tokio::test(flavor = "multi_thread")]
+async fn economic_resource_operational_state_lifecycle() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let spec_input = ResourceSpecificationInput {
+        name: "Operational Drill".to_string(),
+        description: "Cordless drill for shared use".to_string(),
+        category: "tools".to_string(),
+        image_url: None,
+        tags: vec!["tools".to_string()],
+        governance_rules: vec![],
+    };
+
+    let spec_out: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input,
+        )
+        .await;
+
+    let resource_input = EconomicResourceInput {
+        spec_hash: spec_out.spec_hash.clone(),
+        quantity: 1.0,
+        unit: "piece".to_string(),
+        current_location: Some("Workshop".to_string()),
+    };
+
+    let create_out: CreateEconomicResourceOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_economic_resource",
+            resource_input,
+        )
+        .await;
+
+    assert_eq!(
+        create_out.resource.operational_state,
+        OperationalState::PendingValidation,
+        "new instances must start PendingValidation"
+    );
+
+    let pending_records: Vec<Record> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_resources_by_operational_state",
+            OperationalState::PendingValidation,
+        )
+        .await;
+
+    assert!(
+        pending_records.iter().any(|r| {
+            decode_record_entry::<EconomicResource>(r).operational_state
+                == OperationalState::PendingValidation
+        }),
+        "PendingValidation query should include the new resource"
+    );
+
+    let updated: Record = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "update_operational_state",
+            UpdateOperationalStateInput {
+                resource_hash: create_out.resource_hash.clone(),
+                new_operational_state: OperationalState::InUse,
+            },
+        )
+        .await;
+
+    let updated_resource: EconomicResource = decode_record_entry(&updated);
+    assert_eq!(
+        updated_resource.operational_state,
+        OperationalState::InUse,
+        "operational state should update to InUse"
+    );
+
+    let in_use_records: Vec<Record> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_resources_by_operational_state",
+            OperationalState::InUse,
+        )
+        .await;
+
+    assert_eq!(
+        in_use_records.len(),
+        1,
+        "exactly one resource should be InUse after update"
+    );
+
+    let pending_after: Vec<Record> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_resources_by_operational_state",
+            OperationalState::PendingValidation,
+        )
+        .await;
+
+    assert!(
+        pending_after.is_empty(),
+        "PendingValidation anchor should no longer list the resource"
+    );
 }

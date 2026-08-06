@@ -1,42 +1,10 @@
 use hdi::prelude::*;
-pub use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature};
+pub use nondominium_shared::types::{
+  LifecycleStage, OperationalState, PropertyRegime, ResourceNature,
+};
 
-// TODO (post-MVP): Split ResourceState into two orthogonal enums and migrate EconomicResource:
-//
-// 1. LifecycleStage — now in nondominium_shared::types (imported above).
-//
-// 2. OperationalState — the current process acting on this specific resource instance (cycles
-//    frequently as processes begin and end). Governance-zome controlled.
-//    Values: Available, Reserved, InTransit, InStorage, InMaintenance, InUse, PendingValidation
-//
-// The current ResourceState enum CONFLATES both dimensions and is kept for EconomicResource
-// backwards-compatibility until the OperationalState refactor (REQ-NDO-OS-06).
-//
-// See: documentation/requirements/ndo_prima_materia.md — Section 5 (LifecycleStage + OperationalState)
-// See: documentation/archives/resources.md — Section 2.4 (known gaps)
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
-pub enum ResourceState {
-  #[default]
-  PendingValidation,
-  Active,
-  Maintenance,
-  Retired,
-  Reserved,
-}
-
-impl std::fmt::Display for ResourceState {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      ResourceState::PendingValidation => write!(f, "pending_validation"),
-      ResourceState::Active => write!(f, "active"),
-      ResourceState::Maintenance => write!(f, "maintenance"),
-      ResourceState::Retired => write!(f, "retired"),
-      ResourceState::Reserved => write!(f, "reserved"),
-    }
-  }
-}
-
-// LifecycleStage, PropertyRegime, ResourceNature are re-exported from nondominium_shared::types
+// LifecycleStage, PropertyRegime, ResourceNature, OperationalState are re-exported from
+// nondominium_shared::types
 // (see the `pub use` at the top of this file). Both DNAs share the same definitions, eliminating
 // the duplication that previously existed between this file and zome_lobby_integrity.
 
@@ -66,7 +34,7 @@ pub struct EconomicResource {
   pub unit: String,
   pub custodian: AgentPubKey, // The Primary Accountable Agent holding the resource
   pub current_location: Option<String>, // Physical or virtual location TODO: use an enum
-  pub state: ResourceState,
+  pub operational_state: OperationalState,
 }
 
 // NDO Layer 0 — NondominiumIdentity (REQ-NDO-L0-01, REQ-NDO-L0-07)
@@ -158,11 +126,8 @@ pub enum LinkTypes {
   // Service-type patterns (inspired by R&O ServiceType queries)
   SpecsByCategory,     // Category -> ResourceSpecs
   ResourcesByLocation, // Location -> EconomicResources
-  ResourcesByState,    // ResourceState -> EconomicResources
-  // TODO (REQ-NDO-OS-06): Split ResourcesByState into two independent link types:
-  //   ResourcesByLifecycleStage  — NondominiumIdentity lifecycle facet queries
-  //   ResourcesByOperationalState — EconomicResource operational facet queries
-  // See: documentation/requirements/ndo_prima_materia.md — Section 9.4 (REQ-NDO-OS-06)
+  // Lifecycle faceting for NDO identity is served by NdoByLifecycleStage (Layer 0).
+  ResourcesByOperationalState, // OperationalState -> EconomicResource action hashes
 
   // Governance patterns
   RulesByType,          // RuleType -> GovernanceRules
@@ -324,6 +289,12 @@ fn validate_create_economic_resource(
   if resource.unit.trim().is_empty() {
     return Ok(ValidateCallbackResult::Invalid(
       "Resource unit cannot be empty".to_string(),
+    ));
+  }
+
+  if resource.operational_state != OperationalState::PendingValidation {
+    return Ok(ValidateCallbackResult::Invalid(
+      "New economic resources must start in PendingValidation operational state".to_string(),
     ));
   }
 

@@ -1,12 +1,14 @@
 import type { ActionHash, AgentPubKey, EntryHash, Record, Timestamp } from '@holochain/client';
 
-// Resource State Types
-export type ResourceState =
-  | "PendingValidation"
-  | "Active"
-  | "Maintenance"
-  | "Retired"
-  | "Reserved";
+// Resource operational state types (Layer 2 instance condition)
+export type OperationalState =
+  | "Available"
+  | "Reserved"
+  | "InTransit"
+  | "InStorage"
+  | "InMaintenance"
+  | "InUse"
+  | "PendingValidation";
 
 // Core Resource Types
 export interface ResourceSpecification {
@@ -25,7 +27,7 @@ export interface EconomicResource {
   unit: string;
   custodian: AgentPubKey;
   current_location?: string;
-  state: ResourceState;
+  operational_state: OperationalState;
 }
 
 // Governance Types
@@ -253,6 +255,11 @@ export interface TransferCustodyInput {
 export interface TransferCustodyOutput {
   updated_resource_hash: ActionHash;
   updated_resource: EconomicResource;
+}
+
+export interface UpdateOperationalStateInput {
+  resource_hash: ActionHash;
+  new_operational_state: OperationalState;
 }
 
 // Zome Function Types

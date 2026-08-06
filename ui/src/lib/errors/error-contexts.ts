@@ -51,7 +51,9 @@ export const RESOURCE_CONTEXTS = {
   GET_NDOS_BY_LIFECYCLE_STAGE: 'Failed to get NDOs by lifecycle stage',
   GET_NDOS_BY_NATURE: 'Failed to get NDOs by nature',
   GET_NDOS_BY_PROPERTY_REGIME: 'Failed to get NDOs by property regime',
-  GET_NDO_TRANSITION_HISTORY: 'Failed to get NDO transition history'
+  GET_NDO_TRANSITION_HISTORY: 'Failed to get NDO transition history',
+  UPDATE_OPERATIONAL_STATE: 'Failed to update economic resource operational state',
+  GET_RESOURCES_BY_OPERATIONAL_STATE: 'Failed to get resources by operational state'
 } as const;
 
 export const GOVERNANCE_CONTEXTS = {

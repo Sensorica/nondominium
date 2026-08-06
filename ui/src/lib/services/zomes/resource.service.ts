@@ -21,7 +21,8 @@ import type {
   NdoTransitionHistoryEvent,
   LifecycleStage,
   ResourceNature,
-  PropertyRegime
+  PropertyRegime,
+  OperationalState
 } from '@nondominium/shared-types';
 import type { Record as HoloRecord } from '@holochain/client';
 import {
@@ -75,6 +76,13 @@ export interface ResourceService {
   getNdosByNature: (nature: ResourceNature) => E.Effect<GetAllNdosOutput, ResourceError>;
   getNdosByPropertyRegime: (regime: PropertyRegime) => E.Effect<GetAllNdosOutput, ResourceError>;
   getNdoTransitionHistory: (ndoHash: ActionHash) => E.Effect<NdoTransitionHistoryEvent[], ResourceError>;
+  updateOperationalState: (
+    resourceHash: ActionHash,
+    newOperationalState: OperationalState
+  ) => E.Effect<HoloRecord, ResourceError>;
+  getResourcesByOperationalState: (
+    state: OperationalState
+  ) => E.Effect<EconomicResourceRow[], ResourceError>;
 }
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
@@ -275,7 +283,21 @@ export const ResourceServiceLive: Layer.Layer<
           'get_ndo_transition_history',
           ndoHash,
           RESOURCE_CONTEXTS.GET_NDO_TRANSITION_HISTORY
-        ).pipe(E.catchAll(() => E.succeed([])))
+        ).pipe(E.catchAll(() => E.succeed([]))),
+
+      updateOperationalState: (resourceHash, newOperationalState) =>
+        wz<HoloRecord>(
+          'update_operational_state',
+          { resource_hash: resourceHash, new_operational_state: newOperationalState },
+          RESOURCE_CONTEXTS.UPDATE_OPERATIONAL_STATE
+        ),
+
+      getResourcesByOperationalState: (state) =>
+        wz<HoloRecord[]>(
+          'get_resources_by_operational_state',
+          state,
+          RESOURCE_CONTEXTS.GET_RESOURCES_BY_OPERATIONAL_STATE
+        ).pipe(E.map(economicResourceRowsFromRecords))
     } satisfies ResourceService;
   })
 );

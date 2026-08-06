@@ -135,57 +135,37 @@ pub struct EconomicResource {
     pub created_by: AgentPubKey,   // Resource creator
     pub created_at: Timestamp,     // Creation timestamp
     pub current_location: Option<String>, // Physical/virtual location
-    // TODO: split into two fields:
-    //   pub lifecycle_stage: LifecycleStage,    // lives on NondominiumIdentity (Layer 0)
-    //   pub operational_state: OperationalState, // lives on EconomicResource (Layer 2)
-    pub state: ResourceState,      // Current resource state (pending split — see ndo_prima_materia.md Section 5)
+    pub operational_state: OperationalState, // Layer 2 process condition (REQ-NDO-OS-01 ✅)
 }
 ```
 
 **ValueFlows**: Compliant economic resource implementation
 **Custody**: Clear custodianship with Primary Accountable Agent pattern
-**State Management**: Comprehensive resource lifecycle tracking
+**State Management**: Operational condition on instance; lifecycle maturity on `NondominiumIdentity`
 
-### ResourceState Enum (pending replacement)
-
-> **TODO**: Split `ResourceState` into two orthogonal enums per `ndo_prima_materia.md` Section 5 and `REQ-NDO-OS-01` through `REQ-NDO-OS-06`.
+### OperationalState Enum
 
 ```rust
-// CURRENT (conflated — to be replaced):
-pub enum ResourceState {
-    PendingValidation,  // → OperationalState::PendingValidation
-    Active,            // → LifecycleStage::Active + OperationalState::Available
-    Maintenance,       // → OperationalState::InMaintenance (LifecycleStage unchanged)
-    Retired,          // → LifecycleStage::Deprecated or EndOfLife
-    Reserved,         // → OperationalState::Reserved (LifecycleStage unchanged)
-}
-
-// IMPLEMENTED — LifecycleStage (on NondominiumIdentity, Layer 0, REQ-NDO-LC-01–07):
-pub enum LifecycleStage {
-    Ideation,      // spark of an idea, Layer 0 anchor only
-    Specification, // design/requirements being written
-    Development,   // active construction / prototyping
-    Prototype,     // proof-of-concept, not yet production-ready
-    Stable,        // production-ready, design is replicable
-    Distributed,   // being actively fabricated/used across the network
-    Active,        // in normal use
-    Hibernating,   // dormant but recoverable (reversible)
-    Deprecated,    // superseded; successor NDO required
-    EndOfLife,     // permanently concluded; Layer 0 tombstone
-}
-
-// TARGET — OperationalState (on EconomicResource, Layer 2):
 pub enum OperationalState {
-    PendingValidation, Available, Reserved,
-    InTransit, InStorage, InMaintenance, InUse,
+    Available,
+    Reserved,
+    InTransit,
+    InStorage,
+    InMaintenance,
+    InUse,
+    PendingValidation, // default for newly created instances
 }
 ```
 
 **Key principle**: Transport, storage, and maintenance are *processes* that act on a resource at *any* lifecycle stage. A `Development` resource can be `InTransit` between R&D labs. An `Active` resource can be `InMaintenance`. These are operational conditions, not lifecycle milestones.
 
-**Lifecycle**: `LifecycleStage` tracks maturity/evolution (advances rarely, almost irreversibly)
-**Operational**: `OperationalState` tracks active processes (cycles frequently, reset to `Available` when process ends)
-**Transitions**: All state changes governed by the governance zome; each transition references a valid `EconomicEvent`
+### LifecycleStage vs OperationalState
+
+**Lifecycle** (`LifecycleStage` on `NondominiumIdentity`): maturity/evolution (advances rarely, almost irreversibly). Faceted discovery via `NdoByLifecycleStage`.
+
+**Operational** (`OperationalState` on `EconomicResource`): active process condition (cycles frequently; typically resets to `Available` when a process ends). Faceted discovery via `ResourcesByOperationalState`.
+
+**Governance transitions** (REQ-NDO-OS-02/03): deferred — interim writes use `update_operational_state` in `zome_resource`; future governance-zome ownership will require valid `EconomicEvent` references.
 
 ### GovernanceRule Entry
 
@@ -457,28 +437,25 @@ pub struct TransferCustodyInput {
 - Creates economic event (TransferCustody)
 - Triggers validation workflow if required
 
-#### `update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Record>`
+#### `update_operational_state(input: UpdateOperationalStateInput) -> ExternResult<Record>`
 
-> **TODO**: Replace with two separate functions per `REQ-NDO-OS-01`:
-> - `update_lifecycle_stage(input: UpdateLifecycleStageInput)` — transitions on `NondominiumIdentity`; requires an `EconomicEvent` hash as proof of triggering action
-> - `update_operational_state(input: UpdateOperationalStateInput)` — transitions on `EconomicResource`; called by governance zome when processes begin/end
-
-Updates the state of an economic resource.
+Updates the operational state of an `EconomicResource` instance (REQ-NDO-OS-01). Lifecycle maturity transitions use `update_lifecycle_stage` on `NondominiumIdentity` (Layer 0).
 
 **Input**:
 
 ```rust
-// CURRENT (pending split):
-pub struct UpdateResourceStateInput {
+pub struct UpdateOperationalStateInput {
     pub resource_hash: ActionHash,
-    pub new_state: ResourceState,  // TODO: split into lifecycle_stage / operational_state
-    pub reason: Option<String>,
+    pub new_operational_state: OperationalState,
 }
 ```
 
-**Authorization**: Governance zome only (via governance-as-operator pattern)
-**Validation**: All transitions require a corresponding `EconomicEvent` reference
-**Integration**: Creates economic events for PPR generation
+**Authorization**: Current agent (interim resource-zome writer; governance-zome ownership deferred per REQ-NDO-OS-02)
+**Side effects**: Moves the `ResourcesByOperationalState` anchor link when the state changes
+
+#### `get_resources_by_operational_state(state: OperationalState) -> ExternResult<Vec<Record>>`
+
+Discovery via `ResourcesByOperationalState` anchor (`ndo.opstate.{state}`). Parallels `get_ndos_by_lifecycle_stage`.
 
 ### Governance Rule Management
 

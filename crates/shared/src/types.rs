@@ -64,6 +64,35 @@ pub enum ResourceNature {
   Information,
 }
 
+/// Current process condition on a specific EconomicResource instance (Layer 2).
+/// Cycles frequently as processes begin and end; orthogonal to LifecycleStage.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
+pub enum OperationalState {
+  Available,
+  Reserved,
+  InTransit,
+  InStorage,
+  InMaintenance,
+  InUse,
+  #[default]
+  PendingValidation,
+}
+
+impl std::fmt::Display for OperationalState {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let s = match self {
+      OperationalState::Available => "available",
+      OperationalState::Reserved => "reserved",
+      OperationalState::InTransit => "in_transit",
+      OperationalState::InStorage => "in_storage",
+      OperationalState::InMaintenance => "in_maintenance",
+      OperationalState::InUse => "in_use",
+      OperationalState::PendingValidation => "pending_validation",
+    };
+    write!(f, "{}", s)
+  }
+}
+
 // ─── ValueFlows action enum ───────────────────────────────────────────────────
 // Shared here so ValidateContributionInput (io/governance.rs) can reference it
 // without needing to import from the governance integrity zome (a WASM crate).

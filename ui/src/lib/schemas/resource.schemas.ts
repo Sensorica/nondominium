@@ -11,14 +11,16 @@ import { Schema } from 'effect';
  * once the service layer is available for mock injection.
  */
 
-export const ResourceStateSchema = Schema.Literal(
-  'PendingValidation',
-  'Active',
-  'Maintenance',
-  'Retired',
-  'Reserved'
+export const OperationalStateSchema = Schema.Literal(
+  'Available',
+  'Reserved',
+  'InTransit',
+  'InStorage',
+  'InMaintenance',
+  'InUse',
+  'PendingValidation'
 );
-export type ResourceState = Schema.Schema.Type<typeof ResourceStateSchema>;
+export type OperationalState = Schema.Schema.Type<typeof OperationalStateSchema>;
 
 export const PropertyRegimeSchema = Schema.Literal(
   'Private',
@@ -87,7 +89,7 @@ export class UIEconomicResource extends Schema.Class<UIEconomicResource>('UIEcon
   unit: Schema.String,
   custodian: Schema.Any, // AgentPubKey
   current_location: Schema.optional(Schema.String),
-  state: ResourceStateSchema,
+  operational_state: OperationalStateSchema,
   conforms_to: Schema.optional(Schema.Any), // ActionHash
   original_action_hash: Schema.optional(Schema.Any),
   created_at: Schema.optional(Schema.Number)

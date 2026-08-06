@@ -226,7 +226,7 @@ impl ResourceManager {
         // 3. Apply state change if approved
         if governance_result.success {
             if let Some(new_state) = governance_result.new_resource_state {
-                self.update_resource_state(new_state)?;
+                self.update_operational_state(new_state)?;
             }
 
             if let Some(event) = governance_result.economic_event {
@@ -301,7 +301,7 @@ pub fn request_resource_transition(
 
     // 3. Handle result and update local state
     if result.success {
-        update_resource_state(result.new_resource_state)?;
+        update_operational_state(result.new_resource_state)?;
         create_economic_event(result.economic_event)?;
     }
 

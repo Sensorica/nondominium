@@ -159,7 +159,7 @@ pub struct EconomicResource {
                                 // to support Collective, Project, Network, and Bot agents as
                                 // Primary Accountable Agents. Currently assumes individual agent.
     pub current_location: Option<String>,
-    pub state: ResourceState,
+    - operational_state: OperationalState,
 }
 ```
 This is the **observation layer**: a specific instance of a resource at a point in time, held by a specific custodian.
@@ -174,18 +174,13 @@ pub struct GovernanceRule {
 ```
 Economic rules governing access and use. Currently entirely untyped — `rule_data` is a free-form JSON string with no schema enforcement. - ToDo: explore how to make governance rules machine readable and executable, typed. 
 
-**`ResourceState`** (enum on `EconomicResource`) — *still conflated; `OperationalState` split pending (`REQ-NDO-OS-06`)*
+**`OperationalState`** (enum on `EconomicResource`) — ✅ **implemented** (`REQ-NDO-OS-01`)
 
 ```
-PendingValidation | Active | Maintenance | Retired | Reserved
+PendingValidation | Available | Reserved | InTransit | InStorage | InMaintenance | InUse
 ```
 
-`LifecycleStage` is **implemented** on `NondominiumIdentity` (see above). The legacy `ResourceState` on `EconomicResource` still conflates maturity and operational condition. The code contains an explicit `TODO` to split into:
-
-- **`LifecycleStage`** — on `NondominiumIdentity` (✅ implemented)
-- **`OperationalState`** — on `EconomicResource` (🔄 not implemented): `PendingValidation | Available | Reserved | InTransit | InStorage | InMaintenance | InUse`
-
-`Maintenance` and `Reserved` in the current enum are operational conditions, not lifecycle milestones. A resource being repaired is still `LifecycleStage::Active` — it would have `OperationalState::InMaintenance` once the split lands.
+`LifecycleStage` is **implemented** on `NondominiumIdentity` (see above). Operational condition cycles on the instance independently of lifecycle maturity — e.g. an `Active`-stage NDO can have an `InMaintenance` economic resource instance.
 
 ### 2.2 Link Graph
 
@@ -195,7 +190,7 @@ The link types model resource discovery and navigation:
 - Anchor links for global discovery (`AllResourceSpecifications`, `AllEconomicResources`, `AllGovernanceRules`)
 - Hierarchical links (`SpecificationToResource`, `SpecificationToGovernanceRule`)
 - Agent-centric links (`CustodianToResource`, `AgentToOwnedSpecs`, `AgentToManagedResources`)
-- Faceted search links (`SpecsByCategory`, `ResourcesByLocation`, `ResourcesByState`, `RulesByType`)
+- Faceted search links (`SpecsByCategory`, `ResourcesByLocation`, `ResourcesByOperationalState`, `RulesByType`)
 - Governance links (`ResourceToValidation`)
 - Update chain links (for Holochain's append-only update pattern)
 
@@ -224,7 +219,7 @@ The link types model resource discovery and navigation:
 
 | Gap | Impact | Status / planned fix |
 |---|---|---|
-| `ResourceState` conflates lifecycle and operational dimensions on `EconomicResource` | Cannot model in-transit, in-storage, or in-maintenance instances independently of Layer 0 lifecycle | 🔄 **`OperationalState` split pending** (`REQ-NDO-OS-06`); `LifecycleStage` on Layer 0 is ✅ done |
+| ~~`ResourceState` conflates lifecycle and operational dimensions~~ | ~~Cannot model in-transit, in-storage, or in-maintenance instances independently of Layer 0 lifecycle~~ | ✅ **`OperationalState` on `EconomicResource`** (`REQ-NDO-OS-01`); governance-operator transitions deferred (`REQ-NDO-OS-02`–`05`) |
 | ~~No property regime field~~ | ~~Cannot distinguish nondominium from commons from individual stewardship~~ | ✅ **`PropertyRegime` on `NondominiumIdentity`** (see §2.6 for 6-vs-4 variant reconciliation) |
 | ~~No resource nature field~~ | ~~Cannot distinguish digital from physical from hybrid~~ | ✅ **`ResourceNature` on `NondominiumIdentity`** (5 variants in code; see §2.6) |
 | `GovernanceRule.rule_data` is untyped JSON string | No schema enforcement, no tooling support, no peer validation of rule semantics | 🔄 `GovernanceRuleType` enum with typed schemas (`ndo_prima_materia.md` + `unyt-integration.md`) |
@@ -354,13 +349,7 @@ Hibernating → Deprecated → EndOfLife
 
 Hibernating records `hibernation_origin` and resumes to that stage. Deprecated requires `successor_ndo_hash` (REQ-NDO-LC-06). EndOfLife is terminal.
 
-**`OperationalState`** — 🔄 **Not implemented** on `EconomicResource`. The legacy 5-state `ResourceState` enum still conflates both dimensions (`REQ-NDO-OS-06`):
-
-```
-PendingValidation | Available | Reserved | InTransit | InStorage | InMaintenance | InUse
-```
-
-`Maintenance` and `Reserved` in the current `ResourceState` enum are operational conditions, not lifecycle milestones. Transport, storage, and maintenance are *processes* that can apply to a resource at *any* lifecycle stage (a `Prototype` can be `InTransit` between labs; an `Active` resource can be `InMaintenance`).
+**`OperationalState`** — ✅ **Implemented** on `EconomicResource` (7 states; `update_operational_state`, `get_resources_by_operational_state`). Governance-zome transition enforcement (`REQ-NDO-OS-02`–`03`) remains deferred.
 
 Each lifecycle transition **should** be governance-validated (the governance zome as state transition operator), generate an economic event, and create a lifecycle history audit trail (REQ-NDO-LC-02/03). Today: integrity zome validates transitions; automatic EconomicEvent generation and governance-as-operator evaluation are deferred.
 
@@ -695,7 +684,7 @@ For the generic NDO, the implication is: **do not model intangible resources as 
 | OVN concept | NDO partial coverage | Gap |
 |---|---|---|
 | Resource nature (physical/digital/media) | `ResourceNature` enum on Layer 0 (`Physical, Digital, Service, Hybrid, Information`) | Missing `Mental` analog (represented by Ideation-stage NDOs); media channel vs. media item distinction absent; forward-map `Space`/`Method`/`Currency` (§6.2) not in code |
-| Operational vs lifecycle state | `LifecycleStage` on Layer 0 ✅; legacy `ResourceState` on `EconomicResource` | `OperationalState` split not implemented (`REQ-NDO-OS-06`) |
+| Operational vs lifecycle state | `LifecycleStage` on Layer 0 ✅; `OperationalState` on `EconomicResource` ✅ | Governance-operator operational transitions (`REQ-NDO-OS-02`–`03`) deferred |
 | Governance of access (role-based) | Role-based `enforced_by` in GovernanceRule | Rule types are untyped strings; no first-class accessibility classification |
 | Material/Immaterial behavior | Physical vs. Digital/Information/Service nature | No formal rivalrous/non-rivalrous property |
 | Method as resource | `Digital` or `Information` nature covers some cases | No dedicated `Method` variant or template/recipe entry type |

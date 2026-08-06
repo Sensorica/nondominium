@@ -4,19 +4,19 @@
 
 This plan details the phased implementation of the nondominium hApp, a decentralized, organization-agnostic resource management system built on Holochain and ValueFlows. The implementation builds incrementally on the existing working foundation to deliver Economic Processes, Private Participation Receipt (PPR) reputation, agent capability progression, and cross-zome coordination, while aligning with the **generic Nondominium Object (NDO)** model where that work is scheduled.
 
-**MVP vs post-MVP (normative boundary):** Per [requirements.md §2.3](requirements/requirements.md), the **current MVP** in this repository is the combination of `ResourceSpecification`, `EconomicResource`, and `GovernanceRule` with governance-as-operator patterns. **NDO-wide** requirements (three-layer model, lifecycle versus operational state, capability slots, migration, REQ-NDO-*) live in [ndo_prima_materia.md](requirements/ndo_prima_materia.md) and are **not** implied by the MVP DNA until explicitly implemented. Phases 2–4 below are mostly **MVP core** delivery; the **NDO model and migration** track extends or refactors that foundation when scheduled. Post-MVP agent ontology (REQ-AGENT-*, REQ-NDO-AGENT-*) is specified in [requirements.md §4.4](requirements/requirements.md), with background analysis in [archives/agent.md](archives/agent.md).
+**MVP vs post-MVP (normative boundary):** Per [requirements.md §2.3](requirements/requirements.md), the MVP resource substrate is `ResourceSpecification`, `EconomicResource`, and `GovernanceRule`. The repository has also implemented NDO Layer 0 (`NondominiumIdentity`), Lobby and Group DNAs, PPR prototypes, and NDO federation extensions. **Governance-as-Operator** remains specified rather than coded as a Request→Evaluate→Apply path. **NDO-wide** requirements beyond the implemented subset (Layers 1/2 activation, operational-state split, capability slots, migration, REQ-NDO-*) remain governed by [ndo_prima_materia.md](requirements/ndo_prima_materia.md). Phases 2–4 below distinguish implemented foundations from remaining production workflows. Post-MVP agent ontology (REQ-AGENT-*, REQ-NDO-AGENT-*) is specified in [requirements.md §4.4](requirements/requirements.md). **Source-NDO** is an **optional application profile** (REQ-SOURCE-APP-*, [requirements.md §4.6](requirements/requirements.md)) — not required for Project NDOs or resource-mutualisation apps; see §12.7.
 
 ### 1.1 Requirements map (normative sources)
 
-This index is the entry point for phased delivery. **Current focus:** Layer 1 UI on the NDO detail view (`/ndo/:hash`) — **ResourceSpecification** (the shareable form), **GovernanceRule** (embedded rules governing agent–resource interaction), and **Process** readiness (what agents may do under those rules; Layer 2 / REQ-PROC-*). Layer 0 identity UI is implemented; Layer 1 activation (`NDOToSpecification`) and Layer 2 activation (`NDOToProcess`) are normative but not yet wired in DNA — UI work proceeds against existing MVP zome APIs plus prima materia REQ-NDO-L1-* / REQ-NDO-L2-* targets. Status cross-check: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+This index is the entry point for phased delivery. **Current implementation baseline:** Layer 0 identity and lifecycle UI are implemented; Resources, Governance, and Activity tabs render existing service-backed data, while Composition remains a placeholder. Layer 1 activation (`NDOToSpecification`) and Layer 2 activation (`NDOToProcess`) are normative but not yet wired in DNA. The next work should connect those layers and complete Economic Process, governance-rule evaluation, and authenticated PPR workflows rather than recreate already-shipped entry types and APIs. Status cross-check: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
 #### Core normative (PRD, NDO model, UI, data model)
 
 | Source | Role |
 |--------|------|
-| [requirements.md](requirements/requirements.md) | PRD — REQ-USER-*, REQ-RES-*, REQ-GOV-*, REQ-PROC-*, REQ-AGENT-* (§4.4 post-MVP agent ontology); REQ-UI-* (§4.5 MVP UI) |
+| [requirements.md](requirements/requirements.md) | PRD — REQ-USER-*, REQ-RES-*, REQ-GOV-*, REQ-PROC-*, REQ-AGENT-* (§4.4 post-MVP agent ontology); REQ-UI-* (§4.5 MVP UI); REQ-SOURCE-APP-* / REQ-SOURCE-* (§4.6 optional Source profile) |
 | [ndo_prima_materia.md](requirements/ndo_prima_materia.md) | NDO layers (L0/L1/L2), lifecycle vs operational state, capability surface; **REQ-NDO-L1-*** (§9.2), **REQ-NDO-L2-*** (§9.3), REQ-NDO-* (§9), migration (§10) |
-| [ui_design.md](requirements/ui_design.md) | UI vision — MVP Layer 0 complete; NDO view tabs (Resources, Governance, Composition, Activity) stubbed for Layer 1+ content |
+| [ui_design.md](requirements/ui_design.md) | UI vision — MVP Layer 0 complete; Resources, Governance, and Activity tabs service-backed; Composition and Join NDO remain incomplete |
 | [specifications/ui_architecture.md](specifications/ui_architecture.md) | Implemented UI stack, routes, stores, services (`resource.service.ts`, `governance.service.ts`), component map |
 | [specifications/specifications.md](specifications/specifications.md) | Technical data structures — `ResourceSpecification`, `GovernanceRule`, `EconomicResource`, `EconomicProcess`, VfAction, cross-zome governance interface |
 
@@ -27,7 +27,8 @@ This index is the entry point for phased delivery. **Current focus:** Layer 1 UI
 | [zomes/resource_zome.md](zomes/resource_zome.md) | **Implemented** coordinator/integrity API — `ResourceSpecification`, `GovernanceRule`, `EconomicResource`; planned `NDOToSpecification` / `DigitalAsset` links |
 | [requirements/resources.md](requirements/resources.md) | Resource ontology — implemented vs planned; Layer 1 activation gap; governance defaults from `PropertyRegime` × `ResourceNature` (non-normative REQ IDs) |
 | [post-mvp/project-type-ndo-specifications.md](requirements/post-mvp/project-type-ndo-specifications.md) | Structured know-how bundles for project-type NDOs (OSHWA / Open Know-How → Layer 1 assets); lifecycle-matched completeness |
-| [post-mvp/source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md) | **Source-NDO** — `Source` as third ontological primitive; `SourceProfile` Layer 0 extension; adaptive cybernetic governance loop; `vf:Source` ValueFlows extension (REQ-SOURCE-*) |
+| [post-mvp/source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md) | **Source-NDO (optional profile)** — `Source` as third flow endpoint when an application governs generative systems; `SourceProfile`, adaptive loop, `vf:Source` (REQ-SOURCE-*); applicability REQ-SOURCE-APP-* in [requirements.md §4.6](requirements/requirements.md) |
+| [post-mvp/Source-NDO.md](requirements/post-mvp/Source-NDO.md) | Paper planning scaffold — thesis, Ostrom/VF argument structure (informative) |
 | [post-mvp/source-ndo-paper.md](requirements/post-mvp/source-ndo-paper.md) | Academic grounding: Occam's razor proof, river case study, Ostrom SES mapping (informative) |
 | [post-mvp/versioning.md](requirements/post-mvp/versioning.md) | Version DAG — **REQ-NDO-L1-03** (multiple `ResourceSpecification` links per NDO identity) |
 | [post-mvp/digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md) | Content-addressed manifests, composable verification — **REQ-NDO-L1-06** `DigitalAsset` capability slots (prima materia §9.2) |
@@ -62,6 +63,13 @@ This index is the entry point for phased delivery. **Current focus:** Layer 1 UI
 | [post-mvp/lobby-dna.md](requirements/post-mvp/lobby-dna.md) | Multi-network federation — Lobby / Group / NDO DNA extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) |
 | [requirements/agent.md](requirements/agent.md) | Agent ontology — roles, affiliation, `AgentContext` (post-MVP); background for governance participation and process access |
 
+### 1.2 Status synchronization convention
+
+- [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) is the evidence-based inventory of current code.
+- In this plan, `[x]` means the stated scope exists now; `[ ]` means remaining work. A checked foundation does not imply that its unchecked production workflow is complete.
+- When a feature ships, update both documents in the same change: record evidence and limitations in the status document, then close or split the corresponding plan task.
+- Do not mark a whole phase complete while it still contains implementation tasks; use “foundation delivered” or “partial” for mixed phases.
+
 ---
 
 ## 2. Implementation Principles
@@ -79,7 +87,7 @@ Judge outcomes by **systemic viability** — anti-fragility, evolvability, coord
 | **Governance-as-operator** | Decouple the **data substrate** (`zome_resource`) from **regulatory signaling** (`zome_gouvernance`). Business and governance logic must not be hard-coded into core entry schemas; rules evolve as mutable data without destructive migrations (REQ-ARCH-07, REQ-ARCH-08). |
 | **Stigmergic coordination** | Prefer discoverable traces, anchor links, reputation signals (PPRs), and **CapabilitySlot** attachments over central orchestrators. Agents coordinate by modifying a shared environment — the DHT — not by a mediating platform service. |
 | **Fractal composability** | Use the same coordination primitives at agent, group, NDO, and federation scales. **Trust and integrity compose** through hierarchies (atomic → component → composite): local verification at each level yields global coherence; changes re-verify only affected paths (digital integrity, holonic NDO links — post-MVP). |
-| **Path-dependency awareness** | Before refactors or major UI/API contracts, scan legacy choices (MVP orphan `ResourceSpecification` entries, localStorage group shells, stub tabs). Do not inherit constraints blindly — document migration windows (REQ-NDO-MIG-*) when Layer 1 UI bridges old and new models. |
+| **Path-dependency awareness** | Before refactors or major UI/API contracts, scan legacy choices (orphan `ResourceSpecification` entries, pre-NDO economic-resource flows, four-regime frontend types, and remaining placeholder surfaces). The localStorage Group shell has already migrated to cloned Group cells; only per-Group presentation preferences remain local. Document migration windows (REQ-NDO-MIG-*) when Layer 1 bridges old and new models. |
 | **Anti-fragility** | Disruption should teach, not only hurt. Disputes, validation failures, and adversarial behaviour must generate auditable signals (PPRs, validation receipts, governance events) that improve future coordination — not merely error screens. |
 
 ### 2.2 Nondominium enactments
@@ -106,7 +114,7 @@ Judge outcomes by **systemic viability** — anti-fragility, evolvability, coord
 
 The **three-layer model** ([ndo_prima_materia.md §4](requirements/ndo_prima_materia.md)) structures resources as:
 
-- **Layer 0 — Identity**: `NondominiumIdentity` (stable anchor, tombstone at end of life); only `lifecycle_stage` evolves after creation (REQ-NDO-L0-*).
+- **Layer 0 — Identity**: `NondominiumIdentity` (stable anchor, tombstone at end of life); identity fields are immutable while lifecycle updates may change `lifecycle_stage`, `hibernation_origin`, and the one-time `successor_ndo_hash` (REQ-NDO-L0-*).
 - **Layer 1 — Specification**: Activated by `NDOToSpecification` → `ResourceSpecification` (governance rules, discoverable form); may be dormant/archived while L0 remains (REQ-NDO-L1-*).
 - **Layer 2 — Process**: Activated by `NDOToProcess` → ValueFlows `Process`; hosts commitments, claims, events, PPRs (REQ-NDO-L2-*).
 
@@ -135,78 +143,93 @@ Work below is grouped into **parallel tracks** so MVP delivery, NDO migration, a
 | **NDO model and migration** | `NondominiumIdentity`, `NDOToSpecification` / `NDOToProcess`, holonic links, `CapabilitySlot`, lifecycle plus operational split, faceted discovery links, one-time migration (REQ-NDO-MIG-*) | [ndo_prima_materia.md](requirements/ndo_prima_materia.md) §§8–10, §9 |
 | **Agent ontology** | REQ-AGENT-* / REQ-NDO-AGENT-* items under Phases 2–4 | [requirements.md §4.4](requirements/requirements.md); [archives/agent.md](archives/agent.md) for OVN background |
 | **Unyt / Flowsta** | Phased integration; governance enforcement in later phases | Section 12.2–12.3; REQ-NDO-CS-07–CS-15 |
-| **Extended post-MVP** | Many-to-many flows, versioning, digital integrity, RTP-FP, VF DSL, **Lobby DNA federation layer** — reference and ordering only in Section 12.5–12.6 | `documentation/requirements/post-mvp/*.md` |
+| **Source-NDO application profile** | Optional third VF primitive (`vf:Source`) for applications governing generative ecological/knowledge systems — **not** activated for ordinary Project NDOs or mature-resource mutualisation (e.g. shared 3D printer). Opt-in modules only; default UI stays Agent + Resource. | [requirements.md §4.6](requirements/requirements.md) REQ-SOURCE-APP-*; [source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md); §12.7 |
+| **Extended post-MVP** | Many-to-many flows, full version DAG, digital integrity, RTP-FP, VF DSL, Moss contract, and remaining federation work. Lobby/Group DNAs and the first NDO federation primitives are already implemented. | `documentation/requirements/post-mvp/*.md` |
 
-**Phase 2.2 and the NDO track:** Checklists for `LifecycleStage` / `OperationalState`, split discovery links, and process-aware resource work **implement REQ-NDO-LC-*, REQ-NDO-OS-*, and parts of REQ-NDO-L2-*** once `NondominiumIdentity` and NDO links exist; until then, some items remain preparatory. Full L0-first creation and migration follow Section 12.1 and REQ-NDO-MIG-*.
+**Phase 2.2 and the NDO track:** `NondominiumIdentity`, `LifecycleStage`, lifecycle validation, and lifecycle facet links already exist. Remaining work implements `OperationalState`, `NDOToSpecification` / `NDOToProcess`, process-aware resource transitions, and the rest of REQ-NDO-LC-*, REQ-NDO-OS-*, and REQ-NDO-L2-*. Legacy-resource migration remains in Section 12.1 and REQ-NDO-MIG-*.
+
+**Source-NDO track (optional application profile):** Follows **dynamic complexity matching** — Agent + Resource remain the universal baseline. Source modules activate only when an application's domain requires governing a generative system (watershed, river, fishery, knowledge commons) and its boundary effects. **Not in scope** for Project-type NDOs (e.g. open-hardware design) or resource-mutualisation NDOs (e.g. sharing a 3D printer within or between Groups). When enabled, the track adds `SourceProfile`, coupling links, the `Steward` role, `vf:Source` boundary events, and an adaptive governance loop. Full adaptive enforcement depends on Governance-as-Operator (§12.7); Phases A–B can proceed on opt-in data model and event recording without changing the default NDO creation UI.
 
 ---
 
 ## 5. Implementation Phases
 
-### Phase 1: Foundation Layer ✅ **COMPLETED** (Existing Working Code)
+### Phase 1: Foundation Layer ✅ **DELIVERED** (Existing Working Code)
 
-#### 3.1 Agent Identity & Role System (`zome_person`) ✅ **COMPLETED**
+#### 1.1 Agent Identity & Role System (`zome_person`) ✅ **CORE IMPLEMENTED**
 
-- [x] Implement `Person` (public info) and `PrivateData` (private entry, PII).
+- [x] Implement `Person` (public info) and `PrivatePersonData` (private entry, PII).
 - [x] Implement `PersonRole` entry with validation metadata and links to validation receipts.
 - [x] **Modular Architecture**: Refactored into `person.rs`, `private_data.rs`, `role.rs` modules
 - [x] **Comprehensive Error Handling**: PersonError enum with detailed error types
 - [x] **Core Functions**: Profile management, role assignment, private data storage
-- [x] **Testing**: Comprehensive test suite with foundation, integration, and scenario tests
+- [x] **Multi-device identity**: `Device` and `AgentPersonRelationship` entries, links, and coordinator APIs
+- [x] **Foundation testing**: Active Person/hREA Sweettests
+- [ ] **Remaining testing**: Complete capability, role, device, and promotion Sweettest coverage
 
-#### 3.2 Resource Management (`zome_resource`) ✅ **COMPLETED**
+#### 1.2 Resource Management (`zome_resource`) ✅ **CORE IMPLEMENTED**
 
-- [x] Implement `ResourceSpecification` with embedded governance rules.
+- [x] Implement `ResourceSpecification` with separately stored and linked `GovernanceRule` entries.
 - [x] Implement `EconomicResource` with custodian tracking and state management.
 - [x] **Modular Architecture**: Refactored into `resource_specification.rs`, `economic_resource.rs`, `governance_rule.rs`
 - [x] **Comprehensive Error Handling**: ResourceError enum with governance violation support
 - [x] **Signal System**: Complete post-commit signal handling for DHT coordination
 - [x] **Core Functions**: Resource specification and economic resource CRUD operations
-- [x] **Testing**: Comprehensive test suite with integration and scenario coverage
+- [x] **NDO Layer 0**: `NondominiumIdentity`, 10-stage lifecycle validation, hibernation/successor metadata, and discovery facets
+- [x] **Foundation testing**: Active Resource/NDO Sweettests
+- [ ] **Remaining testing**: Close uncovered Resource/NDO integrity and workflow paths
 
-#### 3.3 Governance Foundation (`zome_gouvernance`) ✅ **CORE COMPLETE**
+#### 1.3 Governance Foundation (`zome_gouvernance`) 🔄 **FOUNDATION IMPLEMENTED**
 
 - [x] **Basic VfAction Enum**: Type-safe economic action vocabulary
 - [x] **Validation Infrastructure**: ValidationReceipt creation and management
 - [x] **Economic Event Logging**: Basic economic event recording
 - [x] **Cross-Zome Functions**: Core validation functions for resource and agent validation
 - [x] **Error Handling**: GovernanceError enum with comprehensive error types
+- [ ] **Governance-as-Operator path**: Implement `GovernanceTransitionRequest` / `TransitionContext` / `GovernanceTransitionResult`, `evaluate_state_transition`, and resource-zome `request_resource_transition`
+- [ ] **Governance-as-Operator completion**: Typed rule evaluation, consistent authorization, and automatic event/PPR generation
 
 ---
 
 ### Phase 2: Enhanced Governance & Process Integration 🚀 **HIGH PRIORITY**
 
-#### 2.1 Enhanced Private Data Sharing (`zome_person`) 📋 **NEXT SPRINT**
+#### 2.1 Enhanced Private Data Sharing (`zome_person`) 🔄 **PARTIAL**
 
-_Building on existing private data infrastructure without breaking changes_
+_Field-level direct grants are implemented. The outstanding work is the request/approval ceremony, lifecycle visibility, auditing, and full workflow tests._
 
-- [ ] **Data Access Request System** (NEW):
+- [ ] **Data Access Request System**:
   - [ ] `DataAccessRequest` entry type with status tracking
   - [ ] `request_private_data_access()` function for requesting specific fields
   - [ ] `respond_to_data_request()` function for approving/denying requests
   - [ ] Bidirectional linking system for request tracking
-- [ ] **Data Access Grant System** (NEW):
-  - [ ] `DataAccessGrant` entry type with expiration and field control
-  - [ ] `grant_private_data_access()` function for direct grants
-  - [ ] `get_granted_private_data()` function for accessing granted data
-  - [ ] `revoke_data_access_grant()` function for revoking access
-- [ ] **Governance Integration** (NEW):
-  - [ ] `get_private_data_for_governance_validation()` function for cross-zome access
-  - [ ] Agent promotion workflow integration with private data validation
-  - [ ] Enhanced role validation with identity verification
+- [x] **Direct Capability Grant Foundation**:
+  - [x] `PrivateDataCapabilityMetadata` with allowed fields, context, expiry, grantor/grantee, and local capability secret
+  - [x] Field filtering through `FilteredPrivateData` response views
+  - [x] Grant, claim, retrieval, revoke, owned-grant, role-based, and transferable grant APIs under their current names (`grant_private_data_access`, `get_private_data_with_capability`, `revoke_private_data_access`, etc.)
+  - [x] Governance-oriented private-data validation API
+- [ ] **Grant Lifecycle Completion**:
+  - [ ] Enforce a true maximum grant duration; current callable grants accept arbitrary `expires_in_days`
+  - [ ] Remove mock/fallback retrieval paths and harden revocation discovery
+  - [ ] `get_expiring_grants()` for proactive renewal/expiry handling
+  - [ ] Auditable private-data access events
+  - [ ] End-to-end request→approval→access→revocation Sweettests
+- [ ] **Governance Integration Completion**:
+  - [ ] Connect private-data eligibility checks to a real, queryable promotion-request workflow
+  - [ ] Replace specialized-role auto-approval with credential and approver validation
 
-#### 2.2 Economic Process Infrastructure (`zome_resource`) 📋 **CURRENT SPRINT**
+#### 2.2 Economic Process Infrastructure (`zome_resource`) 📋 **HIGH PRIORITY**
 
 _Extending existing resource management with process-aware workflows. **NDO track overlap:** state split and discovery links map to REQ-NDO-LC-*, REQ-NDO-OS-*, REQ-NDO-OS-06; process and PPR linkage align with REQ-NDO-L2-* once Layer 2 is modeled via `NDOToProcess` (see [ndo_prima_materia.md §4.4](requirements/ndo_prima_materia.md))._
 
 - [ ] **Economic Process Data Structures** (NEW):
   - [ ] `EconomicProcess` entry type with status tracking and role requirements
   - [ ] `ProcessStatus` enum (Planned, InProgress, Completed, Suspended, Cancelled, Failed)
-  - [ ] **Split `ResourceState` into `LifecycleStage` + `OperationalState`** (see ndo_prima_materia.md Section 5):
-    - [ ] `LifecycleStage` enum on `NondominiumIdentity` (Layer 0) — maturity/evolutionary phase
-    - [ ] `OperationalState` enum on `EconomicResource` (Layer 2) — current process condition (`Available`, `Reserved`, `InTransit`, `InStorage`, `InMaintenance`, `InUse`, `PendingValidation`)
-    - [ ] Update governance zome state transition logic to manage both enums independently
-    - [ ] Split `ResourcesByState` link type into `ResourcesByLifecycleStage` and `ResourcesByOperationalState`
+  - [x] **Split legacy `ResourceState` into `LifecycleStage` + `OperationalState`** (see ndo_prima_materia.md Section 5):
+    - [x] `LifecycleStage` enum on `NondominiumIdentity` (Layer 0) — 10 stages with integrity-validated transitions
+    - [x] `OperationalState` enum on `EconomicResource` — 7 process states; default `PendingValidation` on create
+    - [ ] Update governance zome state transition logic to manage both enums independently (REQ-NDO-OS-02/03 — deferred)
+    - [x] Add NDO lifecycle discovery through `NdoByLifecycleStage`
+    - [x] Replace legacy `ResourcesByState` with `ResourcesByOperationalState`; lifecycle discovery remains on Layer 0
   - [ ] `OperationalState` transitions aligned with process outcomes (begin/end of transport, storage, maintenance processes)
 - [ ] **Process Management Functions** (NEW):
   - [ ] `initiate_economic_process()` with role-based access control
@@ -218,42 +241,51 @@ _Extending existing resource management with process-aware workflows. **NDO trac
   - [ ] Governance zome integration for process validation and PPR generation
   - [ ] Private data coordination for custody transfers
 
-#### 2.3 Private Participation Receipt (PPR) System (`zome_gouvernance`) 🌟 **MAJOR FEATURE**
+#### 2.3 Private Participation Receipt (PPR) System (`zome_gouvernance`) 🔄 **PROTOTYPE IMPLEMENTED**
 
-_Adding comprehensive reputation system on top of existing governance infrastructure_
+_The private entry model, 16 categories, coordinator APIs, signature validation, and local summary calculation exist. The production milestone is authenticated bilateral coordination and automatic workflow integration._
 
-- [ ] **PPR Data Structures** (NEW):
-  - [ ] `PrivateParticipationClaim` entry type (private entry)
-  - [ ] `ParticipationClaimType` enum with 16 claim categories
-  - [ ] `PerformanceMetrics` structure for quantitative assessment
-  - [ ] `CryptographicSignature` structure for bilateral authentication
-- [ ] **PPR Management Functions** (NEW):
-  - [ ] `issue_participation_receipts()` for bi-directional PPR issuance
-  - [ ] `sign_participation_claim()` for cryptographic verification
-  - [ ] `validate_participation_claim_signature()` for authenticity validation
-  - [ ] `get_my_participation_claims()` for private receipt retrieval
-  - [ ] `derive_reputation_summary()` for privacy-preserving reputation calculation
-- [ ] **Process Integration** (NEW):
+- [x] **PPR Data Structures**:
+  - [x] `PrivateParticipationClaim` private entry type
+  - [x] `ParticipationClaimType` enum with 16 claim categories
+  - [x] `PerformanceMetrics`, `CryptographicSignature`, and `ReputationSummary`
+- [x] **PPR Coordinator Prototype**:
+  - [x] `issue_participation_receipts()`
+  - [x] `sign_participation_claim()`
+  - [x] `validate_participation_claim_signature()` and enhanced validation variant
+  - [x] `get_my_participation_claims()` via DHT discovery links
+  - [x] `derive_reputation_summary()` from the calling agent's linked receipts
+- [ ] **Bilateral Authentication Completion**:
+  - [ ] Remove the placeholder counterparty signature from initial issuance
+  - [ ] Complete a counterparty-authenticated signing exchange with replay/idempotency handling
+  - [ ] Eliminate DHT discovery links to private claim action hashes, or redefine the privacy model explicitly
+  - [ ] Add active multi-agent Sweettests for issuance, countersigning, validation, privacy, and summaries
+- [ ] **Process Integration**:
   - [ ] Automatic PPR generation for all Commitment-Claim-Event cycles
   - [ ] Economic Process completion triggers specialized PPR categories
   - [ ] Agent promotion generates appropriate PPR types
 
-#### 2.4 Complete Agent Capability Progression 🎯 **GOVERNANCE CRITICAL**
+#### 2.4 Complete Agent Capability Progression 🔄 **GOVERNANCE CRITICAL**
 
-_Implementing the full Simple → Accountable → Primary Accountable Agent progression_
+_Role entries, assignment APIs, promotion externs, and governance validation entry points exist. The request artifact and several authorization/credential checks remain incomplete._
 
-- [ ] **Enhanced Agent Promotion** (EXTEND existing `promote_agent_to_accountable`):
-  - [ ] Cross-zome coordination with governance validation
-  - [ ] Private data quality assessment for promotion eligibility
+- [x] **Promotion Foundation**:
+  - [x] `PersonRole` entries and six predefined role variants
+  - [x] Promotion request/approval coordinator entry points
+  - [x] Cross-zome governance and private-data validation entry points
+- [ ] **Enhanced Agent Promotion**:
+  - [ ] Replace the placeholder request hash with a queryable `RolePromotionRequest`
+  - [ ] Enforce authorization and private-data quality requirements end-to-end
   - [ ] Automatic PPR generation for promotion activities
   - [ ] Capability token progression (general → restricted → full)
-- [ ] **Specialized Role Validation** (EXTEND existing role assignment):
-  - [ ] Enhanced role validation for Transport, Repair, Storage roles
+- [ ] **Specialized Role Validation**:
+  - [ ] Replace current auto-approval with credential checks for Transport, Repair, and Storage
   - [ ] Primary Accountable Agent validation requirements
   - [ ] Role-specific PPR generation for validation activities
-- [ ] **Cross-Zome Validation Workflows** (NEW):
-  - [ ] Resource validation during first access events
-  - [ ] Agent identity validation with private data verification
+- [ ] **Cross-Zome Validation Workflow Completion**:
+  - [x] Resource/process/agent validation entry types and coordinator APIs
+  - [ ] Connect resource validation to first-access events
+  - [ ] Enforce agent identity validation with private data verification
   - [ ] Specialized role validation with existing role holder approval
 
 **Agent Ontology Items (Post-MVP, Phase 2 — see [requirements.md §4.4](requirements/requirements.md) and [archives/agent.md](archives/agent.md) §5.3; `REQ-AGENT-*`):**
@@ -516,7 +548,7 @@ _Optimizing the system for large-scale network operation_
 
 ---
 
-## 5. Risk Mitigation
+## 7. Risk Mitigation
 
 - **Cross-Zome Dependencies**: Mitigated by interface design and testing.
 - **Validation Complexity**: Addressed through modular validation functions.
@@ -527,23 +559,25 @@ _Optimizing the system for large-scale network operation_
 
 ## 8. Success Metrics & Implementation Tracking
 
-### Phase 1 Achievements ✅ **FOUNDATION COMPLETE**
+### Phase 1 Achievements ✅ **FOUNDATION DELIVERED**
 
-- [x] **Person Management**: Complete agent identity system with public/private data separation
-- [x] **Resource Management**: Full resource specification and economic resource lifecycle
-- [x] **Governance Foundation**: Basic validation infrastructure and cross-zome functions
+- [x] **Person Management Foundation**: Public/private identity, roles, capability metadata, Agent↔Person mapping, and devices
+- [x] **Resource Management Foundation**: ResourceSpecification/EconomicResource CRUD plus NDO Layer 0 lifecycle
+- [x] **Governance Foundation**: Validation infrastructure, EconomicEvents, and cross-zome validation helpers
+- [ ] **Governance-as-Operator**: Request→Evaluate→Apply path and typed rule evaluation are still outstanding
 - [x] **Modular Architecture**: Clean separation of concerns across all three zomes
-- [x] **Comprehensive Testing**: Foundation, integration, and scenario test coverage
+- [x] **Active Sweettest suites**: Core Nondominium, Lobby, and Group DNA integration coverage
+- [ ] **Coverage completion**: PPR, capability/device, promotion, ignored Agreement/Contribution, and partially stubbed governance workflows
 - [x] **Error Handling**: Robust error types and proper DHT signal handling
 
 ### Phase 2 Targets 🎯 **GOVERNANCE & PROCESSES**
 
-- [ ] **Enhanced Private Data Sharing**: Request/grant workflows with time-limited grants (30-day maximum per capability metadata) and field-specific control
+- [ ] **Enhanced Private Data Sharing**: Direct field-level grants are prototyped; complete request/approval, expiry enforcement, mock-path removal, audit, and workflow tests
 - [ ] **Economic Process Infrastructure**: Four structured processes (Use, Transport, Storage, Repair) with role-based access
-- [ ] **PPR Reputation System**: Bi-directional Private Participation Receipts with cryptographic signatures
+- [ ] **PPR Reputation System**: Prototype structures/APIs are implemented; complete authenticated bilateral exchange, privacy-model hardening, and automatic workflow issuance
 - [ ] **Agent Capability Progression**: Complete Simple → Accountable → Primary Accountable Agent advancement
-- [ ] **Cross-Zome Integration**: Seamless coordination across person, resource, and governance zomes
-- [ ] **Validation Workflows**: Resource validation, agent promotion, and specialized role validation operational
+- [ ] **Cross-Zome Integration**: Implement and harden the Request→Evaluate→Apply Governance-as-Operator path
+- [ ] **Validation Workflows**: Existing validation APIs must become fully authorized and connected to resource access, promotion, and specialized roles
 
 ### Phase 3 Targets 🔒 **PRODUCTION SECURITY**
 
@@ -563,11 +597,13 @@ _Optimizing the system for large-scale network operation_
 
 ---
 
-## 7. UI Development Plan 🎨
+## 9. UI Development Plan 🎨
 
 ### Current Frontend Status
 
 - **MVP UI**: ✅ Implemented — persistent Lobby sidebar + Group panel + NDO detail page with full NDO lifecycle management, Join NDO placeholder ("Coming soon"), **Associate with group** modal, multi-member group invites + DHT member lists + reactive join + idempotent membership self-heal (`ensureMembership`), pull-based reactivity for shared-group items (tab focus + gentle poll; `TODO(signals)` for push), fork friction modal, and reliable NDO data display via cache + DHT refresh
+- **NDO tabs**: Resources, Governance, and Activity render current data; Composition remains a placeholder
+- **PropertyRegime gap**: Rust defines six canonical regimes (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`); frontend shared types and controls currently expose only four and must be reconciled
 - **Stack**: SvelteKit 2 + Svelte 5 runes + TypeScript + UnoCSS + Melt UI next-gen + Effect-TS
 - **Dev runtime**: Browser (web) — `hc-spin`/Electron superseded by `scripts/launch-happ.mjs`, which runs one Vite dev server per agent on consecutive ports (`VITE_DEV_AGENT`-pinned), writes `ui/static/hc-connection.json`, and auto-opens a browser tab per agent (`NO_OPEN=1` to disable). See `ui_architecture.md §15`
 - **Service Layer**: ✅ Complete (PR #97 + MVP UI work) — all three zome services + NDO/Lobby services with Effect-TS `Context.Tag` / `Layer` / `E.gen` pattern
@@ -579,32 +615,34 @@ _Optimizing the system for large-scale network operation_
 - [x] **Effect-TS service layer**: All three zome services + NdoService + LobbyService (PR #97 + MVP UI)
 - [x] **HolochainClientService**: `wrapZomeCallWithErrorFactory` pattern, `Context.Tag` injection
 
-### Phase 2: MVP UI — Lobby → Group → NDO ✅ **COMPLETE**
+### Phase 2: MVP UI — Lobby → Group → NDO 🔄 **FOUNDATION IMPLEMENTED; GAPS TRACKED**
 
 Implements `documentation/requirements/ui_design.md` MVP section and reconciled requirements from GitHub Issue #102. Includes UI-restructure sprint that made the Lobby the persistent outer shell and fixed NDO data display.
 
 #### Foundation (initial delivery)
 
-- [x] **Three-level identity model**: `LobbyUserProfile` (localStorage), `GroupMemberProfile` (localStorage), `Person` (DHT on first action) — `documentation/requirements/agent.md §2`
-- [x] **Shared types**: `NdoInput`, `UpdateLifecycleStageInput`, `NdoTransitionHistoryEvent`, `LobbyUserProfile`, `GroupMemberProfile`, extended `GroupDescriptor` and `NdoDescriptor`; `PropertyRegime` reduced to 4 canonical variants (Private, Commons, Nondominium, CommonPool) — `packages/shared-types/src/resource.types.ts`
+- [x] **Three-level identity model foundation**: `LobbyUserProfile` (localStorage), `GroupMemberProfile` (localStorage), and Person service/store wiring
+- [ ] **First-action Person creation**: Enforce automatic `Person` creation on the agent's first DHT-active action in the UI flow
+- [x] **Shared types foundation**: `NdoInput`, `UpdateLifecycleStageInput`, `NdoTransitionHistoryEvent`, `LobbyUserProfile`, `GroupMemberProfile`, extended `GroupDescriptor` and `NdoDescriptor`
+- [ ] **PropertyRegime reconciliation**: Add `Collective` and `Pool` to frontend shared types, schemas, creation controls, filters, and display maps so all six canonical Rust variants are supported
 - [x] **NDO service methods**: `createNdo`, `updateLifecycleStage`, `getNdoTransitionHistory`, `getGroupNdoDescriptors`, `getLobbyNdoDescriptors` — `ndo.service.ts`
 - [x] **Resource service methods**: `createNdo`, `getNdo` (return type corrected to `NondominiumIdentity | null` matching Rust `Option<NondominiumIdentity>`), `updateLifecycleStage`, filtered queries, history — `resource.service.ts`
 - [x] **Lobby/Group service (Group + Lobby DNA)**: `getMyGroups`, `createGroup` (clone cell → `create_group` → `join_group` → `announce_group`), `joinGroup` (clone cell + `is_member` guard + best-effort `join_group`, gossip-retry `fetchGroupProfileWithRetry` + invite-payload fallback for reactive sidebar; `TODO(signals)`), `ensureMembership` (idempotent membership self-heal so a joined agent always reconciles into the member list), `generateInviteLink`; only the Level 2 `GroupMemberProfile` stays in `localStorage` — `lobby.service.ts` (Group DNA backend complete, PR #107)
 - [x] **Shared-group pull reactivity**: `group.store.refreshCurrentGroup()` + `GroupView` tab-focus/visibility + gentle ~8 s poll keep members/NDOs fresh as peers' changes gossip in, without a manual reload; `loadGroupData` silent mode avoids flicker. Push upgrade tracked as `TODO(signals)` (`remote_signal` from `zome_group`)
 - [x] **app.context**: `lobbyUserProfile` state with localStorage hydration
 - [x] **lobby.store**: `activeFilters`, `filteredNdos`, `createGroup`, `joinGroup`; `loadLobby()` now invoked from root layout
-- [x] **group.store**: `group`, `groupNdos`, `loadGroupData`, `createNdo`, **`associateNdoWithGroup`** (append spec hash to `GroupDescriptor.ndoHashes` in `localStorage`; `TODO` hook for Group DHT when DNA lands)
+- [x] **group.store**: `group`, `groupNdos`, `members`, `loadGroupData`, `refreshCurrentGroup`, `createNdo`, and **`associateNdoWithGroup`** backed by Group-cell `SoftLink` entries
 - [x] **ndo-cache.ts** *(new)*: in-memory descriptor cache keyed by hash; populated on card click to seed NDO page instantly
 - [x] **UserProfileForm.svelte**: Lobby profile create/edit, modal + page modes, nickname required
 - [x] **GroupProfileModal.svelte**: Per-group disclosure preferences (first visit only)
-- [x] **NdoBrowser.svelte**: Multi-select filter chips (LifecycleStage × ResourceNature × PropertyRegime 4 variants)
+- [x] **NdoBrowser.svelte**: Multi-select filter chips (LifecycleStage × ResourceNature × PropertyRegime); currently covers four regimes
 - [x] **NdoCard.svelte**: Populates `ndo-cache` before navigating to NDO page
 - [x] **NdoCreateModal.svelte**: 5-field form (4-variant regime), uniqueness check, Effect-TS errors, navigation on success
 - [x] **NdoIdentityLayer.svelte**: Initiator profile link, lifecycle transition button (initiator-only), TransitionHistoryPanel; 4-variant regime color map
 - [x] **LifecycleTransitionModal.svelte**: Full state machine, Deprecated/Hibernating special cases
 - [x] **TransitionHistoryPanel.svelte**: Collapsible history panel with copy-to-clipboard
 - [x] **ForkNdoModal.svelte**: Informational fork friction modal, copy-pubkey CTA
-- [x] **AssociateNdoModal.svelte**: multi-select modal of groups **not** already linked to this NDO; confirms via `associateNdoWithGroup` (see MVP ToDo in `ui_design.md` for DHT propagation)
+- [x] **AssociateNdoModal.svelte**: multi-select modal of groups **not** already linked to this NDO; confirms via `associateNdoWithGroup`, which creates a Group-cell `SoftLink`
 
 #### UI-restructure sprint (persistent Lobby shell)
 
@@ -613,14 +651,17 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 - [x] **`LobbyView.svelte`** (simplified): removed GroupSidebar and onMount data loading; renders page header + NdoBrowser only; **`$effect` no longer assigns `appContext.currentView = 'lobby'`** (that clobbered the NDO route when both Lobby and NDO views were reactive); `currentView` is set where the routed page applies (e.g. `NdoView` sets `'ndo'`)
 - [x] **`GroupView.svelte`**: replaced `onMount` with `$effect` so group name and NDO list reload correctly when navigating between groups via the sidebar
 - [x] **`NdoView.svelte`** (extended): NDO detail card (Description, Property Regime, Resource Nature, Lifecycle Stage, Created); loading skeleton; retry-able error banner; Join NDO placeholder (inline "Coming soon"); **Associate with a group** (always visible header button → `AssociateNdoModal`); Fork button (Holochain + agent connected); descriptor seeded from `ndo-cache`, refreshed from DHT in background; **`$effect` that sets `selectedNdoId` must decode into a local `hash` variable** — assigning `selectedNdoId = specActionHash` immediately after mutating `$state(specActionHash)` created a self-referential dependency and **`effect_update_depth_exceeded`** (broken header buttons); fixed by passing the local `Uint8Array` reference only
+- [x] **NDO data tabs**: Resources, Governance, and Activity render existing zome/service data
+- [ ] **Composition tab**: Replace placeholder with hard-link/component/version graph data
+- [ ] **Join NDO**: Implement backend membership and replace the current "Coming soon" UI
 - [x] **`/group/[id]` route**: `?createNdo=1` query param still supported
 - [x] **`/ndo/new` route**: redirects to active group or shows instruction screen
 
 ### Phase 3: Service Layer (Post-MVP) 🏗️
 
-- [ ] **PersonService extensions**: `DataAccessRequest` / `DataAccessGrant` workflows
+- [ ] **PersonService extensions**: Expose existing capability-grant/device APIs and add the new `DataAccessRequest` approval workflow
 - [ ] **ResourceService**: Economic Process initiation + state management + custody transfers
-- [ ] **GovernanceService**: PPR management + reputation calculation
+- [ ] **GovernanceService**: Expose the existing PPR prototype APIs, then support the completed bilateral workflow
 - [ ] **ProcessService**: Economic Process lifecycle (initiate, track, complete, chain)
 - [ ] **ReputationService**: PPR retrieval + selective disclosure
 
@@ -641,7 +682,7 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 
 ### Phase 6: Group DNA Backend & Post-MVP UI 🌐
 
-- [x] **Group DNA backend** ✅ Complete (PR #107): cloned-cell `zome_group` (4 entry types, 15 coordinator externs, 13 Sweettest cases); `LobbyService`/`GroupService` now call the Group + Lobby DNAs directly (clone cells, `announce_group`, `get_my_group`, SoftLinks). Only the Level 2 `GroupMemberProfile` presentation choice remains in `localStorage`
+- [x] **Group DNA backend** ✅ Complete for current scope (PR #107): cloned-cell `zome_group` (4 entry types, 16 coordinator externs, 13 Sweettest cases); `LobbyService`/`GroupService` call the Group + Lobby DNAs directly (clone cells, `announce_group`, `get_my_group`, SoftLinks). Only the Level 2 `GroupMemberProfile` presentation choice remains in `localStorage`
 - [ ] **Push reactivity via Holochain signals** (`TODO(signals)`): `zome_group` `remote_signal`s members on `join_group` / `create_soft_link` / `log_work`; UI refreshes `refreshCurrentGroup()` on those signals; the current pull layer (per-open reconcile + focus + poll) is kept only as an offline/missed-signal fallback. Design note in `dnas/group/zomes/coordinator/zome_group/src/lib.rs`
 - [ ] **NDO cell cloning**: Per-NDO DHT, once Holochain cloning stabilises
 - [ ] **Fork submission flow**: Claim, vote, and Unyt stake (after Unyt integration §12.2)
@@ -653,16 +694,18 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 
 ### Immediate Development Priorities (Next 6 Months)
 
-- **Phase 2.1**: Enhanced private data sharing system implementation
+- **Phase 2.1**: Complete private-data request/approval, expiry enforcement, mock-path removal, audit, and tests on the grant prototype
 - **Phase 2.2**: Economic Process infrastructure with four process types
-- **Phase 2.3**: Private Participation Receipt system with reputation tracking
-- **UI Phase 1-2**: Foundation UI with Economic Process and PPR support
+- **Phase 2.3**: Complete authenticated bilateral PPR exchange, privacy-model hardening, and automatic issuance on the implemented prototype
+- **Governance-as-Operator**: Implement the Request→Evaluate→Apply path, typed GovernanceRule evaluation, authorization hardening, and uniform event/PPR generation
+- **UI**: Reconcile all six PropertyRegime variants, then add Economic Process and PPR workflows
 
 ### Medium-Term Enhancements (6-18 Months)
 
 - **Phase 3**: Production security with progressive capability tokens
 - **Phase 4.1**: Advanced process workflows and automation
-- **NDO migration track** (when scheduled): L0-first resource creation, retroactive anchoring, capability slots — Section 12.1 and REQ-NDO-MIG-*
+- **NDO migration track** (when scheduled): L0-first creation already exists; add retroactive anchoring for legacy specs, Layers 1/2 activation, operational state, and capability slots — Section 12.1 and REQ-NDO-MIG-*
+- **Source-NDO application profile** (optional, when scheduled): Opt-in `SourceProfile`, boundary events, adaptive stewardship — Section 12.7; only for applications whose domain requires it; not a dependency for Project or resource-sharing deployments
 - **Cross-Network Integration**: Federated nondominium networks with PPR portability
 - **Mobile Interface**: Progressive Web App with full Economic Process support
 
@@ -715,23 +758,32 @@ This enhanced implementation plan transforms the nondominium hApp from a foundat
 - Comprehensive error handling and rollback mechanisms across all zomes
 - Advanced validation schemes with reputation-weighted consensus and dispute resolution
 
-This plan ensures the nondominium hApp will fulfill its vision of decentralized, commons-based resource management with sophisticated governance, Economic Process management, privacy-preserving reputation tracking, and embedded accountability, in alignment with [requirements.md](requirements/requirements.md) and, when scheduled, the NDO model in [ndo_prima_materia.md](requirements/ndo_prima_materia.md).
+This plan ensures the nondominium hApp will fulfill its vision of decentralized, commons-based resource management with sophisticated governance, Economic Process management, privacy-preserving reputation tracking, and embedded accountability, in alignment with [requirements.md](requirements/requirements.md) and the remaining NDO work in [ndo_prima_materia.md](requirements/ndo_prima_materia.md).
 
 ### NDO track (when prioritized)
 
-- Introduce L0/L1/L2 structures, migration, and capability surface without breaking existing MVP flows until migration windows are defined (REQ-NDO-MIG-*).
+- Build from implemented Layer 0 into Layer 1/2 activation, legacy migration, and capability surfaces without breaking existing MVP flows (REQ-NDO-MIG-*).
 - Preserve governance-as-operator invariants while splitting lifecycle and operational dimensions (REQ-ARCH-07, REQ-NDO-LC-02, REQ-NDO-OS-02).
+
+### Source-NDO application profile (optional — when domain requires it)
+
+- Implement as opt-in profile modules per REQ-SOURCE-APP-*; do not block Project NDO or resource-mutualisation delivery on Source phases (§12.7).
+- Default hApp and UI remain Agent + Resource complete; ecological/knowledge-commons deployments enable the profile explicitly.
 
 ---
 
 ## 12. Post-MVP design tracks (NDO, integrations, extensions)
 
-**Status:** specified in documentation; **not** part of the MVP WASM deliverable until explicitly scheduled. Normative NDO requirements: [ndo_prima_materia.md](requirements/ndo_prima_materia.md) (§9 REQ-NDO-*, §10 migration). Integration stubs: [unyt-integration.md](requirements/post-mvp/unyt-integration.md), [flowsta-integration.md](requirements/post-mvp/flowsta-integration.md). Supplementary ontology context: [archives/resources.md](archives/resources.md), [archives/agent.md](archives/agent.md), [archives/governance.md](archives/governance.md).
+**Status:** This section mixes implemented post-MVP foundations with unscheduled design tracks. Checked items are present in the current WASM/UI; unchecked items remain specifications until scheduled. Normative NDO requirements: [ndo_prima_materia.md](requirements/ndo_prima_materia.md) (§9 REQ-NDO-*, §10 migration). Integration stubs: [unyt-integration.md](requirements/post-mvp/unyt-integration.md), [flowsta-integration.md](requirements/post-mvp/flowsta-integration.md). Supplementary ontology context: [archives/resources.md](archives/resources.md), [archives/agent.md](archives/agent.md), [archives/governance.md](archives/governance.md).
 
 ### 12.1 Generic NDO (three-layer model, lifecycle split)
 
-- [ ] Introduce `NondominiumIdentity` (Layer 0), `NDOToSpecification` / `NDOToProcess` / holonic links, capability slot surface — see [ndo_prima_materia.md](requirements/ndo_prima_materia.md) §§4, 8, 10.
-- [ ] Split `ResourceState` into `LifecycleStage` + `OperationalState`; split discovery links (`REQ-NDO-OS-06`) — detailed in Phase 2.2 (Section 5); align with prima materia §5 / §9.4.
+- [x] Implement `NondominiumIdentity` Layer 0 with permanent identity, six `PropertyRegime` variants, five `ResourceNature` variants, lifecycle metadata, and validated updates.
+- [x] Implement `LifecycleStage` and Layer 0 discovery facets (`NdoByLifecycleStage`, `NdoByNature`, `NdoByPropertyRegime`).
+- [ ] Add `NDOToSpecification`, `NDOToProcess`, holonic links beyond the implemented federation primitives, and the `CapabilitySlot` surface.
+- [x] Replace legacy `ResourceState` with `OperationalState` on `EconomicResource` and `ResourcesByOperationalState` discovery (`REQ-NDO-OS-01`, `REQ-NDO-OS-06`).
+- [ ] Integrate lifecycle transitions with Governance-as-Operator, required EconomicEvents, role authorization, and EndOfLife challenge periods.
+- [ ] Implement retroactive anchoring/migration for legacy ResourceSpecifications (REQ-NDO-MIG-*).
 
 ### 12.2 Unyt integration (three phases, parallel to prima materia §6.6)
 
@@ -758,7 +810,8 @@ High-level ordering and dependencies (detailed requirements live in each file):
 - **[digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md):** Content-addressed manifests and hierarchical verification — attach via Layer 1 **DigitalAsset** capability slots (prima materia §9.2); aligns with distributed storage expectations for specs.
 - **[resource-transport-flow-protocol.md](requirements/post-mvp/resource-transport-flow-protocol.md):** Multi-dimensional transport and flow semantics — builds on mature **EconomicEvent** metadata and process modeling; cross-link to operational state and RTP-style location/custody dimensions.
 - **[valueflows-dsl.md](requirements/post-mvp/valueflows-dsl.md):** Scriptable network bootstrap and recipe definition — operational tooling; depends on stable VF entry types and governance evaluation surfaces in the DNA.
-- **[lobby-dna.md](requirements/post-mvp/lobby-dna.md):** Multi-network federation — see §12.6 below.
+- **[source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md):** Optional `Source` application profile; progressive activation per REQ-SOURCE-APP-* — see §12.7; PRD anchor [requirements.md §4.6](requirements/requirements.md)
+- **[lobby-dna.md](requirements/post-mvp/lobby-dna.md):** Federation foundation is implemented; remaining Moss, push-signal, per-NDO-cell, and integration work is tracked in §12.6.
 
 ### 12.6 Lobby DNA — multi-network federation
 
@@ -767,23 +820,105 @@ Architecture: [specifications/post-mvp/lobby-architecture.md](specifications/pos
 
 Two implementation sub-scopes with different delivery ordering:
 
-**New DNAs (Lobby + Group) — plan after NDO governance-as-operator stabilizes:**
-- [ ] Lobby DNA: `zome_lobby_integrity` + `zome_lobby_coordinator` — `LobbyAgentProfile`, `NdoDescriptor`, faceted discovery links
-- [ ] Group DNA: `zome_group_integrity` + `zome_group_coordinator` — `GroupDescriptor`, `GroupMembership`, `WorkLog`, `SoftLink`, `GroupGovernanceRule`
-- [ ] `happ.yaml` roles: `lobby` (fixed `network_seed: "nondominium-lobby-v1"`), `group` (cloning_limit 255), `nondominium` (cloning_limit 1024)
-- [ ] Moss WeApplet contract (`ui/src/we-applet.ts`) — `search`, `getAssetInfo`, `openAsset`
-
-**NDO DNA extensions (zome_gouvernance) — plan after Governance-as-Operator (#41–#44) lands:**
-- [ ] `NdoHardLink` entry type + `NdoToHardLinks` / `HardLinkByType` link types — immutable, requires AccountableAgent + valid EconomicEvent fulfillment (REQ-NDO-EXT-01–06)
+**Implemented federation foundation:**
+- [x] Lobby DNA: `zome_lobby_integrity` + `zome_lobby_coordinator` — `LobbyAgentProfile`, `GroupAnnouncement`, discovery/update links, 9 coordinator externs, and 5 Sweettest scenarios
+- [x] Group DNA: isolated cloned cells with `GroupProfile`, `GroupMembership`, `WorkLog`, and `SoftLink`; 16 coordinator externs and 13 Sweettest scenarios
+- [x] `happ.yaml` roles for fixed Lobby, core Nondominium, bundled hREA, and deferred Group cloning (`clone_limit: 64`)
+- [x] Frontend Group clone provisioning, invites, Lobby announcement, DHT membership reconciliation, SoftLink-based NDO association, and pull reactivity
+- [x] `NdoHardLink` entry type + `NdoToHardLinks` / `HardLinkByType` link types — immutable, requires valid EconomicEvent fulfillment (REQ-NDO-EXT-01–06)
   - *Stage 2 (pre-Lobby, single cell):* `to_ndo_dna_hash` equals the shared DNA hash (same cell for source and target). *Stage 3 (per-NDO clone):* `to_ndo_dna_hash` is the target cell's unique hash. Same struct, no breaking change. See lobby-architecture.md §6.1.
-- [ ] `Contribution` entry type + `NdoToContributions` / `AgentToContributions` / `ContributionToEvent` link types — requires at least one AccountableAgent validator (REQ-NDO-EXT-07–11)
-- [ ] `Agreement` entry type (VF: `vf:Agreement`) + `NdoToAgreement` / `AgreementUpdates` link types — versioned, AccountableAgent-controlled (REQ-NDO-EXT-12–16)
+- [x] `Contribution` entry type + `NdoToContributions` / `AgentToContributions` / `ContributionToEvent` link types — peer-validated Work/Modify contributions (REQ-NDO-EXT-07–11)
+- [x] `Agreement` entry type + `NdoToAgreement` / `AgreementUpdates` link types — versioned benefit-redistribution clauses (REQ-NDO-EXT-12–16)
+- Note: federation Sweettests are partial — hard-link coverage is active; Agreement and Contribution scenarios are currently ignored.
+
+**Remaining federation work:**
+- [ ] Push reactivity through Group `remote_signal`, retaining focus/poll as an offline fallback
+- [ ] Moss WeApplet contract (`ui/src/we-applet.ts`) — `search`, `getAssetInfo`, `openAsset`
+- [ ] Per-NDO cloned cells and cross-cell hard-link operation when that deployment model is adopted
+- [ ] Full version DAG and upstream contribution/benefit propagation
+- [ ] Unyt activation of monetary Agreement clauses and Flowsta cross-app identity mapping
+- [ ] Activate ignored Agreement/Contribution Sweettests and any missing AccountableAgent setup they require
+
+**Dependencies for the remaining work:**
+- Implementation of Governance-as-Operator Request→Evaluate→Apply for uniform typed rule and authorization checks
+- Unyt integration (§12.2) for monetary Agreement execution
+- Flowsta Phase 3 (§12.3) for cross-app identity attestations (REQ-LOBBY-INT-01)
+
+### 12.7 Source-NDO — optional generative-commons application profile (post-MVP)
+
+Normative requirements: [source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md) (REQ-SOURCE-*); applicability and UI gating: [requirements.md §4.6](requirements/requirements.md) (REQ-SOURCE-APP-01 – -04, REQ-UI-SOURCE-*). Academic grounding: [source-ndo-paper.md](requirements/post-mvp/source-ndo-paper.md). Sibling NDO type (no Source required): [project-type-ndo-specifications.md](requirements/post-mvp/project-type-ndo-specifications.md).
+
+**Profile boundary (dynamic complexity matching):** The generic NDO baseline is **Agent + Resource**. Source is an **opt-in application profile**, not a mandatory third primitive in every hApp or NDO UI. Communities enable it only when coordination must govern a generative system's condition, boundary flows, regeneration, or assimilation capacity.
+
+| Normally **enable** Source | Normally **do not** enable Source |
+|---|---|
+| Governance targets a resource *system* (watershed, river, fishery) not just appropriable units | Project NDO coordinating open-hardware design — Agents + Resources suffice |
+| Extraction, loading, or regeneration must be visible on-ledger against the system | Mature-resource mutualisation (e.g. shared 3D printer) — custody, access, maintenance, Resource events suffice |
+| Adaptive stewardship must respond to accumulated condition signals | No generative Source boundary is being governed (provenance from nature alone ≠ Source activation) |
+
+**REQ-SOURCE-APP checklist (implementation):**
+
+- [ ] **Profile flag / membrane config**: Application or DNA profile declares Source support enabled (REQ-SOURCE-APP-01)
+- [ ] **Complexity-matched code paths**: Default flows complete with Agent/Resource only; Source zome modules and APIs load only when profile is on (REQ-SOURCE-APP-02, REQ-SOURCE-APP-04)
+- [ ] **No universal UI burden**: Default `REQ-UI-NDO-01` creation form and Project/resource detail views unchanged when profile is off — no Source type selectors, regime panels, or steward workflows (REQ-SOURCE-APP-03, REQ-UI-SOURCE-01)
+
+**Problem addressed (when profile is on):** ValueFlows models **Agent** and **Resource**. A watershed, river, forest, or knowledge commons fits neither honestly — forcing a river into `EconomicResource` implies ownership (`primaryAccountable`); avoiding it hides depletion via `raise`; typing it as `Agent` for pollution receivers imports false agency. **`Source`** is the third flow endpoint for those domains only: generative, non-ownable, partially unknowable systems that yield resources, absorb effects, and carry adaptive governance.
+
+**Ostrom / SES mapping (operationalised):**
+
+| SES concept | Source-NDO |
+|---|---|
+| Resource system | **Source** (`SourceProfile` on Layer 0) |
+| Resource unit | **`EconomicResource`** |
+| Governance system | `GovernanceRule` + adaptive loop (requirements §6.6) |
+| Users / actors | **Agents** (+ **`Steward`** functional role, profile-only) |
+
+**Layer model:** Same three layers as all NDOs. Layer 0 = `NondominiumIdentity` + linked **`SourceProfile`**. Layer 1 = **`SourceSpecification`**. Layer 2 = boundary **EconomicEvents**, commitments, claims, PPRs. **`property_regime`** SHALL be **`Nondominium`** or **`CommonPool`** only (REQ-SOURCE-ONT-02, REQ-SOURCE-GOV-02).
+
+**ValueFlows extension:** Add **`vf:Source`** in Source-enabled applications so flows may originate from and terminate in Sources (REQ-SOURCE-EVENT-01 – -03).
+
+**Adaptive governance loop** (profile Phase C+; beyond static rule evaluation):
+
+```text
+boundary events → ledger on Source L0 hash → ecological interpretation
+  → governance rule revision → access affordances → conditioned future events
+```
+
+Black-box stance: govern observable boundary signals and `SourceRegimeState` transitions; do not model ecological interiors (REQ-SOURCE-GOV-01 – -08).
+
+**Implementation phasing** (from [source-ndo-requirements.md §9](requirements/post-mvp/source-ndo-requirements.md); all phases assume profile enabled):
+
+| Phase | Deliverable | Depends on |
+|---|---|---|
+| **A — Data model** | `SourceProfile`, `SourceType`, `SourceRegimeState`, `SourceCouplingLink`; Layer 0 ↔ SourceProfile link; **`Steward`** role (profile-only) | NDO Layer 0 ✅; REQ-SOURCE-APP-04 |
+| **B — Boundary events** | `vf:Source` on `EconomicEvent`; extraction, loading, use, regeneration; governance-validated stock/assimilation updates | Phase A; `VfAction` vocabulary ✅ |
+| **C — Adaptive governance** | Access-affordance rules; `SourceRegimeState` transitions; precautionary block at `tipping_threshold`; monitoring-obligation `GovernanceRule` type | **Governance-as-Operator** ❌; Phase B |
+| **D — Layer 1 value + PPR** | Ecological value vector on `SourceSpecification`; stewardship PPR categories | PPR prototype 🔄; Phase C |
+| **E — Federation** | Cross-DNA source hierarchies; federation-level source governance | Lobby/Group/federation ✅; Phase C |
+
+**Zome touchpoints (profile-only modules — do not alter default Agent/Resource paths):**
+
+- **`zome_resource`**: `SourceProfile`, coupling links, opt-in Source-NDO creation API (separate from generic `create_ndo`)
+- **`zome_gouvernance`**: Source-as-provider/receiver on `EconomicEvent`; regime-driven evaluation; ledger queries by Source L0 hash
+- **`zome_person`**: `Steward` in `RoleType` when profile enabled (REQ-SOURCE-GOV-07)
+
+**UI (Source-enabled applications only — REQ-UI-SOURCE-*):**
+
+- [ ] Distinct Source-NDO creation variant (`Nondominium` / `CommonPool`, `SourceType`, stewards); generic form unchanged when profile off
+- [ ] Source detail panels (regime state, condition indicators, stewards, boundary-event history) — omitted from Project/resource mutualisation views
+- [ ] Source hierarchy / coupling visualization (Composition tab extension, profile apps)
+- [ ] Steward dashboard (monitoring obligations, regime transitions, access-affordance proposals)
+
+**REQ traceability:** REQ-SOURCE-APP-01 – -04 (profile), REQ-SOURCE-ONT-01 – -04, REQ-SOURCE-DATA-01 – -03, REQ-SOURCE-GOV-01 – -08, REQ-SOURCE-EVENT-01 – -03, REQ-USER-ST-01 – -09, REQ-UI-SOURCE-01 – -04. Does not modify REQ-NDO-* invariants or require existing NDOs to migrate.
 
 **Dependencies:**
-- Lobby + Group DNAs: NDO Layer 0 complete ✅, Sweettest patterns established ✅
-- NDO DNA extensions: Governance-as-Operator (#41–#44) for AccountableAgent cross-zome role check
-- Unyt integration (§12.2) activates `Agreement.clauses` with `BenefitType::Monetary`
-- Flowsta Phase 3 (§12.3) replaces `GroupMembership.ndo_pubkey_map` with `IsSamePersonEntry` attestations (REQ-LOBBY-INT-01)
+
+- NDO Layer 0 and lifecycle facets ✅
+- Governance-as-Operator Request→Evaluate→Apply path ❌ (blocks full Phase C)
+- Typed `GovernanceRule` evaluation ❌
+- PPR authenticated bilateral workflow ❌ (Phase D)
+- Six-regime `PropertyRegime` UI parity 🔄 (Source variant needs `Nondominium` / `CommonPool` when profile on)
+- **Explicit non-dependency:** Project NDO track, resource mutualisation, and MVP UI completion do **not** require Source phases A–E
 
 ---
 

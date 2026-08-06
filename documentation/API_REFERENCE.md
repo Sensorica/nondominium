@@ -763,21 +763,22 @@ pub struct UpdateEconomicResourceInput {
 **Authorization**: Public access
 **Returns**: Resources where agent has accountability or custody
 
-#### `update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Record>`
-**Purpose**: Update resource state with validation
-**Authorization**: Primary accountable agent or authorized role
+#### `update_operational_state(input: UpdateOperationalStateInput) -> ExternResult<Record>`
+**Purpose**: Update `EconomicResource.operational_state` (REQ-NDO-OS-01)
+**Authorization**: Current agent (interim; governance-zome ownership deferred per REQ-NDO-OS-02)
 **Input**:
 ```rust
-pub struct UpdateResourceStateInput {
+pub struct UpdateOperationalStateInput {
     pub resource_hash: ActionHash,
-    pub new_state: String,
-    pub stage: Option<String>,
-    pub location: Option<String>,
-    pub note: Option<String>,
+    pub new_operational_state: OperationalState,
 }
 ```
-**Returns**: State update record with economic event
-**Validation**: State transitions validated against specification rules
+**Returns**: Updated `EconomicResource` record; moves `ResourcesByOperationalState` anchor link
+
+#### `get_resources_by_operational_state(state: OperationalState) -> ExternResult<Vec<Record>>`
+**Purpose**: Faceted discovery of economic resources by operational state (REQ-NDO-OS-06)
+**Authorization**: Public read
+**Returns**: Records linked from `ndo.opstate.{state}` anchor
 
 ---
 

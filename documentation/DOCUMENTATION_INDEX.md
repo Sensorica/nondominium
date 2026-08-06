@@ -228,10 +228,10 @@ Full reference: **[API Reference](API_REFERENCE.md)**
 - `create_economic_resource()` - Create resource instances with initial state
 - `get_economic_resource()` - Retrieve resource current state and history
 - `get_economic_resource_with_state()` - Retrieve resource with full state transitions
-- `update_economic_resource_state()` - Update resource state (requires governance approval)
+- `update_operational_state()` - Update `EconomicResource.operational_state`
 - `get_my_resources()` - Discover resources where calling agent is custodian
 - `get_resources_by_specification()` - Find resources conforming to specification
-- `get_resources_by_state()` - Query resources by current state
+- `get_resources_by_operational_state()` - Query resources by operational state
 
 **Cross-Zome State Transitions**
 
