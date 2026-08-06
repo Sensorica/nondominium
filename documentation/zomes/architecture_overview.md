@@ -22,7 +22,11 @@ Nondominium is a **multi-DNA Holochain hApp** implementing ValueFlows-compliant 
 
 **Group DNA** (cloned cell, `deferred: true`, `clone_limit: 64`)
 
-- **[`zome_group`](./group_zome.md)**: Per-group coordination with network isolation. Each group occupies its own cloned DHT provisioned via `clone_cell`. Entry types: `GroupProfile`, `GroupMembership`, `WorkLog`, `SoftLink`. See PR #107.
+- **[`zome_group`](./group_zome.md)**: Per-group coordination with network isolation. Each group occupies its own cloned DHT provisioned via `clone_cell`. Entry types: `GroupProfile`, `GroupMembership`, `WorkLog`, `SoftLink`, `NdoAnchor`. See PR #107 and issue #112.
+
+**NDO DNA** (cloned cell, `deferred: true`, `clone_limit: 512`)
+
+- **`ndo` role** (`dnas/ndo/workdir/dna.yaml`): one clone per NDO, completing the fractal Lobby → Group → NDO holarchy. Bundles the **existing** `zome_resource` and `zome_gouvernance` WASMs (ADR-012, no code fork). The NDO's immutable Layer 0 fields (name, initiator, property regime, resource nature, created_at) live in the clone's DNA properties, so the resulting `DnaHash` is the NDO's permanent, organization-agnostic identity (ADR-010); the `NondominiumIdentity` genesis entry inside the cell keeps the mutable lifecycle chain. Groups reference NDO cells through `NdoAnchor` entries carrying the full clone coordinates (ADR-011). See issue #112.
 
 ### Technology Foundation
 

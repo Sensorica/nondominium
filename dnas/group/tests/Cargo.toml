@@ -20,3 +20,7 @@ holochain_serialized_bytes = { workspace = true }
 [[test]]
 name = "group"
 path = "src/group/mod.rs"
+
+[[test]]
+name = "ndo_anchor"
+path = "src/ndo_anchor/mod.rs"

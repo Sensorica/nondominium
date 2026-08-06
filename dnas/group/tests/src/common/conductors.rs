@@ -8,6 +8,13 @@ pub const GROUP_DNA_PATH: &str = concat!(
     "/../workdir/group.dna"
 );
 
+/// Path to the compiled NDO DNA bundle (one clone per NDO, ADR-010/ADR-012).
+/// Bundles the existing zome_resource and zome_gouvernance WASMs.
+pub const NDO_DNA_PATH: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../ndo/workdir/ndo.dna"
+);
+
 // Each test invocation gets a unique monotonic ID. Combined with the process PID this
 // guarantees distinct network seeds even when multiple test processes run in parallel.
 static TEST_INSTANCE: AtomicU64 = AtomicU64::new(0);
@@ -15,6 +22,24 @@ static TEST_INSTANCE: AtomicU64 = AtomicU64::new(0);
 pub fn unique_seed() -> NetworkSeed {
     let id = TEST_INSTANCE.fetch_add(1, Ordering::SeqCst);
     format!("test-{}-{}", std::process::id(), id).into()
+}
+
+/// Load the NDO DNA with explicit clone coordinates: a network seed plus the
+/// serialized immutable Layer 0 properties. The same `(seed, properties)` pair
+/// always derives the same DnaHash — that hash IS the NDO's permanent identity
+/// (ADR-010). Different properties yield a different network by construction.
+pub async fn ndo_dna_with_coordinates(
+    seed: NetworkSeed,
+    properties: SerializedBytes,
+) -> DnaFile {
+    SweetDnaFile::from_bundle_with_overrides(
+        std::path::Path::new(NDO_DNA_PATH),
+        DnaModifiersOpt::none()
+            .with_network_seed(seed)
+            .with_properties(properties),
+    )
+    .await
+    .expect("Failed to load ndo DNA bundle. Did you run `bun run build:happ`?")
 }
 
 /// Spin up two conductors, each with the group DNA installed.

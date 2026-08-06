@@ -3,11 +3,13 @@ pub use nondominium_shared::GroupError;
 
 pub mod group_profile;
 pub mod membership;
+pub mod ndo_anchor;
 pub mod soft_link;
 pub mod work_log;
 
 pub use group_profile::*;
 pub use membership::*;
+pub use ndo_anchor::*;
 pub use soft_link::*;
 pub use work_log::*;
 

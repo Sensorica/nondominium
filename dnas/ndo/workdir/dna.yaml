@@ -1,0 +1,25 @@
+---
+manifest_version: "0"
+name: ndo
+integrity:
+  network_seed: ~
+  properties: ~
+  zomes:
+    - name: zome_resource_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/zome_resource_integrity.wasm"
+    - name: zome_gouvernance_integrity
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/zome_gouvernance_integrity.wasm"
+coordinator:
+  zomes:
+    - name: zome_resource
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/zome_resource_coordinator.wasm"
+      dependencies:
+        - name: zome_resource_integrity
+    - name: zome_gouvernance
+      hash: ~
+      path: "../../../target/wasm32-unknown-unknown/release/zome_gouvernance_coordinator.wasm"
+      dependencies:
+        - name: zome_gouvernance_integrity
