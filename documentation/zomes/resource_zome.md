@@ -11,6 +11,8 @@ The Resource zome implements the core resource management infrastructure for the
 > - `CapabilitySlot` — Layer 0 identity hash to capability targets (stigmergic attachment surface)
 >
 > **Unyt (post-MVP):** endorsed economic terms use typed **`EconomicAgreement`** `GovernanceRule` data (`ndo_prima_materia.md` §6.6, REQ-NDO-CS-09–CS-11; `documentation/requirements/post-mvp/unyt-integration.md`).
+>
+> **Source-NDO (post-MVP):** `NondominiumIdentity` may represent generative ecological systems (watersheds, rivers, fisheries) as **Source-NDOs** — a typed NDO specialization that uses `PropertyRegime::Nondominium` or `CommonPool`, adds a linked `SourceProfile` entry (condition indicators, `stewarded_by`, `regime_state`, etc.), and extends the governance-as-operator pattern with an adaptive cybernetic loop. Source-NDOs require the `vf:Source` ValueFlows extension for flow endpoints (see `documentation/requirements/post-mvp/source-ndo-requirements.md` and `documentation/hREA/valueflows-1.0-compliance.md §P3-1`). No breaking changes to existing `NondominiumIdentity` fields are required; `SourceProfile` is a separate linked entry.
 
 ## Core Data Structures
 

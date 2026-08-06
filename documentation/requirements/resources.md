@@ -71,6 +71,24 @@ In complexity economics terms: these intangibles are the *emergent properties* o
 
 The NDO does not need to *track* intangible resources in the same way it tracks a bicycle or a CAD file. But it must be *aware* of them — as a category of resource type — to avoid designing governance mechanisms that damage them.
 
+### 1.6 Source: the Third Category
+
+The REA ontology that underpins ValueFlows operates with two primitives: **Agent** and **Resource**. The resource classification work in sections 1.1–1.5 implicitly accepts this duality. But 15 years of OVN practice and a growing literature on socio-ecological systems accounting reveal a case where neither primitive is adequate: *generative ecological systems* — watersheds, rivers, forests, fisheries, atmospheric assimilation capacity — that yield resources, receive ecological effects, and condition future possibilities without being ownable, intentional, or inventoriable in the standard sense.
+
+The academic paper [`source-ndo-paper.md`](post-mvp/source-ndo-paper.md) demonstrates with Occam's razor that modelling a watershed under `Nondominium` governance without a `Source` primitive requires three active ontological fictions and leaves four economic relations inexpressible. Adding one new primitive removes all seven distortions.
+
+**`Source` is a third ontological category**: a generative, non-ownable, partially unknowable system that:
+- **yields** Resources (a river yields cubic metres of water when abstracted)
+- **receives** ecological effects (a river receives heavy-metal discharge)
+- **conditions** other Sources (a forest conditions river flow and resilience)
+- **accumulates** a historical ledger of boundary events for adaptive governance
+
+Sources are represented in the Nondominium architecture as **Source-NDOs**: `NondominiumIdentity` entries with `PropertyRegime::Nondominium` (or `CommonPool`), a linked `SourceProfile` extension for condition indicators, and a `stewardedBy` relation instead of `primaryAccountable`. No agent owns a Source; stewards carry obligations to maintain the event ledger and adapt governance rules as the source ledger grows.
+
+This is the cybernetic governance loop: boundary events accumulate → stewards interpret conditions → governance rules adapt → access affordances change → future events are conditioned. It extends the governance-as-operator pattern from complicated (rule-evaluable) to complex (adaptive, signal-based) governance contexts.
+
+Normative requirements for Source-NDO are in [`source-ndo-requirements.md`](post-mvp/source-ndo-requirements.md). This subsection is an ontological framing note; the detailed data model, governance patterns, and ValueFlows extension (`vf:Source`) are in that document.
+
 ---
 
 ## 2. Current Implementation (MVP)
@@ -706,6 +724,7 @@ These represent the forward agenda for the generic NDO design:
 | **Cross-app identity verification** | No mechanism for an agent to prove they are the same person across multiple Holochain apps or external systems. PPR reputation is local to this DHT; no cross-network trust signal | Add `FlowstaIdentity` CapabilitySlot on `Person` hash (`ndo_prima_materia.md` Section 6.7, REQ-NDO-CS-12). Governance rules can require Tier 2–validated Flowsta linking for high-value access (REQ-NDO-CS-14, Flowsta Phase 3). Flowsta DID provides the cross-app identity anchor for portable credentials (REQ-NDO-AGENT-08) |
 | **Collective agent custodianship** | `EconomicResource.custodian` is currently `AgentPubKey`, assuming individual agent. Collective, Project, Network, and Bot agents (G1) should also be valid custodians | Replace `AgentPubKey` with `AgentContext` (union type) across `EconomicResource.custodian`, `TransitionContext.target_custodian`, and `NondominiumIdentity.initiator` (ref G1, REQ-AGENT-02) |
 | **Intangibles** | Social capital, trust, competencies — not tracked but should be preserved | Design principle: NDO governance architecture should cultivate intangibles as emergent properties, not track them as entries |
+| **Source as ontological primitive** | Generative ecological systems (watersheds, fisheries, forests) and knowledge commons fit neither `Agent` nor `Resource` faithfully. Modelling them as resources requires false `primaryAccountable` ownership; omitting them leaves depletion and ecological loading invisible | Introduce `Source` as a typed NDO specialization: `SourceProfile` entry linked to Layer 0, `stewardedBy` relation replacing custodian, `vf:Source` ValueFlows extension for flow endpoints. See [`source-ndo-requirements.md`](post-mvp/source-ndo-requirements.md) |
 
 ---
 
@@ -862,6 +881,8 @@ These defaults are starting points — communities override them through the Gov
 **Resource nature and method resources** matter because the governance architecture for a documented protocol is fundamentally different from the governance architecture for a physical tool. A method (recipe, process, protocol) is non-rivalrous, can be forked and adapted, should be versioned and attributed, and its quality affects every physical process it governs. Modelling methods as first-class resources enables the network to track method provenance, quality, and evolution — and to connect method quality to the physical resource outcomes produced using those methods.
 
 **Intangibles** matter negatively — as a design constraint. The OVN wiki's extensive treatment of intangibles is a warning: governance systems that ignore social capital, trust, and community sense will inadvertently destroy them through surveillance, commodification, or capture. The NDO's design choices (peer validation rather than central authority, private PPRs rather than public scoring, permissionless access rather than gatekeeping) are intangible-preserving choices. They should be recognised as such, so that future design decisions are evaluated against the same standard.
+
+**Source as third ontological category** matters because omitting it makes ecological commons invisible to the economic ledger. Without `Source`, depletion events appear as `raise` (resource-from-nowhere), ecological loading disappears entirely, and the false fiction of an owning agent must be maintained for every watershed and fishery under `Nondominium` governance. The governance-as-operator architecture is exactly suited to Source-NDOs: the event ledger accumulates boundary signals, stewards interpret them, governance rules adapt, and future access is conditioned by source health — a cybernetic loop that implements adaptive governance for complex ecological systems. This matters because the single most important use case for the `Nondominium` property regime in natural commons is ecological: fisheries, watersheds, forests. A governance system that cannot model these without distortion is unsuitable for the most important commons of all.
 
 ---
 

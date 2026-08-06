@@ -317,6 +317,63 @@ The `AffiliationRecord` entry hash then becomes the evidence that the agent's `A
 
 **Traceability:** `ndo_prima_materia.md` **Section 11.6** (Flowsta integration in the requirements matrix).
 
+### 3.8 Adaptive Governance for Source-NDOs (`source-ndo-requirements.md`)
+
+> **Status:** 🔄 **Post-MVP — designed.** No Rust implementation yet. See [`source-ndo-requirements.md`](post-mvp/source-ndo-requirements.md) for normative requirements; [`source-ndo-paper.md`](post-mvp/source-ndo-paper.md) for academic justification.
+
+**The governance-as-operator pattern meets complex ecological systems.** For project-type NDOs, governance rules are fixed at design time and evaluated on each transition request. For Source-NDOs — watersheds, rivers, fisheries, forests — rules must *adapt* as the source's condition changes. This is not a relaxation of governance rigor; it is a deeper application of it.
+
+**The cybernetic governance loop:**
+
+```
+Boundary events (extraction, discharge, restoration)
+  ↓ accumulated on Source Layer 0 hash as EconomicEvent entries
+Ecological interpretation (scientists, stewards, monitoring systems)
+  ↓ update SourceProfile.regime_state, resilience, tipping_threshold
+Governance rule adaptation (GovernanceRule entries revised or replaced)
+  ↓ evaluated by governance-as-operator on subsequent transition requests
+Access affordances (extraction quotas, discharge limits, monitoring obligations)
+  ↓ condition future events
+(loop)
+```
+
+This loop extends — but does not break — the governance-as-operator architecture. The governance zome still evaluates rules on transition requests; the new dimension is that rules can change via a validated rule-revision process (REQ-SOURCE-GOV-01), and the rule evaluation also reads `SourceProfile.regime_state` to apply precautionary blocks near `tipping_threshold` (REQ-SOURCE-GOV-03).
+
+**Black-box epistemics.** Unlike complicated resource governance (where rules can be fully specified from adequate knowledge), complex ecological governance must operate on partial information. The `complex_interior: true` flag on `SourceProfile` makes this epistemological stance machine-readable: the governance system governs observable peripheral events (what crosses the source boundary) rather than claiming to model the interior. This is Ashby's law of requisite variety applied to governance: the complexity of the governance system must match the complexity of the system it regulates — but for a complex system, matching that complexity means acknowledging and operating with irreducible uncertainty.
+
+**New governance concepts introduced:**
+
+| Concept | Description |
+|---|---|
+| **Adaptive rule revision** | GovernanceRules on Source-NDOs may be revised through a multi-validator governance process as ecological interpretation changes. Rule version history is preserved. |
+| **Precautionary governance** | Events that would push current stock below `tipping_threshold` may be blocked or escalated to multi-validator review. |
+| **Monitoring obligations** | Agents who extract from or discharge into a Source may be required to submit condition data as a precondition for continued access. |
+| **Stewardship role** | A new functional role (`Steward`) carries obligations (monitoring, ledger maintenance, rule revision) without conferring property rights. No steward owns a Source-NDO. |
+| **SourceRegimeState** | A machine-readable ecological condition classifier (`Pristine → Stable → Stressed → Degraded → Critical → Transformed`), governance-validated on transition. |
+
+**Ostrom's principles applied to Source governance.** Source-NDO governance implements all eight of Ostrom's design principles for commons governance (see §1.6 of this document), extending them to complex ecological systems:
+
+| Ostrom's principle | Source-NDO implementation |
+|---|---|
+| Clearly defined boundaries | Source boundaries (spatial, temporal, flow endpoints) defined at Layer 1 |
+| Match rules to local conditions | `SourceRegimeState`-conditional rules; adaptive loop matches rules to current ecological condition |
+| Collective choice arrangements | Multi-validator rule revision; steward community governance of `GovernanceRule` updates |
+| Monitoring | Monitoring obligations as GovernanceRule type; event ledger as audit trail |
+| Graduated sanctions | `regime_state`-dependent access restrictions; escalating precaution toward `tipping_threshold` |
+| Conflict resolution | DisputeResolutionParticipation PPR category; existing NDO dispute mechanisms |
+| Minimal recognition of rights | Holochain permissionless access; stewardship without ownership |
+| Nested enterprises | Source hierarchy links (`yields`, `conditions`); watershed-level governance over river-level NDOs |
+
+**Relation to existing governance architecture.** Source-NDO governance does not introduce a new governance engine. It extends the existing governance-as-operator architecture with:
+1. An additional evaluation input: `SourceProfile.regime_state` (cross-entry read by governance zome).
+2. A new `GovernanceRule` class: monitoring obligation rules.
+3. A rule-revision governance process: multi-validator approval required for GovernanceRule updates on Source-NDOs.
+4. A new functional role: `Steward` (alongside the existing governance tiers).
+
+All existing mechanisms — PPRs, capability tokens, validation receipts, ValueFlows events — apply unchanged to Source-NDO interactions.
+
+**Traceability:** `source-ndo-requirements.md` §5 (REQ-SOURCE-GOV-01 through REQ-SOURCE-GOV-08).
+
 ---
 
 ## 4. OVN Governance Ontology: 15 Years of Practice

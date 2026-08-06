@@ -8,34 +8,97 @@ This plan details the phased implementation of the nondominium hApp, a decentral
 
 ### 1.1 Requirements map (normative sources)
 
+This index is the entry point for phased delivery. **Current focus:** Layer 1 UI on the NDO detail view (`/ndo/:hash`) — **ResourceSpecification** (the shareable form), **GovernanceRule** (embedded rules governing agent–resource interaction), and **Process** readiness (what agents may do under those rules; Layer 2 / REQ-PROC-*). Layer 0 identity UI is implemented; Layer 1 activation (`NDOToSpecification`) and Layer 2 activation (`NDOToProcess`) are normative but not yet wired in DNA — UI work proceeds against existing MVP zome APIs plus prima materia REQ-NDO-L1-* / REQ-NDO-L2-* targets. Status cross-check: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+
+#### Core normative (PRD, NDO model, UI, data model)
+
 | Source | Role |
 |--------|------|
-| [requirements.md](requirements/requirements.md) | PRD; REQ-USER-*, REQ-RES-*, REQ-GOV-*, REQ-PROC-*, REQ-AGENT-* (§4.4 post-MVP agent ontology) |
-| [ndo_prima_materia.md](requirements/ndo_prima_materia.md) | NDO layers (L0/L1/L2), lifecycle and operational state, capability surface, COP framing; REQ-NDO-* (§9), migration (§10) |
-| [ui_design.md](requirements/ui_design.md) | UI specifications (complements [specifications/ui_architecture.md](../specifications/ui_architecture.md)) |
-| [post-mvp/unyt-integration.md](requirements/post-mvp/unyt-integration.md) | Unyt / RAVE / economic agreement slots (REQ-NDO-CS-07–CS-11) |
-| [post-mvp/flowsta-integration.md](requirements/post-mvp/flowsta-integration.md) | Flowsta identity slots and Tier 1/2 governance (REQ-NDO-CS-12–CS-15) |
-| [post-mvp/many-to-many-flows.md](requirements/post-mvp/many-to-many-flows.md) | N-ary custody and ValueFlows events; plan after shared custody / `AgentContext` model matures |
-| [post-mvp/versioning.md](requirements/post-mvp/versioning.md) | Version DAG for resources and app-as-resource; complements REQ-NDO-L1-03 (multiple specs per NDO) |
-| [post-mvp/digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md) | Manifests and verifiable digital assets; aligns with Layer 1 `DigitalAsset` capability slots (prima materia §9.2) |
-| [post-mvp/resource-transport-flow-protocol.md](requirements/post-mvp/resource-transport-flow-protocol.md) | Multi-dimensional transport/flow semantics over economic events |
-| [post-mvp/valueflows-dsl.md](requirements/post-mvp/valueflows-dsl.md) | DSL for recipes, bulk bootstrap, scripted coordination (operational tooling track) |
-| [post-mvp/lobby-dna.md](requirements/post-mvp/lobby-dna.md) | Multi-network federation: Lobby DNA (public registry), Group DNA (per-group coordination), NDO DNA extensions (`NdoHardLink`, `Contribution`, `Agreement`); dual deployment (standalone + Moss applet) — REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-* |
-| [archives/resources.md](archives/resources.md), [archives/governance.md](archives/governance.md) | Ontology and gap-analysis context (non-normative for REQ IDs) |
+| [requirements.md](requirements/requirements.md) | PRD — REQ-USER-*, REQ-RES-*, REQ-GOV-*, REQ-PROC-*, REQ-AGENT-* (§4.4 post-MVP agent ontology); REQ-UI-* (§4.5 MVP UI) |
+| [ndo_prima_materia.md](requirements/ndo_prima_materia.md) | NDO layers (L0/L1/L2), lifecycle vs operational state, capability surface; **REQ-NDO-L1-*** (§9.2), **REQ-NDO-L2-*** (§9.3), REQ-NDO-* (§9), migration (§10) |
+| [ui_design.md](requirements/ui_design.md) | UI vision — MVP Layer 0 complete; NDO view tabs (Resources, Governance, Composition, Activity) stubbed for Layer 1+ content |
+| [specifications/ui_architecture.md](specifications/ui_architecture.md) | Implemented UI stack, routes, stores, services (`resource.service.ts`, `governance.service.ts`), component map |
+| [specifications/specifications.md](specifications/specifications.md) | Technical data structures — `ResourceSpecification`, `GovernanceRule`, `EconomicResource`, `EconomicProcess`, VfAction, cross-zome governance interface |
+
+#### Layer 1 — Specification (resource form)
+
+| Source | Role |
+|--------|------|
+| [zomes/resource_zome.md](zomes/resource_zome.md) | **Implemented** coordinator/integrity API — `ResourceSpecification`, `GovernanceRule`, `EconomicResource`; planned `NDOToSpecification` / `DigitalAsset` links |
+| [requirements/resources.md](requirements/resources.md) | Resource ontology — implemented vs planned; Layer 1 activation gap; governance defaults from `PropertyRegime` × `ResourceNature` (non-normative REQ IDs) |
+| [post-mvp/project-type-ndo-specifications.md](requirements/post-mvp/project-type-ndo-specifications.md) | Structured know-how bundles for project-type NDOs (OSHWA / Open Know-How → Layer 1 assets); lifecycle-matched completeness |
+| [post-mvp/source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md) | **Source-NDO** — `Source` as third ontological primitive; `SourceProfile` Layer 0 extension; adaptive cybernetic governance loop; `vf:Source` ValueFlows extension (REQ-SOURCE-*) |
+| [post-mvp/source-ndo-paper.md](requirements/post-mvp/source-ndo-paper.md) | Academic grounding: Occam's razor proof, river case study, Ostrom SES mapping (informative) |
+| [post-mvp/versioning.md](requirements/post-mvp/versioning.md) | Version DAG — **REQ-NDO-L1-03** (multiple `ResourceSpecification` links per NDO identity) |
+| [post-mvp/digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md) | Content-addressed manifests, composable verification — **REQ-NDO-L1-06** `DigitalAsset` capability slots (prima materia §9.2) |
+| [post-mvp/fractal-composable-resource-architecture.md](requirements/post-mvp/fractal-composable-resource-architecture.md) | Archival design — atomic / component / composite nesting; informs integrity (R5–R6) and Composition tab (post-MVP) |
+
+#### Governance (embedded rules → operator enforcement)
+
+| Source | Role |
+|--------|------|
+| [requirements/governance.md](requirements/governance.md) | Governance ontology — governance-as-operator, PPR, validation, role tiers; gap analysis (non-normative REQ IDs) |
+| [specifications/governance/governance-operator-architecture.md](specifications/governance/governance-operator-architecture.md) | **REQ-ARCH-07/09** — `GovernanceTransitionRequest` / `evaluate_state_transition`; rules on spec, enforcement in `zome_gouvernance` |
+| [specifications/governance/governance-operator-implementation-guide.md](specifications/governance/governance-operator-implementation-guide.md) | Implementation patterns for rule evaluation and cross-zome calls |
+| [specifications/governance/private-participation-receipt.md](specifications/governance/private-participation-receipt.md) | PPR categories and bilateral receipts — accountability after governed process completion |
+| [zomes/governance_zome.md](zomes/governance_zome.md) | Coordinator API — commitments, events, claims, validation, PPR issuance |
+| [post-mvp/unyt-integration.md](requirements/post-mvp/unyt-integration.md) | Typed **`EconomicAgreement`** governance rules, RAVE settlement (REQ-NDO-CS-07–CS-11) — Layer 1 rule family |
+| [post-mvp/flowsta-integration.md](requirements/post-mvp/flowsta-integration.md) | **`IdentityVerification`** / `FlowstaIdentity` slots (REQ-NDO-CS-12–CS-15) — agent identity gates on high-trust transitions |
+
+#### Process (Layer 2 — what agents do with resources)
+
+| Source | Role |
+|--------|------|
+| [requirements.md §5](requirements/requirements.md) | **REQ-PROC-*** — Use, Transport, Storage, Repair; role-gated initiation; process validation and chaining |
+| [ndo_prima_materia.md §4.4](requirements/ndo_prima_materia.md) | Layer 2 activation via `NDOToProcess`; hosts Commitments, Claims, EconomicEvents, PPRs (**REQ-NDO-L2-***) |
+| [post-mvp/resource-transport-flow-protocol.md](requirements/post-mvp/resource-transport-flow-protocol.md) | Multi-dimensional transport/flow semantics (physical, custodial, value, legal, information) over **EconomicEvent** metadata — post-MVP |
+| [post-mvp/many-to-many-flows.md](requirements/post-mvp/many-to-many-flows.md) | N-ary custody and multi-party events — after shared custody / `AgentContext` model matures |
+| [post-mvp/valueflows-dsl.md](requirements/post-mvp/valueflows-dsl.md) | VF DSL for recipes, bulk bootstrap, scripted coordination — operational tooling track |
+
+#### Federation, agent context, and supplementary ontology
+
+| Source | Role |
+|--------|------|
+| [post-mvp/lobby-dna.md](requirements/post-mvp/lobby-dna.md) | Multi-network federation — Lobby / Group / NDO DNA extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) |
+| [requirements/agent.md](requirements/agent.md) | Agent ontology — roles, affiliation, `AgentContext` (post-MVP); background for governance participation and process access |
 
 ---
 
 ## 2. Implementation Principles
 
-- **Incremental Enhancement**: Build on existing working code without breaking changes, extending functionality through new modules and functions
-- **ValueFlows Compliance**: All data structures and flows adhere to the ValueFlows standard with Economic Process integration
-- **Agent-Centric Design**: All data and validation flows from the perspective of individual agents with capability progression
-- **Progressive Trust**: Agents earn capabilities through validation (Simple → Accountable → Primary Accountable Agent) with PPR reputation tracking
-- **Embedded Governance**: Rules and access control are enforced at the resource and agent level with Economic Process integration
-- **Capability-Based Security**: All access is managed through Holochain capability tokens with role-based process access
-- **Privacy-Preserving Accountability**: PPR system enables reputation without compromising privacy through selective disclosure
-- **Process-Aware Infrastructure**: Economic Processes (Use, Transport, Storage, Repair) integrated throughout the system architecture
-- **NDO alignment**: When implementing the NDO track, follow pay-as-you-grow **layer activation** (L0 identity always on; L1 specification and L2 process when complexity demands) and keep **LifecycleStage** (on identity) orthogonal to **OperationalState** (on resource instances), with the governance zome as state-transition operator (REQ-NDO-LC-02, REQ-NDO-OS-02)
+Development follows **Complexity Driven Development (CDD)** and **Complexity Oriented Programming (COP)**: software as an evolving **coordination structure**, not a deterministic machine. The design unit is `agent → process → resource → relation → network`, not `function → class → module`. Methodology reference: [archives/complexity_oriented_programming.md](archives/complexity_oriented_programming.md); operational checklist: `.claude/skills/complexity-oriented-programming/SKILL.md`.
+
+Judge outcomes by **systemic viability** — anti-fragility, evolvability, coordination capacity, holonic health, trust composability — not only delivery speed or defect rate.
+
+### 2.1 CDD / COP foundations
+
+| Principle | Implementation requirement |
+|-----------|---------------------------|
+| **Dynamic complexity matching** | Match governance overhead and schema rigidity to *actual* social complexity — not the imagined maximum. Apply **subsidiarity**: resolve decisions at the most local level that can handle them (agent, group, NDO, network); escalate only when broader context is genuinely required. |
+| **Progressive activation** | Artifacts begin as low-complexity intent and accrue structure over time. **Layer 0** identity always on; **Layer 1** specification and **Layer 2** process activate only when coordination demands it (REQ-NDO-L1-*, REQ-NDO-L2-*). UI and DNA must not force full spec/governance/process surfaces on `Ideation`-stage NDOs. |
+| **Governance-as-operator** | Decouple the **data substrate** (`zome_resource`) from **regulatory signaling** (`zome_gouvernance`). Business and governance logic must not be hard-coded into core entry schemas; rules evolve as mutable data without destructive migrations (REQ-ARCH-07, REQ-ARCH-08). |
+| **Stigmergic coordination** | Prefer discoverable traces, anchor links, reputation signals (PPRs), and **CapabilitySlot** attachments over central orchestrators. Agents coordinate by modifying a shared environment — the DHT — not by a mediating platform service. |
+| **Fractal composability** | Use the same coordination primitives at agent, group, NDO, and federation scales. **Trust and integrity compose** through hierarchies (atomic → component → composite): local verification at each level yields global coherence; changes re-verify only affected paths (digital integrity, holonic NDO links — post-MVP). |
+| **Path-dependency awareness** | Before refactors or major UI/API contracts, scan legacy choices (MVP orphan `ResourceSpecification` entries, localStorage group shells, stub tabs). Do not inherit constraints blindly — document migration windows (REQ-NDO-MIG-*) when Layer 1 UI bridges old and new models. |
+| **Anti-fragility** | Disruption should teach, not only hurt. Disputes, validation failures, and adversarial behaviour must generate auditable signals (PPRs, validation receipts, governance events) that improve future coordination — not merely error screens. |
+
+### 2.2 Nondominium enactments
+
+- **Incremental enhancement**: Extend working code through new modules and functions; avoid breaking MVP flows until migration windows are defined.
+- **ValueFlows compliance**: Data structures and flows adhere to ValueFlows — Knowledge (`ResourceSpecification`), Plan (`Commitment`), Observation (`EconomicEvent`, `Claim`) — with Economic Process integration (REQ-PROC-*).
+- **Agent-centric design**: Data and validation originate on each agent's source chain; capability progression (Simple → Accountable → Primary Accountable) gates sensitive actions. Post-MVP: requirements must hold for holonic actors (`AgentContext`), not only individual `AgentPubKey`s (REQ-AGENT-01, REQ-GOV-16).
+- **Resources as autonomous entities**: Resources carry embedded governance, stable identity (Layer 0), and lifecycle — they are coordination objects, not passive CRUD rows. **LifecycleStage** (identity maturity) stays orthogonal to **OperationalState** (instance process condition) (REQ-NDO-LC-02, REQ-NDO-OS-02, REQ-NDO-OS-04).
+- **Embedded governance (Social DNA)**: `GovernanceRule` entries on Layer 1 `ResourceSpecification` define how agents may interact; the governance zome evaluates transitions against them. Rules are **mutable data** communities can amend; identity anchors are not.
+- **Capability-based security**: Holochain capability tokens plus role-gated process access (REQ-SEC-01, REQ-SEC-02); field-level private data grants with expiry and explicit revocation.
+- **Privacy-preserving accountability**: Bilateral PPRs and derivable `ReputationSummary` — user-sovereign, no global scoring aggregator (REQ-PPR-10, REQ-PPR-11).
+- **Process-aware infrastructure**: Use, Transport, Storage, Repair processes are first-class; initiation, validation, and chaining follow embedded rules and role credentials (REQ-PROC-01–REQ-PROC-09).
+
+### 2.3 Layer 1 UI and cross-layer discipline
+
+- **Mirror the zome boundary in the UI**: Specification tab → data model (`ResourceSpecification`, assets, version links); Governance tab → embedded rules and their semantics; Activity / process surfaces → Layer 2 readiness gated by rules — do not collapse layers into a single undifferentiated form.
+- **Complexity-matched affordances**: Expose creation/editing depth proportional to `LifecycleStage` and layer activation (e.g. lightweight spec at `Specification`, full governance editor when rules matter, process actions only when Layer 2 or MVP process APIs exist).
+- **Service-layer contract stability**: UI calls Effect-TS services (`resource.service.ts`, `governance.service.ts`); zome function names and shared types (`@nondominium/shared-types`) are the integration seam — keep components free of raw zome payloads.
+- **Correctness over cleverness**: Governance infrastructure for real economic relationships; a wrong validation rule on the DHT cannot be rolled back — prefer explicit, reviewable rule data over implicit UI magic.
 
 ---
 

@@ -3,6 +3,7 @@
 **Status**: Post-MVP Requirements  
 **Created**: 2026-06-16  
 **Relates to**: [`ndo_prima_materia.md`](../ndo_prima_materia.md), [`resources.md`](../resources.md), [`open-know-how-iopa.md`](open-know-how-iopa.md), [`digital-resource-integrity.md`](digital-resource-integrity.md), [`ndo-versioning.md`](ndo-versioning.md), [`fractal-composable-resource-architecture.md`](fractal-composable-resource-architecture.md)  
+**Sibling NDO type**: [`source-ndo-requirements.md`](source-ndo-requirements.md) — Source-NDO covers generative ecological systems (watersheds, rivers, forests) that yield resources and receive ecological effects. Where project-type NDOs specify *design intent*, Source-NDOs specify *generative ecological conditions*. Both use the NDO three-layer model and governance-as-operator pattern; Source-NDOs add an adaptive cybernetic governance loop and the `vf:Source` ValueFlows extension.  
 **External references**: [OSHWA — Best Practices for Open Source Hardware 1.0](https://oshwa.org/resources/sharing-best-practices/), [Open Know-How Specification (IOPA)](https://iopa.pubpub.org/pub/okh)
 
 ---
@@ -438,6 +439,27 @@ Project-type NDOs often correspond to **Project** collective agents ([`REQ-NDO-A
 | NDO Layer 1 | REQ-NDO-L1-01 – -06, REQ-PROJ-SPEC-01, -03 |
 | Digital Resource Integrity | REQ-PROJ-SPEC-40, -41 |
 | Complexity matching / lifecycle | REQ-PROJ-SPEC-60 – -63, §5 |
+
+---
+
+---
+
+## 12. Sibling NDO Type: Source-NDO
+
+A **Source-NDO** is a sibling specification type that governs *generative ecological systems* (watersheds, rivers, forests, fisheries) and *knowledge commons* rather than design artefacts in development. While project-type NDOs specify design intent — what a thing is supposed to be and how to fabricate it — Source-NDOs specify generative ecological conditions: what a source yields, what effects it receives, how its condition evolves, and how governance rules must adapt as its event ledger accumulates.
+
+Key differences:
+
+| Dimension | Project-type NDO | Source-NDO |
+|---|---|---|
+| Represents | Resource in development (design → production) | Generative ecological system (watershed, fishery) |
+| Layer 1 content | `SpecificationPackage` — OSHWA/OKH artifacts | `SourceSpecification` — boundary conditions, monitoring framework |
+| Governance pattern | Rule evaluation at transition request | Adaptive cybernetic loop: events → interpretation → rule revision → conditioned events |
+| Custodian | `primaryAccountable` (custody, not ownership) | `stewardedBy` — stewardship obligations, no ownership |
+| PropertyRegime | Any | `Nondominium` or `CommonPool` only |
+| ValueFlows extension | Standard VF events | `vf:Source` flow endpoint role |
+
+Normative requirements for Source-NDO are in [`source-ndo-requirements.md`](source-ndo-requirements.md).
 
 ---
 

@@ -4,7 +4,7 @@
 **Created**: 2026-03-10  
 **Last updated**: 2026-06-16  
 **Authors**: Nondominium project  
-**Relates to**: `post-mvp/many-to-many-flows.md`, `post-mvp/ndo-versioning.md`, `post-mvp/digital-resource-integrity.md`, `post-mvp/unyt-integration.md`, `post-mvp/flowsta-integration.md`, `lobby-dna.md`, `post-mvp/project-type-ndo-specifications.md`  
+**Relates to**: `post-mvp/many-to-many-flows.md`, `post-mvp/ndo-versioning.md`, `post-mvp/digital-resource-integrity.md`, `post-mvp/unyt-integration.md`, `post-mvp/flowsta-integration.md`, `lobby-dna.md`, `post-mvp/project-type-ndo-specifications.md`, `post-mvp/source-ndo-requirements.md`  
 **Implementation reference**: `documentation/IMPLEMENTATION_STATUS.md` (NDO Layer 0 ✅ PR #80; NDO DNA extensions ✅ PR #103; Layers 1 & 2 ❌)
 
 ---
@@ -1589,6 +1589,28 @@ The Lobby layer connects to the NDO three-layer model at specific points:
 **Deployment modes**: The Lobby DNA is designed for dual deployment — standalone hApp (Lobby DNA + Group DNA + NDO DNA, all managed by one conductor) and Moss/Weave Tool applet (Moss handles agent invites and identity at the surface; Nondominium owns the NDO layer). The NDO DNA is identical in both modes.
 
 See `lobby-dna.md` for normative requirements (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) and `specifications/post-mvp/lobby-architecture.md` for full schema, coordinator APIs, pipelines, UI, Moss contract, and 7 ADRs.
+
+### 11.8 Source-NDO Integration
+
+> **Status:** 🔄 **Post-MVP — designed.** No Rust implementation yet. Normative requirements in [`source-ndo-requirements.md`](post-mvp/source-ndo-requirements.md). Academic justification in [`source-ndo-paper.md`](post-mvp/source-ndo-paper.md).
+
+Source-NDO introduces `Source` as a third ontological primitive — neither Agent nor Resource — to represent generative ecological systems (watersheds, rivers, forests, fisheries) and knowledge commons that yield resources, receive ecological effects, and condition future possibilities without being ownable or intentional.
+
+**How Source-NDO fits the three-layer model:**
+
+- **Layer 0** (`NondominiumIdentity`): Source-NDOs use `PropertyRegime::Nondominium` or `CommonPool` and `ResourceNature::Physical` or `Information`. The Layer 0 hash is the stable anchor for the source's event ledger. A linked `SourceProfile` extension entry carries condition indicators: `current_stock`, `flux_rate`, `assimilation_capacity`, `regime_state`, `resilience`, `tipping_threshold`, `stewarded_by` (replaces `primaryAccountable`).
+- **Layer 1** (`SourceSpecification`): Boundary conditions, monitoring framework, ecological value vector, stakeholder map. Activated when governance framework formalisation begins.
+- **Layer 2**: All boundary events (extraction, loading, non-consumptive use, regeneration) recorded as `EconomicEvent` entries against the Source Layer 0 hash. The governance-as-operator loop is cybernetic: events accumulate → stewards interpret conditions → `GovernanceRule` entries are revised → access affordances change → future events are conditioned.
+
+**ValueFlows extension required:** `vf:Source` as a typed flow endpoint role, distinct from `vf:Agent` and `vf:EconomicResource`, allowing `provider` and `receiver` fields in `EconomicEvent` to reference Source-NDOs directly. This is the single extension needed; all other ValueFlows semantics apply unchanged. See [`valueflows-1.0-compliance.md`](../hREA/valueflows-1.0-compliance.md) for the compliance note.
+
+**Key architectural invariants:**
+- Source-NDOs use the same governance-as-operator pattern. The difference is that governance rules must be *adaptable* (Source condition changes trigger rule revision) rather than fixed at creation. This extends the governance zome with an adaptive governance loop.
+- `PropertyRegime::Nondominium` and `CommonPool` are the only valid regimes; governance SHALL reject GovernanceRule entries that attempt to assert ownership of a Source-NDO.
+- No `primaryAccountable` — the `stewardedBy: Vec<AgentPubKey>` relation carries obligations (monitoring, ledger maintenance, governance rule revision), not property rights.
+- Source-to-Source links (`yields`, `conditions`, `providedBy`) are native DHT link types, enabling representation of source hierarchies (watershed → river) and ecological coupling (forest conditions river flow).
+
+**COP alignment:** Source-NDO is a direct application of the black-box principle (Ashby 1956; Snowden & Boone 2007): complex ecological systems cannot be fully modelled; governance must be enacted on observable periphery (boundary events), not on claimed interior knowledge. The `complex_interior: true` flag on `SourceProfile` makes this epistemological stance machine-readable.
 
 ---
 
