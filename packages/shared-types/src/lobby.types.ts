@@ -45,6 +45,13 @@ export interface GroupInvitePayload {
   group_dna_hash: string;
   group_name: string;
   description?: string;
+  /**
+   * Base64 ActionHash of the group's GroupProfile entry. Lets a joining agent
+   * call `join_group` immediately (without waiting for the profile to gossip
+   * into the freshly-cloned cell), so membership is committed at join time.
+   * Optional for backward compatibility with invites predating this field.
+   */
+  group_hash?: string;
 }
 
 export interface NdoHardLink {

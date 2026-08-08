@@ -1,5 +1,6 @@
 use crate::GroupError;
 use hdk::prelude::*;
+use std::collections::HashSet;
 use zome_group_integrity::*;
 
 #[hdk_extern]
@@ -57,14 +58,11 @@ pub fn leave_group(group_hash: ActionHash) -> ExternResult<()> {
   // Only the discovery links are removed; the GroupMembership entry itself is intentionally
   // left on the source chain. Holochain entries are append-only, so the membership record
   // serves as an audit trail of prior participation even after the agent leaves.
-  // Member identity comes from the action author, not from the entry.
+  // The link's author is the joining agent (the member), so comparing link.author avoids a
+  // per-link `get` of the membership record, which may not be held locally for other agents.
   for link in links {
-    if let Some(membership_hash) = link.target.clone().into_action_hash() {
-      if let Some(record) = get(membership_hash, GetOptions::default())? {
-        if record.action().author() == &agent {
-          delete_link(link.create_link_hash, GetOptions::default())?;
-        }
-      }
+    if link.author == agent {
+      delete_link(link.create_link_hash, GetOptions::default())?;
     }
   }
 
@@ -82,21 +80,27 @@ pub fn leave_group(group_hash: ActionHash) -> ExternResult<()> {
   Ok(())
 }
 
-/// Returns Records for all current group members.
-/// The member's AgentPubKey is the action author: `record.action().author()`.
-/// The join timestamp is `record.action().timestamp()`.
+/// Returns the AgentPubKey of every current member of this group.
+///
+/// Membership identity is read directly from each `GroupToMembers` link's `author`
+/// (the agent who called `join_group`), rather than from a `get` of the linked
+/// `GroupMembership` record. A `get_links` call returns every link and its author
+/// in a single round-trip; the previous per-member `get` could fail when another
+/// member's record had not yet propagated to this cell's DHT shard, silently
+/// dropping that member from the list (only the local agent appeared).
+/// Duplicate authors are collapsed defensively.
 #[hdk_extern]
-pub fn get_group_members(group_hash: ActionHash) -> ExternResult<Vec<Record>> {
+pub fn get_group_members(group_hash: ActionHash) -> ExternResult<Vec<AgentPubKey>> {
   let link_query = LinkQuery::try_new(group_hash, LinkTypes::GroupToMembers)?;
   let links = get_links(link_query, GetStrategy::default())?;
 
-  let members = links
-    .iter()
-    .filter_map(|link| {
-      let hash = link.target.clone().into_action_hash()?;
-      get(hash, GetOptions::default()).ok()?
-    })
-    .collect();
+  let mut seen: HashSet<AgentPubKey> = HashSet::new();
+  let mut members: Vec<AgentPubKey> = Vec::new();
+  for link in links {
+    if seen.insert(link.author.clone()) {
+      members.push(link.author);
+    }
+  }
 
   Ok(members)
 }
@@ -105,5 +109,5 @@ pub fn get_group_members(group_hash: ActionHash) -> ExternResult<Vec<Record>> {
 pub fn is_member(input: (AgentPubKey, ActionHash)) -> ExternResult<bool> {
   let (agent, group_hash) = input;
   let members = get_group_members(group_hash)?;
-  Ok(members.iter().any(|r| r.action().author() == &agent))
+  Ok(members.contains(&agent))
 }
