@@ -65,12 +65,14 @@ pub enum ResourceNature {
 }
 
 /// DNA properties of a cloned `ndo` cell (ADR-010 model A; ADR-013).
-/// Carries the immutable Layer 0 fields of a NondominiumIdentity, baked into the
-/// clone's DNA properties so the DnaHash is cryptographically bound to the NDO
-/// identity. Deliberately EXCLUDES `lifecycle_stage` (the one mutable field on the
-/// entry) so the binding does not reject stage transitions. `create_ndo` writes a
-/// `NondominiumIdentity` entry whose immutable fields integrity-validates against
-/// these properties when present (see zome_resource_integrity::validate_create_nondominium_identity).
+/// The immutable Layer 0 fields baked into the clone's DNA properties so the
+/// DnaHash is cryptographically bound to the NDO identity. Field set matches the
+/// Sweettest `NdoCellProperties` mirror exactly (same fields, same order) so the
+/// client and the tests derive the same DnaHash for the same NDO. Deliberately
+/// excludes `lifecycle_stage` (mutable on the entry) and `description` (entry-only).
+/// `initiator` and `created_at` are part of the DnaHash binding; integrity
+/// additionally validates the classification fields (name/regime/nature) against
+/// the entry — see validate_create_nondominium_identity.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, SerializedBytes)]
 pub struct NdoDnaProperties {
   pub name: String,
@@ -78,7 +80,6 @@ pub struct NdoDnaProperties {
   pub property_regime: PropertyRegime,
   pub resource_nature: ResourceNature,
   pub created_at: Timestamp,
-  pub description: Option<String>,
 }
 
 // ─── ValueFlows action enum ───────────────────────────────────────────────────
