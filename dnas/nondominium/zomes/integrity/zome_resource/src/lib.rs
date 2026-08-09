@@ -1,5 +1,5 @@
 use hdi::prelude::*;
-pub use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature};
+pub use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature, NdoDnaProperties};
 
 // TODO (post-MVP): Split ResourceState into two orthogonal enums and migrate EconomicResource:
 //
@@ -387,6 +387,26 @@ fn validate_create_nondominium_identity(
     return Ok(ValidateCallbackResult::Invalid(
       "hibernation_origin must be None at creation".to_string(),
     ));
+  }
+
+  // ADR-013 (binding): on an NDO cell cloned with `NdoDnaProperties`, the entry
+  // must agree with the DNA properties — the DnaHash binds the properties and the
+  // entry is a bound mirror. On the shared nondominium cell (`properties: ~` in
+  // happ.yaml), deserialization to NdoDnaProperties fails, so this check is skipped
+  // (no binding on the shared cell; legacy shared-cell NDOs keep working).
+  if let Ok(props) = NdoDnaProperties::try_from(dna_info()?.modifiers.properties) {
+    if props.name != ndi.name
+      || props.initiator != ndi.initiator
+      || props.property_regime != ndi.property_regime
+      || props.resource_nature != ndi.resource_nature
+      || props.created_at != ndi.created_at
+      || props.description != ndi.description
+    {
+      return Ok(ValidateCallbackResult::Invalid(
+        "NondominiumIdentity entry must match the NDO DNA properties (ADR-013 binding)"
+          .to_string(),
+      ));
+    }
   }
 
   Ok(ValidateCallbackResult::Valid)
