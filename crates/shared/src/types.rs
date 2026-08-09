@@ -70,13 +70,17 @@ pub enum ResourceNature {
 /// Sweettest `NdoCellProperties` mirror exactly (same fields, same order) so the
 /// client and the tests derive the same DnaHash for the same NDO. Deliberately
 /// excludes `lifecycle_stage` (mutable on the entry) and `description` (entry-only).
-/// `initiator` and `created_at` are part of the DnaHash binding; integrity
-/// additionally validates the classification fields (name/regime/nature) against
-/// the entry — see validate_create_nondominium_identity.
+///
+/// `initiator` is NOT included: holochain 0.6.0 transports `create_clone_cell`
+/// properties as `YamlProperties(serde_yaml::Value)`, which has no binary variant
+/// and cannot carry an `AgentPubKey`. The DnaHash therefore binds the
+/// classification fields + creation time (microsecond-unique); the initiator
+/// remains authoritative on the entry and cached on the NdoAnchor for display.
+/// Integrity additionally validates the classification fields (name/regime/nature)
+/// against the entry — see validate_create_nondominium_identity.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, SerializedBytes)]
 pub struct NdoDnaProperties {
   pub name: String,
-  pub initiator: AgentPubKey,
   pub property_regime: PropertyRegime,
   pub resource_nature: ResourceNature,
   pub created_at: Timestamp,

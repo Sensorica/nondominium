@@ -1,4 +1,4 @@
-import type { ActionHash, AgentPubKey, EntryHash, Record, Timestamp } from '@holochain/client';
+import type { ActionHash, AgentPubKey, DnaHash, EntryHash, Record, Timestamp } from '@holochain/client';
 
 // Resource State Types
 export type ResourceState =
@@ -155,6 +155,68 @@ export interface NdoInput {
   resource_nature: ResourceNature;
   lifecycle_stage: LifecycleStage;
   description?: string;
+}
+
+/**
+ * DNA properties of a cloned `ndo` cell (ADR-010 model A; ADR-013).
+ *
+ * Mirrors `crates/shared/src/types.rs::NdoDnaProperties` field-for-field — the
+ * immutable Layer 0 fields baked into the clone's DNA so the DnaHash is
+ * cryptographically bound to the NDO identity. Deliberately EXCLUDES
+ * `lifecycle_stage` (mutable on the entry; including it would freeze every
+ * transition), `description` (entry-only), and `initiator` — holochain 0.6.0
+ * transports properties as `YamlProperties(serde_yaml::Value)`, which has no
+ * binary variant and cannot carry an `AgentPubKey`. The initiator stays
+ * authoritative on the entry and cached on the NdoAnchor for display.
+ *
+ * Passed to `createCloneCell` as a PLAIN JS OBJECT (the conductor canonicalizes
+ * the modifiers itself; DnaHash determinism is value-level across client and
+ * Rust). `created_at` is microseconds (client-chosen, NOT the entry's sys_time —
+ * peers re-derive the same DnaHash from the anchor's cached value).
+ */
+export interface NdoDnaProperties {
+  name: string;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  created_at: Timestamp;
+}
+
+/**
+ * Wire payload for zome_group::create_ndo_anchor (ADR-011 NdoAnchorInput).
+ * `ndo_dna_hash` + `network_seed` + the cached classification fields let any
+ * group member re-derive and verify the ndo clone cell.
+ */
+export interface NdoAnchorInput {
+  group_hash: ActionHash;
+  name: string;
+  description: string | null;
+  ndo_dna_hash: DnaHash;
+  network_seed: string;
+  identity_action_hash: ActionHash;
+  initiator: AgentPubKey;
+  ndo_created_at: Timestamp;
+  lifecycle_stage: LifecycleStage;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+}
+
+/**
+ * Decoded zome_group::NdoAnchor entry — the authoritative group→NDO pointer
+ * with full clone coordinates. Card data renders from this without joining the
+ * ndo cell (model A read path).
+ */
+export interface NdoAnchorEntry {
+  group_hash: ActionHash;
+  name: string;
+  description: string | null;
+  ndo_dna_hash: DnaHash;
+  network_seed: string;
+  identity_action_hash: ActionHash;
+  initiator: AgentPubKey;
+  ndo_created_at: Timestamp;
+  lifecycle_stage: LifecycleStage;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
 }
 
 export interface UpdateLifecycleStageInput {
