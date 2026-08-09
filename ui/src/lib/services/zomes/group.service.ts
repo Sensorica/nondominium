@@ -4,9 +4,10 @@ import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import { HolochainClientServiceTag, HolochainClientServiceLive } from '../holochain.service.svelte';
 import { GroupError } from '$lib/errors/group.errors';
 import { GROUP_CONTEXTS } from '$lib/errors/error-contexts';
-import type { SoftLink } from '@nondominium/shared-types';
+import type { SoftLink, NdoAnchorInput, NdoAnchorEntry, LifecycleStage } from '@nondominium/shared-types';
 import {
   decodeGroupEntry,
+  decodeNdoAnchorRecord,
   groupProfileFromRecord,
   softLinkTargetHashB64,
   type GroupHolochainRecord
@@ -34,6 +35,24 @@ export interface GroupService {
     groupHashB64: string,
     targetNdoHashB64: string,
     description?: string
+  ) => E.Effect<void, GroupError>;
+  /** Writes a zome_group NdoAnchor (model A authoritative group→NDO pointer). */
+  createNdoAnchor: (groupCellId: CellId, input: NdoAnchorInput) => E.Effect<void, GroupError>;
+  /** Reads all NdoAnchors for a group (cards render from these without joining ndo cells). */
+  getNdoAnchors: (
+    groupCellId: CellId,
+    groupHash: ActionHash
+  ) => E.Effect<NdoAnchorEntry[], GroupError>;
+  /**
+   * Refreshes one anchor's cached lifecycle_stage by NDO identity, so
+   * lobby/group cards converge on the new stage after a transition without a
+   * reload. Best-effort: the caller swallows failures.
+   */
+  refreshNdoAnchorLifecycleStage: (
+    groupCellId: CellId,
+    groupHash: ActionHash,
+    identityActionHash: ActionHash,
+    lifecycleStage: LifecycleStage
   ) => E.Effect<void, GroupError>;
 }
 
@@ -175,6 +194,43 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
                 description: description ?? null
               },
               GROUP_CONTEXTS.CREATE_SOFT_LINK
+            );
+          }),
+
+        createNdoAnchor: (groupCellId, input) =>
+          E.gen(function* () {
+            yield* callGroupZome<GroupHolochainRecord>(
+              groupCellId,
+              'create_ndo_anchor',
+              input,
+              'CREATE_NDO_ANCHOR'
+            );
+          }),
+
+        getNdoAnchors: (groupCellId, groupHash) =>
+          E.gen(function* () {
+            const records = yield* callGroupZome<GroupHolochainRecord[]>(
+              groupCellId,
+              'get_ndo_anchors',
+              groupHash,
+              'GET_NDO_ANCHORS'
+            );
+            return records
+              .map((r) => decodeNdoAnchorRecord(r))
+              .filter((a): a is NdoAnchorEntry => a !== null);
+          }),
+
+        refreshNdoAnchorLifecycleStage: (groupCellId, groupHash, identityActionHash, lifecycleStage) =>
+          E.gen(function* () {
+            yield* callGroupZome(
+              groupCellId,
+              'refresh_ndo_anchor_lifecycle_stage',
+              {
+                group_hash: groupHash,
+                identity_action_hash: identityActionHash,
+                updated_lifecycle_stage: lifecycleStage
+              },
+              'REFRESH_NDO_ANCHOR'
             );
           })
       } satisfies GroupService;
