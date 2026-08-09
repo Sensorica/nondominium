@@ -43,10 +43,15 @@ enum ResourceNature {
 /// Immutable Layer 0 fields bound into the NDO clone's DNA properties (ADR-010).
 /// Changing any field yields a different DnaHash, i.e. a different network —
 /// immutability enforced by hash physics, not validation code.
+///
+/// `initiator` is deliberately absent: holochain 0.6.0 transports
+/// `create_clone_cell` properties as `YamlProperties(serde_yaml::Value)`, which
+/// has no binary variant and cannot carry an `AgentPubKey`. The DnaHash binds the
+/// classification fields + creation time; the initiator stays on the entry and
+/// the NdoAnchor. Mirrors `nondominium_shared::NdoDnaProperties`.
 #[derive(Debug, Clone, Serialize, Deserialize, SerializedBytes)]
 struct NdoCellProperties {
     pub name: String,
-    pub initiator: AgentPubKey,
     pub property_regime: PropertyRegime,
     pub resource_nature: ResourceNature,
     pub created_at: Timestamp,
@@ -127,6 +132,14 @@ struct UpdateNdoAnchorInput {
     pub updated_lifecycle_stage: LifecycleStage,
 }
 
+/// Mirrors `zome_group_coordinator::RefreshAnchorLifecycleInput`.
+#[derive(Debug, Serialize, Deserialize)]
+struct RefreshAnchorLifecycleInput {
+    pub group_hash: ActionHash,
+    pub identity_action_hash: ActionHash,
+    pub updated_lifecycle_stage: LifecycleStage,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct GroupProfileInput {
     pub name: String,
@@ -147,10 +160,9 @@ fn decode_record_entry<T: serde::de::DeserializeOwned + std::fmt::Debug>(record:
     }
 }
 
-fn sample_properties(initiator: AgentPubKey) -> NdoCellProperties {
+fn sample_properties() -> NdoCellProperties {
     NdoCellProperties {
         name: "Community 3D Printer".to_string(),
-        initiator,
         property_regime: PropertyRegime::Nondominium,
         resource_nature: ResourceNature::Physical,
         created_at: Timestamp::from_micros(1_752_900_000_000_000),
@@ -180,6 +192,7 @@ fn anchor_input_from(
     dna_hash: DnaHash,
     seed: &str,
     identity_action_hash: ActionHash,
+    initiator: AgentPubKey,
     props: &NdoCellProperties,
 ) -> NdoAnchorInput {
     NdoAnchorInput {
@@ -189,7 +202,7 @@ fn anchor_input_from(
         ndo_dna_hash: dna_hash,
         network_seed: seed.to_string(),
         identity_action_hash,
-        initiator: props.initiator.clone(),
+        initiator,
         ndo_created_at: props.created_at,
         lifecycle_stage: LifecycleStage::Ideation,
         property_regime: props.property_regime.clone(),
@@ -206,8 +219,7 @@ fn anchor_input_from(
 #[tokio::test(flavor = "multi_thread")]
 async fn same_coordinates_derive_same_dna_hash() {
     let seed = unique_seed();
-    let fake_initiator = AgentPubKey::from_raw_36(vec![7; 36]);
-    let props = sample_properties(fake_initiator.clone());
+    let props = sample_properties();
 
     let dna_a = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
     let dna_b = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
@@ -235,8 +247,7 @@ async fn ndo_cell_genesis_identity_round_trip() {
     let mut conductors =
         SweetConductorBatch::from_config_rendezvous(2, SweetConductorConfig::standard()).await;
 
-    let fake_initiator = AgentPubKey::from_raw_36(vec![9; 36]);
-    let props = sample_properties(fake_initiator);
+    let props = sample_properties();
     let dna = ndo_dna_with_coordinates(unique_seed(), properties_bytes(&props)).await;
 
     let apps = conductors
@@ -277,6 +288,45 @@ async fn ndo_cell_genesis_identity_round_trip() {
     assert_eq!(fetched.lifecycle_stage, LifecycleStage::Ideation);
 }
 
+/// ADR-013 binding: on an ndo cell cloned with `NdoDnaProperties`, `create_ndo`
+/// is REJECTED when the entry's name diverges from the DNA properties. This also
+/// proves the binding fires (does not silently no-op): if `try_from(properties)`
+/// failed, the divergent create would succeed instead of being rejected.
+#[tokio::test(flavor = "multi_thread")]
+async fn create_ndo_rejected_when_name_diverges_from_properties() {
+    let mut conductors =
+        SweetConductorBatch::from_config_rendezvous(2, SweetConductorConfig::standard()).await;
+
+    let mut props = sample_properties();
+    props.name = "Anchored NDO".to_string();
+    let dna = ndo_dna_with_coordinates(unique_seed(), properties_bytes(&props)).await;
+
+    let apps = conductors
+        .setup_app("ndo", &[dna])
+        .await
+        .expect("Failed to install ndo app on conductors");
+    let ((cell_alice,), (_cell_bob,)) = apps.into_tuples();
+
+    // Same regime/nature as the properties, but a divergent name.
+    let divergent: Result<NdoOutput, _> = conductors[0]
+        .call_fallible(
+            &cell_alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Divergent Name".to_string(),
+                property_regime: props.property_regime.clone(),
+                resource_nature: props.resource_nature.clone(),
+                lifecycle_stage: LifecycleStage::Ideation,
+                description: None,
+            },
+        )
+        .await;
+    assert!(
+        divergent.is_err(),
+        "create_ndo must be rejected when the name diverges from the NDO DNA properties (ADR-013)"
+    );
+}
+
 /// Anchor round trip: alice anchors an NDO in the group cell; bob reads the
 /// anchor with the full clone coordinates, without joining any NDO cell.
 #[tokio::test(flavor = "multi_thread")]
@@ -285,7 +335,7 @@ async fn ndo_anchor_round_trip() {
     let group_hash = create_group(&conductors[0], &cell_alice, "Fablab").await;
 
     let seed = unique_seed();
-    let props = sample_properties(cell_alice.agent_pubkey().clone());
+    let props = sample_properties();
     let dna = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
     let fake_identity_hash = ActionHash::from_raw_36(vec![1; 36]);
 
@@ -298,6 +348,7 @@ async fn ndo_anchor_round_trip() {
                 dna.dna_hash().clone(),
                 seed.as_ref(),
                 fake_identity_hash.clone(),
+                cell_alice.agent_pubkey().clone(),
                 &props,
             ),
         )
@@ -335,7 +386,7 @@ async fn ndo_anchor_update_refreshes_cache() {
     let group_hash = create_group(&conductors[0], &cell_alice, "Fablab").await;
 
     let seed = unique_seed();
-    let props = sample_properties(cell_alice.agent_pubkey().clone());
+    let props = sample_properties();
     let dna = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
 
     let created: Record = conductors[0]
@@ -347,6 +398,7 @@ async fn ndo_anchor_update_refreshes_cache() {
                 dna.dna_hash().clone(),
                 seed.as_ref(),
                 ActionHash::from_raw_36(vec![2; 36]),
+                cell_alice.agent_pubkey().clone(),
                 &props,
             ),
         )
@@ -394,6 +446,98 @@ async fn ndo_anchor_update_refreshes_cache() {
     );
 }
 
+/// refresh_ndo_anchor_lifecycle_stage resolves an anchor by its NDO identity
+/// (not by the anchor's action hash) and updates the cached stage; a peer's
+/// get_ndo_anchors then reflects the new stage with identity coordinates
+/// unchanged. This is the post-transition convergence path the lobby relies on.
+#[tokio::test(flavor = "multi_thread")]
+async fn refresh_ndo_anchor_lifecycle_stage_updates_cache() {
+    let (conductors, cell_alice, cell_bob) = setup_two_agents().await;
+    let group_hash = create_group(&conductors[0], &cell_alice, "Fablab").await;
+
+    let seed = unique_seed();
+    let props = sample_properties();
+    let dna = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
+    let identity_hash = ActionHash::from_raw_36(vec![7; 36]);
+
+    let _created: Record = conductors[0]
+        .call(
+            &cell_alice.zome("zome_group"),
+            "create_ndo_anchor",
+            anchor_input_from(
+                group_hash.clone(),
+                dna.dna_hash().clone(),
+                seed.as_ref(),
+                identity_hash.clone(),
+                cell_alice.agent_pubkey().clone(),
+                &props,
+            ),
+        )
+        .await;
+
+    // Refresh by NDO identity only — the caller knows the NDO, not the anchor.
+    // Sweettest's `call` panics if the zome call errors, so a failure here
+    // surfaces as a test panic rather than needing `.expect` on a generic call.
+    let _: Option<Record> = conductors[0]
+        .call(
+            &cell_alice.zome("zome_group"),
+            "refresh_ndo_anchor_lifecycle_stage",
+            RefreshAnchorLifecycleInput {
+                group_hash: group_hash.clone(),
+                identity_action_hash: identity_hash.clone(),
+                updated_lifecycle_stage: LifecycleStage::Active,
+            },
+        )
+        .await;
+
+    await_consistency_20_s([&cell_alice, &cell_bob])
+        .await
+        .unwrap();
+
+    let anchors: Vec<Record> = conductors[1]
+        .call(
+            &cell_bob.zome("zome_group"),
+            "get_ndo_anchors",
+            group_hash,
+        )
+        .await;
+    assert_eq!(anchors.len(), 1);
+
+    let anchor: NdoAnchorEntry = decode_record_entry(&anchors[0]);
+    assert_eq!(
+        anchor.lifecycle_stage,
+        LifecycleStage::Active,
+        "get_ndo_anchors must reflect the refreshed stage"
+    );
+    assert_eq!(anchor.identity_action_hash, identity_hash);
+    assert_eq!(
+        anchor.ndo_dna_hash,
+        dna.dna_hash().clone(),
+        "identity coordinates must survive the refresh unchanged"
+    );
+}
+
+/// refresh_ndo_anchor_lifecycle_stage is a no-op (returns None, no error) when
+/// the NDO identity is not anchored in the group.
+#[tokio::test(flavor = "multi_thread")]
+async fn refresh_ndo_anchor_lifecycle_stage_noop_when_identity_absent() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_agents().await;
+    let group_hash = create_group(&conductors[0], &cell_alice, "Fablab").await;
+
+    let result: Option<Record> = conductors[0]
+        .call(
+            &cell_alice.zome("zome_group"),
+            "refresh_ndo_anchor_lifecycle_stage",
+            RefreshAnchorLifecycleInput {
+                group_hash,
+                identity_action_hash: ActionHash::from_raw_36(vec![9; 36]),
+                updated_lifecycle_stage: LifecycleStage::Active,
+            },
+        )
+        .await;
+    assert!(result.is_none(), "refresh must be a no-op for an absent identity");
+}
+
 /// Integrity validation rejects an anchor with an empty name.
 #[tokio::test(flavor = "multi_thread")]
 #[should_panic]
@@ -402,7 +546,7 @@ async fn ndo_anchor_validation_rejects_empty_name() {
     let group_hash = create_group(&conductors[0], &cell_alice, "Fablab").await;
 
     let seed = unique_seed();
-    let props = sample_properties(cell_alice.agent_pubkey().clone());
+    let props = sample_properties();
     let dna = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
 
     let mut input = anchor_input_from(
@@ -410,6 +554,7 @@ async fn ndo_anchor_validation_rejects_empty_name() {
         dna.dna_hash().clone(),
         seed.as_ref(),
         ActionHash::from_raw_36(vec![3; 36]),
+        cell_alice.agent_pubkey().clone(),
         &props,
     );
     input.name = "   ".to_string();
@@ -432,7 +577,7 @@ async fn second_agent_joins_ndo_via_anchor_coordinates() {
 
     // Alice provisions the NDO cell with immutable Layer 0 fields in DNA properties.
     let seed = unique_seed();
-    let props = sample_properties(cell_alice.agent_pubkey().clone());
+    let props = sample_properties();
     let ndo_dna = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
     let ndo_dna_hash = ndo_dna.dna_hash().clone();
 
@@ -470,6 +615,7 @@ async fn second_agent_joins_ndo_via_anchor_coordinates() {
                 ndo_dna_hash.clone(),
                 seed.as_ref(),
                 genesis.action_hash.clone(),
+                cell_alice.agent_pubkey().clone(),
                 &props,
             ),
         )
@@ -489,7 +635,6 @@ async fn second_agent_joins_ndo_via_anchor_coordinates() {
     // the clone. The pinning check: the derived DnaHash must equal the anchored one.
     let reconstructed = NdoCellProperties {
         name: anchor.name.clone(),
-        initiator: anchor.initiator.clone(),
         property_regime: anchor.property_regime.clone(),
         resource_nature: anchor.resource_nature.clone(),
         created_at: anchor.ndo_created_at,

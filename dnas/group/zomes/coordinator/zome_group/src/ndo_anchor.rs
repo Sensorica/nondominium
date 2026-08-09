@@ -68,7 +68,7 @@ pub fn get_ndo_anchors(group_hash: ActionHash) -> ExternResult<Vec<Record>> {
     let Some(original_hash) = link.target.into_action_hash() else {
       continue;
     };
-    let Some(record) = latest_anchor_record(original_hash)? else {
+    let Some((_latest_hash, record)) = latest_anchor(original_hash)? else {
       continue;
     };
     anchors.push(record);
@@ -78,8 +78,10 @@ pub fn get_ndo_anchors(group_hash: ActionHash) -> ExternResult<Vec<Record>> {
 }
 
 /// Resolves an anchor's original action hash to its most recent version by
-/// following NdoAnchorUpdates links (latest by action timestamp).
-fn latest_anchor_record(original_hash: ActionHash) -> ExternResult<Option<Record>> {
+/// following NdoAnchorUpdates links (latest by action timestamp). Returns both
+/// the latest action hash (the action a future update must supersede) and its
+/// record. `(latest_hash, record)` is `None` only when the entry is absent.
+fn latest_anchor(original_hash: ActionHash) -> ExternResult<Option<(ActionHash, Record)>> {
   let update_links = get_links(
     LinkQuery::try_new(original_hash.clone(), LinkTypes::NdoAnchorUpdates)?,
     GetStrategy::default(),
@@ -91,7 +93,8 @@ fn latest_anchor_record(original_hash: ActionHash) -> ExternResult<Option<Record
     .and_then(|link| link.target.into_action_hash())
     .unwrap_or(original_hash);
 
-  get(latest_hash, GetOptions::default())
+  let record = get(latest_hash.clone(), GetOptions::default())?;
+  Ok(record.map(|r| (latest_hash, r)))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -149,4 +152,78 @@ pub fn update_ndo_anchor(input: UpdateNdoAnchorInput) -> ExternResult<Record> {
   )?;
 
   Ok(record)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RefreshAnchorLifecycleInput {
+  pub group_hash: ActionHash,
+  /// The NDO identity action hash the anchor points at (not the anchor's own
+  /// action hash) — the caller knows the NDO, not the anchor.
+  pub identity_action_hash: ActionHash,
+  pub updated_lifecycle_stage: LifecycleStage,
+}
+
+/// Refreshes a single NdoAnchor's cached `lifecycle_stage`, resolving the
+/// anchor by its NDO identity rather than by action hash. Called after an NDO
+/// lifecycle transition so lobby/group cards reflect the new stage without a
+/// reload — the client only knows the NDO identity, while the original-vs-latest
+/// anchor action hashes are a property of this group's link graph and must not
+/// leak across that boundary.
+///
+/// Resolves the anchor via the `GroupToNdoAnchors` link (whose target is the
+/// stable original create action) and follows the `NdoAnchorUpdates` chain to
+/// the latest version, so repeated refreshes stay visible to `get_ndo_anchors`.
+/// The identity coordinates and name/description are preserved from the current
+/// latest entry; only `lifecycle_stage` changes.
+///
+/// Returns `Ok(None)` when no anchor in this group points at the given NDO
+/// identity (e.g. an NDO anchored in a different group, or not yet anchored) —
+/// a no-op, not an error, matching the best-effort convergence contract.
+#[hdk_extern]
+pub fn refresh_ndo_anchor_lifecycle_stage(
+  input: RefreshAnchorLifecycleInput,
+) -> ExternResult<Option<Record>> {
+  let links = get_links(
+    LinkQuery::try_new(input.group_hash.clone(), LinkTypes::GroupToNdoAnchors)?,
+    GetStrategy::default(),
+  )?;
+
+  for link in links {
+    let Some(original_hash) = link.target.into_action_hash() else {
+      continue;
+    };
+    let Some((latest_hash, record)) = latest_anchor(original_hash.clone())? else {
+      continue;
+    };
+    let anchor: NdoAnchor = record
+      .entry()
+      .to_app_option()
+      .map_err(|e| wasm_error!(WasmErrorInner::Serialize(e)))?
+      .ok_or_else(|| {
+        GroupError::EntryOperationFailed("Failed to decode NdoAnchor entry".to_string())
+      })?;
+    if anchor.identity_action_hash != input.identity_action_hash {
+      continue;
+    }
+
+    let updated = NdoAnchor {
+      lifecycle_stage: input.updated_lifecycle_stage.clone(),
+      ..anchor
+    };
+    let updated_hash = update_entry(latest_hash, &updated)?;
+    let new_record = get(updated_hash.clone(), GetOptions::default())?.ok_or(
+      GroupError::EntryOperationFailed(
+        "Failed to retrieve refreshed NDO anchor".to_string(),
+      ),
+    )?;
+    create_link(
+      original_hash,
+      updated_hash,
+      LinkTypes::NdoAnchorUpdates,
+      (),
+    )?;
+    return Ok(Some(new_record));
+  }
+
+  Ok(None)
 }
