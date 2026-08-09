@@ -109,7 +109,7 @@ Authoritative pointer from the group to an NDO cell (one NDO = one cloned DHT ce
 |----------|-------|--------|-------------|
 | `join_group` | `ActionHash` (group hash) | `Record` | Creates a `GroupMembership` entry; guards against duplicate joins |
 | `leave_group` | `ActionHash` (group hash) | `()` | Deletes discovery links for the calling agent; entry remains on-chain as audit trail |
-| `get_group_members` | `ActionHash` (group hash) | `Vec<Record>` | Returns Records for all current members; member = `record.action().author()` |
+| `get_group_members` | `ActionHash` (group hash) | `Vec<AgentPubKey>` | Returns the `AgentPubKey` of every current member, read from each `GroupToMembers` link's author in one `get_links` round-trip |
 | `is_member` | `(AgentPubKey, ActionHash)` | `bool` | Predicate: does the given agent appear in `get_group_members`? |
 
 ### Work Logs
