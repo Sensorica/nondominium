@@ -4,6 +4,18 @@
 
 **Context**: A collective of artists collaborates to create a large-scale public art installation, sharing specialized equipment and studio space through the Artcoin production platform. **This scenario demonstrates both the current Nondominium resource sharing capabilities and the need for broader TrueCommon implementation with full REA integration for complete peer production network management through Network Resource Planning (NRP).**
 
+See also *artcoin_main_doc.md*, *user-story-artcoin.md*, *user-story-art-distribution.md* and *nondominium_artcoin.md*.
+
+> **How to read this story.** Shared equipment and studio space are **Nondominium
+> Objects (NDOs)** — permanent `NondominiumIdentity` anchors with a `property_regime`
+> (typically `Commons` or `Pool` for shared tools) whose custody and use are governed by
+> embedded `GovernanceRule` entries. Collaboration, fabrication, and maintenance
+> generate bilateral **Private Participation Receipts (PPRs)**. This story is deliberately
+> the most REA-heavy of the three art scenarios: it highlights where the Nondominium
+> resource-sharing core meets its edge and a fuller REA/hREA layer ("TrueCommon", with
+> Network Resource Planning) is needed. For the Nondominium-side capability status, see
+> *nondominium_artcoin.md §5*.
+
 ---
 
 ## 🏗️ System Architecture Context

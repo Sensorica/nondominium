@@ -170,10 +170,10 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 | Document | Description |
 | --- | --- |
-| **[Artcoin Integration](Applications/nondominium_artcoin.md)** | Artcoin application integration |
-| **[User Story — Artcoin](Applications/user-story/user-story-artcoin.md)** | Complete Artcoin user journey |
-| **[User Story — Art Distribution](Applications/user-story/user-story-art-distribution.md)** | Art distribution scenario |
-| **[User Story — Art Production](Applications/user-story/user-story-art-production.md)** | Art production scenario |
+| **[Artcoin Integration](Applications/nondominium_artcoin.md)** | Artcoin mapped onto the NDO model (property regimes, roles, custody, PPRs) + implementation status |
+| **[User Story — Artcoin](Applications/user-story/user-story-artcoin.md)** | Art circulation & discovery via venues and individual art lovers |
+| **[User Story — Art Distribution](Applications/user-story/user-story-art-distribution.md)** | Multi-venue exhibition tour: custody chain, transport & storage |
+| **[User Story — Art Production](Applications/user-story/user-story-art-production.md)** | Collaborative art production with shared studio resources (REA edge) |
 | **[User Story — ERP Bridge](Applications/user-story/user-story-ERP-bridge.md)** | ERP bridge integration scenario |
 | **[User Story — Food Basket](Applications/user-story/user-story-food-basket.md)** | Food basket sharing scenario |
 | **[User Story — Material Peer Production](Applications/user-story/user-story-material-peer-production.md)** | Material peer production scenario |

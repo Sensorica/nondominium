@@ -4,6 +4,24 @@
 
 **Context**: A network of local farms and food producers coordinates last-mile delivery to urban customers through a distributed logistics system powered by Nondominium, optimizing routes and sharing delivery resources.
 
+> **How to read this story (grounding note).** Produce batches and shared logistics
+> assets (refrigerated vehicles, cold-storage) are **NDOs**: a permanent Layer 0
+> `NondominiumIdentity` (`create_ndo`), an optional Layer 1 `ResourceSpecification`
+> for the produce type and food-safety `GovernanceRule`s, and a Layer 2
+> `EconomicResource` instance (`create_economic_resource`) whose `custodian` and
+> `OperationalState` (`Available → Reserved → InTransit → InStorage`) move as the
+> basket travels farm → hub → customer. Custody handoffs between producer, hub, and
+> courier use `transfer_custody`, which logs a `TransferCustody` economic event and
+> issues bilateral **Private Participation Receipts (PPRs)** — here mainly the
+> service categories `TransportCommitmentAccepted` / `TransportFulfillmentCompleted`
+> and `StorageCommitmentAccepted` / `StorageFulfillmentCompleted`, plus
+> `CustodyTransfer` / `CustodyAcceptance`. Route optimization, temperature IoT, and
+> payment settlement are **host-platform** responsibilities layered on top of
+> Nondominium; steps shown against `ND` are the ValueFlows/governance calls, while
+> platform-orchestration steps are illustrative of the surrounding system.
+> Multi-producer, N-to-M consolidation is a **post-MVP** many-to-many flow (see
+> `documentation/requirements/post-mvp/many-to-many-flows.md`); the MVP models each
+> leg as one-to-one custody events.
 
 ---
 
@@ -25,7 +43,7 @@
 
 - **Network Members**: 8 local farms, 3 community kitchens, 2 urban distribution hubs
 - **Assets**: Refrigerated vehicles, bike couriers, temperature monitoring devices
-- **Governance Rules: Food safety compliance, temperature tracking, delivery time windows
+- **Governance Rules**: Food safety compliance, temperature tracking, delivery time windows
 
 ---
 
@@ -42,15 +60,15 @@ sequenceDiagram
     participant Gov as Governance Zome
 
     Maria->>Platform: Submit weekly harvest and delivery needs
-    Maria->>ND: create_person_with_role(FoodProducer)
+    Maria->>ND: create_person(Maria) + assign_person_role(Transport/Storage where applicable)
     ND->>Res: Create producer profile with certifications
 
-    Maria->>ND: create_resource_specification(OrganicProduce)
+    Maria->>ND: create_resource_specification(OrganicProduce) + attach GovernanceRule
     ND->>Res: Store produce specifications and quality standards
     ND->>Gov: Link food safety requirements and temperature controls
 
-    Maria->>ND: create_economic_resources(WeeklyHarvest)
-    ND->>Res: Register produce batches with lot tracking
+    Maria->>ND: create_ndo(ProduceBatch) + create_economic_resource(WeeklyHarvest)
+    ND->>Res: Register produce batches with lot tracking (OperationalState: Available)
     ND->>Gov: Embed governance rules for food safety
 ```
 
@@ -76,20 +94,19 @@ sequenceDiagram
     participant Gov as Governance Zome
 
     James->>Platform: Review weekly distribution requirements
-    Platform->>ND: get_all_distribution_needs()
-    ND->>Res: Query all registered deliveries for week
-    Res-->>ND: Return consolidated delivery list
+    Platform->>ND: get_all_ndos() / get_all_economic_resources()
+    ND->>Res: Query all registered produce batches for week
+    Res-->>ND: Return consolidated resource list
 
-    James->>ND: optimize_delivery_routes()
-    ND->>Gov: Calculate optimal routes with time windows
-    Gov-->>ND: Return route efficiency plan
+    James->>Platform: optimize_delivery_routes() (host-platform logistics)
+    Note over Platform: Route optimization is a platform concern, not a zome call
 
     James->>ND: derive_reputation_summary(Producers)
     ND->>PPR: Calculate producer reliability scores
     PPR-->>ND: Return producer quality ratings (avg 4.8/5)
 
-    James->>ND: create_distribution_commitments()
-    ND->>Gov: Generate delivery agreements with all producers
+    James->>ND: propose_commitment(TransferCustody/AccessForUse) per producer
+    ND->>Gov: Generate delivery commitments with all producers
 ```
 
 **Network Optimization Process**:
@@ -118,6 +135,7 @@ stateDiagram-v2
     ConsolidationReady --> LastMileDelivery: Final route loading
 
     note right of HubProcessing
+        OperationalState: InTransit → InStorage → Reserved
         Temperature verification: 3.2°C ✅
         Quality inspection: All produce fresh
         Lot scanning: Complete traceability
@@ -192,22 +210,21 @@ sequenceDiagram
     participant ND as Nondominium
     participant PPR as PPR System
 
-    James->>ND: initiate_delivery_completion()
-    ND->>Gov: Validate all deliveries completed
+    James->>ND: claim_commitment() per delivery leg
+    ND->>Gov: Validate deliveries completed against commitments
     Gov-->>ND: Delivery completion confirmation
 
     Maria->>Platform: Review delivery performance report
-    Platform->>ND: validate_delivery_quality()
+    Platform->>ND: validate_new_resource() / check_validation_status()
     ND->>Gov: Verify temperature compliance and on-time delivery
     Gov-->>Platform: Quality metrics confirmed
 
-    Maria->>ND: validate_specialized_role(OrganicProducer)
-    ND->>Gov: Issue quality assurance PPR
-    Gov->>PPR: record_delivery_excellence()
+    Maria->>ND: issue_participation_receipts(TransportFulfillmentCompleted, StorageFulfillmentCompleted)
+    ND->>Gov: Record bilateral service PPRs with PerformanceMetrics
+    Gov->>PPR: Persist private participation claims
 
-    James->>ND: process_distribution_payments()
-    ND->>Gov: Execute automatic payment distribution
-    Gov->>PPR: issue_financial_receipts()
+    James->>ND: create_agreement(BenefitClause) for revenue split
+    Note over ND: Automatic settlement (payment rails) is post-MVP (Unyt); Agreement/BenefitClause captures the split on-DHT
 ```
 
 **Quality Assurance & Settlement**:
@@ -285,8 +302,8 @@ graph LR
     end
 
     subgraph "After Network Distribution"
-        Maria_After["Maria: Network Producer<br/>4.9/5 delivery reliability<br/>40% cost reduction<br/>+2 FoodDistribution PPRs"]
-        James_After["James: Logistics Network Manager<br/>+3 RouteOptimization PPRs<br/>+1 NetworkCoordination"]
+        Maria_After["Maria: Network Producer<br/>4.9/5 delivery reliability<br/>40% cost reduction<br/>+2 TransportFulfillmentCompleted<br/>+1 CustodyTransfer"]
+        James_After["James: Logistics Network Manager<br/>+3 CustodyAcceptance<br/>+1 ValidationActivity"]
         System_After["Food System: Integrated<br/>Sustainable & Efficient<br/>Local economic multiplier"]
     end
 
@@ -435,7 +452,7 @@ mindmap
 
 ### **Advanced Food Logistics Integration**
 
-- **Autonomous Delivery**: Integration with autonomous vehicles and delivery drones for最后一公里
+- **Autonomous Delivery**: Integration with autonomous vehicles and delivery drones for last-mile delivery
 - **Smart Packaging**: IoT-enabled packaging that monitors and reports on food quality in real-time
 - **Blockchain Integration**: Enhanced traceability with smart contracts for automatic quality enforcement
 - **AI-Powered Demand**: Predictive analytics for production planning and inventory optimization
