@@ -1376,8 +1376,8 @@ Creates a `GroupMembership` entry and `GroupToMembers` + `MemberToGroups` links.
 Deletes the `GroupToMembers` and `MemberToGroups` links for the calling agent.
 The `GroupMembership` entry is intentionally retained on-chain as an audit trail.
 
-#### `get_group_members(group_hash: ActionHash) -> ExternResult<Vec<Record>>`
-Returns Records for all current members reachable via `GroupToMembers` links. Member identity = `record.action().author()`.
+#### `get_group_members(group_hash: ActionHash) -> ExternResult<Vec<AgentPubKey>>`
+Returns the `AgentPubKey` of every current member, read from each `GroupToMembers` link's author in a single `get_links` round-trip (does not `get` each `GroupMembership` record, which may be absent from the local shard before sync).
 
 #### `is_member(input: (AgentPubKey, ActionHash)) -> ExternResult<bool>`
 Predicate: does the given agent appear in `get_group_members`?
