@@ -1372,6 +1372,38 @@ interface NdoInput {
   description?: string;
 }
 
+// DNA properties of a cloned `ndo` cell (ADR-010 model A; ADR-013 binding).
+// Mirrors crates/shared/src/types.rs::NdoDnaProperties field-for-field. The field
+// set AND order are DnaHash input — changing either orphans every existing NDO
+// cell. Excludes `initiator` (holochain 0.6.0 carries clone properties as
+// YamlProperties, which has no binary variant for an AgentPubKey), and excludes
+// the mutable `lifecycle_stage` / entry-only `description`.
+interface NdoDnaProperties {
+  name: string;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  created_at: Timestamp;    // micros from a ms clock — NOT a uniqueness source
+}
+
+// The group→NDO pointer (ADR-011): an entry on the group clone cell carrying the
+// coordinates a peer needs to re-derive, verify, and join the NDO cell. Also the
+// create payload (`NdoAnchorInput` is an alias). Only name/description/
+// lifecycle_stage are mutable caches — zome_group_integrity rejects an update
+// that rewrites any other field.
+interface NdoAnchorEntry {
+  group_hash: ActionHash;
+  name: string;
+  description: string | null;
+  ndo_dna_hash: DnaHash;            // THE permanent NDO identity
+  network_seed: string;             // needed to clone/join the cell
+  identity_action_hash: ActionHash; // Layer 0 genesis entry inside the ndo cell
+  initiator: AgentPubKey;
+  ndo_created_at: Timestamp;
+  lifecycle_stage: LifecycleStage;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+}
+
 // Lifecycle transition payload
 interface UpdateLifecycleStageInput {
   ndo_original_action_hash: ActionHash;
@@ -1455,15 +1487,20 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 | `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |
 | `saveGroupMemberProfile(groupId, profile)` | `localStorage[ndo_group_profiles_v1]` (Level 2 identity — only remaining localStorage state) |
 
-**`ndo.service.ts`** — higher-level aggregation (NDO–Group association is DHT-backed via `SoftLink` entries on the group clone cell):
+**`ndo.service.ts`** — higher-level aggregation over the **per-NDO-cell model** (ADR-010 model A). Each NDO is its own cloned `ndo` cell whose `DnaHash` is bound to the NDO identity through DNA properties; the group→NDO pointer is an **`NdoAnchor`** entry on the group clone cell carrying the full clone coordinates (`ndo_dna_hash`, `network_seed`, `identity_action_hash`) plus cached card fields. Anchors are the only pointer these read paths follow — `SoftLink` is no longer used for NDO association.
+
+Every "where is this NDO anchored" question is answered from a single `scanGroupAnchors()` pass over the agent's group cells.
 
 | Function | Behaviour |
 |----------|-----------|
-| `getLobbyNdoDescriptors()` | Union of `SoftLink` targets across all the agent's group clone cells → resolve each via `resource.getNdo` |
-| `createNdo(input, groupId)` | `resource.createNdo` → `create_soft_link(group_cell, group_hash, ndo_hash)` on the group clone cell (best-effort) |
-| `getGroupNdoDescriptors(groupId)` | `get_soft_links` on the group cell → resolve each target via `resource.getNdo` |
-| `getAssociatedGroupIds(ndoHashB64)` | Scan SoftLinks across the agent's groups |
-| `getNdoTransitionHistory(hash)` | Calls `resource.getNdoTransitionHistory`; returns `[]` gracefully on 404 |
+| `getLobbyNdoDescriptors()` | One anchor scan across the agent's group clone cells → render cards from the cached anchor fields (no ndo cell is joined) |
+| `createNdo(input, groupId)` | `createNdoCloneCell(networkSeed, properties)` → `create_ndo` **inside the new ndo cell** → `create_ndo_anchor` on the group cell. The anchor write is **not** best-effort: it is the only discovery path, so a failure fails the create rather than orphaning the cell |
+| `getNdoDescriptorForSpecActionHash(hash)` | Resolve the ndo cell from the anchor (`ensureNdoCloneCell` provisions it for a peer who never joined) → live `get_ndo`; falls back to the legacy shared `nondominium` cell for pre-migration NDOs |
+| `updateLifecycleStage(input)` | `update_lifecycle_stage` on the ndo cell → `refresh_ndo_anchor_lifecycle_stage` on each group that anchors it (best-effort cache convergence); legacy shared-cell fallback retained |
+| `getGroupNdoDescriptors(groupId)` | `get_ndo_anchors` on that group's cell → cards from cached anchor fields |
+| `getAssociatedGroupIds(ndoHashB64)` | Groups whose anchors carry this NDO identity, from the one scan |
+| `associateNdoWithGroup(ndoHashB64, groupId)` | Copies an existing anchor's clone coordinates into a second group as a new `NdoAnchor` (no-op if already anchored there) |
+| `getNdoTransitionHistory(hash)` | `get_ndo_transition_history` on the resolved ndo cell; legacy shared-cell fallback |
 | `joinNdo` / `getNdoMembers` | Stub (`NdoNotImplementedError`) until `zome_resource` implements NDO membership |
 
 ### 7.3 Error Context Registry
@@ -1509,7 +1546,7 @@ Filter logic: OR within each dimension, AND across dimensions. Empty set = show 
 | State | Source |
 |-------|--------|
 | `group` | `LobbyService.getMyGroups()` (group clone cells) |
-| `groupNdos` | `NdoService.getGroupNdoDescriptors(groupId)` via `SoftLink`s on the group cell |
+| `groupNdos` | `NdoService.getGroupNdoDescriptors(groupId)` via `NdoAnchor`s on the group cell |
 | `members` | `GroupService.getMembers(cellId)` (DHT) |
 
 `loadGroupData(groupId, { silent? })` switches the store's active group context. A full (non-silent) load runs `LobbyService.ensureMembership(groupId)` (membership self-heal) before fetching NDOs + members; a **silent** load (used by the reactivity layer) skips the reconcile, leaves `isLoading` untouched, and keeps existing data on transient failure. `refreshCurrentGroup()` is a silent re-fetch of the open group. `createNdo(input)` creates on DHT then reloads.
