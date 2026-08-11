@@ -111,6 +111,23 @@ pub struct NondominiumIdentity {
   pub hibernation_origin: Option<LifecycleStage>,
 }
 
+// NDO membership — makes participation in an NDO explicit and listable.
+//
+// IMPORTANT: this is NOT an access grant. Under the per-NDO-cell model (ADR-010 model A) an
+// agent must already hold the cloned NDO cell to read the NDO at all, so cell possession is
+// what confers access. NdoMembership records that the agent has *declared* participation, so
+// other members can enumerate who is taking part. Nothing may treat its absence as a read
+// denial. See ndo_membership.rs in the coordinator.
+//
+// The joining agent is the action author; join timestamp comes from the action header —
+// neither is stored in the entry (same convention as GroupMembership in the group DNA).
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct NdoMembership {
+  pub ndo_identity_hash: ActionHash,
+  pub role: Option<String>,
+}
+
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 #[derive(Serialize, Deserialize, SerializedBytes)]
@@ -119,6 +136,7 @@ pub enum EntryTypes {
   EconomicResource(EconomicResource),
   GovernanceRule(GovernanceRule),
   NondominiumIdentity(NondominiumIdentity),
+  NdoMembership(NdoMembership),
 }
 
 #[hdk_link_types]
@@ -140,6 +158,10 @@ pub enum LinkTypes {
   NdoByPropertyRegime, // Path("ndo.regime.{regime}")   → NondominiumIdentity action hashes
 
   // NDO Layer 0 lifecycle links
+  // NDO membership links (one NDO = one cloned cell)
+  NdoToMembers, // NondominiumIdentity action hash → NdoMembership
+  MemberToNdos, // member AgentPubKey → NondominiumIdentity action hash (duplicate-join guard)
+
   NdoToSuccessor, // deprecated NDO action hash → successor NondominiumIdentity (REQ-NDO-LC-06)
   NdoToTransitionEvent, // NDO action hash → EconomicEvent that triggered the transition (REQ-NDO-L0-05)
   // Link only; full event validation deferred (integrity cannot
@@ -202,6 +224,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         EntryTypes::NondominiumIdentity(ndi) => {
           validate_create_nondominium_identity(&ndi, &action.author)
         }
+        EntryTypes::NdoMembership(membership) => validate_ndo_membership(&membership),
       },
       OpEntry::UpdateEntry {
         app_entry, action, ..
@@ -213,6 +236,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           validate_update_economic_resource(&resource, &action.author)
         }
         EntryTypes::GovernanceRule(rule) => validate_update_governance_rule(&rule, &action.author),
+        EntryTypes::NdoMembership(membership) => validate_ndo_membership(&membership),
         EntryTypes::NondominiumIdentity(new_ndi) => {
           // Fetch original entry to enforce immutability of all fields except lifecycle_stage
           // (REQ-NDO-L0-03, REQ-NDO-L0-04)
@@ -346,6 +370,29 @@ fn validate_create_governance_rule(
     ));
   }
 
+  Ok(ValidateCallbackResult::Valid)
+}
+
+// NDO membership validation.
+//
+// The referenced NondominiumIdentity's existence is deliberately NOT checked here: an
+// ActionHash is always 39 bytes and `must_get_valid_record` on a hash from another agent's
+// chain would make membership creation depend on gossip timing. Semantic validation (the
+// identity exists in this cell) lives in the coordinator, matching the convention used by
+// GroupMembership and SoftLink in the group DNA.
+fn validate_ndo_membership(membership: &NdoMembership) -> ExternResult<ValidateCallbackResult> {
+  if let Some(role) = &membership.role {
+    if role.trim().is_empty() {
+      return Ok(ValidateCallbackResult::Invalid(
+        "NdoMembership role, when present, cannot be empty".to_string(),
+      ));
+    }
+    if role.len() > 100 {
+      return Ok(ValidateCallbackResult::Invalid(
+        "NdoMembership role too long (max 100 characters)".to_string(),
+      ));
+    }
+  }
   Ok(ValidateCallbackResult::Valid)
 }
 

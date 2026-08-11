@@ -171,4 +171,37 @@ test.describe.serial('nondominium multi-agent flows', () => {
       { timeoutMs: 240_000, pollMs: 6_000, onPoll: async () => { await bob.reload(); } }
     );
   });
+
+  test('both agents join the NDO and see each other in the member list', async () => {
+    test.setTimeout(360_000);
+
+    // Membership is an explicit act: creating the NDO did not make alice a member.
+    // Both agents are already on the NDO detail page from the previous tests.
+    for (const page of [alice, bob]) {
+      await page.getByRole('button', { name: 'Join NDO' }).click();
+      await page.getByRole('button', { name: 'Join this NDO' }).click();
+      await expect(page.getByText('You have joined this NDO.')).toBeVisible({ timeout: 90_000 });
+    }
+
+    // Each agent's own membership commits locally, so it appears immediately; the
+    // peer's membership arrives by gossip, which is what the poll waits for. This is
+    // the assertion that fails if get_ndo_members ever fetches the linked record
+    // instead of reading the link author — the peer's record may not be held here.
+    for (const page of [alice, bob]) {
+      await expectEventually(
+        page,
+        async () => {
+          await expect(page.getByTestId('member-row')).toHaveCount(2, { timeout: 5_000 });
+        },
+        {
+          timeoutMs: 240_000,
+          pollMs: 6_000,
+          onPoll: async () => {
+            await page.reload();
+            await page.getByRole('button', { name: 'Join NDO' }).click();
+          }
+        }
+      );
+    }
+  });
 });

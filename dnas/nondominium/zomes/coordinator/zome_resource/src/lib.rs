@@ -4,11 +4,13 @@ pub use nondominium_shared::errors::ResourceError;
 pub mod economic_resource;
 pub mod governance_rule;
 pub mod ndo_identity;
+pub mod ndo_membership;
 pub mod resource_specification;
 
 pub use economic_resource::*;
 pub use governance_rule::*;
 pub use ndo_identity::*;
+pub use ndo_membership::*;
 pub use resource_specification::*;
 
 #[allow(clippy::large_enum_variant)]

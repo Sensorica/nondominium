@@ -1501,7 +1501,7 @@ Every "where is this NDO anchored" question is answered from a single `scanGroup
 | `getAssociatedGroupIds(ndoHashB64)` | Groups whose anchors carry this NDO identity, from the one scan |
 | `associateNdoWithGroup(ndoHashB64, groupId)` | Copies an existing anchor's clone coordinates into a second group as a new `NdoAnchor` (no-op if already anchored there) |
 | `getNdoTransitionHistory(hash)` | `get_ndo_transition_history` on the resolved ndo cell; legacy shared-cell fallback |
-| `joinNdo` / `getNdoMembers` | Stub (`NdoNotImplementedError`) until `zome_resource` implements NDO membership |
+| `joinNdo` / `getNdoMembers` | Resolves the ndo cell from anchor coordinates, then `join_ndo` / `get_ndo_members` on `zome_resource`. `joinNdo` is idempotent (`is_ndo_member` guard); member names resolve via `zome_person` with a truncated-pubkey fallback |
 
 ### 7.3 Error Context Registry
 
