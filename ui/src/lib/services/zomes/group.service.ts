@@ -29,7 +29,15 @@ export interface GroupService {
   getMembers: (groupCellId: CellId) => E.Effect<GroupMemberStub[], GroupError>;
   getWorkLogs: (groupCellId: CellId) => E.Effect<{ id: string; title: string }[], GroupError>;
   getSoftLinks: (groupCellId: CellId) => E.Effect<SoftLinkStub[], GroupError>;
+  /**
+   * @deprecated for NDO association — SoftLinks are no longer read by any NDO
+   * path. Under model A the group→NDO pointer is the `NdoAnchor`
+   * (`createNdoAnchor` / `getNdoAnchors`), which carries the clone coordinates a
+   * peer needs to join the cell. These two remain only as thin wrappers over the
+   * still-live `zome_group` SoftLink API for future planning-level links.
+   */
   getSoftLinkTargetHashes: (groupCellId: CellId) => E.Effect<string[], GroupError>;
+  /** @deprecated for NDO association — see `getSoftLinkTargetHashes`. */
   createSoftLink: (
     groupCellId: CellId,
     groupHashB64: string,

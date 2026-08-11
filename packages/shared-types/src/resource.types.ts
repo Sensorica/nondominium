@@ -171,8 +171,14 @@ export interface NdoInput {
  *
  * Passed to `createCloneCell` as a PLAIN JS OBJECT (the conductor canonicalizes
  * the modifiers itself; DnaHash determinism is value-level across client and
- * Rust). `created_at` is microseconds (client-chosen, NOT the entry's sys_time —
- * peers re-derive the same DnaHash from the anchor's cached value).
+ * Rust). `created_at` is microseconds derived from a millisecond wall clock, so
+ * it is NOT a uniqueness guarantee — distinctness comes from the per-NDO
+ * `network_seed`, which is also DnaHash input. It is client-chosen, NOT the
+ * entry's sys_time: peers re-derive the same DnaHash from the anchor's cached
+ * value.
+ *
+ * The field set and order are DnaHash input. Changing either orphans every
+ * existing NDO cell — keep this in lockstep with the Rust definition.
  */
 export interface NdoDnaProperties {
   name: string;
@@ -182,28 +188,15 @@ export interface NdoDnaProperties {
 }
 
 /**
- * Wire payload for zome_group::create_ndo_anchor (ADR-011 NdoAnchorInput).
- * `ndo_dna_hash` + `network_seed` + the cached classification fields let any
- * group member re-derive and verify the ndo clone cell.
- */
-export interface NdoAnchorInput {
-  group_hash: ActionHash;
-  name: string;
-  description: string | null;
-  ndo_dna_hash: DnaHash;
-  network_seed: string;
-  identity_action_hash: ActionHash;
-  initiator: AgentPubKey;
-  ndo_created_at: Timestamp;
-  lifecycle_stage: LifecycleStage;
-  property_regime: PropertyRegime;
-  resource_nature: ResourceNature;
-}
-
-/**
  * Decoded zome_group::NdoAnchor entry — the authoritative group→NDO pointer
- * with full clone coordinates. Card data renders from this without joining the
- * ndo cell (model A read path).
+ * with full clone coordinates. `ndo_dna_hash` + `network_seed` + the cached
+ * classification fields let any group member re-derive and verify the ndo clone
+ * cell, so card data renders from this without joining the ndo cell (model A
+ * read path).
+ *
+ * Only `name`, `description`, and `lifecycle_stage` are mutable caches; the rest
+ * are identity coordinates that `zome_group_integrity::validate_ndo_anchor_update`
+ * refuses to let an update rewrite.
  */
 export interface NdoAnchorEntry {
   group_hash: ActionHash;
@@ -218,6 +211,13 @@ export interface NdoAnchorEntry {
   property_regime: PropertyRegime;
   resource_nature: ResourceNature;
 }
+
+/**
+ * Wire payload for zome_group::create_ndo_anchor (ADR-011). The coordinator
+ * builds the entry straight from these fields, so the payload IS the entry
+ * shape — kept as an alias rather than a second declaration that can drift.
+ */
+export type NdoAnchorInput = NdoAnchorEntry;
 
 export interface UpdateLifecycleStageInput {
   original_action_hash: ActionHash;

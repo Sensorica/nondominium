@@ -200,7 +200,7 @@
           {joinLoading ? 'Joining…' : 'Join NDO'}
         </button>
 
-        <!-- Associate with group: writes SoftLink on group DHT -->
+        <!-- Associate with group: writes an NdoAnchor (clone coordinates) on the target group DHT -->
         <button
           type="button"
           onclick={() => {
