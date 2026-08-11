@@ -66,18 +66,26 @@ pub enum ResourceNature {
 
 /// DNA properties of a cloned `ndo` cell (ADR-010 model A; ADR-013).
 /// The immutable Layer 0 fields baked into the clone's DNA properties so the
-/// DnaHash is cryptographically bound to the NDO identity. Field set matches the
-/// Sweettest `NdoCellProperties` mirror exactly (same fields, same order) so the
-/// client and the tests derive the same DnaHash for the same NDO. Deliberately
-/// excludes `lifecycle_stage` (mutable on the entry) and `description` (entry-only).
+/// DnaHash is cryptographically bound to the NDO identity. This struct is THE
+/// definition — the UI mirror (`packages/shared-types`) and the Sweettest suite
+/// both derive from it, so client, tests, and zome produce the same DnaHash for
+/// the same NDO. Deliberately excludes `lifecycle_stage` (mutable on the entry)
+/// and `description` (entry-only).
+///
+/// **The field set and order are DnaHash input.** Changing either orphans every
+/// existing NDO cell and breaks peer re-derivation from anchor coordinates.
 ///
 /// `initiator` is NOT included: holochain 0.6.0 transports `create_clone_cell`
 /// properties as `YamlProperties(serde_yaml::Value)`, which has no binary variant
 /// and cannot carry an `AgentPubKey`. The DnaHash therefore binds the
-/// classification fields + creation time (microsecond-unique); the initiator
-/// remains authoritative on the entry and cached on the NdoAnchor for display.
-/// Integrity additionally validates the classification fields (name/regime/nature)
-/// against the entry — see validate_create_nondominium_identity.
+/// classification fields plus `created_at`; the initiator remains authoritative on
+/// the entry and cached on the NdoAnchor for display. Note that `created_at` is
+/// NOT a uniqueness guarantee — the client derives it from millisecond-resolution
+/// wall clock, so two same-named NDOs of the same classification created in one
+/// millisecond share it. Distinctness comes from the per-NDO `network_seed`, which
+/// is also DnaHash input. Integrity additionally validates the classification
+/// fields (name/regime/nature) against the entry — see
+/// validate_create_nondominium_identity.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, SerializedBytes)]
 pub struct NdoDnaProperties {
   pub name: String,

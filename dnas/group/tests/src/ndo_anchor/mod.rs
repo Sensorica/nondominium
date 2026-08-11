@@ -18,44 +18,21 @@ use serde::{Deserialize, Serialize};
 use group_sweettest::common::*;
 
 // ---------------------------------------------------------------------------
-// Local mirror types
+// Shared types + local mirrors
 //
-// The test binary cannot import WASM-compiled zome crates. These types must
-// match the serialized form of their counterparts in the zomes.
+// The test binary cannot import WASM-compiled zome crates, so zome input/output
+// structs are mirrored below and must match their counterparts' serialized form.
+//
+// The Layer 0 vocabulary is NOT mirrored: `NdoDnaProperties` is DnaHash input, so
+// the tests import the one definition the zomes and the client also derive from.
+// A hand-kept mirror drifted here once already (a stale `initiator` field), and a
+// drifted mirror silently derives a different DnaHash — the exact failure these
+// tests exist to catch.
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-enum LifecycleStage {
-    Ideation,
-    Active,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-enum PropertyRegime {
-    Nondominium,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-enum ResourceNature {
-    Physical,
-}
-
-/// Immutable Layer 0 fields bound into the NDO clone's DNA properties (ADR-010).
-/// Changing any field yields a different DnaHash, i.e. a different network —
-/// immutability enforced by hash physics, not validation code.
-///
-/// `initiator` is deliberately absent: holochain 0.6.0 transports
-/// `create_clone_cell` properties as `YamlProperties(serde_yaml::Value)`, which
-/// has no binary variant and cannot carry an `AgentPubKey`. The DnaHash binds the
-/// classification fields + creation time; the initiator stays on the entry and
-/// the NdoAnchor. Mirrors `nondominium_shared::NdoDnaProperties`.
-#[derive(Debug, Clone, Serialize, Deserialize, SerializedBytes)]
-struct NdoCellProperties {
-    pub name: String,
-    pub property_regime: PropertyRegime,
-    pub resource_nature: ResourceNature,
-    pub created_at: Timestamp,
-}
+use nondominium_shared::{
+    LifecycleStage, NdoDnaProperties as NdoCellProperties, PropertyRegime, ResourceNature,
+};
 
 /// Mirrors `zome_resource_coordinator::NdoInput`.
 #[derive(Debug, Serialize, Deserialize)]
@@ -443,6 +420,78 @@ async fn ndo_anchor_update_refreshes_cache() {
         anchor.ndo_dna_hash,
         dna.dna_hash().clone(),
         "identity coordinates must survive cache updates unchanged"
+    );
+}
+
+/// Integrity enforces that an anchor update may only refresh the cached
+/// descriptor — the identity coordinates are what a peer re-derives the NDO cell
+/// from, so rewriting them would silently repoint a group at another network.
+///
+/// The attack is reachable through the real coordinator API: `update_ndo_anchor`
+/// copies coordinates from `original_action_hash` but supersedes
+/// `previous_action_hash`, so passing two DIFFERENT anchors writes anchor A's
+/// coordinates over anchor B. Validation must reject it. Any group member can
+/// call this against any member's anchor, which is why the rule lives in
+/// integrity rather than in the coordinator.
+#[tokio::test(flavor = "multi_thread")]
+async fn ndo_anchor_update_cannot_rewrite_identity_coordinates() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_agents().await;
+    let group_hash = create_group(&conductors[0], &cell_alice, "Fablab").await;
+
+    let props = sample_properties();
+    let seed_a = unique_seed();
+    let dna_a = ndo_dna_with_coordinates(seed_a.clone(), properties_bytes(&props)).await;
+
+    let anchor_a: Record = conductors[0]
+        .call(
+            &cell_alice.zome("zome_group"),
+            "create_ndo_anchor",
+            anchor_input_from(
+                group_hash.clone(),
+                dna_a.dna_hash().clone(),
+                seed_a.as_ref(),
+                ActionHash::from_raw_36(vec![11; 36]),
+                cell_alice.agent_pubkey().clone(),
+                &props,
+            ),
+        )
+        .await;
+
+    // A second anchor with entirely different coordinates (different seed,
+    // different DnaHash, different NDO identity).
+    let seed_b = unique_seed();
+    let mut input_b = anchor_input_from(
+        group_hash.clone(),
+        DnaHash::from_raw_36(vec![42; 36]),
+        seed_b.as_ref(),
+        ActionHash::from_raw_36(vec![22; 36]),
+        cell_alice.agent_pubkey().clone(),
+        &props,
+    );
+    input_b.name = "Laser Cutter".to_string();
+    let anchor_b: Record = conductors[0]
+        .call(&cell_alice.zome("zome_group"), "create_ndo_anchor", input_b)
+        .await;
+
+    // Build the update from A's entry but supersede B: the resulting entry carries
+    // A's coordinates on top of B's action, which integrity must refuse.
+    let hijack: Result<Record, _> = conductors[0]
+        .call_fallible(
+            &cell_alice.zome("zome_group"),
+            "update_ndo_anchor",
+            UpdateNdoAnchorInput {
+                original_action_hash: anchor_a.action_address().clone(),
+                previous_action_hash: anchor_b.action_address().clone(),
+                updated_name: "Laser Cutter".to_string(),
+                updated_description: None,
+                updated_lifecycle_stage: LifecycleStage::Active,
+            },
+        )
+        .await;
+
+    assert!(
+        hijack.is_err(),
+        "an anchor update that rewrites identity coordinates must be rejected by integrity"
     );
 }
 
