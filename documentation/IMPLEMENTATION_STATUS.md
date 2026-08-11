@@ -10,10 +10,10 @@ This document tracks what is **actually implemented and verified** in the curren
 
 ### Technology Stack
 
-- **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), compiled to WASM
+- **Backend**: Rust (Holochain HDK ^0.7.0 / HDI ^0.8.0), compiled to WASM
 - **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5 + UnoCSS + Melt UI next-gen
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) is deprecated
-- **Client**: @holochain/client 0.19.0 for DHT interaction
+- **Client**: @holochain/client 0.21.0 for DHT interaction
 
 ### Zome Architecture (3-Zome Structure)
 

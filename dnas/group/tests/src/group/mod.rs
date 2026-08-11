@@ -159,7 +159,7 @@ async fn join_group_creates_membership() {
         .await;
 
     // Sync DHT between agents
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -204,7 +204,7 @@ async fn leave_group_removes_membership() {
         .call(&cell_bob.zome("zome_group"), "join_group", group_hash.clone())
         .await;
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -216,7 +216,7 @@ async fn leave_group_removes_membership() {
         )
         .await;
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -379,7 +379,7 @@ async fn is_member_reflects_membership_state() {
         .call(&cell_bob.zome("zome_group"), "join_group", group_hash.clone())
         .await;
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 

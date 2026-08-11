@@ -45,11 +45,11 @@ resolver = "2"
 
 [workspace.dependencies]
 nondominium_shared = { path = "crates/shared" }
-hdi = "^0.7.0"
-hdk = "^0.6.0"
+hdi = "=0.8.0"
+hdk = "=0.7.0"
 holochain_serialized_bytes = "*"
 serde = "1.0"
 thiserror = "2.0"
-# Test-only deps (NOT compiled to WASM — only used by nondominium_sweettest)
-holochain = { version = "=0.6.0", features = ["test_utils"] }
+# Test-only deps (NOT compiled to WASM — only used by the *_sweettest crates)
+holochain = { version = "=0.7.0", features = ["test_utils"] }
 tokio = { version = "1", features = ["rt-multi-thread", "time", "macros"] }

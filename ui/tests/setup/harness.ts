@@ -170,7 +170,11 @@ export async function createSeedClient(agent = 1): Promise<SeedClient> {
     admin,
     close: async () => {
       try {
-        await app.client.close();
+        // @holochain/client 0.21 narrows AppWebsocket.client to AppClientTransport,
+        // which only promises request/on. The websocket transport still closes;
+        // feature-detect rather than assuming a concrete WsClient.
+        const transport = app.client as { close?: () => Promise<unknown> };
+        await transport.close?.();
       } catch {
         // Transport may already be gone.
       }

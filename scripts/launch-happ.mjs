@@ -203,11 +203,10 @@ function startBootstrapServer() {
 /**
  * @param {number} nAgents
  * @param {string} bootstrapUrl
- * @param {string} signalUrl
  * @param {number[]} appPorts
  * @returns {Promise<Record<number, { admin_port: number; app_ports: number[] }>>}
  */
-function startSandboxes(nAgents, bootstrapUrl, signalUrl, appPorts) {
+function startSandboxes(nAgents, bootstrapUrl, appPorts) {
   return new Promise((resolve, reject) => {
     const createArgs = [
       'sandbox',
@@ -220,8 +219,9 @@ function startSandboxes(nAgents, bootstrapUrl, signalUrl, appPorts) {
       'network',
       '--bootstrap',
       bootstrapUrl,
-      'webrtc',
-      signalUrl
+      // Holochain 0.7 removed the WebRTC/tx5 transport; iroh over QUIC is the
+      // only peer transport and `hc sandbox` accepts just `mem` or `quic`.
+      'quic'
     ];
 
     console.log(`[launch-happ] Running: hc ${createArgs.join(' ')}`);
@@ -410,8 +410,8 @@ try {
   // Start the per-agent UI servers up front; each polls /hc-connection.json and
   // waits until its conductor is ready, so the user can open them immediately.
   startUiServers();
-  const { bootstrapUrl, signalUrl } = await startBootstrapServer();
-  console.log(`[launch-happ] Bootstrap: ${bootstrapUrl} | Signaling: ${signalUrl}`);
+  const { bootstrapUrl } = await startBootstrapServer();
+  console.log(`[launch-happ] Bootstrap: ${bootstrapUrl}`);
 
   const appPorts = [];
   for (let i = 0; i < agents; i += 1) {
@@ -419,7 +419,7 @@ try {
   }
   console.log(`[launch-happ] App interface ports: ${appPorts.join(', ')}`);
 
-  const portsInfo = await startSandboxes(agents, bootstrapUrl, signalUrl, appPorts);
+  const portsInfo = await startSandboxes(agents, bootstrapUrl, appPorts);
 
   await Promise.all(
     Object.entries(portsInfo).map(([agentKey, ports]) =>

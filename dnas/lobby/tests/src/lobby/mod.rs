@@ -147,7 +147,7 @@ async fn announce_group_cross_conductor() {
         )
         .await;
 
-    await_consistency(10, [&cell_alice, &cell_bob])
+    await_consistency_s(10, [&cell_alice, &cell_bob])
         .await
         .expect("DHT consistency timeout");
 
