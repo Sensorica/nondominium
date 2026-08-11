@@ -127,7 +127,7 @@ pub enum LifecycleStage {
 }
 
 pub enum PropertyRegime {
-    Private, Commons, Collective, Pool, CommonPool, Nondominium,
+    Private, Commons, Collective, Pool, CommonPool, Public, Nondominium,
 }
 
 pub enum ResourceNature {
@@ -135,7 +135,7 @@ pub enum ResourceNature {
 }
 ```
 
-> **Doc/code consistency:** `PropertyRegime` has six variants in Rust but the UI (`packages/shared-types`) and `IMPLEMENTATION_STATUS.md` document four (Collective and Pool described as removed after design review). See §2.6. `ResourceNature` in code adds `Service` and `Information` beyond the three-variant design in `ndo_prima_materia.md`; forward-map variants `Space`, `Method`, and `Currency` (§6.2) are not yet in code.
+> **Doc/code consistency:** `PropertyRegime` has **seven** canonical variants in Rust and the UI (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`). See §2.6. `ResourceNature` in code adds `Service` and `Information` beyond the three-variant design in `ndo_prima_materia.md`; forward-map variants `Space`, `Method`, and `Currency` (§6.2) are not yet in code.
 
 **`ResourceSpecification`**
 ```rust
@@ -220,7 +220,7 @@ The link types model resource discovery and navigation:
 | Gap | Impact | Status / planned fix |
 |---|---|---|
 | ~~`ResourceState` conflates lifecycle and operational dimensions~~ | ~~Cannot model in-transit, in-storage, or in-maintenance instances independently of Layer 0 lifecycle~~ | ✅ **`OperationalState` on `EconomicResource`** (`REQ-NDO-OS-01`); governance-operator transitions deferred (`REQ-NDO-OS-02`–`05`) |
-| ~~No property regime field~~ | ~~Cannot distinguish nondominium from commons from individual stewardship~~ | ✅ **`PropertyRegime` on `NondominiumIdentity`** (see §2.6 for 6-vs-4 variant reconciliation) |
+| ~~No property regime field~~ | ~~Cannot distinguish nondominium from commons from individual stewardship~~ | ✅ **`PropertyRegime` on `NondominiumIdentity`** (see §2.6 — seven variants) |
 | ~~No resource nature field~~ | ~~Cannot distinguish digital from physical from hybrid~~ | ✅ **`ResourceNature` on `NondominiumIdentity`** (5 variants in code; see §2.6) |
 | `GovernanceRule.rule_data` is untyped JSON string | No schema enforcement, no tooling support, no peer validation of rule semantics | 🔄 `GovernanceRuleType` enum with typed schemas (`ndo_prima_materia.md` + `unyt-integration.md`) |
 | ~~No lifecycle before `PendingValidation`~~ | ~~Cannot model resources in ideation, design, development stages~~ | ✅ **`LifecycleStage` (10 stages) on Layer 0** with full transition validation |
@@ -289,7 +289,7 @@ Coordinator modules: `hard_link.rs`, `contribution.rs`, `agreement.rs`. Sweettes
 
 | Topic | Code (ground truth) | Other docs | Recommendation |
 |---|---|---|---|
-| **`PropertyRegime` variant count** | 6 variants in `crates/shared/src/types.rs` and integrity validation | `IMPLEMENTATION_STATUS.md` and UI shared-types document 4 (Private, Commons, Nondominium, CommonPool — "Collective and Pool removed after design review") | Reconcile in a dedicated pass: either remove Collective/Pool from Rust or restore them in UI/docs |
+| **`PropertyRegime` variant count** | 7 variants in `crates/shared/src/types.rs`, integrity validation, shared-types, and UI | Protocol and UI expose all seven | Keep docs/UI/code in lockstep; Source-NDOs remain restricted to `Nondominium` / `CommonPool` only |
 | **`ResourceNature` variants** | `Physical, Digital, Service, Hybrid, Information` (5) | This doc §6.2 forward map adds `Space, Method, Currency`; `ndo_prima_materia.md` specifies 3 | Treat code's 5 variants as implemented; forward-map additions remain post-MVP |
 | **Lifecycle governance** | Initiator-only `update_lifecycle_stage` (MVP) | REQ-NDO-LC-07 role-based authorization | Defer to governance-as-operator integration |
 | **Transition events** | `NdoToTransitionEvent` link optional; `transition_event_hash` often `null` in UI | REQ-NDO-LC-03 automatic EconomicEvent generation | Backend Phase 2.3 |
@@ -321,6 +321,7 @@ pub enum PropertyRegime {
     Collective,     // Cooperative/collective ownership
     Pool,           // Pool of shareables: rivalrous shared resources; custody/scheduling/maintenance
     CommonPool,     // Rivalrous consumable resource; governance via quota/depletion rules
+    Public,         // Public/governmental stewardship; open-access; non-alienable by the public body
     Nondominium,    // Uncapturable by design; contribution-based access; no alienation permitted
 }
 
@@ -335,7 +336,7 @@ pub enum ResourceNature {
 
 These enums are part of `NondominiumIdentity` (Layer 0) — they classify the resource at creation and remain stable across its lifecycle (integrity-enforced). The `PropertyRegime` enum is reconciled from the OVN property regime taxonomy (§4.4.3) — see §4.4.6 for the full analysis.
 
-> **Consistency caveat:** UI and `IMPLEMENTATION_STATUS.md` document four `PropertyRegime` variants; Rust retains six. See §2.6.
+> **Consistency:** Protocol and UI both expose all seven `PropertyRegime` variants. Regime-driven governance enforcement (transfer-rights, no-alienation guards) is Phase B — see §4.4.4–§4.4.5 and `implementation_plan.md`.
 
 ### 3.3 LifecycleStage and OperationalState
 
@@ -475,26 +476,30 @@ The OVN wiki distinguishes more regime types than the current NDO plan. All are 
 
 | Regime | Rivalry | Excludability | Description | NDO coverage |
 |---|---|---|---|---|
-| **Private** | Any | High | Owned by one agent; full rights bundle; protected by a higher authority (or by Nondominium design) | `Private` (NDO forward map) |
-| **Public** | Any | Low | Owned by the state; accessible under conditions; not relevant in a stateless P2P context | Not planned (stateless system) |
-| **Commons** | Non-rivalrous | Low | Pool of tangible but immaterial resources (designs, knowledge, software) with use governance (licences, attribution). Technically can be privatised through governance capture | `Commons` (NDO forward map) |
-| **Pool of Shareables** | Rivalrous | Medium | Tangible material resources intended for sharing within a network; individually governed by property regime and intrinsic characteristics; designed for preservation and perpetual access | `Pool` (NDO forward map) |
-| **Common-pool resource** | Rivalrous | Low | Mostly consumables, governed in bulk with rules for prevention of depletion; community-managed quotas | `CommonPool` (NDO forward map) |
+| **Private** | Any | High | Owned by one agent; full rights bundle; protected by a higher authority (or by Nondominium design) | `Private` |
+| **Public** | Any | Low | Under public/governmental stewardship: open-access, non-alienable by the public body. Distinct from Commons (community-governed) and Nondominium (cryptographically uncapturable). Enables modelling libraries, parks, municipal infrastructure, and other publicly stewarded assets without collapsing them into Commons | `Public` |
+| **Commons** | Non-rivalrous | Low | Pool of tangible but immaterial resources (designs, knowledge, software) with use governance (licences, attribution). Technically can be privatised through governance capture | `Commons` |
+| **Pool of Shareables** | Rivalrous | Medium | Tangible material resources intended for sharing within a network; individually governed by property regime and intrinsic characteristics; designed for preservation and perpetual access | `Pool` |
+| **Common-pool resource** | Rivalrous | Low | Mostly consumables, governed in bulk with rules for prevention of depletion; community-managed quotas | `CommonPool` |
+| **Collective / cooperative** | Rivalrous | High | Cooperative/collective ownership by a defined membership | `Collective` |
 | **Condominium** | Rivalrous | High | Resource divided into privately owned parts with collective governance of the whole (infrastructure, integrity, shared structures) | Not planned (can be added as a future variant) |
-| **Nondominium** | Any | High (by design) | Requires *extremely high costs of control*, making it virtually uncontrollable by any entity — not even nation states. Does not need external protection because no actor can capture it. Examples: Bitcoin network, open seas, indigenous forest commons | `Nondominium` (NDO forward map) |
+| **Nondominium** | Any | High (by design) | Requires *extremely high costs of control*, making it virtually uncontrollable by any entity — not even nation states. Does not need external protection because no actor can capture it. Examples: Bitcoin network, open seas, indigenous forest commons | `Nondominium` |
 | **Toll goods (club goods)** | Non-rivalrous | High | Excludable but non-rivalrous up to a point (congestion); fee-based or membership-based access | Not planned (can be added as a future variant) |
 
-**The three most critical distinctions for the NDO:**
+**The critical distinctions for the NDO:**
 
 **Commons ≠ Pool of Shareables**: The OVN wiki makes an important distinction. Commons are immaterial (non-rivalrous) resources — sharing a design file costs nothing and excludes no one. Pool of Shareables are material (rivalrous) — sharing a 3D printer requires scheduling, maintenance, and custody transfer. These have different governance requirements and should map to different `PropertyRegime` variants.
 
-**Commons ≠ Nondominium**: In the OVN model:
+**Commons ≠ Public**: Commons are community-governed shared resources that *can* be captured through governance capture. `Public` denotes resources under public/governmental stewardship — open-access and non-alienable *by policy of the stewarding public body*, but not cryptographically uncapturable. A municipal library catalog or a publicly stewarded workshop is `Public`; a community knowledge commons is `Commons`.
+
+**Commons ≠ Nondominium** / **Public ≠ Nondominium**: In the OVN model:
 - **Commons**: governed resources with shared stewardship; theoretically, governance capture could privatise a commons (a bad actor could modify the governance rules to extract exclusive control)
+- **Public**: public-body stewardship with open-access and non-alienation *by policy*; the stewarding body remains a social/legal actor, not a cryptographic guarantee
 - **Nondominium**: *uncapturable by design* — no one can assert ownership, no organisation can enclose them. The property regime exists independently of governance rules: even if governance rules were to declare individual ownership, the cryptographic architecture makes it technically unenforceable
 
 The NDO's architecture (append-only DHT, no admin key, agent-centric source chains) is a Nondominium implementation at the infrastructure level. This should be formally reflected in the data model.
 
-**Nondominium is defined by cost of capture, not by intent**: The OVN wiki is precise — "The conditions for it to exist is to have extremely high costs of control, making it virtually uncontrollable by any entity, not even by nation states." This is a *technical* condition, not a legal or normative one. The NDO's `PropertyRegime::Nondominium` variant should encode a *validation constraint*: a resource declared as Nondominium must have governance rules that do not permit ownership assignment or transfer, and the system should reject GovernanceRule updates that attempt to add such rules.
+**Nondominium is defined by cost of capture, not by intent**: The OVN wiki is precise — "The conditions for it to exist is to have extremely high costs of control, making it virtually uncontrollable by any entity, not even by nation states." This is a *technical* condition, not a legal or normative one. The NDO's `PropertyRegime::Nondominium` variant should encode a *validation constraint*: a resource declared as Nondominium must have governance rules that do not permit ownership assignment or transfer, and the system should reject GovernanceRule updates that attempt to add such rules. Phase A exposes semantic helpers (`is_uncapturable`, `permits_ownership_transfer`); Phase B wires these into the governance operator.
 
 #### 4.4.4 Property Regime Determines Possible Economic Models
 
@@ -506,8 +511,10 @@ This has direct architectural implications:
 |---|---|---|
 | `Private` | Full market (buy/sell/rent/lend); individual benefit capture | Smart Agreement can specify price, rental, usage fees |
 | `Commons` | Attribution-based; copyleft/open source | Smart Agreement triggers on share events, not sale events |
+| `Collective` | Cooperative benefit sharing; membership-gated alienation | Smart Agreement can encode member buy-in / exit; ownership transfer among members |
 | `Pool` | Scheduling-based access; contribution-weighted priority; insurance/maintenance pools | Smart Agreement triggers on custody transfer; maintenance settlement. Post-MVP: access eligibility should also gate on `AffiliationState` ≥ `ActiveAffiliate` (TODO G2) |
 | `CommonPool` | Quota-based; depletion taxes; collective replenishment | Smart Agreement governs extraction rate |
+| `Public` | Open-access under public stewardship; non-alienable by the public body | Smart Agreement may govern access fees or usage conditions but cannot assign private ownership |
 | `Nondominium` | Contribution-based; access is earned but not purchased; no alienation | Smart Agreement can distribute benefits of use but cannot assign ownership. Post-MVP: high-stakes access should gate on `AffiliationState` ≥ `ActiveAffiliate` or `CoreAffiliate` (TODO G2) |
 
 The `PropertyRegime` on `NondominiumIdentity` should therefore be a *hard constraint* on which GovernanceRules and Unyt Smart Agreements are valid for that resource. The governance zome should enforce this: an attempt to attach a `sale` Smart Agreement to a `Nondominium` resource must be rejected.
@@ -516,7 +523,7 @@ The `PropertyRegime` on `NondominiumIdentity` should therefore be a *hard constr
 
 ![Property regime transfer rights matrix — which transfer types are allowed, conditional, or prohibited per regime](../assets/diagrams/property-regime-transfer-rights.png)
 
-*Six PropertyRegime variants × four transfer types (Ownership, Custody, Use Rights, Benefit). Nondominium blocks ownership transfer architecturally. Pool allows temporary custody scheduling. Commons blocks ownership but allows stewardship. Enforced by governance zome validation.*
+*Seven PropertyRegime variants × four transfer types (Ownership, Custody, Use Rights, Benefit). Nondominium blocks ownership transfer architecturally. Public blocks ownership transfer by public-stewardship policy. Pool allows temporary custody scheduling. Commons blocks ownership but allows stewardship. Enforced by governance zome validation (Phase B).*
 
 The OVN wiki observes: "Distribution is a change in status, a transfer of rights and obligations associated with that thing... Distribution is not possible without the notion of property."
 
@@ -525,16 +532,18 @@ In the NDO, different property regimes enable different types of transfers:
 | Regime | Ownership transfer | Custody transfer | Use rights transfer | Benefit transfer |
 |---|---|---|---|---|
 | `Private` | ✅ Full alienation | ✅ | ✅ | ✅ |
+| `Collective` | ✅ Among members | ✅ | ✅ | ✅ |
 | `Commons` | ❌ | ✅ (stewardship) | ✅ | ✅ (attribution) |
 | `Pool` | ❌ (stays in pool) | ✅ (temporary custody) | ✅ (scheduled) | ✅ |
 | `CommonPool` | ❌ | ✅ (extraction) | ✅ (quota-limited) | ✅ |
+| `Public` | ❌ (non-alienable by public body) | ✅ (stewardship) | ✅ | ✅ (public benefit) |
 | `Nondominium` | ❌ (architecturally impossible) | ✅ | ✅ | ✅ |
 
 The current NDO models custody transfer well (through `EconomicResource.custodian` and `TransferCustody` VfAction). It does not model ownership transfer, benefit transfer, or the regime-specific restrictions on which transfers are valid. The governance zome should enforce regime-appropriate transfer restrictions.
 
 #### 4.4.6 OVN Analysis and NDO `PropertyRegime` Reconciliation
 
-The OVN wiki identifies eight property regime types (§4.4.3 table). The current NDO plan (`Commons`, `Individual`, `Collective`, `Mixed`) is too narrow. The full OVN taxonomy is preserved in §4.4.3 as an analytical reference. The NDO forward map (§6.3) selects the six regimes that are architecturally relevant to the generic NDO:
+The OVN wiki identifies eight property regime types (§4.4.3 table). The NDO forward map (§6.3) selects the **seven** regimes that are architecturally relevant to the generic NDO:
 
 ```rust
 pub enum PropertyRegime {
@@ -543,13 +552,14 @@ pub enum PropertyRegime {
     Collective,     // Cooperative/collective ownership
     Pool,           // Pool of shareables: rivalrous shared resources; custody/scheduling/maintenance
     CommonPool,     // Rivalrous consumable resource; governance via quota/depletion rules
+    Public,         // Public/governmental stewardship; open-access; non-alienable by the public body
     Nondominium,    // Uncapturable by design; contribution-based access; no alienation permitted
 }
 ```
 
-`Mixed` is removed — mixed regimes should be expressed as compound governance rules on top of a primary regime, not as a separate enum variant (which conveys no information about what the mix contains). `Individual` is renamed to `Private` to align with OVN property vocabulary. `Condominium` and `TollGoods` are omitted from the initial generic NDO — they can be added as future variants if communities require them.
+`Mixed` is removed — mixed regimes should be expressed as compound governance rules on top of a primary regime, not as a separate enum variant (which conveys no information about what the mix contains). `Individual` is renamed to `Private` to align with OVN property vocabulary. `Public` is included so publicly stewarded assets (libraries, parks, municipal infrastructure) can be modelled without collapsing them into Commons or Nondominium. `Condominium` and `TollGoods` are omitted from the initial generic NDO — they can be added as future variants if communities require them.
 
-**Complexity economics note**: The OVN wiki states: "Property regime is not merely a legal classification, it shapes the entire economic topology of flows. A resource under the Nondominium regime cannot be enclosed, which is a stronger guarantee than a Commons resource (which can theoretically be privatised through governance capture)." This is precisely the Bar-Yam complexity matching principle applied to governance: the information requirements for different property regimes are vastly different. A `Private` resource can be governed by simple bilateral contracts. A `Nondominium` resource requires cryptographic enforcement of uncapturability — human agreements are insufficient. The NDO's Holochain DHT architecture provides the technical foundation for Nondominium governance at scale; encoding the regime explicitly in the data model closes the loop between the technical guarantee and the social norm.
+**Complexity economics note**: The OVN wiki states: "Property regime is not merely a legal classification, it shapes the entire economic topology of flows. A resource under the Nondominium regime cannot be enclosed, which is a stronger guarantee than a Commons resource (which can theoretically be privatised through governance capture)." This is precisely the Bar-Yam complexity matching principle applied to governance: the information requirements for different property regimes are vastly different. A `Private` resource can be governed by simple bilateral contracts. A `Public` resource requires non-alienation under public stewardship without claiming cryptographic uncapturability. A `Nondominium` resource requires cryptographic enforcement of uncapturability — human agreements are insufficient. The NDO's Holochain DHT architecture provides the technical foundation for Nondominium governance at scale; encoding the regime explicitly in the data model closes the loop between the technical guarantee and the social norm.
 
 ### 4.5 Accessibility, Availability, and Rivalry
 
@@ -664,7 +674,7 @@ For the generic NDO, the implication is: **do not model intangible resources as 
 |---|---|---|
 | Resource Type (specification/instance distinction) | `ResourceSpecification` + `EconomicResource` | ✅ Implemented |
 | NDO Layer 0 identity anchor | `NondominiumIdentity` + discovery anchors | ✅ Implemented (PR #80/#84) |
-| Property regimes (Private, Commons, Collective, Pool, CommonPool, Nondominium) | `PropertyRegime` enum on Layer 0 | ✅ Implemented in Rust (6 variants; UI/docs show 4 — see §2.6) |
+| Property regimes (Private, Commons, Collective, Pool, CommonPool, Public, Nondominium) | `PropertyRegime` enum on Layer 0 | ✅ Implemented (7 variants; UI exposes all 7) |
 | Value chain maturity stages | `LifecycleStage` enum (10 stages) on Layer 0 | ✅ Implemented |
 | Embedded governance rules | `GovernanceRule` entries linked to `ResourceSpecification` | ✅ Implemented (weakly typed) |
 | Physical resource custody | `EconomicResource.custodian`, custody transfer | ✅ Implemented (single custodian, assumed individual agent — gap: collective agent custodianship not supported; TODO G1) |
@@ -688,7 +698,7 @@ For the generic NDO, the implication is: **do not model intangible resources as 
 | Governance of access (role-based) | Role-based `enforced_by` in GovernanceRule | Rule types are untyped strings; no first-class accessibility classification |
 | Material/Immaterial behavior | Physical vs. Digital/Information/Service nature | No formal rivalrous/non-rivalrous property |
 | Method as resource | `Digital` or `Information` nature covers some cases | No dedicated `Method` variant or template/recipe entry type |
-| Property regime: Nondominium vs. Commons | `Nondominium` distinct variant in `PropertyRegime` (§6.3) | ✅ Resolved in code — no-enclosure guarantees distinct from `Commons`; UI may expose subset |
+| Property regime: Nondominium vs. Commons vs. Public | Distinct variants in `PropertyRegime` (§6.3) | ✅ Resolved — no-enclosure (`Nondominium`) distinct from community stewardship (`Commons`) and public-body stewardship (`Public`) |
 | Transferability | Custody transfer + PPR non-transferability | No formal `transferability` classification on resources |
 | Reliability | Not modelled at resource level | PPR tracks agent quality, not resource condition/reliability |
 | NDO three-layer activation | Layer 0 ✅ | Layers 1 & 2 link types (`NDOToSpecification`, `NDOToProcess`) not implemented |
@@ -765,7 +775,7 @@ pub enum ResourceNature {
 
 ### 6.3 Extended `PropertyRegime`
 
-> **Implementation status:** All six variants below are ✅ in Rust (`crates/shared/src/types.rs`). UI may expose a subset of four — see §2.6.
+> **Implementation status:** All seven variants below are ✅ in Rust (`crates/shared/src/types.rs`) and ✅ exposed in the UI (`packages/shared-types`, creation form, filters, badges).
 
 ```rust
 pub enum PropertyRegime {
@@ -774,6 +784,7 @@ pub enum PropertyRegime {
     Collective,     // Cooperative/collective ownership
     Pool,           // Pool of shareables: rivalrous shared resources; custody/scheduling/maintenance
     CommonPool,     // Rivalrous consumable resource; governance via quota/depletion rules
+    Public,         // Public/governmental stewardship; open-access; non-alienable by the public body
     Nondominium,    // Uncapturable by design; contribution-based access; no alienation permitted
 }
 ```

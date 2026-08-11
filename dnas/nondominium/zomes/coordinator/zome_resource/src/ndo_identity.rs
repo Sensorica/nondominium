@@ -10,6 +10,8 @@ pub struct NdoInput {
   pub resource_nature: ResourceNature,
   pub lifecycle_stage: LifecycleStage,
   pub description: Option<String>,
+  /// Optional override of `ResourceNature::default_rivalry()`. Immutable after creation.
+  pub rivalry_override: Option<Rivalry>,
 }
 
 // Output from create_ndo — the action_hash IS the stable Layer 0 identity
@@ -130,6 +132,7 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
     lifecycle_stage: input.lifecycle_stage,
     created_at: sys_time()?,
     description: input.description,
+    rivalry_override: input.rivalry_override,
     successor_ndo_hash: None,
     hibernation_origin: None,
   };

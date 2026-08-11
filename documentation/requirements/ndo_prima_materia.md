@@ -244,7 +244,7 @@ pub struct NondominiumIdentity {
 }
 ```
 
-Shared enums live in `crates/shared/src/types.rs`. `PropertyRegime` has six variants (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`); `ResourceNature` includes `Physical`, `Digital`, `Service`, `Hybrid`, and `Information`. The UI `packages/shared-types` currently exposes four `PropertyRegime` options — reconciliation with the Rust enum is deferred.
+Shared enums live in `crates/shared/src/types.rs`. `PropertyRegime` has seven variants (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`); `ResourceNature` includes `Physical`, `Digital`, `Service`, `Hybrid`, and `Information`. The UI (`packages/shared-types` and creation/filter controls) exposes all seven `PropertyRegime` options.
 
 **Key properties:**
 
@@ -1087,9 +1087,10 @@ pub enum PropertyRegime {
     Collective,     // Cooperative/collective ownership
     Pool,           // Pool of shareables: rivalrous shared resources; custody/scheduling/maintenance
     CommonPool,     // Rivalrous consumable resource; governance via quota/depletion rules
+    Public,         // Public/governmental stewardship; open-access; non-alienable by the public body
     Nondominium,    // Uncapturable by design; contribution-based access; no alienation permitted
 }
-// Canonical definition: documentation/archives/resources.md Section 6.3
+// Canonical definition: crates/shared/src/types.rs / documentation/requirements/resources.md §6.3
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {

@@ -1,4 +1,8 @@
-use crate::types::{BenefitClause, NdoLinkType, VfAction};
+use crate::constraints::ConstraintViolation;
+use crate::types::{
+  BenefitClause, LifecycleStage, NdoLinkType, OperationalState, PropertyRegime, ResourceNature,
+  Rivalry, VfAction,
+};
 use hdi::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -48,4 +52,65 @@ pub struct CreateNdoHardLinkInput {
 pub struct GetNdoHardLinksByTypeInput {
   pub ndo_identity_hash: ActionHash,
   pub link_type: NdoLinkType,
+}
+
+/// Subset of `NondominiumIdentity` fields needed for constraint evaluation.
+/// Deserializes from the full Layer 0 entry (extra fields ignored by serde).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NdoClassificationView {
+  pub property_regime: PropertyRegime,
+  pub resource_nature: ResourceNature,
+  pub lifecycle_stage: LifecycleStage,
+  pub rivalry_override: Option<Rivalry>,
+}
+
+/// Wire-compatible view of `EconomicResource` for cross-zome transition requests.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EconomicResourceView {
+  pub quantity: f64,
+  pub unit: String,
+  pub custodian: AgentPubKey,
+  pub current_location: Option<String>,
+  pub operational_state: OperationalState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransitionContext {
+  pub target_location: Option<String>,
+  pub quantity_change: Option<f64>,
+  pub target_custodian: Option<AgentPubKey>,
+  pub process_notes: Option<String>,
+  pub process_context: Option<ActionHash>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GovernanceTransitionRequest {
+  pub action: VfAction,
+  pub resource: EconomicResourceView,
+  pub ndo_identity_hash: ActionHash,
+  pub requesting_agent: AgentPubKey,
+  pub context: TransitionContext,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GovernanceTransitionResult {
+  pub success: bool,
+  pub new_resource_state: Option<EconomicResourceView>,
+  /// Reserved for when event generation is wired; currently always None on this path.
+  pub economic_event_hash: Option<ActionHash>,
+  pub rejection_reasons: Option<Vec<String>>,
+  pub next_steps: Option<Vec<String>>,
+  /// Soft constraint violations — non-blocking advisory feedback.
+  pub advisory_warnings: Option<Vec<String>>,
+  /// Echo Soft violations in structured form for UI dry-run parity.
+  pub soft_violations: Option<Vec<ConstraintViolation>>,
+}
+
+/// Dry-run input for action-constraint queries (hash-free / hypothetical).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckActionConstraintsInput {
+  pub property_regime: PropertyRegime,
+  pub resource_nature: ResourceNature,
+  pub rivalry_override: Option<Rivalry>,
+  pub action: VfAction,
 }

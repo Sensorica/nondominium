@@ -1,39 +1,40 @@
 use crate::ResourceError;
 use hdk::prelude::*;
+use nondominium_shared::constraints::{
+  check_rule_data_permitted, ConstraintViolation, ResourceClassification,
+};
+use nondominium_shared::rule_data::RuleData;
+use nondominium_shared::types::{PropertyRegime, ResourceNature, Rivalry};
 use zome_resource_integrity::*;
-
-fn something_to_do() -> Result<String, String> {
-
-  todo!("Not yet implement")
-
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GovernanceRuleInput {
-  pub rule_type: String,
-  pub rule_data: String,
+  pub rule_data: RuleData,
   pub enforced_by: Option<String>,
+  pub ndo_identity_hash: ActionHash,
+  pub property_regime: PropertyRegime,
+  pub resource_nature: ResourceNature,
+  pub rivalry_override: Option<Rivalry>,
+  /// When set, also create `SpecificationToGovernanceRule` so the rule
+  /// appears in `get_resource_specification_with_rules`.
+  #[serde(default)]
+  pub specification_hash: Option<ActionHash>,
 }
 
 #[hdk_extern]
 pub fn create_governance_rule(input: GovernanceRuleInput) -> ExternResult<Record> {
   let agent_info = agent_info()?;
 
-  // Validate input
-  if input.rule_type.trim().is_empty() {
-    return Err(ResourceError::InvalidInput("Rule type cannot be empty".to_string()).into());
-  }
-
-  if input.rule_data.trim().is_empty() {
-    return Err(ResourceError::InvalidInput("Rule data cannot be empty".to_string()).into());
-  }
-
   let rule = GovernanceRule {
-    rule_type: input.rule_type,
     rule_data: input.rule_data,
     enforced_by: input.enforced_by,
+    ndo_identity_hash: input.ndo_identity_hash,
+    property_regime: input.property_regime,
+    resource_nature: input.resource_nature,
+    rivalry_override: input.rivalry_override,
   };
 
+  let rule_type = rule.rule_data.rule_type();
   let rule_hash = create_entry(&EntryTypes::GovernanceRule(rule.clone()))?;
 
   let record = get(rule_hash.clone(), GetOptions::default())?.ok_or(
@@ -49,24 +50,57 @@ pub fn create_governance_rule(input: GovernanceRuleInput) -> ExternResult<Record
     (),
   )?;
 
-  // Create type-based discovery link
-  let type_path = Path::from(format!("rules_by_type_{}", rule.rule_type));
+  // Create type-based discovery link (derived from RuleData discriminant)
+  let type_path = Path::from(format!("rules_by_type_{}", rule_type));
   create_link(
     type_path.path_entry_hash()?,
     rule_hash.clone(),
     LinkTypes::RulesByType,
-    LinkTag::new(rule.rule_type.as_str()),
+    LinkTag::new(rule_type.to_string()),
   )?;
 
   // Link to creator
   create_link(
     agent_info.agent_initial_pubkey,
-    rule_hash,
+    rule_hash.clone(),
     LinkTypes::AgentToOwnedRules,
     (),
   )?;
 
+  if let Some(spec_hash) = input.specification_hash {
+    create_link(
+      spec_hash,
+      rule_hash,
+      LinkTypes::SpecificationToGovernanceRule,
+      (),
+    )?;
+  }
+
   Ok(record)
+}
+
+/// Dry-run query: evaluate rule-definition constraints without writing.
+/// Takes raw classification facts so the UI can check hypothetical rules before
+/// any NDO / GovernanceRule entry exists.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckRuleDataConstraintsInput {
+  pub property_regime: PropertyRegime,
+  pub resource_nature: ResourceNature,
+  pub rivalry_override: Option<Rivalry>,
+  pub rule_data: RuleData,
+}
+
+#[hdk_extern]
+pub fn check_rule_data_constraints(
+  input: CheckRuleDataConstraintsInput,
+) -> ExternResult<Vec<ConstraintViolation>> {
+  let ctx = ResourceClassification {
+    resource_nature: input.resource_nature,
+    property_regime: input.property_regime,
+    lifecycle_stage: None,
+    rivalry_override: input.rivalry_override,
+  };
+  Ok(check_rule_data_permitted(&ctx, &input.rule_data))
 }
 
 #[hdk_extern]
@@ -82,15 +116,13 @@ pub fn get_latest_governance_rule_record(
     .into_iter()
     .max_by(|link_a, link_b| link_a.timestamp.cmp(&link_b.timestamp));
   let latest_rule_hash = match latest_link {
-    Some(link) => {
-      link
-        .target
-        .clone()
-        .into_action_hash()
-        .ok_or(ResourceError::EntryOperationFailed(
-          "Invalid action hash in link".to_string(),
-        ))?
-    }
+    Some(link) => link
+      .target
+      .clone()
+      .into_action_hash()
+      .ok_or(ResourceError::EntryOperationFailed(
+        "Invalid action hash in link".to_string(),
+      ))?,
     None => original_action_hash.clone(),
   };
   get(latest_rule_hash, GetOptions::default())
@@ -132,19 +164,13 @@ pub fn update_governance_rule(input: UpdateGovernanceRuleInput) -> ExternResult<
     return Err(ResourceError::NotAuthor.into());
   }
 
-  // Validate input
-  if input.updated_rule.rule_type.trim().is_empty() {
-    return Err(ResourceError::InvalidInput("Rule type cannot be empty".to_string()).into());
-  }
-
-  if input.updated_rule.rule_data.trim().is_empty() {
-    return Err(ResourceError::InvalidInput("Rule data cannot be empty".to_string()).into());
-  }
-
   let updated_rule = GovernanceRule {
-    rule_type: input.updated_rule.rule_type,
     rule_data: input.updated_rule.rule_data,
     enforced_by: input.updated_rule.enforced_by,
+    ndo_identity_hash: input.updated_rule.ndo_identity_hash,
+    property_regime: input.updated_rule.property_regime,
+    resource_nature: input.updated_rule.resource_nature,
+    rivalry_override: input.updated_rule.rivalry_override,
   };
 
   let updated_rule_hash = update_entry(input.previous_action_hash, &updated_rule)?;

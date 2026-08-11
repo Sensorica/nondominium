@@ -6,7 +6,17 @@ import {
   type GovernanceService
 } from '../services/zomes/governance.service.js';
 import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-helpers/core';
-import type { Commitment, EconomicEvent } from '@nondominium/shared-types';
+import type {
+  Commitment,
+  EconomicEvent,
+  ProposeCommitmentInput,
+  ProposeCommitmentOutput,
+  LogEconomicEventInput,
+  LogEconomicEventOutput,
+  CheckActionConstraintsInput,
+  ConstraintViolation,
+  VfCommitment
+} from '@nondominium/shared-types';
 
 export interface ResourceFlow {
   events: EconomicEvent[];
@@ -34,11 +44,16 @@ export type GovernanceStore = {
   createCommitment: (
     commitmentData: Omit<Commitment, 'created_at'>
   ) => Promise<ActionHash | null>;
+  proposeCommitment: (
+    input: ProposeCommitmentInput
+  ) => Promise<ProposeCommitmentOutput | null>;
   fetchCommitment: (hash: ActionHash) => Promise<Commitment | null>;
+  fetchAllCommitments: () => Promise<VfCommitment[]>;
   fulfillCommitment: (hash: ActionHash) => Promise<ActionHash | null>;
   createEconomicEvent: (
     eventData: Omit<EconomicEvent, 'occurred_at'>
   ) => Promise<ActionHash | null>;
+  logEconomicEvent: (input: LogEconomicEventInput) => Promise<LogEconomicEventOutput | null>;
   fetchEconomicEvent: (hash: ActionHash) => Promise<EconomicEvent | null>;
   fetchCommitmentsByProvider: (provider: AgentPubKey) => Promise<Commitment[]>;
   fetchCommitmentsByReceiver: (receiver: AgentPubKey) => Promise<Commitment[]>;
@@ -65,6 +80,9 @@ export type GovernanceStore = {
     operation: string,
     agent: AgentPubKey
   ) => Promise<boolean>;
+  checkActionConstraints: (
+    input: CheckActionConstraintsInput
+  ) => Promise<ConstraintViolation[]>;
   createDispute: (
     commitment: ActionHash,
     complainant: AgentPubKey,
@@ -137,6 +155,17 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
       return hash;
     }
 
+    async function proposeCommitment(
+      input: ProposeCommitmentInput
+    ): Promise<ProposeCommitmentOutput | null> {
+      return run(governanceService.proposeCommitment(input));
+    }
+
+    async function fetchAllCommitments(): Promise<VfCommitment[]> {
+      const exit = await E.runPromiseExit(governanceService.getAllCommitments());
+      return Exit.isSuccess(exit) ? exit.value : [];
+    }
+
     async function fetchCommitment(hash: ActionHash): Promise<Commitment | null> {
       const commitment = await run(governanceService.getCommitment(hash));
       if (commitment) commitmentCache.set(hash.toString(), commitment);
@@ -165,6 +194,19 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
         if (eventData.receiver) await fetchEventsByAgent(eventData.receiver);
       }
       return hash;
+    }
+
+    async function logEconomicEvent(
+      input: LogEconomicEventInput
+    ): Promise<LogEconomicEventOutput | null> {
+      return run(governanceService.logEconomicEvent(input));
+    }
+
+    async function checkActionConstraints(
+      input: CheckActionConstraintsInput
+    ): Promise<ConstraintViolation[]> {
+      const exit = await E.runPromiseExit(governanceService.checkActionConstraints(input));
+      return Exit.isSuccess(exit) ? exit.value : [];
     }
 
     async function fetchEconomicEvent(hash: ActionHash): Promise<EconomicEvent | null> {
@@ -338,9 +380,12 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
       get eventsByType() { return eventsByType; },
 
       createCommitment,
+      proposeCommitment,
       fetchCommitment,
+      fetchAllCommitments,
       fulfillCommitment,
       createEconomicEvent,
+      logEconomicEvent,
       fetchEconomicEvent,
       fetchCommitmentsByProvider,
       fetchCommitmentsByReceiver,
@@ -355,6 +400,7 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
       fetchEventsInTimeRange,
       fetchResourceFlow,
       validateGovernanceRules,
+      checkActionConstraints,
       createDispute,
       voteOnDispute,
       selectCommitment,

@@ -199,11 +199,15 @@ regime** per artwork, and this choice constrains what can happen to the piece:
 | --- | --- | --- |
 | **`Private`** | The artist (or a collector) retains full ownership; the piece can be sold, rented, or lent. | Ownership and custody transfers allowed. |
 | **`Commons`** | Shared cultural works — e.g. an open, remixable digital piece or a community-stewarded work. | Ownership transfer blocked; custody/stewardship and use allowed. |
+| **`Collective`** | Cooperative studio ownership of a shared piece. | Ownership transfer among members; custody and use allowed. |
+| **`Pool`** | Shared physical tools/spaces in a studio pool. | Ownership stays in pool; temporary custody scheduling. |
+| **`CommonPool`** | Rivalrous consumable cultural stock (e.g. limited edition materials pool). | Quota-limited extraction; no ownership alienation. |
+| **`Public`** | Works under public/governmental stewardship (e.g. municipal collection). | Non-alienable by the public body; custody/stewardship and use allowed. |
 | **`Nondominium`** | Works the artist wants to remain permanently uncapturable and contribution-access based. | Ownership transfer architecturally impossible; custody, use, and benefit flows allowed. |
 
-> The UI currently surfaces four regimes (Private, Commons, Nondominium, CommonPool);
-> the Rust model additionally carries `Collective` and `Pool` (see
-> `documentation/requirements/resources.md §2.6`). For most Artcoin scenarios, `Private`
+> Protocol and UI expose all seven regimes (`Private`, `Commons`, `Collective`, `Pool`,
+> `CommonPool`, `Public`, `Nondominium`) — see `crates/shared/src/types.rs` and
+> `documentation/requirements/resources.md §6.3`. For most Artcoin scenarios, `Private`
 > is the default, with `Commons`/`Nondominium` available for artists who want stronger
 > anti-enclosure guarantees.
 

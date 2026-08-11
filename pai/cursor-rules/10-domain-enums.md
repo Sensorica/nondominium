@@ -24,6 +24,7 @@ pub enum PropertyRegime {
     Collective,   // Cooperative/collective ownership
     Pool,         // Rivalrous shared resources; custody/scheduling/maintenance
     CommonPool,   // Rivalrous consumable; quota/depletion rules
+    Public,       // Public/governmental stewardship; open-access; non-alienable by public body
     Nondominium,  // Uncapturable by design; no alienation permitted
 }
 ```

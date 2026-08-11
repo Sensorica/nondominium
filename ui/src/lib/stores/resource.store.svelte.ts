@@ -9,7 +9,12 @@ import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-hel
 import type {
   ResourceSpecification,
   EconomicResource,
-  ResourceSpecificationListing
+  ResourceSpecificationListing,
+  ResourceSpecificationInput,
+  CreateResourceSpecificationOutput,
+  GovernanceRuleInput,
+  CheckRuleDataConstraintsInput,
+  ConstraintViolation
 } from '@nondominium/shared-types';
 
 // ─── Store type ────────────────────────────────────────────────────────────────
@@ -19,6 +24,7 @@ export type ResourceStore = {
   readonly errorMessage: string | null;
   readonly allResourceSpecifications: ResourceSpecification[];
   readonly resourceSpecificationListings: ResourceSpecificationListing[];
+  readonly specificationsByNdo: Map<string, ResourceSpecificationListing[]>;
   readonly allEconomicResources: EconomicResource[];
   readonly myResources: EconomicResource[];
   readonly selectedSpecification: ResourceSpecification | null;
@@ -26,9 +32,10 @@ export type ResourceStore = {
   readonly resourcesByCustodian: Map<string, EconomicResource[]>;
 
   createResourceSpecification: (
-    specData: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-  ) => Promise<ActionHash | null>;
+    specData: ResourceSpecificationInput
+  ) => Promise<CreateResourceSpecificationOutput | null>;
   fetchAllResourceSpecifications: () => Promise<void>;
+  fetchSpecificationsForNdo: (ndoHash: ActionHash) => Promise<ResourceSpecificationListing[]>;
   fetchResourceSpecification: (hash: ActionHash) => Promise<ResourceSpecification | null>;
   createEconomicResource: (
     resourceData: Omit<EconomicResource, 'created_at'>
@@ -52,6 +59,10 @@ export type ResourceStore = {
   ) => Promise<ActionHash | null>;
   deleteResourceSpecification: (hash: ActionHash) => Promise<ActionHash | null>;
   archiveEconomicResource: (hash: ActionHash) => Promise<ActionHash | null>;
+  createGovernanceRule: (input: GovernanceRuleInput) => Promise<boolean>;
+  checkRuleDataConstraints: (
+    input: CheckRuleDataConstraintsInput
+  ) => Promise<ConstraintViolation[]>;
   selectResourceSpecification: (specification: ResourceSpecification) => void;
   selectEconomicResource: (resource: EconomicResource) => void;
   clearSelections: () => void;
@@ -70,6 +81,7 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     let errorMessage: string | null = $state(null);
     let allResourceSpecifications: ResourceSpecification[] = $state([]);
     let resourceSpecificationListings: ResourceSpecificationListing[] = $state([]);
+    let specificationsByNdo: Map<string, ResourceSpecificationListing[]> = $state(new Map());
     // TODO: allEconomicResources is never populated — no store method writes to it.
     // Either wire fetchAllEconomicResources here or remove this getter from the public type before
     // connecting UI components so consumers are not misled by an always-empty array.
@@ -97,11 +109,14 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     // ─── Actions ──────────────────────────────────────────────────────────────
 
     async function createResourceSpecification(
-      specData: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-    ): Promise<ActionHash | null> {
-      const hash = await run(resourceService.createResourceSpecification(specData));
-      if (hash) await fetchAllResourceSpecifications();
-      return hash;
+      specData: ResourceSpecificationInput
+    ): Promise<CreateResourceSpecificationOutput | null> {
+      const out = await run(resourceService.createResourceSpecification(specData));
+      if (out) {
+        await fetchAllResourceSpecifications();
+        await fetchSpecificationsForNdo(specData.ndo_identity_hash);
+      }
+      return out;
     }
 
     async function fetchAllResourceSpecifications(): Promise<void> {
@@ -117,6 +132,21 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
           );
         });
       }
+    }
+
+    async function fetchSpecificationsForNdo(
+      ndoHash: ActionHash
+    ): Promise<ResourceSpecificationListing[]> {
+      const listings = await run(resourceService.getSpecificationsForNdo(ndoHash));
+      const key = ndoHash.toString();
+      if (listings) {
+        specificationsByNdo.set(key, listings);
+        listings.forEach((listing) => {
+          specificationCache.set(listing.action_hash.toString(), listing.specification);
+        });
+        return listings;
+      }
+      return specificationsByNdo.get(key) ?? [];
     }
 
     async function fetchResourceSpecification(
@@ -220,6 +250,18 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
       return archiveHash;
     }
 
+    async function createGovernanceRule(input: GovernanceRuleInput): Promise<boolean> {
+      const record = await run(resourceService.createGovernanceRule(input));
+      return record != null;
+    }
+
+    async function checkRuleDataConstraints(
+      input: CheckRuleDataConstraintsInput
+    ): Promise<ConstraintViolation[]> {
+      const exit = await E.runPromiseExit(resourceService.checkRuleDataConstraints(input));
+      return Exit.isSuccess(exit) ? exit.value : [];
+    }
+
     function selectResourceSpecification(specification: ResourceSpecification) {
       selectedSpecification = specification;
     }
@@ -233,6 +275,7 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
       get errorMessage() { return errorMessage; },
       get allResourceSpecifications() { return allResourceSpecifications; },
       get resourceSpecificationListings() { return resourceSpecificationListings; },
+      get specificationsByNdo() { return specificationsByNdo; },
       get allEconomicResources() { return allEconomicResources; },
       get myResources() { return myResources; },
       get selectedSpecification() { return selectedSpecification; },
@@ -241,6 +284,7 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
 
       createResourceSpecification,
       fetchAllResourceSpecifications,
+      fetchSpecificationsForNdo,
       fetchResourceSpecification,
       createEconomicResource,
       fetchEconomicResource,
@@ -253,6 +297,8 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
       updateResourceSpecification,
       deleteResourceSpecification,
       archiveEconomicResource,
+      createGovernanceRule,
+      checkRuleDataConstraints,
       selectResourceSpecification,
       selectEconomicResource,
       clearSelections,

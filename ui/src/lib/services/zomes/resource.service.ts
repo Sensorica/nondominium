@@ -12,6 +12,8 @@ import type {
   EconomicResource,
   GetAllResourceSpecificationsOutput,
   ResourceSpecificationListing,
+  ResourceSpecificationInput,
+  CreateResourceSpecificationOutput,
   GetResourceSpecWithRulesOutput,
   GetAllNdosOutput,
   NdoInput,
@@ -22,7 +24,10 @@ import type {
   LifecycleStage,
   ResourceNature,
   PropertyRegime,
-  OperationalState
+  OperationalState,
+  GovernanceRuleInput,
+  CheckRuleDataConstraintsInput,
+  ConstraintViolation
 } from '@nondominium/shared-types';
 import type { Record as HoloRecord } from '@holochain/client';
 import {
@@ -30,14 +35,39 @@ import {
   type EconomicResourceRow
 } from '$lib/utils/holochain-records';
 
+function listingsFromOutput(
+  out: GetAllResourceSpecificationsOutput,
+  context: string
+): E.Effect<ResourceSpecificationListing[], ResourceError> {
+  const { specifications, action_hashes } = out;
+  if (!action_hashes || action_hashes.length !== specifications.length) {
+    return E.fail(
+      ResourceError.create(
+        `${context}: action_hashes missing or length mismatch`,
+        context
+      )
+    );
+  }
+  const listings: ResourceSpecificationListing[] = specifications.map(
+    (specification: ResourceSpecification, i: number) => ({
+      action_hash: action_hashes[i],
+      specification
+    })
+  );
+  return E.succeed(listings);
+}
+
 // ─── Service interface ────────────────────────────────────────────────────────
 
 export interface ResourceService {
   createResourceSpecification: (
-    spec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-  ) => E.Effect<ActionHash, ResourceError>;
+    spec: ResourceSpecificationInput
+  ) => E.Effect<CreateResourceSpecificationOutput, ResourceError>;
   getResourceSpecification: (hash: ActionHash) => E.Effect<ResourceSpecification, ResourceError>;
   getAllResourceSpecifications: () => E.Effect<ResourceSpecificationListing[], ResourceError>;
+  getSpecificationsForNdo: (
+    ndoHash: ActionHash
+  ) => E.Effect<ResourceSpecificationListing[], ResourceError>;
   getResourceSpecificationWithRules: (
     specHash: ActionHash
   ) => E.Effect<GetResourceSpecWithRulesOutput, ResourceError>;
@@ -83,6 +113,10 @@ export interface ResourceService {
   getResourcesByOperationalState: (
     state: OperationalState
   ) => E.Effect<EconomicResourceRow[], ResourceError>;
+  createGovernanceRule: (input: GovernanceRuleInput) => E.Effect<HoloRecord, ResourceError>;
+  checkRuleDataConstraints: (
+    input: CheckRuleDataConstraintsInput
+  ) => E.Effect<ConstraintViolation[], ResourceError>;
 }
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
@@ -119,7 +153,7 @@ export const ResourceServiceLive: Layer.Layer<
 
     return {
       createResourceSpecification: (spec) =>
-        wz<ActionHash>(
+        wz<CreateResourceSpecificationOutput>(
           'create_resource_specification',
           spec,
           RESOURCE_CONTEXTS.CREATE_RESOURCE_SPECIFICATION
@@ -138,24 +172,18 @@ export const ResourceServiceLive: Layer.Layer<
           null,
           RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
         ).pipe(
-          E.flatMap((out) => {
-            const { specifications, action_hashes } = out;
-            if (!action_hashes || action_hashes.length !== specifications.length) {
-              return E.fail(
-                ResourceError.create(
-                  'get_all_resource_specifications: action_hashes missing or length mismatch',
-                  RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
-                )
-              );
-            }
-            const listings: ResourceSpecificationListing[] = specifications.map(
-              (specification: ResourceSpecification, i: number) => ({
-                action_hash: action_hashes[i],
-                specification
-              })
-            );
-            return E.succeed(listings);
-          })
+          E.flatMap((out) =>
+            listingsFromOutput(out, RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS)
+          )
+        ),
+
+      getSpecificationsForNdo: (ndoHash) =>
+        wz<GetAllResourceSpecificationsOutput>(
+          'get_specifications_for_ndo',
+          ndoHash,
+          RESOURCE_CONTEXTS.GET_SPECIFICATIONS_FOR_NDO
+        ).pipe(
+          E.flatMap((out) => listingsFromOutput(out, RESOURCE_CONTEXTS.GET_SPECIFICATIONS_FOR_NDO))
         ),
 
       getResourceSpecificationWithRules: (specHash) =>
@@ -297,7 +325,21 @@ export const ResourceServiceLive: Layer.Layer<
           'get_resources_by_operational_state',
           state,
           RESOURCE_CONTEXTS.GET_RESOURCES_BY_OPERATIONAL_STATE
-        ).pipe(E.map(economicResourceRowsFromRecords))
+        ).pipe(E.map(economicResourceRowsFromRecords)),
+
+      createGovernanceRule: (input) =>
+        wz<HoloRecord>(
+          'create_governance_rule',
+          input,
+          RESOURCE_CONTEXTS.CREATE_GOVERNANCE_RULE
+        ),
+
+      checkRuleDataConstraints: (input) =>
+        wz<ConstraintViolation[]>(
+          'check_rule_data_constraints',
+          input,
+          RESOURCE_CONTEXTS.CHECK_RULE_DATA_CONSTRAINTS
+        )
     } satisfies ResourceService;
   })
 );

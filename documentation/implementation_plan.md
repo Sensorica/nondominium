@@ -603,7 +603,7 @@ _Optimizing the system for large-scale network operation_
 
 - **MVP UI**: ✅ Implemented — persistent Lobby sidebar + Group panel + NDO detail page with full NDO lifecycle management, Join NDO placeholder ("Coming soon"), **Associate with group** modal, multi-member group invites + DHT member lists + reactive join + idempotent membership self-heal (`ensureMembership`), pull-based reactivity for shared-group items (tab focus + gentle poll; `TODO(signals)` for push), fork friction modal, and reliable NDO data display via cache + DHT refresh
 - **NDO tabs**: Resources, Governance, and Activity render current data; Composition remains a placeholder
-- **PropertyRegime gap**: Rust defines six canonical regimes (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`); frontend shared types and controls currently expose only four and must be reconciled
+- **PropertyRegime**: ✅ Seven canonical regimes (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`) in Rust and fully exposed in frontend shared types, schemas, creation controls, filters, and badges. Regime-driven governance enforcement is Phase B (see §12.8).
 - **Stack**: SvelteKit 2 + Svelte 5 runes + TypeScript + UnoCSS + Melt UI next-gen + Effect-TS
 - **Dev runtime**: Browser (web) — `hc-spin`/Electron superseded by `scripts/launch-happ.mjs`, which runs one Vite dev server per agent on consecutive ports (`VITE_DEV_AGENT`-pinned), writes `ui/static/hc-connection.json`, and auto-opens a browser tab per agent (`NO_OPEN=1` to disable). See `ui_architecture.md §15`
 - **Service Layer**: ✅ Complete (PR #97 + MVP UI work) — all three zome services + NDO/Lobby services with Effect-TS `Context.Tag` / `Layer` / `E.gen` pattern
@@ -624,7 +624,7 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 - [x] **Three-level identity model foundation**: `LobbyUserProfile` (localStorage), `GroupMemberProfile` (localStorage), and Person service/store wiring
 - [ ] **First-action Person creation**: Enforce automatic `Person` creation on the agent's first DHT-active action in the UI flow
 - [x] **Shared types foundation**: `NdoInput`, `UpdateLifecycleStageInput`, `NdoTransitionHistoryEvent`, `LobbyUserProfile`, `GroupMemberProfile`, extended `GroupDescriptor` and `NdoDescriptor`
-- [ ] **PropertyRegime reconciliation**: Add `Collective` and `Pool` to frontend shared types, schemas, creation controls, filters, and display maps so all six canonical Rust variants are supported
+- [x] **PropertyRegime reconciliation**: All seven canonical variants (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`) in frontend shared types, schemas, creation controls, filters, and display maps
 - [x] **NDO service methods**: `createNdo`, `updateLifecycleStage`, `getNdoTransitionHistory`, `getGroupNdoDescriptors`, `getLobbyNdoDescriptors` — `ndo.service.ts`
 - [x] **Resource service methods**: `createNdo`, `getNdo` (return type corrected to `NondominiumIdentity | null` matching Rust `Option<NondominiumIdentity>`), `updateLifecycleStage`, filtered queries, history — `resource.service.ts`
 - [x] **Lobby/Group service (Group + Lobby DNA)**: `getMyGroups`, `createGroup` (clone cell → `create_group` → `join_group` → `announce_group`), `joinGroup` (clone cell + `is_member` guard + best-effort `join_group`, gossip-retry `fetchGroupProfileWithRetry` + invite-payload fallback for reactive sidebar; `TODO(signals)`), `ensureMembership` (idempotent membership self-heal so a joined agent always reconciles into the member list), `generateInviteLink`; only the Level 2 `GroupMemberProfile` stays in `localStorage` — `lobby.service.ts` (Group DNA backend complete, PR #107)
@@ -635,7 +635,7 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 - [x] **ndo-cache.ts** *(new)*: in-memory descriptor cache keyed by hash; populated on card click to seed NDO page instantly
 - [x] **UserProfileForm.svelte**: Lobby profile create/edit, modal + page modes, nickname required
 - [x] **GroupProfileModal.svelte**: Per-group disclosure preferences (first visit only)
-- [x] **NdoBrowser.svelte**: Multi-select filter chips (LifecycleStage × ResourceNature × PropertyRegime); currently covers four regimes
+- [x] **NdoBrowser.svelte**: Multi-select filter chips (LifecycleStage × ResourceNature × PropertyRegime); covers all seven regimes
 - [x] **NdoCard.svelte**: Populates `ndo-cache` before navigating to NDO page
 - [x] **NdoCreateModal.svelte**: 5-field form (4-variant regime), uniqueness check, Effect-TS errors, navigation on success
 - [x] **NdoIdentityLayer.svelte**: Initiator profile link, lifecycle transition button (initiator-only), TransitionHistoryPanel; 4-variant regime color map
@@ -698,7 +698,8 @@ Implements `documentation/requirements/ui_design.md` MVP section and reconciled 
 - **Phase 2.2**: Economic Process infrastructure with four process types
 - **Phase 2.3**: Complete authenticated bilateral PPR exchange, privacy-model hardening, and automatic issuance on the implemented prototype
 - **Governance-as-Operator**: Implement the Request→Evaluate→Apply path, typed GovernanceRule evaluation, authorization hardening, and uniform event/PPR generation
-- **UI**: Reconcile all six PropertyRegime variants, then add Economic Process and PPR workflows
+- **UI**: ✅ Seven-variant PropertyRegime parity complete; next: Economic Process and PPR workflows
+- **PropertyRegime Phase B**: Regime-driven governance enforcement (transfer-rights matrix, Nondominium/Public no-alienation guard, GovernanceDefaultsEngine) — see §12.8
 
 ### Medium-Term Enhancements (6-18 Months)
 
@@ -778,12 +779,23 @@ This plan ensures the nondominium hApp will fulfill its vision of decentralized,
 
 ### 12.1 Generic NDO (three-layer model, lifecycle split)
 
-- [x] Implement `NondominiumIdentity` Layer 0 with permanent identity, six `PropertyRegime` variants, five `ResourceNature` variants, lifecycle metadata, and validated updates.
+- [x] Implement `NondominiumIdentity` Layer 0 with permanent identity, seven `PropertyRegime` variants, five `ResourceNature` variants, lifecycle metadata, and validated updates.
 - [x] Implement `LifecycleStage` and Layer 0 discovery facets (`NdoByLifecycleStage`, `NdoByNature`, `NdoByPropertyRegime`).
 - [ ] Add `NDOToSpecification`, `NDOToProcess`, holonic links beyond the implemented federation primitives, and the `CapabilitySlot` surface.
 - [x] Replace legacy `ResourceState` with `OperationalState` on `EconomicResource` and `ResourcesByOperationalState` discovery (`REQ-NDO-OS-01`, `REQ-NDO-OS-06`).
 - [ ] Integrate lifecycle transitions with Governance-as-Operator, required EconomicEvents, role authorization, and EndOfLife challenge periods.
 - [ ] Implement retroactive anchoring/migration for legacy ResourceSpecifications (REQ-NDO-MIG-*).
+
+### 12.1.1 PropertyRegime Phase B — regime-driven governance (post Phase A)
+
+Phase A (complete): seven-variant enum + semantic helpers on `nondominium_shared::PropertyRegime` (`is_rivalrous`, `permits_ownership_transfer`, `is_uncapturable`, `default_accessibility`) + full UI/doc parity.
+
+Phase B (tracked — not yet implemented; `zome_gouvernance` currently has zero `PropertyRegime` references):
+
+- [ ] Enforce the transfer-rights matrix per regime (ownership vs custody vs use vs benefit) — `resources.md` §4.4.5
+- [ ] `Nondominium` and `Public` no-alienation guard: reject ownership-changing `Transfer` / ownership-asserting `GovernanceRule`s; allow `TransferCustody`
+- [ ] `GovernanceDefaultsEngine`: derive default `GovernanceRule` templates from `PropertyRegime` × `ResourceNature` (× Rivalry when modelled) — `resources.md` §6.6
+- [ ] Wire into the governance-as-operator path (`request_resource_transition` / `evaluate_state_transition`)
 
 ### 12.2 Unyt integration (three phases, parallel to prima materia §6.6)
 
@@ -917,7 +929,7 @@ Black-box stance: govern observable boundary signals and `SourceRegimeState` tra
 - Governance-as-Operator Request→Evaluate→Apply path ❌ (blocks full Phase C)
 - Typed `GovernanceRule` evaluation ❌
 - PPR authenticated bilateral workflow ❌ (Phase D)
-- Six-regime `PropertyRegime` UI parity 🔄 (Source variant needs `Nondominium` / `CommonPool` when profile on)
+- Seven-regime `PropertyRegime` UI parity ✅ (Source variant still needs `Nondominium` / `CommonPool` when profile on)
 - **Explicit non-dependency:** Project NDO track, resource mutualisation, and MVP UI completion do **not** require Source phases A–E
 
 ---

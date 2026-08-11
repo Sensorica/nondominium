@@ -48,7 +48,8 @@ function ndoToDescriptorFields(
     successor_ndo_hash: entry.successor_ndo_hash
       ? encodeHashToBase64(entry.successor_ndo_hash)
       : null,
-    hibernation_origin: entry.hibernation_origin ? String(entry.hibernation_origin) : null
+    hibernation_origin: entry.hibernation_origin ? String(entry.hibernation_origin) : null,
+    rivalry_override: entry.rivalry_override ? String(entry.rivalry_override) : null
   };
 }
 
@@ -81,7 +82,8 @@ const mapListingToDescriptor = (
     initiator: null,
     created_at: null,
     successor_ndo_hash: null,
-    hibernation_origin: null
+    hibernation_origin: null,
+    rivalry_override: null
   };
   return {
     hash: encodeHashToBase64(listing.action_hash),

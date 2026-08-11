@@ -8,6 +8,8 @@
   import { PersonServiceTag, PersonServiceResolved } from '$lib/services/zomes/person.service';
   import LifecycleTransitionModal from './LifecycleTransitionModal.svelte';
   import TransitionHistoryPanel from './TransitionHistoryPanel.svelte';
+  import { effectiveRivalryLabel } from '$lib/utils/rivalry';
+  import type { ResourceNature } from '@nondominium/shared-types';
 
   interface Props {
     descriptor: NdoDescriptor | null;
@@ -35,8 +37,11 @@
   const regimeColorMap: Record<string, string> = {
     Private: 'bg-gray-100 text-gray-600',
     Commons: 'bg-cyan-100 text-cyan-700',
-    Nondominium: 'bg-emerald-100 text-emerald-700',
-    CommonPool: 'bg-rose-100 text-rose-700'
+    Collective: 'bg-violet-100 text-violet-700',
+    Pool: 'bg-amber-100 text-amber-700',
+    CommonPool: 'bg-rose-100 text-rose-700',
+    Public: 'bg-sky-100 text-sky-700',
+    Nondominium: 'bg-emerald-100 text-emerald-700'
   };
 
   const natureColorMap: Record<string, string> = {
@@ -50,6 +55,13 @@
   function badgeClass(map: Record<string, string>, value: string | null): string {
     return value ? (map[value] ?? 'bg-gray-100 text-gray-600') : 'bg-gray-100 text-gray-400';
   }
+
+  const rivalryBadge = $derived(
+    effectiveRivalryLabel(
+      descriptor?.resource_nature as ResourceNature | null,
+      descriptor?.rivalry_override
+    )
+  );
 
   const formattedDate = $derived(
     descriptor?.created_at ? new Date(descriptor.created_at / 1000).toLocaleString() : null
@@ -131,6 +143,11 @@
             class={`rounded px-2 py-0.5 text-xs font-medium ${badgeClass(natureColorMap, descriptor.resource_nature)}`}
           >
             {descriptor.resource_nature}
+          </span>
+        {/if}
+        {#if rivalryBadge}
+          <span class="rounded border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium text-gray-700">
+            {rivalryBadge}
           </span>
         {/if}
       </div>

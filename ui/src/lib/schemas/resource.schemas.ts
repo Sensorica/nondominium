@@ -28,6 +28,7 @@ export const PropertyRegimeSchema = Schema.Literal(
   'Collective',
   'Pool',
   'CommonPool',
+  'Public',
   'Nondominium'
 );
 export type PropertyRegime = Schema.Schema.Type<typeof PropertyRegimeSchema>;
@@ -61,7 +62,9 @@ export class ResourceSpecInput extends Schema.Class<ResourceSpecInput>('Resource
   category: Schema.String,
   image_url: Schema.optional(Schema.String),
   tags: Schema.Array(Schema.String),
-  is_active: Schema.Boolean
+  is_active: Schema.Boolean,
+  scope: Schema.Literal('Project', 'Network', 'Public'),
+  ndo_identity_hash: Schema.Any // ActionHash
 }) { }
 
 export class UIResourceSpec extends Schema.Class<UIResourceSpec>('UIResourceSpec')({
@@ -71,6 +74,8 @@ export class UIResourceSpec extends Schema.Class<UIResourceSpec>('UIResourceSpec
   image_url: Schema.optional(Schema.String),
   tags: Schema.Array(Schema.String),
   is_active: Schema.Boolean,
+  scope: Schema.optional(Schema.Literal('Project', 'Network', 'Public')),
+  ndo_identity_hash: Schema.optional(Schema.Any),
   original_action_hash: Schema.optional(Schema.Any), // ActionHash
   created_at: Schema.optional(Schema.Number)
 }) { }
@@ -95,16 +100,67 @@ export class UIEconomicResource extends Schema.Class<UIEconomicResource>('UIEcon
   created_at: Schema.optional(Schema.Number)
 }) { }
 
+export const RivalrySchema = Schema.Literal('Rivalrous', 'NonRivalrous');
+export type Rivalry = Schema.Schema.Type<typeof RivalrySchema>;
+
+export const ResourceScopeSchema = Schema.Literal('Project', 'Network', 'Public');
+export type ResourceScope = Schema.Schema.Type<typeof ResourceScopeSchema>;
+
+export const AccessibilitySchema = Schema.Literal('Free', 'Credentialed', 'Gated');
+export const TransferTypeSchema = Schema.Literal(
+  'Ownership',
+  'Custody',
+  'UseRights',
+  'Benefit'
+);
+
+/** Externally-tagged RuleData — mirrors Rust `RuleData`. */
+export const RuleDataSchema = Schema.Union(
+  Schema.Struct({
+    AccessRequirement: Schema.Struct({
+      accessibility: AccessibilitySchema,
+      required_role: Schema.optional(Schema.String),
+      min_affiliation: Schema.optional(Schema.String)
+    })
+  }),
+  Schema.Struct({
+    UsageLimit: Schema.Struct({
+      max_duration_hours: Schema.optional(Schema.Number),
+      max_quantity_per_period: Schema.optional(Schema.Number),
+      period_days: Schema.optional(Schema.Number)
+    })
+  }),
+  Schema.Struct({
+    TransferCondition: Schema.Struct({
+      transfer_type: TransferTypeSchema,
+      requires_validation: Schema.Boolean,
+      validator_role: Schema.optional(Schema.String)
+    })
+  }),
+  Schema.Struct({
+    MaintenanceSchedule: Schema.Struct({
+      interval_days: Schema.Number,
+      required_role: Schema.optional(Schema.String)
+    })
+  })
+);
+
 export class GovernanceRuleInput extends Schema.Class<GovernanceRuleInput>('GovernanceRuleInput')({
-  rule_type: Schema.String,
-  rule_data: Schema.String, // JSON-encoded
-  enforced_by: Schema.optional(Schema.String)
+  rule_data: RuleDataSchema,
+  enforced_by: Schema.optional(Schema.String),
+  ndo_identity_hash: Schema.Any, // ActionHash
+  property_regime: PropertyRegimeSchema,
+  resource_nature: ResourceNatureSchema,
+  rivalry_override: Schema.optional(RivalrySchema)
 }) { }
 
 export class UIGovernanceRule extends Schema.Class<UIGovernanceRule>('UIGovernanceRule')({
-  rule_type: Schema.String,
-  rule_data: Schema.String,
+  rule_data: RuleDataSchema,
   enforced_by: Schema.optional(Schema.String),
+  ndo_identity_hash: Schema.Any,
+  property_regime: PropertyRegimeSchema,
+  resource_nature: ResourceNatureSchema,
+  rivalry_override: Schema.optional(RivalrySchema),
   original_action_hash: Schema.optional(Schema.Any),
   created_at: Schema.optional(Schema.Number)
 }) { }
@@ -114,7 +170,8 @@ export class NdoIdentityInput extends Schema.Class<NdoIdentityInput>('NdoIdentit
   description: Schema.optional(Schema.String),
   property_regime: PropertyRegimeSchema,
   resource_nature: ResourceNatureSchema,
-  lifecycle_stage: LifecycleStageSchema
+  lifecycle_stage: LifecycleStageSchema,
+  rivalry_override: Schema.optional(RivalrySchema)
 }) { }
 
 export class UINdoIdentity extends Schema.Class<UINdoIdentity>('UINdoIdentity')({
@@ -125,6 +182,7 @@ export class UINdoIdentity extends Schema.Class<UINdoIdentity>('UINdoIdentity')(
   lifecycle_stage: LifecycleStageSchema,
   created_at: Schema.Number, // Timestamp
   description: Schema.optional(Schema.String),
+  rivalry_override: Schema.optional(RivalrySchema),
   successor_ndo_hash: Schema.optional(Schema.Any), // ActionHash
   hibernation_origin: Schema.optional(LifecycleStageSchema),
   original_action_hash: Schema.optional(Schema.Any)

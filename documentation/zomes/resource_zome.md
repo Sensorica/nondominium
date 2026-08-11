@@ -46,7 +46,7 @@ pub struct NondominiumIdentity {
 
 State machine transitions are enforced by the integrity zome (see `ndo_prima_materia.md §5.3`). `Hibernating` is a memory-preserving pause — it resumes to the exact stage that was paused, not necessarily `Active`. `Deprecated` and `EndOfLife` are terminal (REQ-NDO-LC-04). Any non-terminal stage may enter `Hibernating`, `Deprecated`, or `EndOfLife`.
 
-**PropertyRegime** (6 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`
+**PropertyRegime** (7 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`
 
 **ResourceNature** (5 variants): `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
 
@@ -685,7 +685,7 @@ for rule in rules {
 - **Resource Analytics**: Usage statistics and availability optimization
 - **Automated Governance**: AI-assisted rule creation and enforcement
 
-> **TODO (post-MVP — PropertyRegime-driven governance defaults, resources.md §6.6)**:
+> **TODO (post-MVP — PropertyRegime-driven governance defaults, resources.md §6.6 / implementation_plan §12.1.1 Phase B)**:
 > Implement a `GovernanceDefaultsEngine` that derives default governance rule templates from
 > `PropertyRegime + ResourceNature` classification. For example, a `Nondominium` physical
 > resource gets default rules for custody rotation, maintenance obligations, and access-for-use;

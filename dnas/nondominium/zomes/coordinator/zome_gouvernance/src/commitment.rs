@@ -14,6 +14,8 @@ pub struct ProposeCommitmentInput {
   pub provider: AgentPubKey,
   pub due_date: Timestamp,
   pub note: Option<String>,
+  /// Layer 0 identity for action-constraint evaluation.
+  pub ndo_identity_hash: ActionHash,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,7 +29,8 @@ pub fn propose_commitment(input: ProposeCommitmentInput) -> ExternResult<Propose
   let agent_info = agent_info()?;
   let now = sys_time()?;
 
-  // TODO: In Phase 2, check that the calling agent has restricted_access capability
+  // Hard action constraints are enforced by integrity validation.
+  // Soft warnings: use evaluate_state_transition / check_action_constraints (parallel path).
 
   let commitment = Commitment {
     action: input.action,
@@ -39,6 +42,7 @@ pub fn propose_commitment(input: ProposeCommitmentInput) -> ExternResult<Propose
     due_date: input.due_date,
     note: input.note,
     committed_at: now,
+    ndo_identity_hash: input.ndo_identity_hash,
   };
 
   let commitment_hash = create_entry(&EntryTypes::Commitment(commitment.clone()))?;

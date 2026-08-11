@@ -333,13 +333,23 @@
 
   <div class="p-6">
     {#if tab === 'resources'}
-      <ResourcesTab {specActionHash} />
+      <ResourcesTab {specActionHash} lifecycleStage={ndoDescriptor?.lifecycle_stage ?? null} />
     {:else if tab === 'governance'}
-      <GovernanceTab {specActionHash} />
+      <GovernanceTab
+        {specActionHash}
+        propertyRegime={ndoDescriptor?.property_regime ?? null}
+        resourceNature={ndoDescriptor?.resource_nature ?? null}
+        rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
+      />
     {:else if tab === 'composition'}
       <CompositionTab />
     {:else}
-      <ActivityTab {specActionHash} />
+      <ActivityTab
+        {specActionHash}
+        propertyRegime={ndoDescriptor?.property_regime ?? null}
+        resourceNature={ndoDescriptor?.resource_nature ?? null}
+        rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
+      />
     {/if}
   </div>
 {/if}

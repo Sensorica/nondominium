@@ -543,6 +543,7 @@ pub struct NdoInput {
 }
 ```
 **Returns**: `NdoOutput { action_hash, entry }` — `action_hash` is the permanent Layer 0 identity
+**PropertyRegime**: seven canonical variants — `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`
 **Side Effects**: Creates `AllNdos`, `AgentToNdo`, `NdoByLifecycleStage`, `NdoByNature`, and `NdoByPropertyRegime` links
 **Error Cases**: Empty name, terminal initial stage (`Hibernating`, `Deprecated`, `EndOfLife`)
 

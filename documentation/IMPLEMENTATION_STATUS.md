@@ -101,7 +101,7 @@ Each local DNA domain follows the integrity/coordinator pattern. The core Nondom
 
 - **Entry type**: `NondominiumIdentity` with `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `description`, `successor_ndo_hash`, and `hibernation_origin`
 - **LifecycleStage**: 10 stages — Ideation → Specification → Development → Prototype → Stable → Distributed → Active → Hibernating → Deprecated → EndOfLife
-- **PropertyRegime**: 6 canonical variants — `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`
+- **PropertyRegime**: 7 canonical variants — `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`
 - **ResourceNature**: 5 variants — `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
 - **Immutability**: identity fields are permanent; `lifecycle_stage` changes through the validated state machine, `successor_ndo_hash` is set once on deprecation, and `hibernation_origin` is set/cleared during suspension/resumption; deletes are always invalid
 - **Authorization**: Only the `initiator` may call `update_lifecycle_stage` (MVP simplification; full role-based authorization per REQ-NDO-LC-07 deferred to governance zome integration)
@@ -313,8 +313,8 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 #### Shared Types
 
 - `NdoDescriptor`, `NdoInput`, `UpdateLifecycleStageInput`, `NdoTransitionHistoryEvent` — `packages/shared-types/src/resource.types.ts`
-- Rust's canonical `PropertyRegime` has 6 variants: `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`
-- **Current frontend mismatch**: `packages/shared-types/src/resource.types.ts` still exposes only 4 variants (`Private`, `Commons`, `Nondominium`, `CommonPool`); `Collective` and `Pool` still need to be propagated through frontend types, schemas, form options, filters, and color/label maps
+- Rust's canonical `PropertyRegime` has 7 variants: `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`
+- Frontend shared types, schemas, creation form, filters, and badge maps expose all 7 variants
 - `LobbyUserProfile`, `GroupMemberProfile` — three-level identity model
 - Extended `GroupDescriptor` with clone-cell identifiers, derived/deprecated `ndoHashes`, local `memberProfile`, and optional presentation metadata
 
@@ -341,7 +341,7 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 
 - `LobbyView.svelte` — page header + `NdoBrowser`; **`$effect` mirrors `lobbyStore.myPerson` into `appContext` and triggers `loadNdos()` — it does not set `appContext.currentView`** so the lobby shell does not override `'ndo'` when an NDO page is mounted
 - `UserProfileForm.svelte` — Lobby profile create/edit (modal + page modes; nickname required)
-- `NdoBrowser.svelte` — multi-select filter chips: LifecycleStage × ResourceNature × PropertyRegime; currently offers the frontend's 4 regimes, pending propagation of `Collective` and `Pool`; "No NDOs yet" empty state
+- `NdoBrowser.svelte` — multi-select filter chips: LifecycleStage × ResourceNature × PropertyRegime (all 7 regimes); "No NDOs yet" empty state
 - `NdoCard.svelte` — NDO summary card with lifecycle/nature/regime badges; populates `ndo-cache` before navigating
 
 #### Components — Group Level
@@ -377,7 +377,7 @@ The dev runtime is the **browser** (Electron/`hc-spin` superseded). `scripts/lau
 
 ### Not Yet Implemented (UI)
 
-- Complete six-variant PropertyRegime support: `Collective` and `Pool` are present in Rust but missing from frontend shared types, schemas, forms, filter options, and display maps
+- ~~Complete seven-variant PropertyRegime support~~ ✅: `Collective`, `Pool`, and `Public` are present in Rust and exposed in frontend shared types, schemas, forms, filter options, and display maps
 - "Join NDO" backend implementation (button is a placeholder; UI flow + API contract only)
 - Person management components (issue #8)
 - Resource management components (issue #9)
@@ -458,8 +458,8 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | Governance validation APIs                             | 🔄 Partial |
 | Governance-as-Operator Request→Evaluate→Apply path     | ❌ Not implemented |
 | NondominiumIdentity Layer 0                             | ✅ Implemented |
-| PropertyRegime backend enum (6 variants)               | ✅ Implemented |
-| PropertyRegime frontend support (all 6 variants)       | 🔄 4 of 6 currently exposed |
+| PropertyRegime backend enum (7 variants)               | ✅ Implemented |
+| PropertyRegime frontend support (all 7 variants)       | ✅ Implemented |
 | NDO federation hard links/contributions/agreements      | 🔄 Implemented; Agreement/Contribution tests ignored |
 | Lobby DNA backend                                      | ✅ Implemented |
 | Group DNA backend (cloned-cell architecture)           | ✅ Complete for current scope |

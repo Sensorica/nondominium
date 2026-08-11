@@ -290,7 +290,7 @@ This is "beyond Ostrom" in the complexity-science sense: Ostrom's design princip
 
 Source-NDOs SHALL observe the following property regime constraints:
 
-- **MUST be `Nondominium` or `CommonPool`**: `Private`, `Commons`, `Pool`, and `Collective` regimes are inappropriate for ecological sources — they imply ownership or enclosure that the Source primitive is designed to prevent.
+- **MUST be `Nondominium` or `CommonPool`**: `Private`, `Commons`, `Pool`, `Collective`, and `Public` regimes are inappropriate for ecological sources — they imply ownership, enclosure, or public-body dominion that the Source primitive is designed to prevent.
 - `PropertyRegime::Nondominium` is preferred: governance-embedded uncapturability, no `primaryAccountable`.
 - `PropertyRegime::CommonPool` may apply to rivalrous consumable stock sources (e.g., a specific fish stock where the extraction quota is the primary governance mechanism).
 

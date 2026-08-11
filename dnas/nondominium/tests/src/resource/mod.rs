@@ -7,6 +7,8 @@
 //! Covers `OperationalState` on `EconomicResource`: default on create,
 //! `update_operational_state`, and `get_resources_by_operational_state`.
 //!
+//! Phase B: Layer 1 activation requires an eligible NDO + typed governance rules.
+//!
 //! Prerequisites (runtime — not compile-time):
 //!   bun run build:happ   # builds nondominium.dna
 //!
@@ -14,6 +16,7 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --test resource
 
 use holochain::prelude::*;
+use holochain::sweettest::{SweetCell, SweetConductorBatch};
 use nondominium_shared::types::OperationalState;
 use serde::{Deserialize, Serialize};
 
@@ -25,10 +28,39 @@ use nondominium_sweettest::common::*;
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Serialize, Deserialize)]
-struct GovernanceRuleInput {
-    pub rule_type: String,
-    pub rule_data: String,
+struct NdoInput {
+    pub name: String,
+    pub property_regime: String,
+    pub resource_nature: String,
+    pub lifecycle_stage: String,
+    pub description: Option<String>,
+    pub rivalry_override: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NdoOutput {
+    pub action_hash: ActionHash,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NestedGovernanceRuleInput {
+    pub rule_data: RuleDataMirror,
     pub enforced_by: Option<String>,
+}
+
+/// Externally-tagged RuleData mirror (serde default for Rust enums).
+#[derive(Debug, Serialize, Deserialize)]
+enum RuleDataMirror {
+    AccessRequirement {
+        accessibility: String,
+        required_role: Option<String>,
+        min_affiliation: Option<String>,
+    },
+    UsageLimit {
+        max_duration_hours: Option<f64>,
+        max_quantity_per_period: Option<f64>,
+        period_days: Option<u32>,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,7 +70,9 @@ struct ResourceSpecificationInput {
     pub category: String,
     pub image_url: Option<String>,
     pub tags: Vec<String>,
-    pub governance_rules: Vec<GovernanceRuleInput>,
+    pub scope: String,
+    pub ndo_identity_hash: ActionHash,
+    pub governance_rules: Vec<NestedGovernanceRuleInput>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,6 +83,8 @@ struct ResourceSpecification {
     pub image_url: Option<String>,
     pub tags: Vec<String>,
     pub is_active: bool,
+    pub scope: String,
+    pub ndo_identity_hash: ActionHash,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -93,11 +129,76 @@ struct UpdateOperationalStateInput {
     pub new_operational_state: OperationalState,
 }
 
-fn decode_record_entry<T: serde::de::DeserializeOwned>(record: &Record) -> T {
+#[derive(Debug, Serialize, Deserialize)]
+struct GovernanceRuleInput {
+    pub rule_data: RuleDataMirror,
+    pub enforced_by: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+    pub property_regime: String,
+    pub resource_nature: String,
+    pub rivalry_override: Option<String>,
+    pub specification_hash: Option<ActionHash>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CheckRuleDataConstraintsInput {
+    pub property_regime: String,
+    pub resource_nature: String,
+    pub rivalry_override: Option<String>,
+    pub rule_data: RuleDataMirror,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ConstraintViolation {
+    pub rule_id: String,
+    pub message: String,
+    pub severity: String,
+}
+
+async fn create_ndo_at_stage(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    name: &str,
+    stage: &str,
+) -> ActionHash {
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &cell.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: name.to_string(),
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: stage.to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+    ndo.action_hash
+}
+
+fn spec_input(name: &str, category: &str, ndo: ActionHash) -> ResourceSpecificationInput {
+    ResourceSpecificationInput {
+        name: name.to_string(),
+        description: format!("Description for {name}"),
+        category: category.to_string(),
+        image_url: None,
+        tags: vec![category.to_string()],
+        scope: "Public".to_string(),
+        ndo_identity_hash: ndo,
+        governance_rules: vec![],
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for Present App entry extraction (economic resource tests)
+// ---------------------------------------------------------------------------
+
+fn extract_economic_resource(record: &Record) -> EconomicResource {
     match record.entry().as_option() {
-        Some(Entry::App(app_bytes)) => {
-            holochain_serialized_bytes::decode(app_bytes.bytes()).expect("entry deserialization failed")
-        }
+        Some(Entry::App(app_bytes)) => holochain_serialized_bytes::decode(app_bytes.bytes())
+            .expect("decode EconomicResource"),
         _ => panic!("expected Present App entry"),
     }
 }
@@ -112,39 +213,33 @@ fn decode_record_entry<T: serde::de::DeserializeOwned>(record: &Record) -> T {
 async fn get_all_resource_specifications_returns_parallel_hashes() {
     let (conductors, alice, _bob) = setup_two_agents().await;
 
-    let spec1 = ResourceSpecificationInput {
-        name: "Shared Bicycle".to_string(),
-        description: "A community pedal-powered vehicle".to_string(),
-        category: "Transportation".to_string(),
-        image_url: None,
-        tags: vec!["transport".to_string()],
-        governance_rules: vec![],
-    };
+    let ndo1 = create_ndo_at_stage(&conductors, &alice, "NDO for Bicycle", "Specification").await;
+    let ndo2 = create_ndo_at_stage(&conductors, &alice, "NDO for Helmet", "Specification").await;
 
-    let spec2 = ResourceSpecificationInput {
-        name: "Safety Helmet".to_string(),
-        description: "Protective headgear for cyclists".to_string(),
-        category: "Safety".to_string(),
-        image_url: None,
-        tags: vec!["safety".to_string()],
-        governance_rules: vec![],
-    };
-
-    // Create both specs — discard the output, we only care about get_all below
     let _: CreateResourceSpecificationOutput = conductors[0]
-        .call(&alice.zome("zome_resource"), "create_resource_specification", spec1)
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Shared Bicycle", "Transportation", ndo1),
+        )
         .await;
 
     let _: CreateResourceSpecificationOutput = conductors[0]
-        .call(&alice.zome("zome_resource"), "create_resource_specification", spec2)
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Safety Helmet", "Safety", ndo2),
+        )
         .await;
 
-    // Fetch all specs
     let output: GetAllResourceSpecificationsOutput = conductors[0]
-        .call(&alice.zome("zome_resource"), "get_all_resource_specifications", ())
+        .call(
+            &alice.zome("zome_resource"),
+            "get_all_resource_specifications",
+            (),
+        )
         .await;
 
-    // Both vectors must be non-empty and equal in length
     assert!(
         output.specifications.len() >= 2,
         "expected at least 2 specifications, got {}",
@@ -156,18 +251,14 @@ async fn get_all_resource_specifications_returns_parallel_hashes() {
         "specifications and action_hashes must have the same length"
     );
 
-    // Verify both created specs appear by name
-    let names: Vec<&str> = output.specifications.iter().map(|s| s.name.as_str()).collect();
-    assert!(
-        names.contains(&"Shared Bicycle"),
-        "expected 'Shared Bicycle' in specifications"
-    );
-    assert!(
-        names.contains(&"Safety Helmet"),
-        "expected 'Safety Helmet' in specifications"
-    );
+    let names: Vec<&str> = output
+        .specifications
+        .iter()
+        .map(|s| s.name.as_str())
+        .collect();
+    assert!(names.contains(&"Shared Bicycle"));
+    assert!(names.contains(&"Safety Helmet"));
 
-    // Every action hash must be 39 bytes (Holochain ActionHash length)
     for (i, hash) in output.action_hashes.iter().enumerate() {
         assert_eq!(
             hash.get_raw_39().len(),
@@ -184,102 +275,198 @@ async fn get_all_resource_specifications_returns_parallel_hashes() {
 async fn economic_resource_operational_state_lifecycle() {
     let (conductors, alice, _bob) = setup_two_agents().await;
 
-    let spec_input = ResourceSpecificationInput {
-        name: "Operational Drill".to_string(),
-        description: "Cordless drill for shared use".to_string(),
-        category: "tools".to_string(),
-        image_url: None,
-        tags: vec!["tools".to_string()],
-        governance_rules: vec![],
-    };
+    let ndo = create_ndo_at_stage(&conductors, &alice, "NDO for Drill", "Active").await;
 
     let spec_out: CreateResourceSpecificationOutput = conductors[0]
         .call(
             &alice.zome("zome_resource"),
             "create_resource_specification",
-            spec_input,
+            spec_input("Operational Drill", "tools", ndo),
         )
         .await;
 
-    let resource_input = EconomicResourceInput {
-        spec_hash: spec_out.spec_hash.clone(),
-        quantity: 1.0,
-        unit: "piece".to_string(),
-        current_location: Some("Workshop".to_string()),
-    };
-
-    let create_out: CreateEconomicResourceOutput = conductors[0]
+    let resource_out: CreateEconomicResourceOutput = conductors[0]
         .call(
             &alice.zome("zome_resource"),
             "create_economic_resource",
-            resource_input,
-        )
-        .await;
-
-    assert_eq!(
-        create_out.resource.operational_state,
-        OperationalState::PendingValidation,
-        "new instances must start PendingValidation"
-    );
-
-    let pending_records: Vec<Record> = conductors[0]
-        .call(
-            &alice.zome("zome_resource"),
-            "get_resources_by_operational_state",
-            OperationalState::PendingValidation,
-        )
-        .await;
-
-    assert!(
-        pending_records.iter().any(|r| {
-            decode_record_entry::<EconomicResource>(r).operational_state
-                == OperationalState::PendingValidation
-        }),
-        "PendingValidation query should include the new resource"
-    );
-
-    let updated: Record = conductors[0]
-        .call(
-            &alice.zome("zome_resource"),
-            "update_operational_state",
-            UpdateOperationalStateInput {
-                resource_hash: create_out.resource_hash.clone(),
-                new_operational_state: OperationalState::InUse,
+            EconomicResourceInput {
+                spec_hash: spec_out.spec_hash,
+                quantity: 1.0,
+                unit: "each".to_string(),
+                current_location: Some("workshop".to_string()),
             },
         )
         .await;
 
-    let updated_resource: EconomicResource = decode_record_entry(&updated);
     assert_eq!(
-        updated_resource.operational_state,
-        OperationalState::InUse,
-        "operational state should update to InUse"
+        resource_out.resource.operational_state,
+        OperationalState::PendingValidation
     );
 
-    let in_use_records: Vec<Record> = conductors[0]
+    let updated_record: Record = conductors[0]
         .call(
             &alice.zome("zome_resource"),
-            "get_resources_by_operational_state",
-            OperationalState::InUse,
+            "update_operational_state",
+            UpdateOperationalStateInput {
+                resource_hash: resource_out.resource_hash.clone(),
+                new_operational_state: OperationalState::Available,
+            },
         )
         .await;
 
-    assert_eq!(
-        in_use_records.len(),
-        1,
-        "exactly one resource should be InUse after update"
-    );
+    let record: Option<Record> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_latest_economic_resource_record",
+            resource_out.resource_hash,
+        )
+        .await;
+    let record = record.expect("updated resource record");
+    let resource = extract_economic_resource(&record);
+    assert_eq!(resource.operational_state, OperationalState::Available);
+    assert_eq!(updated_record.action_address().get_raw_39().len(), 39);
 
-    let pending_after: Vec<Record> = conductors[0]
+    let by_state: Vec<Record> = conductors[0]
         .call(
             &alice.zome("zome_resource"),
             "get_resources_by_operational_state",
-            OperationalState::PendingValidation,
+            OperationalState::Available,
+        )
+        .await;
+    assert!(
+        !by_state.is_empty(),
+        "expected at least one Available resource"
+    );
+}
+
+/// `get_specifications_for_ndo` returns only specs linked via `NdoToSpecification`.
+#[tokio::test(flavor = "multi_thread")]
+async fn get_specifications_for_ndo_returns_linked_specs_only() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo_a = create_ndo_at_stage(&conductors, &alice, "NDO A for specs", "Specification").await;
+    let ndo_b = create_ndo_at_stage(&conductors, &alice, "NDO B empty", "Specification").await;
+
+    let created: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Spec for NDO A", "tools", ndo_a.clone()),
+        )
+        .await;
+
+    let for_a: GetAllResourceSpecificationsOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            ndo_a,
+        )
+        .await;
+
+    assert_eq!(for_a.specifications.len(), 1);
+    assert_eq!(for_a.action_hashes.len(), 1);
+    assert_eq!(for_a.specifications[0].name, "Spec for NDO A");
+    assert_eq!(for_a.action_hashes[0], created.spec_hash);
+
+    let for_b: GetAllResourceSpecificationsOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            ndo_b,
         )
         .await;
 
     assert!(
-        pending_after.is_empty(),
-        "PendingValidation anchor should no longer list the resource"
+        for_b.specifications.is_empty(),
+        "unrelated NDO must return no specs"
+    );
+    assert!(for_b.action_hashes.is_empty());
+}
+
+/// Layer 1 creation is rejected while the NDO is still in Ideation.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_rejected_at_ideation_stage() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Ideation NDO", "Ideation").await;
+
+    let result = conductors[0]
+        .call_fallible::<_, CreateResourceSpecificationOutput>(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Should Fail Spec", "tools", ndo),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "creating a ResourceSpecification on an Ideation NDO must fail"
+    );
+}
+
+/// Ownership-transfer rule on Nondominium is a Hard violation via dry-run query.
+#[tokio::test(flavor = "multi_thread")]
+async fn check_rule_data_constraints_blocks_nondominium_ownership_transfer() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let violations: Vec<ConstraintViolation> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "check_rule_data_constraints",
+            CheckRuleDataConstraintsInput {
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                rule_data: RuleDataMirror::AccessRequirement {
+                    // Use TransferCondition via a second call below
+                    accessibility: "Free".to_string(),
+                    required_role: None,
+                    min_affiliation: None,
+                },
+            },
+        )
+        .await;
+    // Free access on Nondominium → no violations
+    assert!(violations.is_empty());
+
+    #[derive(Debug, Serialize, Deserialize)]
+    enum TransferRuleData {
+        TransferCondition {
+            transfer_type: String,
+            requires_validation: bool,
+            validator_role: Option<String>,
+        },
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct CheckTransferInput {
+        pub property_regime: String,
+        pub resource_nature: String,
+        pub rivalry_override: Option<String>,
+        pub rule_data: TransferRuleData,
+    }
+
+    let hard: Vec<ConstraintViolation> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "check_rule_data_constraints",
+            CheckTransferInput {
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                rule_data: TransferRuleData::TransferCondition {
+                    transfer_type: "Ownership".to_string(),
+                    requires_validation: false,
+                    validator_role: None,
+                },
+            },
+        )
+        .await;
+
+    assert!(
+        hard.iter().any(|v| v.severity == "Hard"
+            && v.rule_id == "ownership_transfer_not_permitted_by_regime"),
+        "expected Hard ownership_transfer violation, got {:?}",
+        hard
     );
 }

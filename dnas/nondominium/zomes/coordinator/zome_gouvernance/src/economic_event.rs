@@ -1,5 +1,9 @@
 use crate::ppr::*;
 use hdk::prelude::*;
+use nondominium_shared::constraints::{
+  check_action_permitted, ConstraintViolation, ResourceClassification,
+};
+use nondominium_shared::io::governance::CheckActionConstraintsInput;
 use zome_gouvernance_integrity::*;
 
 // ============================================================================
@@ -16,6 +20,8 @@ pub struct LogEconomicEventInput {
   pub note: Option<String>,
   pub commitment_hash: Option<ActionHash>, // Optional link to commitment being fulfilled
   pub generate_pprs: Option<bool>,         // Whether to auto-generate PPR claims
+  /// Layer 0 identity for action-constraint evaluation.
+  pub ndo_identity_hash: ActionHash,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -29,8 +35,9 @@ pub struct LogEconomicEventOutput {
 pub fn log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEconomicEventOutput> {
   let now = sys_time()?;
 
-  // TODO: In Phase 2, add proper authorization checks
-  // TODO: In Phase 2, validate the resource exists and check governance rules
+  // Hard action constraints are enforced by integrity validation.
+  // Soft warnings are available via evaluate_state_transition / check_action_constraints
+  // (parallel path — see complete-resource-specification.md §5 item 2).
 
   let event = EconomicEvent {
     action: input.action.clone(),
@@ -41,6 +48,7 @@ pub fn log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEcono
     resource_quantity: input.resource_quantity,
     event_time: now,
     note: input.note.clone(),
+    ndo_identity_hash: input.ndo_identity_hash,
   };
 
   let event_hash = create_entry(&EntryTypes::EconomicEvent(event.clone()))?;
@@ -99,6 +107,7 @@ pub struct LogInitialTransferInput {
   pub resource_hash: ActionHash,
   pub receiver: AgentPubKey,
   pub quantity: f64,
+  pub ndo_identity_hash: ActionHash,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -126,6 +135,7 @@ pub fn log_initial_transfer(
     note: Some("First resource transfer by Simple Agent".to_string()),
     commitment_hash: None, // Initial transfers don't typically have commitments
     generate_pprs: Some(true), // Always generate PPRs for initial transfers
+    ndo_identity_hash: input.ndo_identity_hash,
   };
 
   let result = log_economic_event(event_input)?;
@@ -142,6 +152,20 @@ pub fn log_initial_transfer(
     event: result.event,
     ppr_claims: result.ppr_claims,
   })
+}
+
+/// Dry-run query: evaluate action constraints without writing.
+#[hdk_extern]
+pub fn check_action_constraints(
+  input: CheckActionConstraintsInput,
+) -> ExternResult<Vec<ConstraintViolation>> {
+  let ctx = ResourceClassification {
+    resource_nature: input.resource_nature,
+    property_regime: input.property_regime,
+    lifecycle_stage: None,
+    rivalry_override: input.rivalry_override,
+  };
+  Ok(check_action_permitted(&ctx, &input.action))
 }
 
 #[hdk_extern]
@@ -203,7 +227,6 @@ pub fn get_events_for_resource(resource_hash: ActionHash) -> ExternResult<Vec<Ec
 
 #[hdk_extern]
 pub fn get_events_for_agent(agent: AgentPubKey) -> ExternResult<Vec<EconomicEvent>> {
-  // Get all events where agent is provider or receiver
   let all_events = get_all_economic_events(())?;
 
   let agent_events: Vec<EconomicEvent> = all_events

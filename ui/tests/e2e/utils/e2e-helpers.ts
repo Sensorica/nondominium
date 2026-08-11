@@ -140,7 +140,14 @@ export async function createGroup(page: Page, name: string): Promise<string> {
 
 export interface NdoFormInput {
   name: string;
-  regime?: 'Private' | 'Commons' | 'Nondominium' | 'CommonPool';
+  regime?:
+    | 'Private'
+    | 'Commons'
+    | 'Collective'
+    | 'Pool'
+    | 'CommonPool'
+    | 'Public'
+    | 'Nondominium';
   nature?: 'Physical' | 'Digital' | 'Service' | 'Hybrid' | 'Information';
   stage?: string;
   description?: string;

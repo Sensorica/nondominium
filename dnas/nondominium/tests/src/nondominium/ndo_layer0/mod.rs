@@ -48,6 +48,7 @@ enum PropertyRegime {
     Collective,
     Pool,
     CommonPool,
+    Public,
     Nondominium,
 }
 
@@ -60,6 +61,12 @@ enum ResourceNature {
     Information,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+enum Rivalry {
+    Rivalrous,
+    NonRivalrous,
+}
+
 /// Mirrors `zome_resource_coordinator::NdoInput`.
 #[derive(Debug, Serialize, Deserialize)]
 struct NdoInput {
@@ -68,6 +75,7 @@ struct NdoInput {
     pub resource_nature: ResourceNature,
     pub lifecycle_stage: LifecycleStage,
     pub description: Option<String>,
+    pub rivalry_override: Option<Rivalry>,
 }
 
 /// Mirrors `zome_resource_integrity::NondominiumIdentity`.
@@ -84,6 +92,7 @@ struct NdoEntry {
     pub lifecycle_stage: LifecycleStage,
     pub created_at: Timestamp,
     pub description: Option<String>,
+    pub rivalry_override: Option<Rivalry>,
     #[serde(default)]
     pub successor_ndo_hash: Option<ActionHash>,
     #[serde(default)]
@@ -128,6 +137,7 @@ fn ndo_input(
         resource_nature: nature,
         lifecycle_stage: stage,
         description: None,
+        rivalry_override: None,
     }
 }
 
@@ -861,4 +871,49 @@ async fn ndo_lifecycle_anchor_moves_on_update() {
         1,
         "NdoByPropertyRegime anchor must be unchanged after lifecycle transition (immutable)"
     );
+}
+
+/// Create NDOs under Collective, Pool, and Public regimes and verify
+/// `get_ndos_by_property_regime` returns each via its immutable regime anchor.
+#[tokio::test(flavor = "multi_thread")]
+async fn ndo_property_regime_anchors_collective_pool_public() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let cases = [
+        ("Collective Tool Share", PropertyRegime::Collective),
+        ("Pool 3D Printer", PropertyRegime::Pool),
+        ("Public Library Catalog", PropertyRegime::Public),
+    ];
+
+    for (name, regime) in cases {
+        let output: NdoOutput = conductors[0]
+            .call(
+                &alice.zome("zome_resource"),
+                "create_ndo",
+                ndo_input(
+                    name,
+                    regime.clone(),
+                    ResourceNature::Physical,
+                    LifecycleStage::Ideation,
+                ),
+            )
+            .await;
+        assert_eq!(output.entry.property_regime, regime);
+
+        let by_regime: GetAllNdosOutput = conductors[0]
+            .call(
+                &alice.zome("zome_resource"),
+                "get_ndos_by_property_regime",
+                regime.clone(),
+            )
+            .await;
+        assert_eq!(
+            by_regime.ndos.len(),
+            1,
+            "NdoByPropertyRegime must index {:?} NDOs",
+            regime
+        );
+        assert_eq!(by_regime.ndos[0].entry.property_regime, regime);
+        assert_eq!(by_regime.ndos[0].action_hash, output.action_hash);
+    }
 }

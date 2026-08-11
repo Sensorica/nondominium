@@ -1363,6 +1363,16 @@ interface NdoDescriptor {
   entry_hash: EntryHash;
 }
 
+// Canonical PropertyRegime — mirrors crates/shared/src/types.rs (7 variants)
+type PropertyRegime =
+  | 'Private'      // Full rights bundle; individual ownership
+  | 'Commons'      // Non-rivalrous shared; licensing/attribution governance
+  | 'Collective'   // Cooperative/collective ownership
+  | 'Pool'         // Rivalrous shareables; custody/scheduling/maintenance
+  | 'CommonPool'   // Rivalrous consumable; quota/depletion rules
+  | 'Public'       // Public/governmental stewardship; open-access; non-alienable by public body
+  | 'Nondominium'; // Uncapturable by design; no alienation permitted
+
 // NDO creation payload (mirrors Rust NondominiumIdentityInput)
 interface NdoInput {
   name: string;

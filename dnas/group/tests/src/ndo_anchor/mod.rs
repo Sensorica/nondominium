@@ -32,6 +32,12 @@ enum LifecycleStage {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 enum PropertyRegime {
+    Private,
+    Commons,
+    Collective,
+    Pool,
+    CommonPool,
+    Public,
     Nondominium,
 }
 
@@ -60,6 +66,7 @@ struct NdoInput {
     pub resource_nature: ResourceNature,
     pub lifecycle_stage: LifecycleStage,
     pub description: Option<String>,
+    pub rivalry_override: Option<String>,
 }
 
 /// Mirrors `zome_resource_integrity::NondominiumIdentity`.
@@ -72,6 +79,7 @@ struct NdoEntry {
     pub lifecycle_stage: LifecycleStage,
     pub created_at: Timestamp,
     pub description: Option<String>,
+    pub rivalry_override: Option<String>,
     #[serde(default)]
     pub successor_ndo_hash: Option<ActionHash>,
     #[serde(default)]
@@ -256,6 +264,7 @@ async fn ndo_cell_genesis_identity_round_trip() {
                 resource_nature: ResourceNature::Physical,
                 lifecycle_stage: LifecycleStage::Ideation,
                 description: None,
+                rivalry_override: None,
             },
         )
         .await;
@@ -324,6 +333,57 @@ async fn ndo_anchor_round_trip() {
     assert_eq!(anchor.network_seed, String::from(seed.clone()));
     assert_eq!(anchor.identity_action_hash, fake_identity_hash);
     assert_eq!(anchor.lifecycle_stage, LifecycleStage::Ideation);
+}
+
+/// Anchor round trip for PropertyRegime::Public — verifies Public is a
+/// first-class regime on NdoAnchor (seven-variant PropertyRegime).
+#[tokio::test(flavor = "multi_thread")]
+async fn ndo_anchor_round_trip_public_regime() {
+    let (conductors, cell_alice, cell_bob) = setup_two_agents().await;
+    let group_hash = create_group(&conductors[0], &cell_alice, "Municipal Fab").await;
+
+    let seed = unique_seed();
+    let props = NdoCellProperties {
+        name: "Public Workshop Access".to_string(),
+        initiator: cell_alice.agent_pubkey().clone(),
+        property_regime: PropertyRegime::Public,
+        resource_nature: ResourceNature::Physical,
+        created_at: Timestamp::from_micros(1_752_900_000_000_000),
+    };
+    let dna = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
+    let fake_identity_hash = ActionHash::from_raw_36(vec![7; 36]);
+
+    let created: Record = conductors[0]
+        .call(
+            &cell_alice.zome("zome_group"),
+            "create_ndo_anchor",
+            anchor_input_from(
+                group_hash.clone(),
+                dna.dna_hash().clone(),
+                seed.as_ref(),
+                fake_identity_hash.clone(),
+                &props,
+            ),
+        )
+        .await;
+    let created_entry: NdoAnchorEntry = decode_record_entry(&created);
+    assert_eq!(created_entry.property_regime, PropertyRegime::Public);
+
+    await_consistency_20_s([&cell_alice, &cell_bob])
+        .await
+        .unwrap();
+
+    let anchors: Vec<Record> = conductors[1]
+        .call(
+            &cell_bob.zome("zome_group"),
+            "get_ndo_anchors",
+            group_hash.clone(),
+        )
+        .await;
+    assert_eq!(anchors.len(), 1);
+    let anchor: NdoAnchorEntry = decode_record_entry(&anchors[0]);
+    assert_eq!(anchor.property_regime, PropertyRegime::Public);
+    assert_eq!(anchor.name, "Public Workshop Access");
 }
 
 /// update_ndo_anchor refreshes the cached descriptor (lifecycle stage) while
@@ -456,6 +516,7 @@ async fn second_agent_joins_ndo_via_anchor_coordinates() {
                 resource_nature: props.resource_nature.clone(),
                 lifecycle_stage: LifecycleStage::Ideation,
                 description: None,
+                rivalry_override: None,
             },
         )
         .await;
