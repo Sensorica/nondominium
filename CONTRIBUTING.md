@@ -172,6 +172,23 @@ The `.claude/`, `.cursor/`, and `.agents/` directories are gitignored — never 
 
 ---
 
+## Working inside `vendor/hrea`
+
+The flake's `shellHook` runs `git submodule update --init vendor/hrea` on **every**
+`nix develop`. That resets the submodule to whatever commit the parent repo has recorded,
+which silently discards an uncommitted branch checkout inside `vendor/hrea`.
+
+If you need to change hREA:
+
+1. Commit your work on a branch inside `vendor/hrea` (the commit survives; only the
+   checkout is reset).
+2. Immediately `git add vendor/hrea && git commit` in the parent so the recorded pointer
+   is your commit.
+3. Push the hREA branch before opening a PR here — CI checks out submodules recursively
+   and cannot resolve a pointer that only exists locally.
+
+---
+
 ## Questions?
 
 Open an issue or ping in the team channel.
