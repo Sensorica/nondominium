@@ -841,7 +841,7 @@ The bridge call overhead (~5-10ms) is acceptable because hREA integration happen
 | ----------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------- |
 | hREA `main-0.6` branch API changes                    | Medium     | High   | Pin to a specific commit hash, not a branch pointer             |
 | Cross-DNA call capability issues                      | Medium     | High   | Test cap grants early in Phase 1                                |
-| hREA DNA build incompatibility (HDK version mismatch) | Low        | High   | Confirmed: both use HDK ^0.6.0 / HDI ^0.7.0 on holonix main-0.6 |
+| hREA DNA build incompatibility (HDK version mismatch) | Low        | High   | Confirmed: both use HDK ^0.7.0 / HDI ^0.8.0 on holonix main-0.7 |
 | Performance degradation from bridge calls             | Low        | Medium | Benchmark early; cache hREA hashes in Nondominium links         |
 | Migration query complexity (dual-read layer)          | Medium     | Low    | Keep migration period short; prioritize hREA-backed data        |
 

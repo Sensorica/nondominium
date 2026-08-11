@@ -6,6 +6,11 @@ This directory (`tests/`) contains the legacy Tryorama (TypeScript + Vitest) tes
 
 **All tests in this directory are deprecated.** They are kept as a historical reference only and will not be maintained.
 
+As of the Holochain 0.7 upgrade they are also **unrunnable**: `@holochain/tryorama` has no
+0.7-compatible release (latest is 0.19.2, which targets the 0.6 conductor), so these tests
+cannot connect to a 0.7 conductor. The dependency is left pinned so the files still
+typecheck as reference material.
+
 ## Migration
 
 The active test suite is **Sweettest (Rust)** located at:

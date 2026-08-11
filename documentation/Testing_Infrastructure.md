@@ -81,7 +81,7 @@ Our testing approach follows **Holochain community best practices** with emphasi
 ### Technology Stack
 
 **Sweettest (Rust — new primary):**
-- **Framework**: `holochain = "=0.6.0"` with `test_utils` feature
+- **Framework**: `holochain = "=0.7.0"` with `test_utils` feature
 - **Runtime**: `tokio` multi-thread executor
 - **Language**: Rust, in-process Holochain
 - **CARGO_TARGET_DIR**: `target/native-tests` (isolated from WASM artifacts)
@@ -418,12 +418,12 @@ warn!("Checkpoint reached in function_name");
 
 | Component             | Version | Status |
 | --------------------- | ------- | ------ |
-| **Sweettest (Rust)**  | holochain 0.6.0 | ✅ Active — new primary |
-| **Vitest**            | 3.2.4   | ✅ Active — transitioning out |
-| **Tryorama**          | 0.18.2  | ✅ Active — transitioning out (last supported pair with HDK 0.6) |
-| **Holochain Client**  | 0.19.0  | ✅ Active |
+| **Sweettest (Rust)**  | holochain 0.7.0 | ✅ Active — primary |
+| **Vitest**            | 3.2.4   | ✅ Active (UI unit tests) |
+| **Tryorama**          | 0.19.2  | ❌ Retired — no 0.7-compatible release; `tests/` cannot run against a 0.7 conductor |
+| **Holochain Client**  | 0.21.0  | ✅ Active |
 | **TypeScript**        | 5.6.3   | ✅ Active |
-| **HDK**               | ^0.6.0  | ✅ Active |
+| **HDK / HDI**         | 0.7.0 / 0.8.0 | ✅ Active |
 | **HDI**               | ^0.7.0  | ✅ Active |
 
 ## Development Workflow Integration
@@ -570,7 +570,7 @@ bun tests person
 
 This testing infrastructure provides a robust foundation for ensuring the reliability and functionality of the nondominium hApp using Tryorama. The pattern-based test execution system enables efficient development workflows while the comprehensive layered approach ensures thorough validation of distributed functionality.
 
-**Current Status**: All foundation, integration, and scenario tests are actively maintained and passing with Tryorama 0.18.2 and Holochain HDK ^0.6.0 / HDI ^0.7.0.
+**Current Status**: All foundation, integration, and scenario tests are actively maintained and passing with Tryorama 0.18.2 and Holochain HDK ^0.7.0 / HDI ^0.8.0.
 
 **Key Strengths**:
 - Pattern-based test selection for efficient development
