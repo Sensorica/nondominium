@@ -107,7 +107,7 @@ pub fn validate_agent_joining(
 #[allow(clippy::collapsible_match, clippy::single_match)]
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
-    if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
+    if let FlatOp::CreateEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
         match store_entry {
             OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
                 match app_entry {

@@ -47,24 +47,24 @@ pub fn post_commit(committed_actions: Vec<SignedActionHashed>) {
 }
 
 fn signal_action(action: SignedActionHashed) -> ExternResult<()> {
-  match action.hashed.content.clone() {
-    Action::CreateLink(_) => {
+  match action.hashed.content.data.clone() {
+    ActionData::CreateLink(_) => {
       emit_signal(Signal::LinkCreated { action })?;
       Ok(())
     }
-    Action::DeleteLink(_) => {
+    ActionData::DeleteLink(_) => {
       emit_signal(Signal::LinkDeleted { action })?;
       Ok(())
     }
-    Action::Create(_) => {
+    ActionData::Create(_) => {
       emit_signal(Signal::EntryCreated { action })?;
       Ok(())
     }
-    Action::Update(_) => {
+    ActionData::Update(_) => {
       emit_signal(Signal::EntryUpdated { action })?;
       Ok(())
     }
-    Action::Delete(_) => {
+    ActionData::Delete(_) => {
       emit_signal(Signal::EntryDeleted { action })?;
       Ok(())
     }

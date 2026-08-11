@@ -197,7 +197,7 @@ pub fn validate_agent_joining(
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   // Phase 1: validate create/update entry content via StoreEntry
-  if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
+  if let FlatOp::CreateEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_entry {
       OpEntry::CreateEntry { app_entry, action } => match app_entry {
         EntryTypes::PrivateParticipationClaim(claim) => {
@@ -233,16 +233,15 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   }
 
   // Phase 2: validate deletes and update version constraints via StoreRecord
-  if let FlatOp::StoreRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
+  if let FlatOp::CreateRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_record {
-      OpRecord::DeleteEntry { original_action_hash, .. } => {
-        let original_record = must_get_valid_record(original_action_hash)?;
-        let original_action = original_record.action().clone();
-        let creation_action = match original_action {
-          Action::Create(c) => EntryCreationAction::Create(c),
-          Action::Update(u) => EntryCreationAction::Update(u),
-          _ => return Ok(ValidateCallbackResult::Valid),
-        };
+      OpRecord::DeleteEntry { action } => {
+        let original_record = must_get_valid_record(action.deletes_address.clone())?;
+        let creation_action: TypedAction<EntryCreationData> =
+          match original_record.action().clone().try_into() {
+            Ok(a) => a,
+            Err(_) => return Ok(ValidateCallbackResult::Valid),
+          };
         let app_entry_type = match creation_action.entry_type() {
           EntryType::App(t) => t,
           _ => return Ok(ValidateCallbackResult::Valid),
@@ -271,15 +270,14 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           _ => {}
         }
       }
-      OpRecord::UpdateEntry { original_action_hash, app_entry, .. } => {
+      OpRecord::UpdateEntry { app_entry, action, .. } => {
         if let EntryTypes::Agreement(updated) = app_entry {
-          let original_record = must_get_valid_record(original_action_hash)?;
-          let original_action = original_record.action().clone();
-          let creation_action = match original_action {
-            Action::Create(c) => EntryCreationAction::Create(c),
-            Action::Update(u) => EntryCreationAction::Update(u),
-            _ => return Ok(ValidateCallbackResult::Valid),
-          };
+          let original_record = must_get_valid_record(action.original_action_address.clone())?;
+          let creation_action: TypedAction<EntryCreationData> =
+            match original_record.action().clone().try_into() {
+              Ok(a) => a,
+              Err(_) => return Ok(ValidateCallbackResult::Valid),
+            };
           let app_entry_type = match creation_action.entry_type() {
             EntryType::App(t) => t,
             _ => return Ok(ValidateCallbackResult::Valid),
@@ -315,9 +313,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
 fn validate_create_ndo_hard_link(
   link: NdoHardLink,
-  action: Create,
+  action: TypedAction<CreateData>,
 ) -> ExternResult<ValidateCallbackResult> {
-  if link.created_by != action.author {
+  if link.created_by != *action.author() {
     return Ok(ValidateCallbackResult::Invalid(
       "created_by must equal action.author".to_string(),
     ));
@@ -325,8 +323,8 @@ fn validate_create_ndo_hard_link(
   Ok(ValidateCallbackResult::Valid)
 }
 
-fn validate_create_contribution(c: Contribution, action: Create) -> ExternResult<ValidateCallbackResult> {
-  if c.provider != action.author {
+fn validate_create_contribution(c: Contribution, action: TypedAction<CreateData>) -> ExternResult<ValidateCallbackResult> {
+  if c.provider != *action.author() {
     return Ok(ValidateCallbackResult::Invalid(
       "provider must equal action.author".to_string(),
     ));
@@ -377,8 +375,8 @@ fn validate_agreement_content(a: &Agreement) -> ExternResult<ValidateCallbackRes
   Ok(ValidateCallbackResult::Valid)
 }
 
-fn validate_create_agreement(a: Agreement, action: Create) -> ExternResult<ValidateCallbackResult> {
-  if a.created_by != action.author {
+fn validate_create_agreement(a: Agreement, action: TypedAction<CreateData>) -> ExternResult<ValidateCallbackResult> {
+  if a.created_by != *action.author() {
     return Ok(ValidateCallbackResult::Invalid(
       "created_by must equal action.author".to_string(),
     ));

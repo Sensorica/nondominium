@@ -190,29 +190,29 @@ pub fn validate_agent_joining(
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   match op.flattened::<EntryTypes, LinkTypes>()? {
-    FlatOp::StoreEntry(store_entry) => match store_entry {
+    FlatOp::CreateEntry(store_entry) => match store_entry {
       OpEntry::CreateEntry { app_entry, action } => match app_entry {
         EntryTypes::ResourceSpecification(spec) => {
-          validate_create_resource_spec(&spec, &action.author)
+          validate_create_resource_spec(&spec, action.author())
         }
         EntryTypes::EconomicResource(resource) => {
-          validate_create_economic_resource(&resource, &action.author)
+          validate_create_economic_resource(&resource, action.author())
         }
-        EntryTypes::GovernanceRule(rule) => validate_create_governance_rule(&rule, &action.author),
+        EntryTypes::GovernanceRule(rule) => validate_create_governance_rule(&rule, action.author()),
         EntryTypes::NondominiumIdentity(ndi) => {
-          validate_create_nondominium_identity(&ndi, &action.author)
+          validate_create_nondominium_identity(&ndi, action.author())
         }
       },
       OpEntry::UpdateEntry {
         app_entry, action, ..
       } => match app_entry {
         EntryTypes::ResourceSpecification(spec) => {
-          validate_update_resource_spec(&spec, &action.author)
+          validate_update_resource_spec(&spec, action.author())
         }
         EntryTypes::EconomicResource(resource) => {
-          validate_update_economic_resource(&resource, &action.author)
+          validate_update_economic_resource(&resource, action.author())
         }
-        EntryTypes::GovernanceRule(rule) => validate_update_governance_rule(&rule, &action.author),
+        EntryTypes::GovernanceRule(rule) => validate_update_governance_rule(&rule, action.author()),
         EntryTypes::NondominiumIdentity(new_ndi) => {
           // Fetch original entry to enforce immutability of all fields except lifecycle_stage
           // (REQ-NDO-L0-03, REQ-NDO-L0-04)
@@ -234,23 +234,19 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       },
       _ => Ok(ValidateCallbackResult::Valid),
     },
-    FlatOp::StoreRecord(store_record) => match store_record {
-      OpRecord::DeleteEntry {
-        original_action_hash,
-        ..
-      } => {
+    FlatOp::CreateRecord(store_record) => match store_record {
+      OpRecord::DeleteEntry { action } => {
         // Identify whether the deleted entry is a NondominiumIdentity (REQ-NDO-L0-03)
-        let original_record = must_get_valid_record(original_action_hash)?;
-        let original_action = original_record.action().clone();
-        let original_action = match original_action {
-          Action::Create(create) => EntryCreationAction::Create(create),
-          Action::Update(update) => EntryCreationAction::Update(update),
-          _ => {
-            return Ok(ValidateCallbackResult::Invalid(
-              "Original action for a delete must be a Create or Update action".to_string(),
-            ));
-          }
-        };
+        let original_record = must_get_valid_record(action.deletes_address.clone())?;
+        let original_action: TypedAction<EntryCreationData> =
+          match original_record.action().clone().try_into() {
+            Ok(a) => a,
+            Err(_) => {
+              return Ok(ValidateCallbackResult::Invalid(
+                "Original action for a delete must be a Create or Update action".to_string(),
+              ));
+            }
+          };
         let app_entry_type = match original_action.entry_type() {
           EntryType::App(app_entry_type) => app_entry_type,
           _ => return Ok(ValidateCallbackResult::Valid),
@@ -406,12 +402,12 @@ fn validate_create_nondominium_identity(
 //   Resume (Hibernating → origin): clears hibernation_origin; target MUST equal origin
 //   Terminal (any → Deprecated [+successor] or EndOfLife): Deprecated → EndOfLife only exit
 fn validate_update_nondominium_identity(
-  action: &Update,
+  action: &TypedAction<UpdateData>,
   original: &NondominiumIdentity,
   new_entry: &NondominiumIdentity,
 ) -> ExternResult<ValidateCallbackResult> {
   // Only the initiator may advance the lifecycle stage (MVP simplification of REQ-NDO-LC-07)
-  if action.author != original.initiator {
+  if *action.author() != original.initiator {
     return Ok(ValidateCallbackResult::Invalid(
       "Only the initiator may update NondominiumIdentity lifecycle stage".to_string(),
     ));
