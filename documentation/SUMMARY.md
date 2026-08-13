@@ -12,17 +12,19 @@
 - [Resource Ontology](requirements/resources.md)
 - [Governance Ontology](requirements/governance.md)
 - [NDO Prima Materia](requirements/ndo_prima_materia.md)
+- [Lobby DNA](requirements/lobby-dna.md)
 - [UI Design](requirements/ui_design.md)
 
 ## Post-MVP Requirements
 
-- [Complete Resource Specification](requirements/post-mvp/complete-resource-specification.md)
 - [Digital Resource Integrity](requirements/post-mvp/digital-resource-integrity.md)
+- [Fractal Composable Resource Architecture](requirements/post-mvp/fractal-composable-resource-architecture.md)
 - [Many-to-Many Flows](requirements/post-mvp/many-to-many-flows.md)
+- [NDO Versioning](requirements/post-mvp/ndo-versioning.md)
+- [Open Know-How / IOPA](requirements/post-mvp/open-know-how-iopa.md)
+- [Project-Type NDO Specifications](requirements/post-mvp/project-type-ndo-specifications.md)
 - [Resource Transport Flow Protocol](requirements/post-mvp/resource-transport-flow-protocol.md)
-- [Versioning](requirements/post-mvp/versioning.md)
 - [ValueFlows DSL](requirements/post-mvp/valueflows-dsl.md)
-- [Lobby DNA](requirements/post-mvp/lobby-dna.md)
 - [Unyt Integration](requirements/post-mvp/unyt-integration.md)
 - [Flowsta Integration](requirements/post-mvp/flowsta-integration.md)
 
@@ -47,9 +49,10 @@
 - [Private Participation Receipt](specifications/governance/private-participation-receipt.md)
 - [PPR Security Implementation](specifications/governance/PPR_Security_Implementation.md)
 
+- [Lobby Architecture](specifications/lobby-architecture.md)
+
 ## Post-MVP Specifications
 
-- [Lobby Architecture](specifications/post-mvp/lobby-architecture.md)
 - [ValueFlows DSL Specs](specifications/post-mvp/valueflows-dsl-specs.md)
 
 ---
@@ -60,6 +63,8 @@
 - [Person Zome](zomes/person_zome.md)
 - [Resource Zome](zomes/resource_zome.md)
 - [Governance Zome](zomes/governance_zome.md)
+- [Lobby Zome](zomes/lobby_zome.md)
+- [Group Zome](zomes/group_zome.md)
 
 ---
 
@@ -79,6 +84,7 @@
 - [Development Report](development-report.md)
 - [Testing Infrastructure](Testing_Infrastructure.md)
 - [Test Commands](TEST_COMMANDS.md)
+- [E2E Test Suite](../ui/tests/README.md)
 
 ---
 
@@ -113,7 +119,6 @@
 
 - [P2P Models Comparison](archives/P2PMODELS_COMPARISON_REPORT.md)
 - [Nondominium Mutualization](archives/nondominium_mutualization.md)
-- [Fractal Composable Resource Architecture](archives/fractal-composable-resource-architecture.md)
 - [Digital Fabrics Concept](archives/digital_fabrics_concept_definition_2025-10-28.md)
 - [Holochain Storage Verification Patterns](archives/holochain-storage-verification-patterns.md)
 - [Complexity Oriented Programming](archives/complexity_oriented_programming.md)

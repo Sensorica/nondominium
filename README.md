@@ -56,14 +56,9 @@ nondominium implements a modular governance-as-operator architecture that separa
 - **Testability**: Governance logic can be unit tested independently of data management
 - **Separation of Concerns**: Clear boundaries between data persistence and business rule enforcement
 
-**Technology Stack:**
+**Technology Stack:** see [Technology Stack](#technology-stack) below.
 
-- Backend: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0) compiled to WASM
-- Frontend: SvelteKit 2 + Svelte 5 + TypeScript + Vite 6.2.5 + UnoCSS + Melt UI next-gen + Effect-TS
-- Testing: Sweettest (Rust, primary) — Tryorama (TypeScript) is deprecated
-- Client: @holochain/client 0.19.0
-
-**Documentation map:** See [documentation/DOCUMENTATION_INDEX.md](documentation/DOCUMENTATION_INDEX.md). Post-MVP **NDO** model and optional **Unyt** / **Flowsta** integrations are specified in [documentation/requirements/ndo_prima_materia.md](documentation/requirements/ndo_prima_materia.md) and the stubs under [documentation/requirements/post-mvp/](documentation/requirements/post-mvp/).
+**Documentation map:** See [documentation/README.md](documentation/README.md). Post-MVP **NDO** model and optional **Unyt** / **Flowsta** integrations are specified in [documentation/requirements/ndo_prima_materia.md](documentation/requirements/ndo_prima_materia.md) and the stubs under [documentation/requirements/post-mvp/](documentation/requirements/post-mvp/).
 
 ## AI Tooling
 
@@ -98,12 +93,16 @@ primary discovery path) on every `nix develop`. `.agents/` is gitignored.
 
 > **PREREQUISITE**: Set up the [Holochain development environment](https://developer.holochain.org/docs/install/).
 
-Enter the nix shell by running this in the root folder of the repository:
+Run this in the root folder of the repository:
 
 ```bash
-nix develop              # Enter reproducible environment (REQUIRED)
-bun install              # Install all dependencies
+git submodule update --init --recursive  # Initialize the hREA submodule (REQUIRED)
+nix develop                              # Enter reproducible environment (REQUIRED)
+bun install                              # Install all dependencies
 ```
+
+The `hrea` role is vendored as a git submodule at `vendor/hrea`; `bun run build:happ` builds
+and packs it, so the build fails without this step.
 
 **⚠️ Run all commands from within the nix shell, otherwise they won't work.**
 
@@ -126,13 +125,16 @@ AGENTS=3 bun run network    # Bootstrap custom agent network (replace 3 with des
 ### Testing
 
 ```bash
-# Sweettest (Rust) — primary test runner
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
+bun run sweettest         # build:happ + all nondominium Sweettest tests
+bun run sweettest:verbose # same, with --nocapture
+bun run sweettest:only    # skip the build step
 
-# Test suites
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest person
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest -- --nocapture  # verbose
+bun run e2e               # Playwright E2E against real conductors
+bun run e2e:ui            # Playwright UI mode
 ```
+
+Full reference for every suite (nondominium / group / lobby Sweettest, E2E, legacy Tryorama):
+[documentation/TEST_COMMANDS.md](documentation/TEST_COMMANDS.md).
 
 > **Note**: Tryorama (TypeScript) tests in `tests/` are **deprecated**. See `tests/DEPRECATED.md`. Do not write new tests there.
 
@@ -186,6 +188,12 @@ Shared setup utilities (per suite `common::conductors`):
 - `setup_two_agents()` / `setup_three_agents()` — multi-conductor setups for the suite's DNA
 - `setup_dual_dna_two_agents()` — two conductors, nondominium + hREA DNAs
 
+**E2E: Playwright + real conductors**
+
+`ui/tests/` drives the Lobby → Group → NDO flows in a browser against real conductors,
+covering the UI-to-conductor seam and multi-agent UX that Sweettest cannot reach.
+See [ui/tests/README.md](ui/tests/README.md).
+
 **Deprecated: Tryorama (TypeScript)**
 
 Tests in `tests/` are deprecated. See `tests/DEPRECATED.md`. Do not write new tests there.
@@ -214,58 +222,40 @@ This generates:
 
 ## Documentation
 
-### Project Documentation
+**Start here: [documentation/README.md](documentation/README.md)** — the documentation hub,
+organized by topic. Two other entry points cover the same corpus differently:
 
-- [Requirements](documentation/requirements/requirements.md) - Project goals and functional requirements
-- [Specifications](documentation/specifications/specifications.md) - Detailed technical specifications
-- [Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md) - Modular governance design patterns
-- [Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md) - Implementation details with code examples
-- [Cross-Zome API](documentation/specifications/governance/cross-zome-api.md) - API specifications for zome communication
-- [UI Architecture](documentation/specifications/ui_architecture.md) - Frontend architecture and design patterns
-- [Testing Infrastructure](documentation/Testing_Infrastructure.md) - Testing strategy and framework details
-- [ValueFlows Action Usage](documentation/specifications/VfAction_Usage.md) - ValueFlows implementation patterns with governance examples
-- [API Reference](documentation/API_REFERENCE.md) - Complete API documentation
-- [Documentation Index](documentation/DOCUMENTATION_INDEX.md) - Comprehensive documentation guide
+| Entry point | Use it for |
+|---|---|
+| [documentation/README.md](documentation/README.md) | Curated hub, grouped by topic. The default door. |
+| [documentation/DOCUMENTATION_INDEX.md](documentation/DOCUMENTATION_INDEX.md) | Annotated guide with commands and status per area |
+| [documentation/SUMMARY.md](documentation/SUMMARY.md) | Flat linear table of contents (mdBook order) |
 
-### Zome Documentation
+Most-used pages:
 
-- [Architecture Overview](documentation/zomes/architecture_overview.md) - Overall zome architecture and interactions
-- [Person Zome](documentation/zomes/person_zome.md) - Agent identity and profile management
-- [Resource Zome](documentation/zomes/resource_zome.md) - Resource lifecycle and management
-- [Governance Zome](documentation/zomes/governance_zome.md) - Governance rules and implementation
-
-### Governance & Security
-
-**Governance Architecture:**
-
-- [Governance Operator Architecture](documentation/specifications/governance/governance-operator-architecture.md) - Modular governance design patterns
-- [Governance Implementation Guide](documentation/specifications/governance/governance-operator-implementation-guide.md) - Implementation details with code examples
-- [Cross-Zome API](documentation/specifications/governance/cross-zome-api.md) - API specifications for zome communication
-- [Governance Model](documentation/specifications/governance/governance.md) - Legacy governance model and decision-making processes
-
-**Reputation & Security:**
-
-- [Private Participation Receipts](documentation/specifications/governance/private-participation-receipt.md) - PPR system documentation
-- [PPR Security Implementation](documentation/specifications/governance/PPR_Security_Implementation.md) - Security implementation for PPR system
-
-### Applications & Use Cases
-
-- [Artcoin Integration](documentation/Applications/nondominium_artcoin.md) - Artcoin application integration
-- [User Stories](documentation/Applications/user-story/) - Complete user journey scenarios
-
-### Additional Resources
-
-- [hREA Integration Strategy](documentation/hREA/integration-strategy.md) - hREA integration planning
-- [Resource Transport Flow Protocol](documentation/requirements/post-mvp/resource-transport-flow-protocol.md) - Resource transport specifications
-- [Protocol Bridge Specifications](documentation/specifications/protocol-bridge-specifications.md) - Bun Protocol Bridge architecture for platform integration (Tiki, Odoo, etc.)
+- [Requirements](documentation/requirements/requirements.md) — goals, REQ-* IDs, user stories
+- [Specifications](documentation/specifications/specifications.md) — zome entries, functions, cross-zome API
+- [API Reference](documentation/API_REFERENCE.md) — complete zome function reference
+- [Architecture Components](documentation/ARCHITECTURE_COMPONENTS.md) — system design and ADRs
+- [Zomes Overview](documentation/zomes/architecture_overview.md) — multi-DNA topology and the 3-zome core
+- [Test Commands](documentation/TEST_COMMANDS.md) — every test suite, one page
 
 ## Technology Stack
 
+This section is the canonical version list; other docs link here rather than restate it.
+
+| Layer | Choice |
+|---|---|
+| Backend | Rust, Holochain HDK ^0.6.0 / HDI ^0.7.0, WASM target |
+| Frontend | SvelteKit 2 + Svelte 5 (runes) + TypeScript + Vite 7 |
+| UI | UnoCSS + Melt UI next-gen (`melt`) + Effect-TS |
+| Client | [@holochain/client](https://www.npmjs.com/package/@holochain/client) ^0.20.0 (UI), ^0.19.1 (root tooling) |
+| Testing | Sweettest (Rust, `holochain = "=0.6.0"`) primary; Playwright for E2E; Tryorama deprecated |
+| Tooling | [bun](https://bun.sh/) workspaces, [Nix](https://nixos.org/) dev shell, [hc](https://github.com/holochain/holochain/tree/develop/crates/hc) CLI |
+
+Ecosystem:
+
 - [Holochain](https://holochain.org/): Distributed application framework
-- [NPM Workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces/): Monorepo management
-- [hc](https://github.com/holochain/holochain/tree/develop/crates/hc): Holochain CLI development tool
-- [@holochain/tryorama](https://www.npmjs.com/package/@holochain/tryorama): Testing framework
-- [@holochain/client](https://www.npmjs.com/package/@holochain/client): UI-to-Holochain client library
 - [Holochain Playground](https://github.com/darksoil-studio/holochain-playground): Development introspection tools
 - [Valueflows](https://www.valueflo.ws/): Economic coordination ontology
 - [hREA](https://github.com/h-REA/hREA/): Holochain implementation of Valueflows

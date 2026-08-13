@@ -3,8 +3,23 @@
 > **Navigation index.** Sources of truth are in `documentation/`. When content here
 > conflicts with `documentation/`, `documentation/` wins.
 
-## Three-Zome Structure
-Source: `documentation/specifications/specifications.md §2`, `CLAUDE.md — Architecture Overview`
+## Multi-DNA Topology
+Source: `workdir/happ.yaml`, `documentation/zomes/architecture_overview.md`, `README.md — Architecture`
+
+The hApp is **not** a single DNA. `workdir/happ.yaml` declares five roles:
+
+| Role | Provisioning | Purpose |
+|---|---|---|
+| `lobby` | provisioned, fixed seed `nondominium-lobby-v1` | Permissionless entry: `LobbyAgentProfile`, `GroupAnnouncement` |
+| `nondominium` | provisioned | The 3-zome core below |
+| `hrea` | provisioned (`vendor/hrea` submodule) | Canonical ValueFlows event recording |
+| `group` | cloned per group, `clone_limit: 64` | `GroupProfile`, `GroupMembership`, `WorkLog`, `SoftLink` |
+| `ndo` | cloned per NDO, `clone_limit: 512` | One DHT per Nondominium Object; clone DNA hash is the permanent NDO identity (#112) |
+
+Group and NDO cells are `deferred: true` — created on demand via `clone_cell`, not at install time.
+
+## Three-Zome Structure (Nondominium DNA core)
+Source: `documentation/specifications/specifications.md §2`, `.rules — Architecture Overview`
 
 - `zome_person` — Agent identity, profiles, roles, capability-based access, PPR storage
 - `zome_resource` — Pure data model: ResourceSpecification, EconomicResource, GovernanceRule,

@@ -87,4 +87,4 @@ Source: `REVIEW.md` — read in full before any PR
 
 - ACCEPT: `Ok(())`, exhaustive `match` arms, anchor discovery chains
 - FLAG: Cross-zome direct imports (must use `call()`), PPR grants >30 days,
-  missing capability check on EncryptedProfile exposure
+  missing capability check on PrivatePersonData exposure

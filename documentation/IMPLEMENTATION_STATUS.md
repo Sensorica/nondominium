@@ -10,14 +10,16 @@ This document tracks what is **actually implemented and verified** in the curren
 
 ### Technology Stack
 
+Canonical list: [README.md § Technology Stack](../README.md#technology-stack). Summary:
+
 - **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), compiled to WASM
-- **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5 + UnoCSS + Melt UI next-gen
+- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7 + UnoCSS + Melt UI next-gen + Effect-TS
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) is deprecated
-- **Client**: @holochain/client 0.19.0 for DHT interaction
+- **Client**: @holochain/client ^0.20.0 (UI); ^0.19.1 (root dev tooling)
 
 ### Multi-DNA hApp Architecture
 
-The packaged hApp currently contains four roles:
+The packaged hApp declares five roles in `workdir/happ.yaml`:
 
 1. **`lobby`** — fixed, permissionless federation DHT for Lobby profiles and Group discovery
 2. **`nondominium`** — the core NDO DNA, containing:
@@ -26,8 +28,9 @@ The packaged hApp currently contains four roles:
    - `zome_gouvernance` — events, commitments, claims, validation, PPR prototypes, and federation extensions
 3. **`hrea`** — bundled hREA DNA used by the Person/ReaAgent bridge
 4. **`group`** — deferred template role; each Group is provisioned as an isolated cloned cell (`clone_limit: 64`)
+5. **`ndo`** — deferred template role; each NDO is provisioned as an isolated cloned cell (`clone_limit: 512`, ADR-010/ADR-013)
 
-Each local DNA domain follows the integrity/coordinator pattern. The core Nondominium domain remains a three-zome architecture, but the installed hApp is a multi-DNA system.
+Each local DNA domain follows the integrity/coordinator pattern; the Lobby and Group DNAs carry their own zomes (`zome_lobby_coordinator`, `zome_group`). The core Nondominium domain remains a three-zome architecture, but the installed hApp is a multi-DNA system. See [ARCHITECTURE_COMPONENTS.md](ARCHITECTURE_COMPONENTS.md) and [zomes/architecture_overview.md](zomes/architecture_overview.md).
 
 ### Status Terminology
 

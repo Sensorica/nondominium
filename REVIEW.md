@@ -46,7 +46,7 @@ For every PR, check:
 
 ### Flag if
 
-- A new `get_*` extern exposes `EncryptedProfile` or private data without a capability check
+- A new `get_*` extern exposes `PrivatePersonData` or private data without a capability check
 - A new role assignment function lacks link tag validation (role assignments store metadata in link tags)
 - `grant_private_data_access()` is modified to allow grants exceeding 30 days (hard cap per `PrivateDataCapabilityMetadata`)
 - A new entry type containing PII is marked public (not `Private` in entry def)
