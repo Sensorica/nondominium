@@ -1,6 +1,6 @@
 # ValueFlows DSL - Technical Specifications
 
-Companion document to [ValueFlows DSL Requirements](../requirements/valueflows-dsl.md)
+Companion document to [ValueFlows DSL Requirements](../../requirements/post-mvp/valueflows-dsl.md)
 
 ---
 

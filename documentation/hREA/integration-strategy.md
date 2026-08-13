@@ -27,8 +27,8 @@ This document outlines the comprehensive integration strategy for incorporating 
 │                (Specialized Engine - 3 Zomes)               │
 │  ┌─────────────────┬─────────────────┬─────────────────┐    │
 │  │   Person        │    Resource     │   Governance    │    │
-│  │  (Encrypted     │  (Delegates to  │  (PPR, Rules,   │    │
-│  │   Profile +     │   hREA for core │  Validation —   │    │
+│  │  (Private       │  (Delegates to  │  (PPR, Rules,   │    │
+│  │   PersonData +  │   hREA for core │  Validation —   │    │
 │  │   ReaAgent)     │   VF types)     │   all custom)   │    │
 │  └─────────────────┴─────────────────┴─────────────────┘    │
 │          Cross-DNA calls via CallTargetCell::OtherRole      │
@@ -195,7 +195,7 @@ These are Nondominium's unique innovations and must remain fully custom:
 | `GovernanceRule`                  | Governance-as-operator pattern; Nondominium-specific |
 | `ResourceValidation`              | Community validation flow; Nondominium-specific      |
 | `ValidationReceipt`               | Validator attestation; Nondominium-specific          |
-| `EncryptedProfile`                | Private PII layer; hREA has no privacy model         |
+| `PrivatePersonData`                | Private PII layer; hREA has no privacy model         |
 | Role-based access control         | Capability grants tied to governance roles           |
 
 ---
@@ -212,7 +212,7 @@ These are Nondominium's unique innovations and must remain fully custom:
 | `PrivateParticipationClaim`                | **Keep custom**               | No hREA equivalent; core innovation                                                                                                                                                        |
 | `GovernanceRule`                           | **Keep custom**               | No hREA equivalent; governance-as-operator pattern                                                                                                                                         |
 | `ValidationReceipt` / `ResourceValidation` | **Keep custom**               | No hREA equivalent                                                                                                                                                                         |
-| `Person` / Agent                           | **Hybrid**                    | `ReaAgent` in hREA DNA (public identity); `EncryptedProfile` stays in Nondominium DNA                                                                                                      |
+| `Person` / Agent                           | **Hybrid**                    | `ReaAgent` in hREA DNA (public identity); `PrivatePersonData` stays in Nondominium DNA                                                                                                      |
 
 ---
 
@@ -489,7 +489,7 @@ When creating a Person in Nondominium, also create a `ReaAgent` in hREA and stor
 pub fn create_person_with_hrea_agent(
     name: String,
     avatar_url: Option<String>,
-    private_data: Option<EncryptedProfileData>,
+    private_data: Option<PrivatePersonDataInput>,
 ) -> ExternResult<PersonWithHreaRecord> {
     #[derive(Serialize, Deserialize, Debug)]
     struct ReaAgent {
@@ -522,9 +522,9 @@ pub fn create_person_with_hrea_agent(
     };
     let person_hash = create_entry(&EntryTypes::Person(person.clone()))?;
 
-    // 3. Create EncryptedProfile if private data provided
-    let encrypted_profile_hash = if let Some(private) = private_data {
-        Some(create_entry(&EntryTypes::EncryptedProfile(private))?)
+    // 3. Create PrivatePersonData if private data provided
+    let private_data_hash = if let Some(private) = private_data {
+        Some(create_entry(&EntryTypes::PrivatePersonData(private))?)
     } else {
         None
     };
@@ -532,7 +532,7 @@ pub fn create_person_with_hrea_agent(
     Ok(PersonWithHreaRecord {
         person_hash,
         hrea_agent_hash,
-        encrypted_profile_hash,
+        private_data_hash,
     })
 }
 ```
@@ -665,12 +665,12 @@ hREA has **no custom privacy implementation**. All entries are public by design:
 
 ### Nondominium's Complementary Privacy Layer
 
-Nondominium's `EncryptedProfile` system fills exactly the gap hREA leaves:
+Nondominium's `PrivatePersonData` system fills exactly the gap hREA leaves:
 
 | Layer                  | What                                       | Where                              |
 | ---------------------- | ------------------------------------------ | ---------------------------------- |
 | Public identity        | `ReaAgent` (name, avatar, type)            | hREA DNA — discoverable by all     |
-| Private PII            | `EncryptedProfile` (email, phone, address) | Nondominium DNA — capability-gated |
+| Private PII            | `PrivatePersonData` (email, phone, address) | Nondominium DNA — capability-gated |
 | Economic coordination  | `ReaEconomicResource`, `ReaCommitment`     | hREA DNA — public ValueFlows       |
 | Participation tracking | `PrivateParticipationClaim` (PPR)          | Nondominium DNA — private to agent |
 
@@ -860,14 +860,14 @@ Nondominium's PPR system has no current hREA equivalent. It could eventually be 
 
 ## Conclusion
 
-Nondominium's integration strategy uses hREA as the **economic data layer** (EconomicResource, EconomicEvent, Commitment, Agent) while keeping Nondominium's **governance and privacy layer** entirely custom (PPR, GovernanceRule, ValidationReceipt, EncryptedProfile).
+Nondominium's integration strategy uses hREA as the **economic data layer** (EconomicResource, EconomicEvent, Commitment, Agent) while keeping Nondominium's **governance and privacy layer** entirely custom (PPR, GovernanceRule, ValidationReceipt, PrivatePersonData).
 
 The bridge pattern (`call(CallTargetCell::OtherRole("hrea"), "hrea", fn_name, ...)`) is the mechanism that makes this work at the Rust/zome level without touching hREA's GraphQL API.
 
 Key outcomes:
 
 - **ValueFlows compliance**: hREA's battle-tested VF model handles all economic data correctly
-- **Privacy preserved**: EncryptedProfile + PPR system layers over hREA's public economic data
+- **Privacy preserved**: PrivatePersonData + PPR system layers over hREA's public economic data
 - **Governance innovation intact**: PPR system remains Nondominium's unique contribution
 - **Migration safe**: DHT immutability respected; legacy entries remain valid indefinitely
 - **Ecosystem interoperability**: Other hREA-based apps can interoperate with Nondominium's economic data directly through the shared hREA DNA

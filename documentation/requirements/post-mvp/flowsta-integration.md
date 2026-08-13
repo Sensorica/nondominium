@@ -13,7 +13,7 @@
 2. [Rationale: why Flowsta, why a capability](#2-rationale-why-flowsta-why-a-capability)
 3. [How Flowsta entered the foundational documents](#3-how-flowsta-entered-the-foundational-documents)
 4. [Architecture summary](#4-architecture-summary)
-5. [Relationship to Unyt and the foundational spec](#5-relationship-to-unyt-and-the-foundational-spec)
+5. [Relationship to Unyt and the prima materia](#5-relationship-to-unyt-and-the-prima-materia)
 6. [Integration path (three phases)](#6-integration-path-three-phases)
 7. [Requirements traceability](#7-requirements-traceability)
 8. [Current MVP vs planned enforcement](#8-current-mvp-vs-planned-enforcement)
