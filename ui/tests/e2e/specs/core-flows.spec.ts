@@ -82,13 +82,27 @@ test.describe.serial('nondominium core flows', () => {
       modifiers: { network_seed: `e2e-clone-guard-${Date.now()}` }
     });
     await authorizeWithRetry(seed.admin, clone.cell_id);
-    const myGroup = await seed.app.callZome({
-      cell_id: clone.cell_id,
-      zome_name: 'zome_group',
-      fn_name: 'get_my_group',
-      payload: null
-    });
-    expect(myGroup).toBeNull();
+    try {
+      const myGroup = await seed.app.callZome({
+        cell_id: clone.cell_id,
+        zome_name: 'zome_group',
+        fn_name: 'get_my_group',
+        payload: null
+      });
+      expect(myGroup).toBeNull();
+    } finally {
+      // The UI enumerates group clone cells straight off appInfo, so a leftover
+      // guard clone shows up in the sidebar as a real group and makes the next
+      // test's "empty lobby" precondition false. Tear it down here — the guard
+      // owns this cell, nothing downstream should see it.
+      await seed.app.disableCloneCell({
+        clone_cell_id: { type: 'dna_hash', value: clone.cell_id[0] }
+      });
+      await seed.admin.deleteCloneCell({
+        app_id: seed.appId,
+        clone_cell_id: { type: 'dna_hash', value: clone.cell_id[0] }
+      });
+    }
   });
 
   // ── Phase 1: single-agent core flows ──────────────────────────────────────
