@@ -35,12 +35,56 @@ jobs:
       - name: Build happ
         run: nix develop --command bun run build:happ
 
-  # Browser-level e2e against real conductors (ui/tests/e2e). Gated behind the
-  # build job; when a Sweettest CI job lands, gate this behind that instead so
-  # backend regressions fail fast before the slower browser suite runs.
-  e2e:
+  # Primary backend suite (CLAUDE.md): pure predicate unit tests in
+  # crates/shared, then Sweettest against real conductors. Runs before e2e so a
+  # backend regression fails fast instead of surfacing as a confusing browser
+  # failure ten minutes later.
+  #
+  # --test-threads 2: each Sweettest spawns conductors, and 6 threads with 11
+  # conductor tests in flight gets the runner OOM-killed (SIGTERM mid-suite).
+  sweettest:
     runs-on: ubuntu-latest
     needs: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: cachix/install-nix-action@v26
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v14
+        with:
+          name: holochain-ci
+          skipPush: true
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            vendor/hrea -> vendor/hrea/target
+
+      - name: Install dependencies
+        run: nix develop --command bun install
+
+      # Sweettest loads the packaged .happ, so the WASM build is a prerequisite.
+      - name: Build happ
+        run: nix develop --command bun run build:happ
+
+      - name: Run shared-crate unit tests
+        run: nix develop --command cargo test --package nondominium_shared
+
+      - name: Run Sweettest suite
+        run: |
+          nix develop --command env CARGO_TARGET_DIR=target/native-tests \
+            cargo test --package nondominium_sweettest -- --test-threads 2
+
+  # Browser-level e2e against real conductors (ui/tests/e2e). Gated behind
+  # sweettest so backend regressions fail before the slower browser suite runs.
+  e2e:
+    runs-on: ubuntu-latest
+    needs: sweettest
     steps:
       - uses: actions/checkout@v4
         with:

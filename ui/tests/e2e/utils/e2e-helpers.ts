@@ -120,6 +120,31 @@ export async function saveGroupProfileIfPrompted(page: Page): Promise<void> {
 }
 
 /**
+ * Asserts the agent has no groups yet.
+ *
+ * Several lobby behaviours (the create-or-join onboarding CTA above all) are
+ * only reachable from a genuinely empty lobby, and that emptiness is a property
+ * of shared conductor state rather than of the test itself. Any earlier test —
+ * or any spec file that happens to sort earlier, since the suite runs
+ * `workers: 1`, `fullyParallel: false` — can quietly invalidate it.
+ *
+ * Assert it explicitly so the failure names the broken precondition instead of
+ * surfacing ten seconds later as an inscrutable "element not found" on whatever
+ * the empty state was supposed to render.
+ */
+export async function expectEmptyLobby(page: Page): Promise<void> {
+  const groupLinks = page.locator('nav a[href^="/group/"]');
+  const count = await groupLinks.count();
+  const names = count > 0 ? await groupLinks.allInnerTexts() : [];
+  expect(
+    count,
+    `precondition failed: expected an empty lobby, found ${count} group(s) in the sidebar ` +
+      `(${names.join(', ')}). Some earlier test leaked conductor state — check for a ` +
+      `clone cell or group that was created and never torn down.`
+  ).toBe(0);
+}
+
+/**
  * Creates a group through the sidebar and lands on /group/{seed}. Handles the
  * first-visit GroupProfileModal.
  */

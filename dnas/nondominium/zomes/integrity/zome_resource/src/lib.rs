@@ -373,6 +373,49 @@ fn validate_create_governance_rule(
     check_rule_data_permitted, hard_violation_message, has_hard_violation, ResourceClassification,
   };
 
+  // Bind the denormalized classification to Layer 0 BEFORE judging the rule
+  // against it. Without this the classification is writer-controlled, and every
+  // regime-driven constraint (capture resistance above all) becomes advisory:
+  // an ownership-transfer rule on a Nondominium NDO passes simply by declaring
+  // `Private` on the rule entry.
+  //
+  // `property_regime`, `resource_nature`, and `rivalry_override` are immutable
+  // on NondominiumIdentity, so the genesis record reached through the stable
+  // Layer 0 hash is authoritative for all three — no update-chain walk needed,
+  // which is what makes this affordable inside integrity validation.
+  let ndo_record = must_get_valid_record(rule.ndo_identity_hash.clone())?;
+  let ndi: NondominiumIdentity = ndo_record
+    .entry()
+    .to_app_option()
+    .map_err(|e| {
+      wasm_error!(WasmErrorInner::Guest(format!(
+        "Failed to deserialize NondominiumIdentity referenced by GovernanceRule: {:?}",
+        e
+      )))
+    })?
+    .ok_or(wasm_error!(WasmErrorInner::Guest(
+      "GovernanceRule.ndo_identity_hash does not reference a NondominiumIdentity".to_string()
+    )))?;
+
+  if rule.property_regime != ndi.property_regime {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "GovernanceRule declares property_regime {:?} but its NDO is {:?}",
+      rule.property_regime, ndi.property_regime
+    )));
+  }
+  if rule.resource_nature != ndi.resource_nature {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "GovernanceRule declares resource_nature {:?} but its NDO is {:?}",
+      rule.resource_nature, ndi.resource_nature
+    )));
+  }
+  if rule.rivalry_override != ndi.rivalry_override {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "GovernanceRule declares rivalry_override {:?} but its NDO is {:?}",
+      rule.rivalry_override, ndi.rivalry_override
+    )));
+  }
+
   let ctx = ResourceClassification {
     resource_nature: rule.resource_nature.clone(),
     property_regime: rule.property_regime.clone(),

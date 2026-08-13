@@ -22,6 +22,7 @@ import {
   createGroup,
   createNdo,
   ensureLobbyProfile,
+  expectEmptyLobby,
   expectEventually,
   gotoAgent
 } from '../utils/e2e-helpers.js';
@@ -117,6 +118,10 @@ test.describe.serial('nondominium core flows', () => {
   });
 
   test('empty lobby shows the create-or-join onboarding CTA', async () => {
+    // The CTA only renders when the agent has no groups, so the emptiness is a
+    // precondition rather than part of what is under test. Assert it first —
+    // when it breaks, the message should say so.
+    await expectEmptyLobby(page);
     await expect(page.getByText('Create or join a group to see NDOs')).toBeVisible();
   });
 

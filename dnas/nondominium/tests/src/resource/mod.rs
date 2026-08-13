@@ -61,6 +61,11 @@ enum RuleDataMirror {
         max_quantity_per_period: Option<f64>,
         period_days: Option<u32>,
     },
+    TransferCondition {
+        transfer_type: String,
+        requires_validation: bool,
+        validator_role: Option<String>,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -469,4 +474,199 @@ async fn check_rule_data_constraints_blocks_nondominium_ownership_transfer() {
         "expected Hard ownership_transfer violation, got {:?}",
         hard
     );
+}
+
+// ---------------------------------------------------------------------------
+// Layer 0 → Layer 1 trust boundary
+//
+// `check_rule_data_constraints` above proves the *predicate* works, but it
+// takes the classification as a parameter — it says nothing about whether the
+// integrity zome binds a rule's denormalized classification to the NDO it
+// claims to describe. These tests cover that binding, which is what makes the
+// Nondominium guarantees enforceable rather than self-declared.
+// ---------------------------------------------------------------------------
+
+/// A rule whose denormalized `property_regime` contradicts its Layer 0 NDO is
+/// rejected. Without this, every classification-driven constraint is advisory:
+/// the writer picks the classification the validator will judge them against.
+#[tokio::test(flavor = "multi_thread")]
+async fn governance_rule_rejects_classification_drift_from_layer0() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(
+        &conductors,
+        &alice,
+        "Nondominium NDO for drift test",
+        "Active",
+    )
+    .await;
+
+    // create_ndo_at_stage pins property_regime to Commons; declare Private.
+    let result = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::UsageLimit {
+                    max_duration_hours: Some(4.0),
+                    max_quantity_per_period: None,
+                    period_days: None,
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo,
+                property_regime: "Private".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a GovernanceRule declaring Private against a Commons NDO must be rejected; \
+         otherwise the denormalized classification is attacker-controlled"
+    );
+}
+
+/// A rule whose denormalized `resource_nature` contradicts its Layer 0 NDO is
+/// rejected. Nature drives rivalry defaults, so it is load-bearing too.
+#[tokio::test(flavor = "multi_thread")]
+async fn governance_rule_rejects_nature_drift_from_layer0() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    // create_ndo_at_stage pins resource_nature to Physical.
+    let ndo = create_ndo_at_stage(&conductors, &alice, "NDO for nature drift", "Active").await;
+
+    let result = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::UsageLimit {
+                    max_duration_hours: Some(1.0),
+                    max_quantity_per_period: None,
+                    period_days: None,
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo,
+                property_regime: "Commons".to_string(),
+                resource_nature: "Digital".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a GovernanceRule declaring Digital against a Physical NDO must be rejected"
+    );
+}
+
+/// The capture-resistance gate holds against a misdeclared classification.
+///
+/// This is the attack the drift binding exists to stop: an ownership-transfer
+/// rule on a Nondominium NDO, smuggled past `check_rule_data_permitted` by
+/// declaring `Private` on the rule entry. REQ-RES-03.
+#[tokio::test(flavor = "multi_thread")]
+async fn nondominium_ownership_transfer_not_bypassable_by_misdeclared_regime() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Uncapturable NDO".to_string(),
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+
+    let honest = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::TransferCondition {
+                    transfer_type: "Ownership".to_string(),
+                    requires_validation: false,
+                    validator_role: None,
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo.action_hash.clone(),
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+
+    assert!(
+        honest.is_err(),
+        "ownership-transfer rule on a Nondominium NDO must be rejected (REQ-RES-03)"
+    );
+
+    let smuggled = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::TransferCondition {
+                    transfer_type: "Ownership".to_string(),
+                    requires_validation: false,
+                    validator_role: None,
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo.action_hash,
+                // The bypass: claim a regime that permits ownership transfer.
+                property_regime: "Private".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+
+    assert!(
+        smuggled.is_err(),
+        "ownership-transfer rule on a Nondominium NDO must stay rejected even when \
+         the rule entry declares Private — capture resistance cannot be self-declared"
+    );
+}
+
+/// An honest rule on a matching NDO still succeeds. Guards the drift binding
+/// against being over-tight and breaking the happy path.
+#[tokio::test(flavor = "multi_thread")]
+async fn governance_rule_accepts_classification_matching_layer0() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "NDO for honest rule", "Active").await;
+
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::UsageLimit {
+                    max_duration_hours: Some(8.0),
+                    max_quantity_per_period: None,
+                    period_days: Some(7),
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo,
+                // Matches create_ndo_at_stage: Commons / Physical.
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
 }
