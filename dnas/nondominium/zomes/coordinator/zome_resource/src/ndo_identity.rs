@@ -82,7 +82,7 @@ fn resolve_ndo_links(links: Vec<Link>) -> ExternResult<Vec<NdoOutput>> {
 /// Returns None if the original_action_hash does not exist on the DHT.
 ///
 /// Used by both get_ndo and update_lifecycle_stage to avoid duplicated chain traversal logic.
-fn resolve_latest_ndo_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+pub(crate) fn resolve_latest_ndo_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
   let mut current_hash = original_action_hash;
   loop {
     match get_details(current_hash.clone(), GetOptions::default())? {

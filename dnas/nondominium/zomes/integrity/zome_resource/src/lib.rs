@@ -23,7 +23,18 @@ pub struct ResourceSpecification {
   /// DHT-anchor level until network-layer federation exists.
   pub scope: ResourceScope,
   /// Immutable pointer to the Layer 0 NondominiumIdentity this spec activates.
+  /// Always the *original* create_ndo action hash — the stable identity.
   pub ndo_identity_hash: ActionHash,
+  /// The NDO action the author observed when activating Layer 1.
+  ///
+  /// `lifecycle_stage` is mutable, and Holochain integrity cannot resolve "the
+  /// latest state" — walking an update chain *forward* is non-deterministic
+  /// because the chain keeps growing. Walking *backward* is deterministic, so
+  /// the author names the state they saw and validation proves that state
+  /// belongs to `ndo_identity_hash` before gating on its stage.
+  ///
+  /// Equal to `ndo_identity_hash` when the NDO has never been updated.
+  pub ndo_state_hash: ActionHash,
 }
 
 #[hdk_entry_helper]
@@ -208,6 +219,14 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
               "ResourceSpecification ndo_identity_hash is immutable after creation".to_string(),
             ));
           }
+          // Also immutable: otherwise an edit could re-point the spec at a
+          // newer, eligible state and launder a Layer 1 activation that the
+          // create-time gate rejected.
+          if spec.ndo_state_hash != original.ndo_state_hash {
+            return Ok(ValidateCallbackResult::Invalid(
+              "ResourceSpecification ndo_state_hash is immutable after creation".to_string(),
+            ));
+          }
           validate_update_resource_spec(&spec, &action.author)
         }
         EntryTypes::EconomicResource(resource) => {
@@ -287,6 +306,61 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   }
 }
 
+/// Longest NDO update chain integrity will walk. A NondominiumIdentity moves
+/// through at most 10 lifecycle stages, so a legitimate chain is far shorter;
+/// the cap only bounds work if a chain is ever driven pathologically long.
+const MAX_NDO_CHAIN_WALK: usize = 64;
+
+/// Reads the NondominiumIdentity at `state_hash` and walks the update chain
+/// *backward* to its genesis Create, returning `(root_action_hash, entry)`.
+///
+/// Backward traversal is deterministic — every Update names exactly one
+/// predecessor via `original_action_address`, and that edge never changes.
+/// Forward traversal (`get_details(..).updates`) is not: the set grows as new
+/// updates land, so validation that depended on it would not be replayable.
+/// This is why the author supplies the state they observed rather than
+/// validation resolving "latest" itself.
+fn resolve_ndo_state(
+  state_hash: ActionHash,
+) -> ExternResult<(ActionHash, NondominiumIdentity)> {
+  let record = must_get_valid_record(state_hash.clone())?;
+  let ndi: NondominiumIdentity = record
+    .entry()
+    .to_app_option()
+    .map_err(|e| {
+      wasm_error!(WasmErrorInner::Guest(format!(
+        "Failed to deserialize NondominiumIdentity at ndo_state_hash: {:?}",
+        e
+      )))
+    })?
+    .ok_or(wasm_error!(WasmErrorInner::Guest(
+      "ndo_state_hash does not reference a NondominiumIdentity entry".to_string()
+    )))?;
+
+  let mut current = record;
+  let mut current_hash = state_hash;
+  for _ in 0..MAX_NDO_CHAIN_WALK {
+    match current.action() {
+      Action::Create(_) => return Ok((current_hash, ndi)),
+      Action::Update(update) => {
+        current_hash = update.original_action_address.clone();
+        current = must_get_valid_record(current_hash.clone())?;
+      }
+      other => {
+        return Err(wasm_error!(WasmErrorInner::Guest(format!(
+          "ndo_state_hash resolved to an unexpected action type: {:?}",
+          other.action_type()
+        ))))
+      }
+    }
+  }
+
+  Err(wasm_error!(WasmErrorInner::Guest(format!(
+    "NondominiumIdentity update chain exceeded {} hops",
+    MAX_NDO_CHAIN_WALK
+  ))))
+}
+
 fn validate_create_resource_spec(
   spec: &ResourceSpecification,
   _author: &AgentPubKey,
@@ -310,19 +384,23 @@ fn validate_create_resource_spec(
   }
 
   // Lifecycle gate: Layer 1 cannot activate while Layer 0 is Ideation / suspended / terminal.
-  let ndo_record = must_get_valid_record(spec.ndo_identity_hash.clone())?;
-  let ndi: NondominiumIdentity = ndo_record
-    .entry()
-    .to_app_option()
-    .map_err(|e| {
-      wasm_error!(WasmErrorInner::Guest(format!(
-        "Failed to deserialize linked NondominiumIdentity: {:?}",
-        e
-      )))
-    })?
-    .ok_or(wasm_error!(WasmErrorInner::Guest(
-      "Linked NDO entry not found".to_string()
-    )))?;
+  //
+  // Read the stage from `ndo_state_hash` (the state the author observed), NOT
+  // from `ndo_identity_hash` — the latter is the genesis record and always
+  // carries the *creation-time* stage, so gating on it rejects the ordinary
+  // "create at Ideation, advance to Specification, then activate Layer 1" flow
+  // and accepts an NDO that has since been Deprecated.
+  let (root_hash, ndi) = resolve_ndo_state(spec.ndo_state_hash.clone())?;
+
+  // The state must belong to the NDO the spec claims to activate.
+  if root_hash != spec.ndo_identity_hash {
+    return Ok(ValidateCallbackResult::Invalid(
+      "ResourceSpecification.ndo_state_hash belongs to a different NondominiumIdentity \
+       than ndo_identity_hash"
+        .to_string(),
+    ));
+  }
+
   let ineligible = matches!(
     ndi.lifecycle_stage,
     LifecycleStage::Ideation

@@ -89,6 +89,19 @@ pub fn create_resource_specification(
     )?;
   }
 
+  // Resolve the NDO's current state and record which action we observed, so
+  // integrity can gate on the live lifecycle stage rather than the
+  // creation-time one. Callers never supply this — deriving it here is what
+  // keeps honest clients correct by construction.
+  let ndo_state_hash = crate::ndo_identity::resolve_latest_ndo_record(
+    input.ndo_identity_hash.clone(),
+  )?
+  .ok_or(ResourceError::EntryOperationFailed(
+    "NondominiumIdentity not found for ndo_identity_hash".to_string(),
+  ))?
+  .action_address()
+  .clone();
+
   // Create the resource specification
   let spec = ResourceSpecification {
     name: input.name,
@@ -99,6 +112,7 @@ pub fn create_resource_specification(
     is_active: true, // New specs are active by default
     scope: input.scope.clone(),
     ndo_identity_hash: input.ndo_identity_hash.clone(),
+    ndo_state_hash,
   };
 
   let spec_hash = create_entry(&EntryTypes::ResourceSpecification(spec.clone()))?;
@@ -298,6 +312,9 @@ pub fn update_resource_specification(
     is_active: true,
     scope: input.updated_specification.scope,
     ndo_identity_hash: original_spec.ndo_identity_hash,
+    // Carried over, not re-resolved: this records the state under which Layer 1
+    // was *activated*, and editing a spec's name does not re-activate it.
+    ndo_state_hash: original_spec.ndo_state_hash,
   };
 
   let updated_spec_hash = update_entry(input.previous_action_hash, &updated_spec)?;

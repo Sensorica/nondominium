@@ -40,11 +40,36 @@ jobs:
   # backend regression fails fast instead of surfacing as a confusing browser
   # failure ten minutes later.
   #
+  # Sharded one job per [[test]] target. Measured on the first CI run of the
+  # whole suite in a single job (run 31736241424): 61 min total — 16 min of
+  # compile plus 40 min of tests executed back-to-back. Sharding overlaps the
+  # test time so wall clock tracks the slowest target rather than their sum:
+  #
+  #   nondominium 16m · resource 13m · governance 6m · person 4m · misc 1.5m
+  #
+  # Two details make this work and are easy to undo by accident:
+  #
+  #   * NO custom CARGO_TARGET_DIR. `CLAUDE.md` documents
+  #     `CARGO_TARGET_DIR=target/native-tests` for local runs, which keeps the
+  #     native test artifacts away from the wasm build. In CI that path falls
+  #     outside what Swatinem/rust-cache saves, so every run recompiled
+  #     holochain's test_utils from scratch — the 16 min. The default `target/`
+  #     is cached, and cargo already separates wasm by target triple.
+  #   * `shared-key` so all shards restore ONE cache rather than fighting over
+  #     five. The first run on a new lockfile still pays the compile in
+  #     parallel; later runs restore it.
+  #
   # --test-threads 2: each Sweettest spawns conductors, and 6 threads with 11
   # conductor tests in flight gets the runner OOM-killed (SIGTERM mid-suite).
   sweettest:
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      # Report every failing target, not just the first — a shared regression
+      # usually breaks several, and seeing which ones is the diagnosis.
+      fail-fast: false
+      matrix:
+        target: [misc, person, governance, resource, nondominium]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -61,6 +86,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
+          shared-key: sweettest
           workspaces: |
             . -> target
             vendor/hrea -> vendor/hrea/target
@@ -72,13 +98,16 @@ jobs:
       - name: Build happ
         run: nix develop --command bun run build:happ
 
+      # Pure predicate tests — no conductors, seconds to run. Only needs to run
+      # once, so it rides the cheapest shard.
       - name: Run shared-crate unit tests
+        if: matrix.target == 'misc'
         run: nix develop --command cargo test --package nondominium_shared
 
-      - name: Run Sweettest suite
+      - name: Run Sweettest target
         run: |
-          nix develop --command env CARGO_TARGET_DIR=target/native-tests \
-            cargo test --package nondominium_sweettest -- --test-threads 2
+          nix develop --command cargo test --package nondominium_sweettest \
+            --test ${{ matrix.target }} -- --test-threads 2
 
   # Browser-level e2e against real conductors (ui/tests/e2e). Gated behind
   # sweettest so backend regressions fail before the slower browser suite runs.

@@ -670,3 +670,85 @@ async fn governance_rule_accepts_classification_matching_layer0() {
         )
         .await;
 }
+
+// ---------------------------------------------------------------------------
+// Layer 1 lifecycle gate — reads the NDO's *observed* state, not its genesis
+//
+// `lifecycle_stage` is mutable, so gating on the genesis record rejects the
+// ordinary "create at Ideation, advance, then activate" flow and accepts an NDO
+// that has since been deprecated. These tests pin the live behaviour.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+struct UpdateLifecycleStageInput {
+    pub original_action_hash: ActionHash,
+    pub new_stage: String,
+    pub successor_ndo_hash: Option<ActionHash>,
+    pub transition_event_hash: Option<ActionHash>,
+}
+
+async fn advance_stage(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    ndo: &ActionHash,
+    new_stage: &str,
+    successor: Option<ActionHash>,
+) {
+    let _: ActionHash = conductors[0]
+        .call(
+            &cell.zome("zome_resource"),
+            "update_lifecycle_stage",
+            UpdateLifecycleStageInput {
+                original_action_hash: ndo.clone(),
+                new_stage: new_stage.to_string(),
+                successor_ndo_hash: successor,
+                transition_event_hash: None,
+            },
+        )
+        .await;
+}
+
+/// The natural flow: an NDO starts at Ideation, advances, and only then grows a
+/// Layer 1 specification. Gating on the genesis record would reject this even
+/// though the NDO is eligible right now.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_allowed_after_advancing_out_of_ideation() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Advancing NDO", "Ideation").await;
+    advance_stage(&conductors, &alice, &ndo, "Specification", None).await;
+
+    let _: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Spec after advancing", "tools", ndo),
+        )
+        .await;
+}
+
+/// The mirror case: an NDO that has since been deprecated must not grow new
+/// Layer 1 specs, even though it was created at an eligible stage.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_rejected_after_deprecation() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let successor =
+        create_ndo_at_stage(&conductors, &alice, "Successor NDO", "Active").await;
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Doomed NDO", "Active").await;
+    advance_stage(&conductors, &alice, &ndo, "Deprecated", Some(successor)).await;
+
+    let result = conductors[0]
+        .call_fallible::<_, CreateResourceSpecificationOutput>(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Spec on deprecated NDO", "tools", ndo),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "activating Layer 1 on a Deprecated NDO must fail; gating on the genesis \
+         record would wrongly allow it because the NDO was created at Active"
+    );
+}
