@@ -123,6 +123,8 @@ export async function authorizeWithRetry(
 export interface SeedClient {
   app: AppWebsocket;
   admin: AdminWebsocket;
+  /** Installed app id — needed for admin calls scoped to the app (e.g. deleteCloneCell). */
+  appId: string;
   close: () => Promise<void>;
 }
 
@@ -152,8 +154,10 @@ export async function createSeedClient(agent = 1): Promise<SeedClient> {
     await authorizeWithRetry(admin, cellId);
   }
 
+  const appId = ready.appId || APP_ID;
+
   const { token } = await admin.issueAppAuthenticationToken({
-    installed_app_id: ready.appId || APP_ID,
+    installed_app_id: appId,
     single_use: false,
     expiry_seconds: 3600
   });
@@ -168,6 +172,7 @@ export async function createSeedClient(agent = 1): Promise<SeedClient> {
   return {
     app,
     admin,
+    appId,
     close: async () => {
       try {
         await app.client.close();
