@@ -11,7 +11,7 @@ The Nondominium frontend is a SvelteKit application using Svelte 5 runes, Effect
 
 ![Lobby → Groups → NDOs three-level hierarchy — DNA architecture, identity progression, and navigation flow](../assets/diagrams/lobby-groups-ndos-hierarchy.png)
 
-*Lobby (global shared DHT) discovers **Groups** via `GroupAnnouncement` — not NDOs directly. Each Group is a cloned Group DNA cell with its own isolated DHT; Groups link to NDOs via `SoftLink` entries. The Lobby's NdoBrowser aggregates only NDOs from the agent's own groups — there is no global public NDO registry. Identity deepens at each level: localStorage nickname (Level 1) → per-group profile (Level 2) → Person DHT entry on first NDO action (Level 3).*
+*Lobby (global shared DHT) discovers **Groups** via `GroupAnnouncement` — not NDOs directly. Each Group is a cloned Group DNA cell with its own isolated DHT; Groups point at NDOs via `NdoAnchor` entries, and each NDO is itself a cloned `ndo` cell (ADR-010 model A). The Lobby's NdoBrowser aggregates only NDOs from the agent's own groups — there is no global public NDO registry. Identity deepens at each level: localStorage nickname (Level 1) → per-group profile (Level 2) → Person DHT entry on first NDO action (Level 3).*
 
 This hierarchy maps to the three concentric organizational scopes in `ui_design.md`:
 
@@ -153,7 +153,7 @@ interface GroupDescriptor {
 
 **Lifecycle**: `createGroup` → `createCloneCell` → `create_group` → `join_group` → `announce_group` (Lobby DNA). **Invite links** encode `{ network_seed, group_dna_hash, group_name }` as `?group=<base64>`.
 
-**NDO association**: NDOs live in the shared `nondominium` cell. A group's NDO list = `get_soft_links(group_hash)` on the group clone cell → resolve each `target_ndo_hash` via `resource.getNdo`.
+**NDO association**: each NDO is its own cloned `ndo` cell (ADR-010 model A). A group's NDO list = `get_ndo_anchors(group_hash)` on the group clone cell; cards render straight from the anchors' cached fields, so browsing never joins an ndo cell. Opening an NDO resolves its cell from the anchor coordinates (`ensureNdoCloneCell`, provisioning it for a peer who never joined) and reads the live entry. Pre-migration NDOs in the shared `nondominium` cell still resolve through a legacy fallback. Full rationale: `documentation/specifications/adr/ADR-010-013-per-ndo-cells.md`.
 
 ---
 

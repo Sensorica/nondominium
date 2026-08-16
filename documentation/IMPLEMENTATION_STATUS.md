@@ -237,11 +237,12 @@ Group cells use the **cloned-cell pattern**: a single Group DNA template is inst
 - `GroupProfile` — group name and optional description; one logical profile per cloned cell
 - `GroupMembership` — agent membership record; links removed on leave, entry retained as audit trail
 - `WorkLog` — planning-level contribution record (no PPRs; ADR-GROUP-04)
-- `SoftLink` — planning-level link to an NDO (no PPRs; ADR-GROUP-04)
+- `SoftLink` — planning-level link to an NDO (no PPRs; ADR-GROUP-04). **No longer used for NDO association** — superseded by `NdoAnchor`; retained for future planning-level links
+- `NdoAnchor` — the authoritative group→NDO pointer (ADR-011): full clone coordinates (`ndo_dna_hash`, `network_seed`, `identity_action_hash`) plus cached card fields. Only `name` / `description` / `lifecycle_stage` are mutable; integrity rejects an update that rewrites any identity coordinate
 
-### Coordinator API (16 externs)
+### Coordinator API (20 externs)
 
-`init`, `create_group`, `get_group`, `update_group`, `get_my_group`, `join_group`, `leave_group`, `get_group_members`, `is_member`, `log_work`, `delete_work_log`, `get_work_logs`, `get_my_work_logs`, `create_soft_link`, `delete_soft_link`, `get_soft_links`
+`init`, `create_group`, `get_group`, `update_group`, `get_my_group`, `join_group`, `leave_group`, `get_group_members`, `is_member`, `log_work`, `delete_work_log`, `get_work_logs`, `get_my_work_logs`, `create_soft_link`, `delete_soft_link`, `get_soft_links`, `create_ndo_anchor`, `get_ndo_anchors`, `update_ndo_anchor`, `refresh_ndo_anchor_lifecycle_stage`
 
 There is no `get_all_groups` extern in a Group cell; each cell represents one isolated Group. Cross-Group discovery belongs to the Lobby DNA.
 
@@ -328,7 +329,7 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 
 - `app.context.svelte.ts` — `lobbyUserProfile` state with localStorage hydration + persistence
 - `lobby.store.svelte.ts` — `ndos`, `filteredNdos`, `activeFilters`, `groups`, `createGroup`, `joinGroup`; `loadLobby()` now called from root layout
-- `group.store.svelte.ts` — `group`, `groupNdos`, `members`, `loadGroupData(groupId, { silent? })` (full load runs `ensureMembership` then fetches NDOs + members; silent load skips reconcile, keeps data on transient failure, no spinner), `refreshCurrentGroup()` (silent re-fetch for the pull-based reactivity layer — driven by `GroupView` tab-focus/visibility + ~8 s poll; `TODO(signals)`), `createNdo`, **`associateNdoWithGroup(ndoHashB64, groupId)`** (writes a `SoftLink` on the target group clone cell)
+- `group.store.svelte.ts` — `group`, `groupNdos`, `members`, `loadGroupData(groupId, { silent? })` (full load runs `ensureMembership` then fetches NDOs + members; silent load skips reconcile, keeps data on transient failure, no spinner), `refreshCurrentGroup()` (silent re-fetch for the pull-based reactivity layer — driven by `GroupView` tab-focus/visibility + ~8 s poll; `TODO(signals)`), `createNdo`, **`associateNdoWithGroup(ndoHashB64, groupId)`** (writes a second `NdoAnchor` on the target group clone cell, copying the NDO's clone coordinates from an existing anchor)
 - `ndo-cache.ts` *(new)* — in-memory `Map<hashB64, NdoDescriptor>` populated on card click so the NDO detail page renders immediately without a DHT round-trip
 
 #### Components — Shell / Layout

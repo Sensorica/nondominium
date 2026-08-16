@@ -49,6 +49,12 @@
           # Materialize .claude/ from pai/claude/
           mkdir -p .claude/skills
           rsync -a --delete ${./pai/claude}/ .claude/
+          # Nix store paths are read-only, and `rsync -a` preserves that mode on
+          # the copy. Without this the NEXT write into .claude/ fails — the skills
+          # hook below cannot mkdir .claude/skills/holochain, which is the
+          # "Permission denied (13)" rsync error seen on every CI run and in every
+          # local nix shell. Same treatment .cursor/ already gets.
+          chmod -R u+w .claude 2>/dev/null || true
           chmod u+x .claude/hooks/*.hook.ts 2>/dev/null || true
 
           # Materialize Cursor rules from pai/

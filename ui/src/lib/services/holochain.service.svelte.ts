@@ -5,6 +5,8 @@ import {
   connectHolochainClient,
   type HolochainConnectionMode
 } from '$lib/utils/hc-connect';
+import type { NdoDnaProperties } from '@nondominium/shared-types';
+import { getNdoCellByDnaHash } from './ndo-clone.helpers';
 
 export type ZomeName = 'zome_person' | 'zome_resource' | 'zome_gouvernance' | 'zome_group';
 // group_${string} removed: group cells are now addressed by CellId, not role-name strings.
@@ -37,6 +39,27 @@ export interface HolochainClientService {
   createGroupCloneCell(networkSeed: string): Promise<ClonedCell>;
 
   enableGroupCloneCell(dnaHash: Uint8Array): Promise<ClonedCell>;
+
+  /**
+   * Provisions a per-NDO `ndo` clone cell (ADR-010 model A). `properties` carries
+   * the immutable Layer 0 fields so the DnaHash is cryptographically bound to the
+   * NDO identity. Pass `properties` as a PLAIN JS OBJECT — the conductor
+   * canonicalizes it to SerializedBytes; pre-encoded bytes throw (probe-120).
+   */
+  createNdoCloneCell(args: {
+    networkSeed: string;
+    properties: NdoDnaProperties;
+  }): Promise<ClonedCell>;
+
+  /**
+   * Resolves the ndo clone cell for an NDO DnaHash. If it exists, enables it (if
+   * disabled) and authorizes signing; otherwise creates it from `coordinates`.
+   * Used by the read path — a peer opening an NDO anchored by another agent.
+   */
+  ensureNdoCloneCell: (
+    dnaHash: Uint8Array,
+    coordinates?: { networkSeed: string; properties: NdoDnaProperties }
+  ) => Promise<CellId>;
 }
 
 /**
@@ -227,6 +250,60 @@ function createHolochainClientService(): HolochainClientService {
     return cloned;
   }
 
+  async function createNdoCloneCell(args: {
+    networkSeed: string;
+    properties: NdoDnaProperties;
+  }): Promise<ClonedCell> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+    // `properties` MUST be a plain JS object (no binary fields — holochain 0.6.0
+    // transports properties as YamlProperties(serde_yaml::Value), which has no
+    // binary variant; an AgentPubKey here hangs createCloneCell). The conductor
+    // canonicalizes it to SerializedBytes so the DnaHash is value-deterministic
+    // and the ADR-013 binding inside the cell fires.
+    const cloned = await client.createCloneCell({
+      role_name: 'ndo',
+      modifiers: { network_seed: args.networkSeed, properties: args.properties },
+      name: args.properties.name
+    });
+    invalidateAppInfoCache();
+    if (!cloned.enabled) {
+      // enableGroupCloneCell is role-agnostic (keyed by DnaHash); it enables any
+      // clone and authorizes signing credentials for it.
+      return enableGroupCloneCell(cloned.cell_id[0]);
+    }
+    await authorizeCloneCellSigning(cloned.cell_id);
+    return cloned;
+  }
+
+  async function ensureNdoCloneCell(
+    dnaHash: Uint8Array,
+    coordinates?: { networkSeed: string; properties: NdoDnaProperties }
+  ): Promise<CellId> {
+    if (!client) {
+      throw new Error('Client not connected');
+    }
+    const appInfo = await client.appInfo();
+    const existing = getNdoCellByDnaHash(appInfo, dnaHash);
+    if (existing) {
+      if (!existing.enabled) {
+        // Disabled: enable + authorize (enableGroupCloneCell does both).
+        await enableGroupCloneCell(existing.dnaHash);
+      }
+      // Do NOT re-authorize already-enabled cells: every authorize is a
+      // source-chain commit that races the following zome call ("source chain
+      // head has moved"). Credentials persist in-memory from create time, and
+      // the connect path re-authorizes all cells after a reload.
+      return existing.cellId;
+    }
+    if (!coordinates) {
+      throw new Error('NDO cell not found and no coordinates provided to create it');
+    }
+    const cloned = await createNdoCloneCell(coordinates);
+    return cloned.cell_id;
+  }
+
   /**
    * Authorizes signing credentials for a clone cell created at runtime.
    * No-op in launcher mode (no admin URL; the launcher handles signing).
@@ -261,7 +338,9 @@ function createHolochainClientService(): HolochainClientService {
     callZome,
     verifyConnection,
     createGroupCloneCell,
-    enableGroupCloneCell
+    enableGroupCloneCell,
+    createNdoCloneCell,
+    ensureNdoCloneCell
   };
 }
 

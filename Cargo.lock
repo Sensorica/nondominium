@@ -1873,6 +1873,7 @@ version = "0.1.0"
 dependencies = [
  "holochain",
  "holochain_serialized_bytes",
+ "nondominium_shared",
  "serde",
  "tokio",
 ]
@@ -3974,6 +3975,7 @@ version = "0.1.0"
 dependencies = [
  "hdi",
  "hdk",
+ "holochain_serialized_bytes",
  "serde",
  "thiserror 2.0.17",
 ]

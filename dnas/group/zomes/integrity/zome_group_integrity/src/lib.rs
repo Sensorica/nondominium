@@ -107,31 +107,32 @@ pub fn validate_agent_joining(
 #[allow(clippy::collapsible_match, clippy::single_match)]
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
-    if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
-        match store_entry {
+    match op.flattened::<EntryTypes, LinkTypes>()? {
+        FlatOp::StoreEntry(store_entry) => match store_entry {
             OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
                 match app_entry {
-                    EntryTypes::GroupProfile(profile) => {
-                        return validate_group_profile(profile);
-                    }
+                    EntryTypes::GroupProfile(profile) => validate_group_profile(profile),
                     EntryTypes::GroupMembership(membership) => {
-                        return validate_group_membership(membership);
+                        validate_group_membership(membership)
                     }
-                    EntryTypes::WorkLog(work_log) => {
-                        return validate_work_log(work_log);
-                    }
-                    EntryTypes::SoftLink(soft_link) => {
-                        return validate_soft_link(soft_link);
-                    }
-                    EntryTypes::NdoAnchor(ndo_anchor) => {
-                        return validate_ndo_anchor(ndo_anchor);
-                    }
+                    EntryTypes::WorkLog(work_log) => validate_work_log(work_log),
+                    EntryTypes::SoftLink(soft_link) => validate_soft_link(soft_link),
+                    EntryTypes::NdoAnchor(ndo_anchor) => validate_ndo_anchor(ndo_anchor),
                 }
             }
-            _ => (),
-        }
+            _ => Ok(ValidateCallbackResult::Valid),
+        },
+        // An anchor update may refresh the cached descriptor (name, description,
+        // lifecycle_stage) and nothing else: the identity coordinates are what peers
+        // re-derive the NDO cell from, so a rewrite would silently repoint the group
+        // at a different network. Enforced here rather than trusted to the
+        // coordinator, because any group member may update any anchor.
+        FlatOp::RegisterUpdate(OpUpdate::Entry {
+            app_entry: EntryTypes::NdoAnchor(updated),
+            action,
+        }) => validate_ndo_anchor_update(action.original_action_address, updated),
+        _ => Ok(ValidateCallbackResult::Valid),
     }
-    Ok(ValidateCallbackResult::Valid)
 }
 
 pub fn validate_group_profile(profile: GroupProfile) -> ExternResult<ValidateCallbackResult> {
@@ -195,5 +196,46 @@ pub fn validate_ndo_anchor(ndo_anchor: NdoAnchor) -> ExternResult<ValidateCallba
     // The (ndo_dna_hash, network_seed, properties) coordinates cannot be verified from
     // the integrity context — cross-cell verification is the reader's pinning check:
     // re-derive the clone from the anchor fields and compare the resulting DnaHash.
+    Ok(ValidateCallbackResult::Valid)
+}
+
+/// An `NdoAnchor` update may only refresh the cached descriptor fields — `name`,
+/// `description`, `lifecycle_stage`. Everything else identifies the NDO cell
+/// (`ndo_dna_hash`, `network_seed`, `identity_action_hash`) or is a DNA property
+/// input a peer re-derives the DnaHash from (`initiator`, `ndo_created_at`,
+/// `property_regime`, `resource_nature`), plus the owning `group_hash`.
+///
+/// Written as "rebuild the original with the mutable fields swapped in, then
+/// compare" so a field added to `NdoAnchor` later is immutable by default and has
+/// to be opted into mutability here deliberately.
+pub fn validate_ndo_anchor_update(
+    original_action_hash: ActionHash,
+    updated: NdoAnchor,
+) -> ExternResult<ValidateCallbackResult> {
+    let original_record = must_get_valid_record(original_action_hash)?;
+    let Some(original) = original_record
+        .entry()
+        .to_app_option::<NdoAnchor>()
+        .map_err(|e| wasm_error!(WasmErrorInner::Serialize(e)))?
+    else {
+        return Ok(ValidateCallbackResult::Invalid(
+            "An NdoAnchor update must supersede an NdoAnchor entry".to_string(),
+        ));
+    };
+
+    let permitted = NdoAnchor {
+        name: updated.name.clone(),
+        description: updated.description.clone(),
+        lifecycle_stage: updated.lifecycle_stage.clone(),
+        ..original
+    };
+    if permitted != updated {
+        return Ok(ValidateCallbackResult::Invalid(
+            "NdoAnchor identity coordinates are immutable: an update may only change \
+             name, description, and lifecycle_stage"
+                .to_string(),
+        ));
+    }
+
     Ok(ValidateCallbackResult::Valid)
 }

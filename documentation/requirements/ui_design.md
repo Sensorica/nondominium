@@ -6,7 +6,7 @@ This section describes the minimalistic UI for MVP Layer 0 — NDO Identity (sta
 
 ![Lobby → Groups → NDOs three-level hierarchy — DNA architecture, identity progression, and navigation flow](../assets/diagrams/lobby-groups-ndos-hierarchy.png)
 
-*Lobby discovers **Groups** (via `GroupAnnouncement` in the shared Lobby DHT) — not NDOs. Groups discover NDOs via `SoftLink` entries in each Group's own cloned-cell DHT. The Lobby's NdoBrowser shows only NDOs from the agent's own groups, not a global public registry. NDOs can only be created from within a Group. Identity: localStorage nickname → per-group profile → Person DHT entry on first NDO action.*
+*Lobby discovers **Groups** (via `GroupAnnouncement` in the shared Lobby DHT) — not NDOs. Groups discover NDOs via `NdoAnchor` entries in each Group's own cloned-cell DHT, and each NDO is itself a cloned `ndo` cell (ADR-010 model A). The Lobby's NdoBrowser shows only NDOs from the agent's own groups, not a global public registry. NDOs can only be created from within a Group. Identity: localStorage nickname → per-group profile → Person DHT entry on first NDO action.*
 
 ---
 
@@ -27,7 +27,7 @@ The Lobby is a permissionless digital environment that anyone can join. It is th
 
 ### Groups
 
-Groups are organizational contexts for NDOs. A user can create a solo Group or join an existing one. Groups are **DNA-backed**: each group is a cloned Group DNA cell (`clone_cell`, `zome_group`) with its own isolated DHT, announced for discovery via the Lobby DNA. Only the **Level 2 presentation choice** (`GroupMemberProfile` — anonymous vs. selected fields) remains in `localStorage`; membership and NDO associations live on the DHT (SoftLinks).
+Groups are organizational contexts for NDOs. A user can create a solo Group or join an existing one. Groups are **DNA-backed**: each group is a cloned Group DNA cell (`clone_cell`, `zome_group`) with its own isolated DHT, announced for discovery via the Lobby DNA. Only the **Level 2 presentation choice** (`GroupMemberProfile` — anonymous vs. selected fields) remains in `localStorage`; membership and NDO associations live on the DHT (`GroupMembership` and `NdoAnchor` entries).
 
 **Implemented:**
 - **Group panel** (`/group/:id`): shows group name, list of NDO cards, member list, and a "Create NDO" button
@@ -105,7 +105,7 @@ At the Lobby level the User can be anyone. At this level the User creates a Lobb
 
 ### MVP ToDos
 
-> **Status (2026-06)**: All eight MVP ToDos below are implemented. Groups are **DNA-backed** via cloned Group cells (`clone_cell`, `zome_group`); NDO lists use **SoftLink** entries on the group DHT. Join NDO is **UI + API contract only** (backend stub).
+> **Status (2026-06)**: All eight MVP ToDos below are implemented. Groups are **DNA-backed** via cloned Group cells (`clone_cell`, `zome_group`); NDO lists use **`NdoAnchor`** entries on the group DHT (per-NDO cells, ADR-010/011 — see `documentation/specifications/adr/ADR-010-013-per-ndo-cells.md`). Join NDO is **UI + API contract only** (backend stub).
 
 1. ~~**Multi-member groups — invite link**~~ ✅ `generateInviteLink` encodes `{network_seed, group_dna_hash, group_name}`; Sidebar and GroupView expose copy-invite; `joinGroup` provisions clone cell and calls `join_group`.
 
@@ -119,7 +119,7 @@ At the Lobby level the User can be anyone. At this level the User creates a Lobb
 
 6. ~~**Update `agent.md`**~~ ✅ Three-tier identity model documented (§2.0); Level 2 profiles remain localStorage; groups are DHT-backed.
 
-7. ~~**NDO–Group association DHT propagation**~~ ✅ `create_soft_link` on group cell; lobby/group NDO lists resolve from SoftLinks.
+7. ~~**NDO–Group association DHT propagation**~~ ✅ `create_ndo_anchor` on the group cell; lobby/group NDO lists resolve from `NdoAnchor`s. *(Originally shipped as `create_soft_link`; superseded by anchors when NDOs moved to their own cells.)*
 
 8. ~~**Join NDO**~~ ✅ UI flow in `NdoView.svelte`; API contract in `documentation/zomes/resource_zome.md § NDO membership (planned)`; `joinNdo`/`getNdoMembers` stub in `ndo.service.ts`.
 

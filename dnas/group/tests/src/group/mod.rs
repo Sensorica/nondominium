@@ -163,8 +163,11 @@ async fn join_group_creates_membership() {
         .await
         .unwrap();
 
-    // get_group_members now returns Vec<Record>; member identity is action.author()
-    let member_records: Vec<Record> = conductors[0]
+    // get_group_members returns Vec<AgentPubKey> read from each GroupToMembers
+    // link's author (the joining agent). Membership identity no longer depends on
+    // a per-member `get` of the GroupMembership record, which could be absent from
+    // the local DHT shard before full sync.
+    let members: Vec<AgentPubKey> = conductors[0]
         .call(
             &cell_alice.zome("zome_group"),
             "get_group_members",
@@ -175,7 +178,7 @@ async fn join_group_creates_membership() {
     let bob_key = cell_bob.agent_pubkey().clone();
 
     assert!(
-        member_records.iter().any(|r| r.action().author() == &bob_key),
+        members.iter().any(|m| *m == bob_key),
         "Bob should appear in get_group_members after joining"
     );
 }
@@ -217,7 +220,7 @@ async fn leave_group_removes_membership() {
         .await
         .unwrap();
 
-    let member_records: Vec<Record> = conductors[0]
+    let members: Vec<AgentPubKey> = conductors[0]
         .call(
             &cell_alice.zome("zome_group"),
             "get_group_members",
@@ -228,7 +231,7 @@ async fn leave_group_removes_membership() {
     let bob_key = cell_bob.agent_pubkey().clone();
 
     assert!(
-        !member_records.iter().any(|r| r.action().author() == &bob_key),
+        !members.iter().any(|m| *m == bob_key),
         "Bob should not appear in get_group_members after leaving"
     );
 }
