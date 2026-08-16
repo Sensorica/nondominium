@@ -11,6 +11,7 @@
  * actually landed entries on the DHT.
  */
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import type { CellId } from '@holochain/client';
 import {
   authorizeWithRetry,
   createSeedClient,
@@ -33,6 +34,44 @@ interface NdoOutput {
 }
 interface GetAllNdosOutput {
   ndos: NdoOutput[];
+}
+
+/**
+ * Per-cell DHT read-back: enumerates the agent's `ndo` clone cells (created at
+ * runtime by the UI) and reads the live NondominiumIdentity from the matching
+ * cell. Replaces the pre-per-cell shared-cell `get_all_ndos` read-back — UI
+ * NDOs now live on their own clone, not the shared nondominium cell. The seed
+ * client shares agent 1's app, so UI-created clones are visible in its appInfo;
+ * each needs signing credentials authorized before the zome call.
+ */
+async function readLiveNdoFromCloneCells(
+  seed: SeedClient,
+  name: string
+): Promise<NdoOutput | undefined> {
+  const info = await seed.app.appInfo();
+  for (const c of info.cell_info.ndo ?? []) {
+    const ci = c as unknown as {
+      type?: string;
+      value?: { cell_id: CellId };
+      cloned?: { cell_id: CellId };
+    };
+    const cellId = ci.type === 'cloned' ? ci.value?.cell_id : ci.cloned?.cell_id;
+    if (!cellId) continue;
+    await authorizeWithRetry(seed.admin, cellId);
+    try {
+      const out = (await seed.app.callZome({
+        cell_id: cellId,
+        zome_name: 'zome_resource',
+        fn_name: 'get_all_ndos',
+        payload: null
+      })) as GetAllNdosOutput;
+      const found = out.ndos.find((n) => n.entry.name === name);
+      if (found) return found;
+    } catch {
+      // Cell not yet ready / disabled — try the next clone.
+    }
+  }
+  return undefined;
 }
 
 test.describe.serial('nondominium core flows', () => {
@@ -151,14 +190,12 @@ test.describe.serial('nondominium core flows', () => {
     });
 
     // Playground-equivalent DHT verification: the UI flow must have landed a
-    // NondominiumIdentity entry readable via a direct zome call.
-    const out = await callZome<GetAllNdosOutput>(seed, 'nondominium', 'zome_resource', 'get_all_ndos', null);
-    const widget = out.ndos.find((n) => n.entry.name === 'E2E Widget');
+    // NondominiumIdentity on the NDO's own clone cell (per-cell model A).
+    const widget = await readLiveNdoFromCloneCells(seed, 'E2E Widget');
     expect(widget).toBeTruthy();
     expect(widget?.entry.lifecycle_stage).toBe('Ideation');
-    // TODO(#117): once NDO-per-cell + NdoAnchor merge, assert the card renders
-    // from the anchor cache (solid border) and read the NdoAnchor back via the
-    // seeding client instead of the shared-DHT entry.
+    // NdoAnchor on the group clone cell is the authoritative group→NDO pointer;
+    // cross-agent anchor visibility is covered by multi-agent.spec.ts.
   });
 
   test('created NDO appears in the Lobby grid', async () => {
@@ -192,9 +229,8 @@ test.describe.serial('nondominium core flows', () => {
       ).toBeVisible();
     });
 
-    // DHT read-back: the transition is on chain, not just in the UI.
-    const out = await callZome<GetAllNdosOutput>(seed, 'nondominium', 'zome_resource', 'get_all_ndos', null);
-    const widget = out.ndos.find((n) => n.entry.name === 'E2E Widget');
+    // DHT read-back: the transition is on the NDO's clone cell, not just in the UI.
+    const widget = await readLiveNdoFromCloneCells(seed, 'E2E Widget');
     expect(widget?.entry.lifecycle_stage).toBe('Specification');
   });
 
