@@ -164,7 +164,10 @@ test.describe.serial('nondominium multi-agent flows', () => {
     await expectEventually(
       bob,
       async () => {
-        await expect(bob.getByText('Specification', { exact: true })).toBeVisible({
+        // Target the identity panel's stage field by test id, not by text: with
+        // Layer 1 activated, "Specification" also appears in the Layer 1 panel
+        // and its create modal, so a bare text match is a strict-mode violation.
+        await expect(bob.getByTestId('ndo-lifecycle-stage')).toHaveText('Specification', {
           timeout: 5_000
         });
       },

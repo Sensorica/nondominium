@@ -276,7 +276,7 @@
         </div>
         <div>
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Lifecycle stage</p>
-          <p class="mt-1 text-sm font-medium text-gray-800">
+          <p data-testid="ndo-lifecycle-stage" class="mt-1 text-sm font-medium text-gray-800">
             {ndoDescriptor.lifecycle_stage ?? '—'}
           </p>
         </div>
