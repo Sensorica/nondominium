@@ -318,7 +318,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest 
 
 - Use `warn!` macro in Rust zome functions to log debugging information visible in test output
 - Use `#[ignore]` on tests not yet ready for execution
-- DHT sync between agents: `await_consistency_20_s(&[&cell_a, &cell_b]).await.unwrap()`
+- DHT sync between agents: `await_consistency_20_s([&cell_a, &cell_b]).await.unwrap()` (pass the array by value, not `&[...]`)
 
 ---
 

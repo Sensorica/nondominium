@@ -1,5 +1,5 @@
 import { Context, Effect as E, Layer } from 'effect';
-import type { ActionHash, CellId } from '@holochain/client';
+import type { ActionHash, AgentPubKey, CellId } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import type {
   NdoDescriptor,
@@ -11,7 +11,7 @@ import type {
   UpdateLifecycleStageInput,
   NdoTransitionHistoryEvent
 } from '@nondominium/shared-types';
-import { NdoNotFoundError, NdoNotImplementedError } from '$lib/errors/ndo.errors';
+import { NdoNotFoundError } from '$lib/errors/ndo.errors';
 import { ResourceError } from '$lib/errors/resource.errors';
 import {
   ResourceServiceTag,
@@ -19,6 +19,7 @@ import {
 } from './resource.service';
 import { LobbyServiceTag, LobbyServiceResolved } from './lobby.service';
 import { GroupServiceTag, GroupServiceResolved } from './group.service';
+import { PersonServiceTag, PersonServiceResolved } from './person.service';
 import {
   HolochainClientServiceTag,
   HolochainClientServiceLive
@@ -46,8 +47,15 @@ export interface NdoService {
     ndoHashB64: string,
     targetGroupId: string
   ) => E.Effect<void, ResourceError | NdoNotFoundError>;
-  joinNdo: (ndoHashB64: string) => E.Effect<void, NdoNotImplementedError>;
-  getNdoMembers: (ndoHashB64: string) => E.Effect<{ id: string; name: string }[], NdoNotImplementedError>;
+  /**
+   * Declare participation in an NDO. Idempotent: joining twice is a no-op, not an error.
+   * Membership makes participation listable; it is not an access grant (the agent already
+   * holds the cloned cell to read the NDO at all).
+   */
+  joinNdo: (ndoHashB64: string) => E.Effect<void, ResourceError | NdoNotFoundError>;
+  getNdoMembers: (
+    ndoHashB64: string
+  ) => E.Effect<{ id: string; name: string }[], ResourceError | NdoNotFoundError>;
 }
 
 export class NdoServiceTag extends Context.Tag('NdoService')<NdoServiceTag, NdoService>() {}
@@ -125,19 +133,25 @@ const NdoServiceDepsResolved = Layer.mergeAll(
   ResourceServiceResolved,
   LobbyServiceResolved,
   GroupServiceResolved,
+  PersonServiceResolved,
   HolochainClientServiceLive
 );
 
 export const NdoServiceLive: Layer.Layer<
   NdoServiceTag,
   never,
-  ResourceServiceTag | LobbyServiceTag | GroupServiceTag | HolochainClientServiceTag
+  | ResourceServiceTag
+  | LobbyServiceTag
+  | GroupServiceTag
+  | PersonServiceTag
+  | HolochainClientServiceTag
 > = Layer.effect(
   NdoServiceTag,
   E.gen(function* () {
     const resource = yield* ResourceServiceTag;
     const lobby = yield* LobbyServiceTag;
     const groupService = yield* GroupServiceTag;
+    const person = yield* PersonServiceTag;
     const holochainClient = yield* HolochainClientServiceTag;
 
     /** Call a zome_resource function on a specific ndo clone cell. */
@@ -258,6 +272,25 @@ export const NdoServiceLive: Layer.Layer<
         if (!first) return null;
         const cellId = yield* ensureCellForAnchor(first.anchor);
         return { cellId, anchor: first.anchor, matches };
+      });
+
+    /**
+     * Membership variant of the resolver. Unlike reads, membership has no legacy
+     * shared-cell fallback: an NDO with no anchor cannot be joined, so an unresolved
+     * identity is a hard NdoNotFoundError rather than a silent degrade.
+     */
+    const resolveNdoCellOrFail = (
+      identityHashB64: string
+    ): E.Effect<{ cellId: CellId; identityHash: ActionHash }, ResourceError | NdoNotFoundError> =>
+      E.gen(function* () {
+        const resolved = yield* resolveNdoCellForIdentity(identityHashB64);
+        if (!resolved) {
+          return yield* E.fail(new NdoNotFoundError({ hash: identityHashB64 }));
+        }
+        return {
+          cellId: resolved.cellId,
+          identityHash: resolved.anchor.identity_action_hash
+        };
       });
 
     return {
@@ -486,23 +519,51 @@ export const NdoServiceLive: Layer.Layer<
             .pipe(E.mapError((e) => ResourceError.fromError(e, 'CREATE_NDO_ANCHOR')));
         }),
 
-      joinNdo: () =>
-        E.fail(
-          new NdoNotImplementedError({
-            feature: 'join_ndo',
-            message:
-              'NDO membership is not yet implemented on the DHT. See documentation/zomes/resource_zome.md § NDO membership (planned).'
-          })
-        ),
+      joinNdo: (ndoHashB64) =>
+        E.gen(function* () {
+          const { cellId, identityHash } = yield* resolveNdoCellOrFail(ndoHashB64);
+          const myPubKey = yield* E.tryPromise({
+            try: () => holochainClient.getMyAgentPubKey(),
+            catch: (e) => ResourceError.fromError(e, 'NDO_CELL_JOIN_NDO')
+          });
 
-      getNdoMembers: () =>
-        E.fail(
-          new NdoNotImplementedError({
-            feature: 'get_ndo_members',
-            message:
-              'NDO member listing is not yet implemented on the DHT. See documentation/zomes/resource_zome.md § NDO membership (planned).'
-          })
-        )
+          // Idempotent by design: re-joining is a benign no-op, not an error the user
+          // should see. Mirrors the group's self-healing membership (REQ-UI-GRP-04).
+          const alreadyMember = yield* callNdoZome<boolean>(cellId, 'is_ndo_member', [
+            myPubKey,
+            identityHash
+          ]).pipe(E.catchAll(() => E.succeed(false)));
+          if (alreadyMember) return;
+
+          yield* callNdoZome<unknown>(cellId, 'join_ndo', {
+            ndo_identity_hash: identityHash,
+            role: null
+          });
+        }),
+
+      getNdoMembers: (ndoHashB64) =>
+        E.gen(function* () {
+          const { cellId, identityHash } = yield* resolveNdoCellOrFail(ndoHashB64);
+          const members = yield* callNdoZome<AgentPubKey[]>(
+            cellId,
+            'get_ndo_members',
+            identityHash
+          );
+
+          // Person entries live in the provisioned nondominium cell, not the ndo clone,
+          // so names are resolved separately. An agent with no Person entry yet is normal
+          // (REQ-UI-ID-03 defers Person creation); fall back to a truncated pubkey, the
+          // same convention the initiator display uses (REQ-UI-NDO-02).
+          const persons = yield* person.getAllPersons().pipe(E.catchAll(() => E.succeed([])));
+          const nameByKey = new Map(
+            persons.map((p) => [encodeHashToBase64(p.agent_pub_key), p.name])
+          );
+
+          return members.map((key) => {
+            const id = encodeHashToBase64(key);
+            return { id, name: nameByKey.get(id) ?? `${id.slice(0, 8)}…${id.slice(-4)}` };
+          });
+        })
     } satisfies NdoService;
   })
 );
