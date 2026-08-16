@@ -127,13 +127,48 @@ test.describe.serial('nondominium multi-agent flows', () => {
     );
   });
 
-  test('agent 2 opens the NDO detail from the shared group', async () => {
+  test('agent 2 opens the NDO detail (derives the ndo cell from anchor coordinates)', async () => {
+    test.setTimeout(240_000);
+    // Bob never created this NDO and has not joined its cell. Opening the detail
+    // resolves the ndo clone cell from the NdoAnchor coordinates
+    // (ensureNdoCloneCell) and reads the live identity via get_ndo.
     await bob.getByRole('heading', { name: NDO_NAME }).click();
     await bob.waitForURL(/\/ndo\//);
-    await expect(bob.getByRole('heading', { name: NDO_NAME })).toBeVisible({ timeout: 60_000 });
+    await expect(bob.getByRole('heading', { name: NDO_NAME })).toBeVisible({ timeout: 90_000 });
     await expect(bob.getByText('Lifecycle stage')).toBeVisible();
-    // TODO(#117 + Phase B join-from-anchor UI): once NDO-per-cell merges,
-    // assert the deep link resolves from NdoAnchor coordinates (no shared-DHT
-    // entry) and that agent 2 can join the NDO cell and read live data.
+  });
+
+  test('lifecycle transition by agent 1 is read live by agent 2 from the ndo cell', async () => {
+    test.setTimeout(360_000);
+    // Alice (the initiator) advances Ideation → Specification on her ndo cell.
+    await expectEventually(alice, async () => {
+      await expect(alice.getByRole('heading', { name: NDO_NAME })).toBeVisible();
+    });
+    await alice.getByRole('heading', { name: NDO_NAME }).click();
+    await alice.waitForURL(/\/ndo\//);
+    await expect(alice.getByRole('button', { name: 'Advance stage →' })).toBeVisible({
+      timeout: 90_000
+    });
+    await alice.getByRole('button', { name: 'Advance stage →' }).click();
+    await expect(alice.getByRole('heading', { name: 'Advance lifecycle stage' })).toBeVisible();
+    await alice.getByRole('radio', { name: 'Specification' }).check();
+    await alice.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await expect(alice.getByRole('heading', { name: 'Advance lifecycle stage' })).toBeHidden({
+      timeout: 60_000
+    });
+
+    // Bob reloads the open NDO detail; the live read from the ndo cell must show
+    // Specification. The group NdoAnchor cache is NOT refreshed on transition in
+    // v0.1.0, so bob's card would still show Ideation — only a real live-cell
+    // read can surface the new stage, which is what this asserts.
+    await expectEventually(
+      bob,
+      async () => {
+        await expect(bob.getByText('Specification', { exact: true })).toBeVisible({
+          timeout: 5_000
+        });
+      },
+      { timeoutMs: 240_000, pollMs: 6_000, onPoll: async () => { await bob.reload(); } }
+    );
   });
 });

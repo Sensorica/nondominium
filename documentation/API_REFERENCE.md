@@ -1397,12 +1397,33 @@ Returns Records for `WorkLog` entries authored by the calling agent (via `AgentT
 
 ### Soft Links
 
+> **Note**: SoftLinks are no longer the Group → NDO pointer — see NDO Anchors below. They remain available for planning-level links.
+
 #### `create_soft_link(input: SoftLinkInput) -> ExternResult<Record>`
 **Input**: `{ group_hash: ActionHash, target_ndo_hash: ActionHash, description: Option<String> }`
-Creates a `SoftLink` entry — the Group → NDO relationship in the `Lobby → Groups → NDOs` hierarchy. No PPRs generated (ADR-GROUP-04). Creator = action author.
+Creates a `SoftLink` entry — a planning-level Group → NDO relationship. No PPRs generated (ADR-GROUP-04). Creator = action author.
 
 #### `get_soft_links(group_hash: ActionHash) -> ExternResult<Vec<Record>>`
 Returns Records for all `SoftLink` entries in the group. Creator = `record.action().author()`.
+
+### NDO Anchors
+
+The authoritative Group → NDO pointer in the `Lobby → Groups → NDOs` hierarchy (ADR-011). Each NDO is its own cloned `ndo` cell (ADR-010); the anchor carries the coordinates needed to re-derive, verify, and join that cell, plus cached fields so browsing never joins it. Rationale: `documentation/specifications/adr/ADR-010-013-per-ndo-cells.md`.
+
+#### `create_ndo_anchor(input: NdoAnchorInput) -> ExternResult<Record>`
+**Input**: `{ group_hash: ActionHash, name: String, description: Option<String>, ndo_dna_hash: DnaHash, network_seed: String, identity_action_hash: ActionHash, initiator: AgentPubKey, ndo_created_at: Timestamp, lifecycle_stage: LifecycleStage, property_regime: PropertyRegime, resource_nature: ResourceNature }`
+Creates an `NdoAnchor` and links it from the group (`GroupToNdoAnchors`). Anchor author and timestamp come from the action header. The same NDO may be anchored in several groups.
+
+#### `get_ndo_anchors(group_hash: ActionHash) -> ExternResult<Vec<Record>>`
+Returns the latest Record for every anchor in the group, resolving the `NdoAnchorUpdates` chain so cached descriptor fields reflect the most recent sync.
+
+#### `update_ndo_anchor(input: UpdateNdoAnchorInput) -> ExternResult<Record>`
+**Input**: `{ original_action_hash: ActionHash, previous_action_hash: ActionHash, updated_name: String, updated_description: Option<String>, updated_lifecycle_stage: LifecycleStage }`
+Refreshes an anchor's cached descriptor. Identity coordinates are copied from the original entry, and integrity **rejects** any update that changes them (`validate_ndo_anchor_update`), so an update can never repoint a group at a different NDO cell.
+
+#### `refresh_ndo_anchor_lifecycle_stage(input: RefreshAnchorLifecycleInput) -> ExternResult<Option<Record>>`
+**Input**: `{ group_hash: ActionHash, identity_action_hash: ActionHash, updated_lifecycle_stage: LifecycleStage }`
+Re-syncs one anchor's cached `lifecycle_stage` after an NDO lifecycle transition, resolving the anchor **by NDO identity** rather than by action hash — the client knows the NDO, while the original-vs-latest anchor action hashes belong to the group's link graph. Returns `Ok(None)` when no anchor in this group points at that NDO (a no-op, not an error).
 
 ---
 

@@ -1,11 +1,13 @@
-import { Context, Effect as E, Layer, pipe } from 'effect';
-import type { ActionHash } from '@holochain/client';
+import { Context, Effect as E, Layer } from 'effect';
+import type { ActionHash, CellId } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import type {
   NdoDescriptor,
   NdoOutput,
   NondominiumIdentity,
   NdoInput,
+  NdoDnaProperties,
+  NdoAnchorEntry,
   UpdateLifecycleStageInput,
   NdoTransitionHistoryEvent
 } from '@nondominium/shared-types';
@@ -13,11 +15,17 @@ import { NdoNotFoundError, NdoNotImplementedError } from '$lib/errors/ndo.errors
 import { ResourceError } from '$lib/errors/resource.errors';
 import {
   ResourceServiceTag,
-  ResourceServiceResolved,
-  type ResourceService
+  ResourceServiceResolved
 } from './resource.service';
 import { LobbyServiceTag, LobbyServiceResolved } from './lobby.service';
 import { GroupServiceTag, GroupServiceResolved } from './group.service';
+import {
+  HolochainClientServiceTag,
+  HolochainClientServiceLive
+} from '../holochain.service.svelte';
+import { generateNdoNetworkSeed } from '../ndo-clone.helpers';
+
+// ─── Service interface ────────────────────────────────────────────────────────
 
 export interface NdoService {
   getLobbyNdoDescriptors: () => E.Effect<NdoDescriptor[], ResourceError>;
@@ -29,16 +37,49 @@ export interface NdoService {
   getNdoTransitionHistory: (ndoHash: ActionHash) => E.Effect<NdoTransitionHistoryEvent[], ResourceError>;
   getGroupNdoDescriptors: (groupId: string) => E.Effect<NdoDescriptor[], ResourceError>;
   getAssociatedGroupIds: (ndoHashB64: string) => E.Effect<string[], ResourceError>;
+  /**
+   * Anchors an already-created NDO in a second group, copying the identity
+   * coordinates from an existing anchor. This is what "associate with a group"
+   * means under model A: an NdoAnchor is the only pointer the read paths follow.
+   */
+  associateNdoWithGroup: (
+    ndoHashB64: string,
+    targetGroupId: string
+  ) => E.Effect<void, ResourceError | NdoNotFoundError>;
   joinNdo: (ndoHashB64: string) => E.Effect<void, NdoNotImplementedError>;
   getNdoMembers: (ndoHashB64: string) => E.Effect<{ id: string; name: string }[], NdoNotImplementedError>;
 }
 
-export class NdoServiceTag extends Context.Tag('NdoService')<NdoServiceTag, NdoService>() { }
+export class NdoServiceTag extends Context.Tag('NdoService')<NdoServiceTag, NdoService>() {}
 
-function ndoToDescriptorFields(
-  entry: NondominiumIdentity
-): Omit<NdoDescriptor, 'hash' | 'name'> {
+// ─── Descriptor builders ──────────────────────────────────────────────────────
+
+/**
+ * Card descriptor from an NdoAnchor's cached fields. The lean anchor does not
+ * cache the mutable `successor_ndo_hash` / `hibernation_origin` entry fields;
+ * those are populated from the live entry when the NDO is opened
+ * (identityToDescriptor via the ndo cell).
+ */
+function anchorToDescriptor(anchor: NdoAnchorEntry): NdoDescriptor {
   return {
+    hash: encodeHashToBase64(anchor.identity_action_hash),
+    name: anchor.name,
+    lifecycle_stage: anchor.lifecycle_stage,
+    property_regime: anchor.property_regime,
+    resource_nature: anchor.resource_nature,
+    description: anchor.description,
+    initiator: encodeHashToBase64(anchor.initiator),
+    created_at: Number(anchor.ndo_created_at),
+    successor_ndo_hash: null,
+    hibernation_origin: null
+  };
+}
+
+/** Full descriptor from the live NondominiumIdentity entry (read from the ndo cell). */
+function identityToDescriptor(hash: ActionHash, entry: NondominiumIdentity): NdoDescriptor {
+  return {
+    hash: encodeHashToBase64(hash),
+    name: entry.name,
     lifecycle_stage: String(entry.lifecycle_stage),
     property_regime: String(entry.property_regime),
     resource_nature: String(entry.resource_nature),
@@ -52,127 +93,185 @@ function ndoToDescriptorFields(
   };
 }
 
-function ndoOutputToIdentityDescriptor(ndo: NdoOutput): NdoDescriptor {
+/** One group's cell coordinates plus the anchors it holds (one scan pass). */
+interface GroupAnchors {
+  groupId: string;
+  groupCellId: CellId;
+  groupHash: ActionHash;
+  anchors: NdoAnchorEntry[];
+}
+
+/** A group that anchors a particular NDO identity. */
+interface AnchorMatch {
+  groupId: string;
+  groupCellId: CellId;
+  groupHash: ActionHash;
+  anchor: NdoAnchorEntry;
+}
+
+/** Reconstructs the immutable DNA properties from an anchor's cached fields. */
+function propertiesFromAnchor(anchor: NdoAnchorEntry): NdoDnaProperties {
   return {
-    hash: encodeHashToBase64(ndo.action_hash),
-    name: ndo.entry.name,
-    ...ndoToDescriptorFields(ndo.entry)
+    name: anchor.name,
+    property_regime: anchor.property_regime,
+    resource_nature: anchor.resource_nature,
+    created_at: anchor.ndo_created_at
   };
 }
 
-function identityToDescriptor(hash: ActionHash, entry: NondominiumIdentity): NdoDescriptor {
-  return {
-    hash: encodeHashToBase64(hash),
-    name: entry.name,
-    ...ndoToDescriptorFields(entry)
-  };
-}
-
-const mapListingToDescriptor = (
-  listing: { action_hash: ActionHash; specification: { name: string } },
-  ndoByName: Map<string, NondominiumIdentity>
-): NdoDescriptor => {
-  const entry = ndoByName.get(listing.specification.name);
-  const NULL_NDO_FIELDS: Omit<NdoDescriptor, 'hash' | 'name'> = {
-    lifecycle_stage: null,
-    property_regime: null,
-    resource_nature: null,
-    description: null,
-    initiator: null,
-    created_at: null,
-    successor_ndo_hash: null,
-    hibernation_origin: null
-  };
-  return {
-    hash: encodeHashToBase64(listing.action_hash),
-    name: listing.specification.name,
-    ...(entry ? ndoToDescriptorFields(entry) : NULL_NDO_FIELDS)
-  };
-};
+// ─── Live Layer ───────────────────────────────────────────────────────────────
 
 const NdoServiceDepsResolved = Layer.mergeAll(
   ResourceServiceResolved,
   LobbyServiceResolved,
-  GroupServiceResolved
+  GroupServiceResolved,
+  HolochainClientServiceLive
 );
 
 export const NdoServiceLive: Layer.Layer<
   NdoServiceTag,
   never,
-  ResourceServiceTag | LobbyServiceTag | GroupServiceTag
+  ResourceServiceTag | LobbyServiceTag | GroupServiceTag | HolochainClientServiceTag
 > = Layer.effect(
   NdoServiceTag,
   E.gen(function* () {
     const resource = yield* ResourceServiceTag;
     const lobby = yield* LobbyServiceTag;
     const groupService = yield* GroupServiceTag;
+    const holochainClient = yield* HolochainClientServiceTag;
 
-    const resolveNdoDescriptor = (
-      hashB64: string
-    ): E.Effect<NdoDescriptor | null, ResourceError> =>
-      E.gen(function* () {
-        const hash = decodeHashFromBase64(hashB64) as ActionHash;
-        const entry = yield* resource.getNdo(hash);
-        if (entry) return identityToDescriptor(hash, entry);
-
-        const myNdosOut = yield* resource.getMyNdos().pipe(
-          E.catchAll(() => E.succeed({ ndos: [] as NdoOutput[] }))
-        );
-        const myNdo = myNdosOut.ndos.find(
-          (n) => encodeHashToBase64(n.action_hash) === hashB64
-        );
-        if (myNdo) return ndoOutputToIdentityDescriptor(myNdo);
-
-        const [listings, ndosOut] = yield* E.all(
-          [resource.getAllResourceSpecifications(), resource.getAllNdos()],
-          { concurrency: 'unbounded' }
-        );
-        const ndoByName = new Map(ndosOut.ndos.map((n) => [n.entry.name, n.entry]));
-        const foundSpec = listings.find((l) => encodeHashToBase64(l.action_hash) === hashB64);
-        if (foundSpec) return mapListingToDescriptor(foundSpec, ndoByName);
-
-        const foundNdo = ndosOut.ndos.find(
-          (n) => encodeHashToBase64(n.action_hash) === hashB64
-        );
-        if (foundNdo) return ndoOutputToIdentityDescriptor(foundNdo);
-        return null;
+    /** Call a zome_resource function on a specific ndo clone cell. */
+    const callNdoZome = <T>(
+      cellId: CellId,
+      fn: string,
+      payload: unknown
+    ): E.Effect<T, ResourceError> =>
+      E.tryPromise({
+        try: async () => {
+          if (!holochainClient.isConnected) await holochainClient.connectClient();
+          return holochainClient.callZome(
+            'zome_resource',
+            fn,
+            payload,
+            undefined,
+            undefined,
+            cellId
+          ) as Promise<T>;
+        },
+        catch: (e) => ResourceError.fromError(e, `NDO_CELL_${fn.toUpperCase()}`)
       });
 
-    const collectSoftLinkHashes = (): E.Effect<Map<string, Set<string>>, ResourceError> =>
+    /** A group's live coordinates: its cell and its GroupProfile action hash. */
+    const groupContext = (
+      groupId: string
+    ): E.Effect<{ groupCellId: CellId; groupHash: ActionHash } | null, ResourceError> =>
       E.gen(function* () {
-        const groups = yield* lobby.getMyGroups().pipe(
-          E.catchAll(() => E.succeed([]))
-        );
-        const groupToHashes = new Map<string, Set<string>>();
+        const cell = yield* lobby.getGroupCell(groupId).pipe(E.catchAll(() => E.succeed(null)));
+        const groupHashB64 = yield* lobby
+          .getGroupHash(groupId)
+          .pipe(E.catchAll(() => E.succeed(null)));
+        if (!cell || !groupHashB64) return null;
+        return {
+          groupCellId: cell.cellId,
+          groupHash: decodeHashFromBase64(groupHashB64) as ActionHash
+        };
+      });
+
+    /** Collect the NdoAnchors for one group. */
+    const anchorsForGroup = (groupId: string): E.Effect<NdoAnchorEntry[], ResourceError> =>
+      E.gen(function* () {
+        const ctx = yield* groupContext(groupId);
+        if (!ctx) return [];
+        return yield* groupService
+          .getNdoAnchors(ctx.groupCellId, ctx.groupHash)
+          .pipe(E.catchAll(() => E.succeed([])));
+      });
+
+    /**
+     * ONE pass over the agent's groups. Every question about "where is this NDO
+     * anchored" is answered from a single scan — resolving the cell, listing the
+     * associated groups, and refreshing caches after a transition all reuse it
+     * rather than re-walking every group cell.
+     */
+    const scanGroupAnchors = (): E.Effect<GroupAnchors[], ResourceError> =>
+      E.gen(function* () {
+        const groups = yield* lobby.getMyGroups().pipe(E.catchAll(() => E.succeed([])));
+        const scan: GroupAnchors[] = [];
         for (const g of groups) {
-          const cell = yield* lobby.getGroupCell(g.id).pipe(E.catchAll(() => E.succeed(null)));
-          if (!cell) continue;
-          const hashes = yield* groupService.getSoftLinkTargetHashes(cell.cellId).pipe(
-            E.catchAll(() => E.succeed([] as string[]))
-          );
-          groupToHashes.set(g.id, new Set(hashes));
+          const ctx = yield* groupContext(g.id);
+          if (!ctx) continue;
+          const anchors = yield* groupService
+            .getNdoAnchors(ctx.groupCellId, ctx.groupHash)
+            .pipe(E.catchAll(() => E.succeed([] as NdoAnchorEntry[])));
+          scan.push({ groupId: g.id, ...ctx, anchors });
         }
-        return groupToHashes;
+        return scan;
+      });
+
+    /** Every group that anchors this NDO identity, from one scan. */
+    const matchesForIdentity = (
+      identityHashB64: string
+    ): E.Effect<AnchorMatch[], ResourceError> =>
+      E.gen(function* () {
+        const scan = yield* scanGroupAnchors();
+        const matches: AnchorMatch[] = [];
+        for (const g of scan) {
+          const anchor = g.anchors.find(
+            (a) => encodeHashToBase64(a.identity_action_hash) === identityHashB64
+          );
+          if (anchor) {
+            matches.push({
+              groupId: g.groupId,
+              groupCellId: g.groupCellId,
+              groupHash: g.groupHash,
+              anchor
+            });
+          }
+        }
+        return matches;
+      });
+
+    /** Provisions (or reuses) the ndo clone cell an anchor's coordinates name. */
+    const ensureCellForAnchor = (anchor: NdoAnchorEntry): E.Effect<CellId, ResourceError> =>
+      E.tryPromise({
+        try: () =>
+          holochainClient.ensureNdoCloneCell(anchor.ndo_dna_hash, {
+            networkSeed: anchor.network_seed,
+            properties: propertiesFromAnchor(anchor)
+          }),
+        catch: (e) => ResourceError.fromError(e, 'ENSURE_NDO_CELL')
+      });
+
+    /**
+     * Finds the anchor for an NDO identity, then ensures the ndo clone cell is
+     * present (creating it from coordinates for a peer who never joined it).
+     * Returns null if no anchor is found — the caller falls back to legacy
+     * shared-cell reads. `matches` is handed back so callers that also need the
+     * group list do not scan a second time.
+     */
+    const resolveNdoCellForIdentity = (
+      identityHashB64: string
+    ): E.Effect<{ cellId: CellId; anchor: NdoAnchorEntry; matches: AnchorMatch[] } | null, ResourceError> =>
+      E.gen(function* () {
+        const matches = yield* matchesForIdentity(identityHashB64);
+        const first = matches[0];
+        if (!first) return null;
+        const cellId = yield* ensureCellForAnchor(first.anchor);
+        return { cellId, anchor: first.anchor, matches };
       });
 
     return {
       getLobbyNdoDescriptors: () =>
         E.gen(function* () {
-          const groupToHashes = yield* collectSoftLinkHashes();
-          const allHashes = new Set<string>();
-          for (const hashes of groupToHashes.values()) {
-            for (const h of hashes) allHashes.add(h);
-          }
-          if (allHashes.size === 0) return [];
-
+          const scan = yield* scanGroupAnchors();
           const descriptors: NdoDescriptor[] = [];
           const seen = new Set<string>();
-          for (const hb64 of allHashes) {
-            if (seen.has(hb64)) continue;
-            const d = yield* resolveNdoDescriptor(hb64).pipe(E.catchAll(() => E.succeed(null)));
-            if (d) {
-              seen.add(hb64);
-              descriptors.push(d);
+          for (const g of scan) {
+            for (const a of g.anchors) {
+              const id = encodeHashToBase64(a.identity_action_hash);
+              if (seen.has(id)) continue;
+              seen.add(id);
+              descriptors.push(anchorToDescriptor(a));
             }
           }
           return descriptors;
@@ -181,73 +280,210 @@ export const NdoServiceLive: Layer.Layer<
       getNdoDescriptorForSpecActionHash: (hash) =>
         E.gen(function* () {
           const hashB64 = encodeHashToBase64(hash);
-          const entry = yield* resource.getNdo(hash);
-          if (entry) return identityToDescriptor(hash, entry);
 
-          const resolved = yield* resolveNdoDescriptor(hashB64);
-          if (resolved) return resolved;
+          // Per-cell path: resolve the ndo cell from the anchor and read the live entry.
+          const resolved = yield* resolveNdoCellForIdentity(hashB64).pipe(
+            E.catchAll(() => E.succeed(null))
+          );
+          if (resolved) {
+            const entry = yield* callNdoZome<NondominiumIdentity | null>(
+              resolved.cellId,
+              'get_ndo',
+              hash
+            );
+            if (entry) return identityToDescriptor(hash, entry);
+          }
+
+          // Legacy shared-cell fallback (NDOs created before per-cell migration).
+          const legacy = yield* resource.getNdo(hash);
+          if (legacy) return identityToDescriptor(hash, legacy);
 
           return yield* E.fail(new NdoNotFoundError({ hash: hashB64 }));
         }),
 
       createNdo: (input, groupId) =>
         E.gen(function* () {
-          const ndoOut = yield* resource.createNdo(input);
-          const hashB64 = encodeHashToBase64(ndoOut.action_hash);
+          const myPubKey = yield* E.tryPromise({
+            try: () => holochainClient.getMyAgentPubKey(),
+            catch: (e) => ResourceError.fromError(e, 'CREATE_NDO_PUBKEY')
+          });
+          // Microseconds — the unit of Holochain sys_time / Timestamp — derived
+          // from a millisecond wall clock, so this is NOT a uniqueness source;
+          // `networkSeed` below is what makes two identically-classified NDOs
+          // distinct. The anchor caches THIS value (not the entry's sys_time) so
+          // peers re-derive the exact same DnaHash from the anchor coordinates.
+          const createdAt = Date.now() * 1000;
+          const properties: NdoDnaProperties = {
+            name: input.name,
+            property_regime: input.property_regime,
+            resource_nature: input.resource_nature,
+            created_at: createdAt
+          };
+          const networkSeed = generateNdoNetworkSeed();
 
-          const cell = yield* lobby.getGroupCell(groupId).pipe(
-            E.catchAll(() => E.succeed(null))
-          );
-          const group = (yield* lobby.getMyGroups().pipe(E.catchAll(() => E.succeed([])))).find(
-            (g) => g.id === groupId
-          );
-
-          if (cell && group?.groupHash) {
-            yield* groupService
-              .createSoftLink(
-                cell.cellId,
-                group.groupHash,
-                hashB64,
-                input.description ?? input.name
+          // 0. Resolve the destination group FIRST. The anchor is the only pointer
+          // any read path follows, so a group we cannot anchor into means the NDO
+          // would be unreachable — better to fail before provisioning a cell than
+          // to leave an orphan behind.
+          const ctx = yield* groupContext(groupId);
+          if (!ctx) {
+            return yield* E.fail(
+              ResourceError.fromError(
+                new Error(
+                  `Group ${groupId} has no resolvable cell or profile hash; refusing to create an NDO that could not be anchored.`
+                ),
+                'CREATE_NDO_ANCHOR'
               )
-              .pipe(E.catchAll(() => E.void));
+            );
           }
+
+          // 1. Provision the per-NDO clone cell (DnaHash bound to identity via properties).
+          const cloned = yield* E.tryPromise({
+            try: () => holochainClient.createNdoCloneCell({ networkSeed, properties }),
+            catch: (e) => ResourceError.fromError(e, 'CREATE_NDO_CLONE_CELL')
+          });
+          const ndoCellId = cloned.cell_id;
+          const ndoDnaHash = cloned.cell_id[0];
+
+          // 2. Genesis identity inside the ndo cell (entry bound to properties, ADR-013).
+          const ndoOut = yield* callNdoZome<NdoOutput>(ndoCellId, 'create_ndo', {
+            name: input.name,
+            property_regime: input.property_regime,
+            resource_nature: input.resource_nature,
+            lifecycle_stage: input.lifecycle_stage,
+            description: input.description ?? null
+          });
+
+          // 3. Anchor in the group cell with full clone coordinates. NOT
+          // best-effort: a swallowed failure here leaves a cell nobody — including
+          // its creator — can ever reach again.
+          // `initiator` is cached from the app agent key (== the entry's initiator
+          // in production, which shares one key across cells); it is NOT part of the
+          // DNA properties (binary can't transit YamlProperties) — display-only here.
+          yield* groupService
+            .createNdoAnchor(ctx.groupCellId, {
+              group_hash: ctx.groupHash,
+              name: input.name,
+              description: input.description ?? null,
+              ndo_dna_hash: ndoDnaHash,
+              network_seed: networkSeed,
+              identity_action_hash: ndoOut.action_hash,
+              initiator: myPubKey,
+              ndo_created_at: createdAt,
+              lifecycle_stage: input.lifecycle_stage,
+              property_regime: input.property_regime,
+              resource_nature: input.resource_nature
+            })
+            .pipe(E.mapError((e) => ResourceError.fromError(e, 'CREATE_NDO_ANCHOR')));
 
           return ndoOut.action_hash;
         }),
 
-      updateLifecycleStage: (input) => resource.updateLifecycleStage(input),
+      updateLifecycleStage: (input) =>
+        E.gen(function* () {
+          const hashB64 = encodeHashToBase64(input.original_action_hash);
+          const resolved = yield* resolveNdoCellForIdentity(hashB64).pipe(
+            E.catchAll(() => E.succeed(null))
+          );
+          if (resolved) {
+            const updatedHash = yield* callNdoZome<ActionHash>(
+              resolved.cellId,
+              'update_lifecycle_stage',
+              input
+            );
 
-      getNdoTransitionHistory: (ndoHash) => resource.getNdoTransitionHistory(ndoHash),
+            // Refresh the cached lifecycle_stage on every anchor for this NDO so
+            // lobby/group cards reflect the new stage without a full reload (and
+            // peers converge as the update gossips). Only the groups that actually
+            // anchor it are touched — `resolved.matches` already names them, so no
+            // second walk over every group cell. Best-effort: a missed refresh
+            // leaves a card on the prior stage until the next reload, never a
+            // failed transition.
+            for (const m of resolved.matches) {
+              yield* groupService
+                .refreshNdoAnchorLifecycleStage(
+                  m.groupCellId,
+                  m.groupHash,
+                  input.original_action_hash,
+                  input.new_stage
+                )
+                .pipe(E.catchAll(() => E.void));
+            }
+
+            return updatedHash;
+          }
+          // Legacy shared-cell fallback.
+          return yield* resource.updateLifecycleStage(input);
+        }),
+
+      getNdoTransitionHistory: (ndoHash) =>
+        E.gen(function* () {
+          const hashB64 = encodeHashToBase64(ndoHash);
+          const resolved = yield* resolveNdoCellForIdentity(hashB64).pipe(
+            E.catchAll(() => E.succeed(null))
+          );
+          if (resolved) {
+            return yield* callNdoZome<NdoTransitionHistoryEvent[]>(
+              resolved.cellId,
+              'get_ndo_transition_history',
+              ndoHash
+            ).pipe(E.catchAll(() => E.succeed([])));
+          }
+          return yield* resource.getNdoTransitionHistory(ndoHash);
+        }),
 
       getGroupNdoDescriptors: (groupId) =>
         E.gen(function* () {
-          const cell = yield* lobby.getGroupCell(groupId).pipe(
-            E.catchAll(() => E.succeed(null))
-          );
-          if (!cell) return [];
-
-          const hashes = yield* groupService.getSoftLinkTargetHashes(cell.cellId).pipe(
-            E.catchAll(() => E.succeed([] as string[]))
-          );
-          if (hashes.length === 0) return [];
-
-          const descriptors: NdoDescriptor[] = [];
-          for (const hb64 of hashes) {
-            const d = yield* resolveNdoDescriptor(hb64).pipe(E.catchAll(() => E.succeed(null)));
-            if (d) descriptors.push(d);
-          }
-          return descriptors;
+          const anchors = yield* anchorsForGroup(groupId);
+          return anchors.map(anchorToDescriptor);
         }),
 
       getAssociatedGroupIds: (ndoHashB64) =>
         E.gen(function* () {
-          const groupToHashes = yield* collectSoftLinkHashes();
-          const associated: string[] = [];
-          for (const [groupId, hashes] of groupToHashes) {
-            if (hashes.has(ndoHashB64)) associated.push(groupId);
+          const matches = yield* matchesForIdentity(ndoHashB64);
+          return matches.map((m) => m.groupId);
+        }),
+
+      associateNdoWithGroup: (ndoHashB64, targetGroupId) =>
+        E.gen(function* () {
+          const matches = yield* matchesForIdentity(ndoHashB64);
+          const source = matches[0];
+          if (!source) {
+            // Nothing to copy coordinates from: an NDO with no anchor anywhere in
+            // the agent's groups cannot be re-anchored, only re-created.
+            return yield* E.fail(new NdoNotFoundError({ hash: ndoHashB64 }));
           }
-          return associated;
+          if (matches.some((m) => m.groupId === targetGroupId)) return; // already anchored
+
+          const target = yield* groupContext(targetGroupId);
+          if (!target) {
+            return yield* E.fail(
+              ResourceError.fromError(
+                new Error(`Group ${targetGroupId} has no resolvable cell or profile hash.`),
+                'CREATE_NDO_ANCHOR'
+              )
+            );
+          }
+
+          // Same NDO identity, same clone coordinates, new owning group. The
+          // cached descriptor fields come from the source anchor so the card
+          // renders identically in both groups until the next refresh.
+          const a = source.anchor;
+          yield* groupService
+            .createNdoAnchor(target.groupCellId, {
+              group_hash: target.groupHash,
+              name: a.name,
+              description: a.description,
+              ndo_dna_hash: a.ndo_dna_hash,
+              network_seed: a.network_seed,
+              identity_action_hash: a.identity_action_hash,
+              initiator: a.initiator,
+              ndo_created_at: a.ndo_created_at,
+              lifecycle_stage: a.lifecycle_stage,
+              property_regime: a.property_regime,
+              resource_nature: a.resource_nature
+            })
+            .pipe(E.mapError((e) => ResourceError.fromError(e, 'CREATE_NDO_ANCHOR')));
         }),
 
       joinNdo: () =>

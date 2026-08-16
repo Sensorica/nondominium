@@ -131,6 +131,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | Document | Description | Status |
 | --- | --- | --- |
 | **[Technical Specifications](specifications/specifications.md)** | Detailed data structures, zome functions, cross-zome interfaces | ✅ Complete |
+| **[ADR-010…013 — Per-NDO cells](specifications/adr/ADR-010-013-per-ndo-cells.md)** | One cloned cell per NDO, group `NdoAnchor` discovery, DnaHash bound to Layer 0 via DNA properties | ✅ Active |
 | **[Architecture Overview](zomes/architecture_overview.md)** | Comprehensive system architecture & cross-zome integration | ✅ Complete |
 | **[Governance Operator Architecture](specifications/governance/governance-operator-architecture.md)** | Technical architecture for modular governance design | ✅ Complete |
 | **[Governance Implementation Guide](specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples | ✅ Complete |
