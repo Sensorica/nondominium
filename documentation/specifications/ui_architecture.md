@@ -261,7 +261,7 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 | `getNdoTransitionHistory(hash)` | `resource.getNdoTransitionHistory(hash)` (zome fn not yet implemented; returns `[]`) |
 | `getGroupNdoDescriptors(groupId)` | `get_soft_links` → resolve each target via `resource.getNdo` |
 | `getAssociatedGroupIds(ndoHashB64)` | SoftLink scan across agent's groups |
-| `joinNdo` / `getNdoMembers` | Stub — `NdoNotImplementedError` until `zome_resource` implements membership |
+| `joinNdo` / `getNdoMembers` | DHT-backed via `zome_resource` `join_ndo` / `get_ndo_members` on the per-NDO clone cell; `joinNdo` is idempotent |
 
 ### `lobby.service.ts` — LobbyServiceTag (Group + Lobby DNA)
 

@@ -66,36 +66,41 @@ All other fields are permanently immutable after creation. Delete is always `Inv
 
 **Lifecycle links**: `NdoToSuccessor` (deprecated NDO → successor NDO, REQ-NDO-LC-06), `NdoToTransitionEvent` (NDO → triggering `EconomicEvent`, REQ-NDO-L0-05)
 
-### NDO membership (planned — MVP UI stub)
+### NDO membership
 
-> **Status**: UI flow exists in `NdoView.svelte`; coordinator functions are **not yet implemented** in `zome_resource`. Distinct from **Group `SoftLink`** association (curated NDO list per group).
+> **Status**: **Implemented.** Coordinator functions live in `zome_resource/src/ndo_membership.rs`; UI flow in `NdoView.svelte`. Distinct from **Group `SoftLink`** association (curated NDO list per group).
 
-When implemented, NDO membership lets an agent join an NDO as a participant/contributor independent of group membership.
+NDO membership lets an agent declare participation in an NDO independently of group membership.
 
-**Planned coordinator API** (`zome_resource`):
+**It is not an access grant.** Under the per-NDO-cell model (ADR-010 model A) an agent must already hold the cloned NDO cell to read the NDO at all, so cell possession is what confers access. `NdoMembership` makes participation *listable*; no code may treat its absence as a read denial.
+
+**Coordinator API** (`zome_resource`):
 
 | Function | Input | Output | Notes |
 |---|---|---|---|
-| `join_ndo` | `ndo_identity_hash: ActionHash` | `Record` (`NdoMembership`) | Agent signs membership; creates discovery links |
-| `get_ndo_members` | `ndo_identity_hash: ActionHash` | `Vec<Record>` | Public member list for UI |
+| `join_ndo` | `JoinNdoInput { ndo_identity_hash, role }` | `Record` (`NdoMembership`) | Idempotent: a second join returns `AlreadyMember`. Verifies the identity exists in this cell. |
+| `get_ndo_members` | `ndo_identity_hash: ActionHash` | `Vec<AgentPubKey>` | Members read from link **authors**, never a per-link `get` (see below) |
+| `is_ndo_member` | `(AgentPubKey, ActionHash)` | `bool` | "Is this agent taking part", never "may this agent read" |
 
-**Planned integrity entries**:
+**Integrity entry**:
 
 ```rust
 pub struct NdoMembership {
-    pub ndo_hash: ActionHash,
-    pub agent: AgentPubKey,
-    pub joined_at: Timestamp,
+    pub ndo_identity_hash: ActionHash,
     pub role: Option<String>, // e.g. "contributor", "observer" — community-defined
 }
 ```
 
-**Planned links**:
+The joining agent and join time are **not** stored in the entry: they come from the action header (`record.action().author()` / `.timestamp()`), matching the `GroupMembership` convention in the group DNA.
 
-- `NdoToMembers` — NDO identity hash → membership entry hashes (discovery)
-- `AgentToNdoMemberships` — agent pubkey → membership entry hashes (agent-centric query)
+**Links**:
 
-**UI contract** (`ndo.service.ts`): `joinNdo(hashB64)` and `getNdoMembers(hashB64)` return `NdoNotImplementedError` until the zome functions above land.
+- `NdoToMembers` — NDO identity hash → `NdoMembership` (discovery)
+- `MemberToNdos` — member pubkey → NDO identity hash (duplicate-join guard, resolved from local state)
+
+**Why members come from link authors**: `get_ndo_members` reads each `NdoToMembers` link's `author` rather than fetching the linked record. A per-link `get` can fail when another member's record has not yet gossiped to this shard, silently dropping that member so only the local agent appears. That exact bug was found and fixed in `zome_group`; do not reintroduce it.
+
+**Not in scope**: `leave_ndo` (no UI affordance yet), and `Person` entry creation on join (REQ-UI-ID-03 names joining an NDO as a Level 3 trigger, but that is a separate change to the identity model).
 
 **TODO (post-MVP)**: `get_ndo_transition_history(ndo_hash) -> Vec<NdoTransitionHistoryEvent>` for lifecycle audit panel (`TransitionHistoryPanel.svelte`).
 
