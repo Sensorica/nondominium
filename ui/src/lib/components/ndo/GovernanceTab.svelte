@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionHash, AgentPubKey } from '@holochain/client';
+  import type { ActionHash, AgentPubKey, CellId } from '@holochain/client';
   import type {
     GovernanceRule,
     PersonRole,
@@ -18,6 +18,8 @@
   interface Props {
     /** NDO Layer 0 action hash. */
     specActionHash: ActionHash;
+    /** The NDO's own clone cell; null for legacy NDOs in the shared cell. */
+    ndoCellId?: CellId | null;
     propertyRegime?: string | null;
     resourceNature?: string | null;
     rivalryOverride?: string | null;
@@ -25,6 +27,7 @@
 
   let {
     specActionHash,
+    ndoCellId = null,
     propertyRegime = null,
     resourceNature = null,
     rivalryOverride = null
@@ -54,7 +57,10 @@
   }
 
   async function loadRules() {
-    const listings = await resourceStore.fetchSpecificationsForNdo(specActionHash);
+    const listings = await resourceStore.fetchSpecificationsForNdo(
+      specActionHash,
+      ndoCellId ?? undefined
+    );
     if (listings.length === 0) {
       rules = [];
       loadMessage = 'No Layer 1 specifications yet — create one on the Resources tab before adding rules.';
@@ -64,7 +70,10 @@
     for (const listing of listings) {
       const program = E.gen(function* () {
         const r = yield* ResourceServiceTag;
-        return yield* r.getResourceSpecificationWithRules(listing.action_hash);
+        return yield* r.getResourceSpecificationWithRules(
+          listing.action_hash,
+          ndoCellId ?? undefined
+        );
       });
       const exit = await E.runPromiseExit(pipe(program, E.provide(ResourceServiceResolved)));
       if (Exit.isSuccess(exit)) {
@@ -117,6 +126,7 @@
 {#if showRuleEditor && canCreateRule}
   <RuleEditorModal
     ndoIdentityHash={specActionHash}
+    {ndoCellId}
     propertyRegime={propertyRegime as PropertyRegime}
     resourceNature={resourceNature as ResourceNature}
     rivalryOverride={(rivalryOverride as Rivalry | null) ?? undefined}
@@ -139,7 +149,17 @@
         type="button"
         disabled={!canCreateRule}
         onclick={async () => {
-          const listings = await resourceStore.fetchSpecificationsForNdo(specActionHash);
+          const listings = await resourceStore.fetchSpecificationsForNdo(
+            specActionHash,
+            ndoCellId ?? undefined
+          );
+          // A rule with no specification_hash is written but never linked, so no
+          // read path can surface it again. Refuse rather than orphan it.
+          if (listings.length === 0) {
+            loadMessage =
+              'No Layer 1 specifications yet - create one on the Resources tab before adding rules.';
+            return;
+          }
           editorSpecHash = listings[0]?.action_hash;
           showRuleEditor = true;
         }}

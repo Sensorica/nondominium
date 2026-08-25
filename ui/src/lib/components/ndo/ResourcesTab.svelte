@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionHash } from '@holochain/client';
+  import type { ActionHash, CellId } from '@holochain/client';
   import type { EconomicResourceRow } from '$lib/utils/holochain-records';
   import type { LifecycleStage, ResourceSpecificationListing } from '@nondominium/shared-types';
   import { operationalStateLabel } from '$lib/utils/operational-state-labels';
@@ -14,10 +14,12 @@
   interface Props {
     /** NDO Layer 0 action hash (prop name kept for NdoView compatibility). */
     specActionHash: ActionHash;
+    /** The NDO's own clone cell; null for legacy NDOs in the shared cell. */
+    ndoCellId?: CellId | null;
     lifecycleStage?: LifecycleStage | string | null;
   }
 
-  let { specActionHash, lifecycleStage = null }: Props = $props();
+  let { specActionHash, ndoCellId = null, lifecycleStage = null }: Props = $props();
 
   let listings = $state<ResourceSpecificationListing[]>([]);
   let instancesBySpec = $state<Map<string, EconomicResourceRow[]>>(new Map());
@@ -28,13 +30,19 @@
   const canCreateSpec = $derived(!lifecycleStage || !ineligibleStages.has(lifecycleStage));
 
   async function load() {
-    const specs = await resourceStore.fetchSpecificationsForNdo(specActionHash);
+    const specs = await resourceStore.fetchSpecificationsForNdo(
+      specActionHash,
+      ndoCellId ?? undefined
+    );
     listings = specs;
     const next = new Map<string, EconomicResourceRow[]>();
     for (const listing of specs) {
       const program = E.gen(function* () {
         const svc = yield* ResourceServiceTag;
-        return yield* svc.getResourcesBySpecification(listing.action_hash);
+        return yield* svc.getResourcesBySpecification(
+          listing.action_hash,
+          ndoCellId ?? undefined
+        );
       });
       const exit = await E.runPromiseExit(pipe(program, E.provide(ResourceServiceResolved)));
       next.set(listing.action_hash.toString(), Exit.isSuccess(exit) ? exit.value : []);
@@ -45,6 +53,7 @@
 
   $effect(() => {
     void specActionHash;
+    void ndoCellId;
     void load();
   });
 </script>
@@ -52,6 +61,7 @@
 {#if showCreateModal}
   <SpecificationCreateModal
     ndoActionHash={specActionHash}
+    {ndoCellId}
     {lifecycleStage}
     onclose={() => {
       showCreateModal = false;

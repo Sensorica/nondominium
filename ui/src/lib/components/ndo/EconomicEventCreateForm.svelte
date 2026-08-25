@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionHash, AgentPubKey } from '@holochain/client';
+  import type { ActionHash, AgentPubKey, CellId } from '@holochain/client';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import type {
     ConstraintViolation,
@@ -14,6 +14,8 @@
 
   interface Props {
     ndoActionHash: ActionHash;
+    /** The NDO's own clone cell; null for legacy NDOs in the shared cell. */
+    ndoCellId?: CellId | null;
     propertyRegime: PropertyRegime;
     resourceNature: ResourceNature;
     rivalryOverride?: Rivalry;
@@ -24,6 +26,7 @@
 
   let {
     ndoActionHash,
+    ndoCellId = null,
     propertyRegime,
     resourceNature,
     rivalryOverride,
@@ -101,12 +104,15 @@
 
   async function runDryRun() {
     dryRunPending = true;
-    violations = await governanceStore.checkActionConstraints({
-      property_regime: propertyRegime,
-      resource_nature: resourceNature,
-      ...(rivalryOverride && { rivalry_override: rivalryOverride }),
-      action
-    });
+    violations = await governanceStore.checkActionConstraints(
+      {
+        property_regime: propertyRegime,
+        resource_nature: resourceNature,
+        ...(rivalryOverride && { rivalry_override: rivalryOverride }),
+        action
+      },
+      ndoCellId ?? undefined
+    );
     dryRunPending = false;
   }
 
@@ -140,19 +146,22 @@
     errorMessage = '';
     const commitment =
       fromCommitmentIdx !== '' ? ndoCommitments[fromCommitmentIdx as number] : undefined;
-    const out = await governanceStore.logEconomicEvent({
-      action,
-      provider,
-      receiver,
-      resource_inventoried_as: resource,
-      resource_quantity: Number(quantity) || 1,
-      note: note.trim() || null,
-      generate_pprs: false,
-      ndo_identity_hash: ndoActionHash,
-      ...(commitment && {
-        commitment_hash: undefined as ActionHash | undefined
-      })
-    });
+    const out = await governanceStore.logEconomicEvent(
+      {
+        action,
+        provider,
+        receiver,
+        resource_inventoried_as: resource,
+        resource_quantity: Number(quantity) || 1,
+        note: note.trim() || null,
+        generate_pprs: false,
+        ndo_identity_hash: ndoActionHash,
+        ...(commitment && {
+          commitment_hash: undefined as ActionHash | undefined
+        })
+      },
+      ndoCellId ?? undefined
+    );
     isSubmitting = false;
     if (out) {
       oncreated?.();

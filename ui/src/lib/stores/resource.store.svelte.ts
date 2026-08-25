@@ -1,5 +1,5 @@
 import { Effect as E, Exit, pipe } from 'effect';
-import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
+import type { ActionHash, AgentPubKey, CellId, EntryHash } from '@holochain/client';
 import {
   ResourceServiceTag,
   ResourceServiceResolved,
@@ -32,10 +32,14 @@ export type ResourceStore = {
   readonly resourcesByCustodian: Map<string, EconomicResource[]>;
 
   createResourceSpecification: (
-    specData: ResourceSpecificationInput
+    specData: ResourceSpecificationInput,
+    cellId?: CellId
   ) => Promise<CreateResourceSpecificationOutput | null>;
   fetchAllResourceSpecifications: () => Promise<void>;
-  fetchSpecificationsForNdo: (ndoHash: ActionHash) => Promise<ResourceSpecificationListing[]>;
+  fetchSpecificationsForNdo: (
+    ndoHash: ActionHash,
+    cellId?: CellId
+  ) => Promise<ResourceSpecificationListing[]>;
   fetchResourceSpecification: (hash: ActionHash) => Promise<ResourceSpecification | null>;
   createEconomicResource: (
     resourceData: Omit<EconomicResource, 'created_at'>
@@ -59,9 +63,10 @@ export type ResourceStore = {
   ) => Promise<ActionHash | null>;
   deleteResourceSpecification: (hash: ActionHash) => Promise<ActionHash | null>;
   archiveEconomicResource: (hash: ActionHash) => Promise<ActionHash | null>;
-  createGovernanceRule: (input: GovernanceRuleInput) => Promise<boolean>;
+  createGovernanceRule: (input: GovernanceRuleInput, cellId?: CellId) => Promise<boolean>;
   checkRuleDataConstraints: (
-    input: CheckRuleDataConstraintsInput
+    input: CheckRuleDataConstraintsInput,
+    cellId?: CellId
   ) => Promise<ConstraintViolation[]>;
   selectResourceSpecification: (specification: ResourceSpecification) => void;
   selectEconomicResource: (resource: EconomicResource) => void;
@@ -109,12 +114,16 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     // ─── Actions ──────────────────────────────────────────────────────────────
 
     async function createResourceSpecification(
-      specData: ResourceSpecificationInput
+      specData: ResourceSpecificationInput,
+      cellId?: CellId
     ): Promise<CreateResourceSpecificationOutput | null> {
-      const out = await run(resourceService.createResourceSpecification(specData));
+      const out = await run(resourceService.createResourceSpecification(specData, cellId));
       if (out) {
-        await fetchAllResourceSpecifications();
-        await fetchSpecificationsForNdo(specData.ndo_identity_hash);
+        // The global anchor lives in whichever DHT the spec was written to.
+        // For a per-NDO cell it is that cell's anchor, so the shared-cell
+        // listing is not refreshed and must not be clobbered with it.
+        if (!cellId) await fetchAllResourceSpecifications();
+        await fetchSpecificationsForNdo(specData.ndo_identity_hash, cellId);
       }
       return out;
     }
@@ -135,9 +144,10 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     }
 
     async function fetchSpecificationsForNdo(
-      ndoHash: ActionHash
+      ndoHash: ActionHash,
+      cellId?: CellId
     ): Promise<ResourceSpecificationListing[]> {
-      const listings = await run(resourceService.getSpecificationsForNdo(ndoHash));
+      const listings = await run(resourceService.getSpecificationsForNdo(ndoHash, cellId));
       const key = ndoHash.toString();
       if (listings) {
         specificationsByNdo.set(key, listings);
@@ -250,15 +260,21 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
       return archiveHash;
     }
 
-    async function createGovernanceRule(input: GovernanceRuleInput): Promise<boolean> {
-      const record = await run(resourceService.createGovernanceRule(input));
+    async function createGovernanceRule(
+      input: GovernanceRuleInput,
+      cellId?: CellId
+    ): Promise<boolean> {
+      const record = await run(resourceService.createGovernanceRule(input, cellId));
       return record != null;
     }
 
     async function checkRuleDataConstraints(
-      input: CheckRuleDataConstraintsInput
+      input: CheckRuleDataConstraintsInput,
+      cellId?: CellId
     ): Promise<ConstraintViolation[]> {
-      const exit = await E.runPromiseExit(resourceService.checkRuleDataConstraints(input));
+      const exit = await E.runPromiseExit(
+        resourceService.checkRuleDataConstraints(input, cellId)
+      );
       return Exit.isSuccess(exit) ? exit.value : [];
     }
 

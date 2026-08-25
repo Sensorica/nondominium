@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionHash } from '@holochain/client';
+  import type { ActionHash, CellId } from '@holochain/client';
   import type {
     Accessibility,
     GovernanceRuleType,
@@ -14,6 +14,8 @@
 
   interface Props {
     ndoIdentityHash: ActionHash;
+    /** The NDO's own clone cell; null for legacy NDOs in the shared cell. */
+    ndoCellId?: CellId | null;
     propertyRegime: PropertyRegime;
     resourceNature: ResourceNature;
     rivalryOverride?: Rivalry;
@@ -24,6 +26,7 @@
 
   let {
     ndoIdentityHash,
+    ndoCellId = null,
     propertyRegime,
     resourceNature,
     rivalryOverride,
@@ -107,12 +110,15 @@
   async function runDryRun() {
     dryRunPending = true;
     const rule_data = buildRuleData();
-    violations = await resourceStore.checkRuleDataConstraints({
-      property_regime: propertyRegime,
-      resource_nature: resourceNature,
-      ...(rivalryOverride && { rivalry_override: rivalryOverride }),
-      rule_data
-    });
+    violations = await resourceStore.checkRuleDataConstraints(
+      {
+        property_regime: propertyRegime,
+        resource_nature: resourceNature,
+        ...(rivalryOverride && { rivalry_override: rivalryOverride }),
+        rule_data
+      },
+      ndoCellId ?? undefined
+    );
     dryRunPending = false;
   }
 
@@ -146,15 +152,18 @@
     }
     isSubmitting = true;
     errorMessage = '';
-    const ok = await resourceStore.createGovernanceRule({
-      rule_data: buildRuleData(),
-      ...(enforcedBy.trim() && { enforced_by: enforcedBy.trim() }),
-      ndo_identity_hash: ndoIdentityHash,
-      property_regime: propertyRegime,
-      resource_nature: resourceNature,
-      ...(rivalryOverride && { rivalry_override: rivalryOverride }),
-      ...(specActionHash && { specification_hash: specActionHash })
-    });
+    const ok = await resourceStore.createGovernanceRule(
+      {
+        rule_data: buildRuleData(),
+        ...(enforcedBy.trim() && { enforced_by: enforcedBy.trim() }),
+        ndo_identity_hash: ndoIdentityHash,
+        property_regime: propertyRegime,
+        resource_nature: resourceNature,
+        ...(rivalryOverride && { rivalry_override: rivalryOverride }),
+        ...(specActionHash && { specification_hash: specActionHash })
+      },
+      ndoCellId ?? undefined
+    );
     isSubmitting = false;
     if (ok) {
       oncreated?.();

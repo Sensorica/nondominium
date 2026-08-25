@@ -1,5 +1,5 @@
 import { Effect as E, Exit, pipe } from 'effect';
-import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
+import type { ActionHash, AgentPubKey, CellId, Timestamp } from '@holochain/client';
 import {
   GovernanceServiceTag,
   GovernanceServiceResolved,
@@ -45,15 +45,19 @@ export type GovernanceStore = {
     commitmentData: Omit<Commitment, 'created_at'>
   ) => Promise<ActionHash | null>;
   proposeCommitment: (
-    input: ProposeCommitmentInput
+    input: ProposeCommitmentInput,
+    cellId?: CellId
   ) => Promise<ProposeCommitmentOutput | null>;
   fetchCommitment: (hash: ActionHash) => Promise<Commitment | null>;
-  fetchAllCommitments: () => Promise<VfCommitment[]>;
+  fetchAllCommitments: (cellId?: CellId) => Promise<VfCommitment[]>;
   fulfillCommitment: (hash: ActionHash) => Promise<ActionHash | null>;
   createEconomicEvent: (
     eventData: Omit<EconomicEvent, 'occurred_at'>
   ) => Promise<ActionHash | null>;
-  logEconomicEvent: (input: LogEconomicEventInput) => Promise<LogEconomicEventOutput | null>;
+  logEconomicEvent: (
+    input: LogEconomicEventInput,
+    cellId?: CellId
+  ) => Promise<LogEconomicEventOutput | null>;
   fetchEconomicEvent: (hash: ActionHash) => Promise<EconomicEvent | null>;
   fetchCommitmentsByProvider: (provider: AgentPubKey) => Promise<Commitment[]>;
   fetchCommitmentsByReceiver: (receiver: AgentPubKey) => Promise<Commitment[]>;
@@ -81,7 +85,8 @@ export type GovernanceStore = {
     agent: AgentPubKey
   ) => Promise<boolean>;
   checkActionConstraints: (
-    input: CheckActionConstraintsInput
+    input: CheckActionConstraintsInput,
+    cellId?: CellId
   ) => Promise<ConstraintViolation[]>;
   createDispute: (
     commitment: ActionHash,
@@ -156,13 +161,14 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
     }
 
     async function proposeCommitment(
-      input: ProposeCommitmentInput
+      input: ProposeCommitmentInput,
+      cellId?: CellId
     ): Promise<ProposeCommitmentOutput | null> {
-      return run(governanceService.proposeCommitment(input));
+      return run(governanceService.proposeCommitment(input, cellId));
     }
 
-    async function fetchAllCommitments(): Promise<VfCommitment[]> {
-      const exit = await E.runPromiseExit(governanceService.getAllCommitments());
+    async function fetchAllCommitments(cellId?: CellId): Promise<VfCommitment[]> {
+      const exit = await E.runPromiseExit(governanceService.getAllCommitments(cellId));
       return Exit.isSuccess(exit) ? exit.value : [];
     }
 
@@ -197,15 +203,19 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
     }
 
     async function logEconomicEvent(
-      input: LogEconomicEventInput
+      input: LogEconomicEventInput,
+      cellId?: CellId
     ): Promise<LogEconomicEventOutput | null> {
-      return run(governanceService.logEconomicEvent(input));
+      return run(governanceService.logEconomicEvent(input, cellId));
     }
 
     async function checkActionConstraints(
-      input: CheckActionConstraintsInput
+      input: CheckActionConstraintsInput,
+      cellId?: CellId
     ): Promise<ConstraintViolation[]> {
-      const exit = await E.runPromiseExit(governanceService.checkActionConstraints(input));
+      const exit = await E.runPromiseExit(
+        governanceService.checkActionConstraints(input, cellId)
+      );
       return Exit.isSuccess(exit) ? exit.value : [];
     }
 

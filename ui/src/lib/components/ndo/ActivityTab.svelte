@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionHash } from '@holochain/client';
+  import type { ActionHash, CellId } from '@holochain/client';
   import { encodeHashToBase64 } from '@holochain/client';
   import type {
     PropertyRegime,
@@ -19,6 +19,8 @@
   interface Props {
     /** NDO Layer 0 action hash. */
     specActionHash: ActionHash;
+    /** The NDO's own clone cell; null for legacy NDOs in the shared cell. */
+    ndoCellId?: CellId | null;
     propertyRegime?: string | null;
     resourceNature?: string | null;
     rivalryOverride?: string | null;
@@ -26,6 +28,7 @@
 
   let {
     specActionHash,
+    ndoCellId = null,
     propertyRegime = null,
     resourceNature = null,
     rivalryOverride = null
@@ -54,15 +57,21 @@
   async function load() {
     loadError = null;
     try {
-      const all = await governanceStore.fetchAllCommitments();
+      const all = await governanceStore.fetchAllCommitments(ndoCellId ?? undefined);
       commitments = all;
 
-      const listings = await resourceStore.fetchSpecificationsForNdo(specActionHash);
+      const listings = await resourceStore.fetchSpecificationsForNdo(
+        specActionHash,
+        ndoCellId ?? undefined
+      );
       const merged: VfEconomicEvent[] = [];
       for (const listing of listings) {
         const rowsProgram = E.gen(function* () {
           const r = yield* ResourceServiceTag;
-          return yield* r.getResourcesBySpecification(listing.action_hash);
+          return yield* r.getResourcesBySpecification(
+            listing.action_hash,
+            ndoCellId ?? undefined
+          );
         });
         const rowsExit = await E.runPromiseExit(
           pipe(rowsProgram, E.provide(ResourceServiceResolved))
@@ -71,7 +80,7 @@
         for (const row of rowsExit.value) {
           const evProgram = E.gen(function* () {
             const g = yield* GovernanceServiceTag;
-            return yield* g.getEventsByResource(row.actionHash);
+            return yield* g.getEventsByResource(row.actionHash, ndoCellId ?? undefined);
           });
           const evExit = await E.runPromiseExit(
             pipe(evProgram, E.provide(GovernanceServiceResolved))
@@ -82,7 +91,7 @@
       // Also include any agent-wide events that carry this ndo hash
       const allEvProgram = E.gen(function* () {
         const g = yield* GovernanceServiceTag;
-        return yield* g.getAllEconomicEvents();
+        return yield* g.getAllEconomicEvents(ndoCellId ?? undefined);
       });
       const allEvExit = await E.runPromiseExit(
         pipe(allEvProgram, E.provide(GovernanceServiceResolved))
@@ -119,6 +128,7 @@
 {#if showCommitment && canAct}
   <CommitmentCreateForm
     ndoActionHash={specActionHash}
+    {ndoCellId}
     propertyRegime={propertyRegime as PropertyRegime}
     resourceNature={resourceNature as ResourceNature}
     rivalryOverride={(rivalryOverride as Rivalry | null) ?? undefined}
@@ -134,6 +144,7 @@
 {#if showEvent && canAct}
   <EconomicEventCreateForm
     ndoActionHash={specActionHash}
+    {ndoCellId}
     propertyRegime={propertyRegime as PropertyRegime}
     resourceNature={resourceNature as ResourceNature}
     rivalryOverride={(rivalryOverride as Rivalry | null) ?? undefined}

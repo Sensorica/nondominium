@@ -1,16 +1,18 @@
 <script lang="ts">
-  import type { ActionHash } from '@holochain/client';
+  import type { ActionHash, CellId } from '@holochain/client';
   import type { LifecycleStage, ResourceScope } from '@nondominium/shared-types';
   import { resourceStore } from '$lib/stores/resource.store.svelte';
 
   interface Props {
     ndoActionHash: ActionHash;
+    /** The NDO's own clone cell; null for legacy NDOs in the shared cell. */
+    ndoCellId?: CellId | null;
     lifecycleStage: LifecycleStage | string | null;
     onclose: () => void;
     oncreated?: () => void;
   }
 
-  let { ndoActionHash, lifecycleStage, onclose, oncreated }: Props = $props();
+  let { ndoActionHash, ndoCellId = null, lifecycleStage, onclose, oncreated }: Props = $props();
 
   const ineligibleStages = new Set(['Ideation', 'Hibernating', 'Deprecated', 'EndOfLife']);
   const canCreate = $derived(!lifecycleStage || !ineligibleStages.has(lifecycleStage));
@@ -39,16 +41,19 @@
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
-    const out = await resourceStore.createResourceSpecification({
-      name: name.trim(),
-      description: description.trim(),
-      category: category.trim() || 'general',
-      ...(imageUrl.trim() && { image_url: imageUrl.trim() }),
-      tags,
-      scope,
-      ndo_identity_hash: ndoActionHash,
-      governance_rules: []
-    });
+    const out = await resourceStore.createResourceSpecification(
+      {
+        name: name.trim(),
+        description: description.trim(),
+        category: category.trim() || 'general',
+        ...(imageUrl.trim() && { image_url: imageUrl.trim() }),
+        tags,
+        scope,
+        ndo_identity_hash: ndoActionHash,
+        governance_rules: []
+      },
+      ndoCellId ?? undefined
+    );
     isSubmitting = false;
     if (out) {
       oncreated?.();

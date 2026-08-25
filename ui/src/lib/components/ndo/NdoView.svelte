@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionHash } from '@holochain/client';
+  import type { ActionHash, CellId } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
   import { Effect as E, Exit, pipe } from 'effect';
   import type { NdoDescriptor } from '@nondominium/shared-types';
@@ -35,6 +35,13 @@
   let ndoMembers = $state<{ id: string; name: string; role?: string }[]>([]);
   let membersLoading = $state(false);
   let membersStubMessage = $state<string | null>(null);
+  /**
+   * The cloned `ndo` cell holding this NDO's Layer 0 identity. Every Layer 1 and
+   * Layer 2 call below is addressed to it: the identity those entries reference
+   * only exists in that DHT, never in the shared provisioned cell. `null` means
+   * a legacy NDO still living in the shared cell, and callers fall back to it.
+   */
+  let ndoCellId = $state<CellId | null>(null);
 
   $effect(() => {
     try {
@@ -55,6 +62,24 @@
     const cached = ndoDescriptorCache.get(specHashB64);
     if (cached) ndoDescriptor = cached;
   });
+
+  $effect(() => {
+    const hash = specActionHash;
+    if (!hash) {
+      ndoCellId = null;
+      return;
+    }
+    void resolveNdoCell(hash);
+  });
+
+  async function resolveNdoCell(hash: ActionHash) {
+    const program = E.gen(function* () {
+      const svc = yield* NdoServiceTag;
+      return yield* svc.resolveCellIdForNdo(hash);
+    });
+    const exit = await E.runPromiseExit(pipe(program, E.provide(NdoServiceResolved)));
+    ndoCellId = Exit.isSuccess(exit) ? exit.value : null;
+  }
 
   async function loadDescriptor(hash: ActionHash) {
     // Only show spinner if we don't already have cached data to display.
@@ -333,10 +358,15 @@
 
   <div class="p-6">
     {#if tab === 'resources'}
-      <ResourcesTab {specActionHash} lifecycleStage={ndoDescriptor?.lifecycle_stage ?? null} />
+      <ResourcesTab
+        {specActionHash}
+        {ndoCellId}
+        lifecycleStage={ndoDescriptor?.lifecycle_stage ?? null}
+      />
     {:else if tab === 'governance'}
       <GovernanceTab
         {specActionHash}
+        {ndoCellId}
         propertyRegime={ndoDescriptor?.property_regime ?? null}
         resourceNature={ndoDescriptor?.resource_nature ?? null}
         rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
@@ -346,6 +376,7 @@
     {:else}
       <ActivityTab
         {specActionHash}
+        {ndoCellId}
         propertyRegime={ndoDescriptor?.property_regime ?? null}
         resourceNature={ndoDescriptor?.resource_nature ?? null}
         rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
