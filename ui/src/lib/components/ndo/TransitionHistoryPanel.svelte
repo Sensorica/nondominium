@@ -13,6 +13,7 @@
 
   let history = $state<NdoTransitionHistoryEvent[]>([]);
   let isLoading = $state(true);
+  let loadError = $state<string | null>(null);
 
   onMount(() => {
     void (async () => {
@@ -27,6 +28,10 @@
       );
       if (Exit.isSuccess(exit)) {
         history = exit.value;
+      } else {
+        // An empty list and a failed read are different facts. Rendering both as
+        // "0 transitions" is what hid the missing zome function (F4).
+        loadError = 'Could not load lifecycle history from the chain.';
       }
       isLoading = false;
     })();
@@ -43,16 +48,19 @@
   >
     Lifecycle history · {isLoading
       ? '…'
-      : `${history.length} transition${history.length !== 1 ? 's' : ''}`}
+      : loadError
+        ? 'unavailable'
+        : `${history.length} transition${history.length !== 1 ? 's' : ''}`}
   </summary>
 
   <div class="border-t border-gray-200 px-3 py-2">
     {#if isLoading}
       <p class="text-xs text-gray-400 italic">Loading history…</p>
+    {:else if loadError}
+      <p class="text-xs text-amber-700">{loadError}</p>
     {:else if history.length === 0}
       <p class="text-xs text-gray-400 italic">
-        No transitions recorded. Backend <code>get_ndo_transition_history</code> is not yet
-        implemented in <code>zome_resource</code>.
+        No transitions recorded yet. This NDO is still at the stage it was created in.
       </p>
     {:else}
       <ul class="space-y-2">

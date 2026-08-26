@@ -917,3 +917,164 @@ async fn ndo_property_regime_anchors_collective_pool_public() {
         assert_eq!(by_regime.ndos[0].action_hash, output.action_hash);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Transition history (REQ-UI-NDO-04)
+// ---------------------------------------------------------------------------
+
+/// Mirrors `NdoTransitionHistoryEvent` in `zome_resource`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct NdoTransitionHistoryEvent {
+    pub from_stage: LifecycleStage,
+    pub to_stage: LifecycleStage,
+    pub agent: AgentPubKey,
+    pub timestamp: Timestamp,
+    pub event_hash: ActionHash,
+}
+
+/// An NDO that has never transitioned reports no history, rather than erroring.
+#[tokio::test(flavor = "multi_thread")]
+async fn ndo_transition_history_is_empty_before_any_transition() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let output: NdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_ndo",
+            ndo_input(
+                "Untransitioned NDO",
+                PropertyRegime::Commons,
+                ResourceNature::Digital,
+                LifecycleStage::Ideation,
+            ),
+        )
+        .await;
+
+    let history: Vec<NdoTransitionHistoryEvent> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_ndo_transition_history",
+            output.action_hash,
+        )
+        .await;
+
+    assert!(
+        history.is_empty(),
+        "a freshly created NDO has no transitions, got {}",
+        history.len()
+    );
+}
+
+/// Every lifecycle transition is reported in order, with the stage it came from,
+/// the stage it went to, and the agent and time that recorded it (REQ-UI-NDO-04).
+#[tokio::test(flavor = "multi_thread")]
+async fn ndo_transition_history_reports_every_step_in_order() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+    let alice_key = alice.agent_pubkey().clone();
+
+    let output: NdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_ndo",
+            ndo_input(
+                "History NDO",
+                PropertyRegime::Commons,
+                ResourceNature::Digital,
+                LifecycleStage::Ideation,
+            ),
+        )
+        .await;
+    let original_hash = output.action_hash.clone();
+
+    for stage in [
+        LifecycleStage::Specification,
+        LifecycleStage::Development,
+        LifecycleStage::Prototype,
+    ] {
+        let _: ActionHash = conductors[0]
+            .call(
+                &alice.zome("zome_resource"),
+                "update_lifecycle_stage",
+                update_stage(original_hash.clone(), stage, None),
+            )
+            .await;
+    }
+
+    let history: Vec<NdoTransitionHistoryEvent> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_ndo_transition_history",
+            original_hash,
+        )
+        .await;
+
+    assert_eq!(history.len(), 3, "three transitions were performed");
+
+    let expected = [
+        (LifecycleStage::Ideation, LifecycleStage::Specification),
+        (LifecycleStage::Specification, LifecycleStage::Development),
+        (LifecycleStage::Development, LifecycleStage::Prototype),
+    ];
+    for (i, (from, to)) in expected.iter().enumerate() {
+        assert_eq!(&history[i].from_stage, from, "from_stage of transition {i}");
+        assert_eq!(&history[i].to_stage, to, "to_stage of transition {i}");
+        assert_eq!(history[i].agent, alice_key, "agent of transition {i}");
+    }
+
+    // Each entry must carry a distinct, real on-chain hash for the copy-to-clipboard
+    // affordance, and timestamps must not go backwards.
+    assert_ne!(history[0].event_hash, history[1].event_hash);
+    assert_ne!(history[1].event_hash, history[2].event_hash);
+    assert!(history[0].timestamp <= history[1].timestamp);
+    assert!(history[1].timestamp <= history[2].timestamp);
+}
+
+/// Hibernation and resume are ordinary transitions and must both be reported,
+/// including the resume back to the stage that was paused.
+#[tokio::test(flavor = "multi_thread")]
+async fn ndo_transition_history_reports_hibernation_and_resume() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let output: NdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_ndo",
+            ndo_input(
+                "Hibernating History NDO",
+                PropertyRegime::Commons,
+                ResourceNature::Digital,
+                LifecycleStage::Active,
+            ),
+        )
+        .await;
+    let original_hash = output.action_hash.clone();
+
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "update_lifecycle_stage",
+            update_stage(original_hash.clone(), LifecycleStage::Hibernating, None),
+        )
+        .await;
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "update_lifecycle_stage",
+            update_stage(original_hash.clone(), LifecycleStage::Active, None),
+        )
+        .await;
+
+    let history: Vec<NdoTransitionHistoryEvent> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_ndo_transition_history",
+            original_hash,
+        )
+        .await;
+
+    assert_eq!(history.len(), 2, "hibernate then resume is two transitions");
+    assert_eq!(history[0].from_stage, LifecycleStage::Active);
+    assert_eq!(history[0].to_stage, LifecycleStage::Hibernating);
+    assert_eq!(history[1].from_stage, LifecycleStage::Hibernating);
+    assert_eq!(history[1].to_stage, LifecycleStage::Active);
+}

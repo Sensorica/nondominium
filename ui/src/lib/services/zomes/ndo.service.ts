@@ -470,11 +470,15 @@ export const NdoServiceLive: Layer.Layer<
             E.catchAll(() => E.succeed(null))
           );
           if (resolved) {
+            // Deliberately NOT caught: `get_ndo_transition_history` exists in
+            // `zome_resource` now, so a failure here is a real failure and the panel
+            // must say so. Swallowing it into `[]` is what made the missing zome
+            // function read as "0 transitions" forever (PR #132 round 1, F4).
             return yield* callNdoZome<NdoTransitionHistoryEvent[]>(
               resolved.cellId,
               'get_ndo_transition_history',
               ndoHash
-            ).pipe(E.catchAll(() => E.succeed([])));
+            );
           }
           return yield* resource.getNdoTransitionHistory(ndoHash);
         }),
