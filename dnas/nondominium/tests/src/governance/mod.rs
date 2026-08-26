@@ -569,3 +569,157 @@ async fn evaluate_state_transition_hard_and_soft_paths() {
         soft.advisory_warnings
     );
 }
+
+// ─── Layer 2 discovery (F3) ───────────────────────────────────────────────────
+
+/// Mirrors `ProposeCommitmentInput` in the commitment coordinator.
+#[derive(Debug, Serialize, Deserialize)]
+struct ProposeCommitmentInput {
+    pub action: String, // VfAction variant name
+    pub resource_hash: Option<ActionHash>,
+    pub resource_spec_hash: Option<ActionHash>,
+    pub provider: AgentPubKey,
+    pub due_date: Timestamp,
+    pub note: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+}
+
+/// Minimal asserted fields from `ProposeCommitmentOutput`.
+#[derive(Debug, Serialize, Deserialize)]
+struct ProposeCommitmentOutput {
+    pub commitment_hash: ActionHash,
+}
+
+/// Minimal Commitment fields asserted in tests.
+#[derive(Debug, Serialize, Deserialize)]
+struct CommitmentOutput {
+    pub note: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+}
+
+/// Minimal EconomicEvent fields asserted in tests.
+#[derive(Debug, Serialize, Deserialize)]
+struct EconomicEventOutput {
+    pub note: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+}
+
+/// A commitment written by an agent must be discoverable by that same agent,
+/// in the same cell, in the same call sequence. This is the Layer 2 read path
+/// the Activity tab depends on: without it the tab can never render what it
+/// just wrote (F3, PR #132 round 1).
+#[tokio::test(flavor = "multi_thread")]
+async fn commitment_is_discoverable_by_its_author() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_agents().await;
+    let alice_key = cell_alice.agent_pubkey().clone();
+
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Layer 2 Discovery NDO".to_string(),
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+
+    let output: ProposeCommitmentOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "propose_commitment",
+            ProposeCommitmentInput {
+                action: "Use".to_string(),
+                resource_hash: None,
+                resource_spec_hash: None,
+                provider: alice_key.clone(),
+                due_date: Timestamp::now(),
+                note: Some("discoverable commitment".to_string()),
+                ndo_identity_hash: ndo.action_hash.clone(),
+            },
+        )
+        .await;
+
+    assert_ne!(output.commitment_hash, ActionHash::from_raw_36(vec![0u8; 36]));
+
+    let commitments: Vec<CommitmentOutput> = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "get_all_commitments",
+            (),
+        )
+        .await;
+
+    assert_eq!(
+        commitments.len(),
+        1,
+        "the author must be able to read back the commitment it just wrote"
+    );
+    assert_eq!(
+        commitments[0].note.as_deref(),
+        Some("discoverable commitment")
+    );
+    assert_eq!(commitments[0].ndo_identity_hash, ndo.action_hash);
+}
+
+/// Same contract as `commitment_is_discoverable_by_its_author`, for the other
+/// half of the Activity tab: an economic event must be readable by its author.
+#[tokio::test(flavor = "multi_thread")]
+async fn economic_event_is_discoverable_by_its_author() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_agents().await;
+    let alice_key = cell_alice.agent_pubkey().clone();
+    let stub_resource = ActionHash::from_raw_36(vec![8u8; 36]);
+
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Layer 2 Event Discovery NDO".to_string(),
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+
+    let _event: LogEconomicEventOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "log_economic_event",
+            LogEconomicEventInput {
+                action: "Use".to_string(),
+                provider: alice_key.clone(),
+                receiver: alice_key.clone(),
+                resource_inventoried_as: stub_resource,
+                resource_quantity: 1.0,
+                note: Some("discoverable event".to_string()),
+                commitment_hash: None,
+                generate_pprs: Some(false),
+                ndo_identity_hash: ndo.action_hash.clone(),
+            },
+        )
+        .await;
+
+    let events: Vec<EconomicEventOutput> = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "get_all_economic_events",
+            (),
+        )
+        .await;
+
+    assert_eq!(
+        events.len(),
+        1,
+        "the author must be able to read back the economic event it just wrote"
+    );
+    assert_eq!(events[0].note.as_deref(), Some("discoverable event"));
+    assert_eq!(events[0].ndo_identity_hash, ndo.action_hash);
+}

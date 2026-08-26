@@ -182,8 +182,8 @@ pub fn get_all_economic_events(_: ()) -> ExternResult<Vec<EconomicEvent>> {
   for link in links {
     if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
       if let Some(record) = get(any_dht_hash, GetOptions::default())? {
-        if let Ok(Some(EntryTypes::EconomicEvent(event))) =
-          record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+        if let Ok(Some(event)) =
+          record.entry().to_app_option::<EconomicEvent>().map_err(|_| {
             wasm_error!(WasmErrorInner::Guest(
               "Failed to deserialize economic event".into()
             ))
@@ -209,8 +209,8 @@ pub fn get_events_for_resource(resource_hash: ActionHash) -> ExternResult<Vec<Ec
   for link in links {
     if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
       if let Some(record) = get(any_dht_hash, GetOptions::default())? {
-        if let Ok(Some(EntryTypes::EconomicEvent(event))) =
-          record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+        if let Ok(Some(event)) =
+          record.entry().to_app_option::<EconomicEvent>().map_err(|_| {
             wasm_error!(WasmErrorInner::Guest(
               "Failed to deserialize economic event".into()
             ))
