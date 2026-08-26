@@ -234,14 +234,37 @@ test.describe.serial('nondominium core flows', () => {
     expect(widget?.entry.lifecycle_stage).toBe('Specification');
   });
 
-  test('lifecycle history panel present (backend rows pending)', async () => {
+  test('lifecycle history lists the Ideation to Specification transition', async () => {
+    // The backend landed in `get_ndo_transition_history` (REQ-UI-NDO-04), so this
+    // asserts the row rather than the stub copy it replaced. The old assertion
+    // outlived the absence it was written for and went red the moment the feature
+    // arrived, which is the point of replacing it here rather than relaxing it.
+    //
+    // The reload is load-bearing: TransitionHistoryPanel fetches `onMount` only,
+    // and the transition in the previous test happened after this page mounted,
+    // so the row is on the DHT but not in this component's state. Reloading
+    // remounts it. The onMount-only load is a tracked follow-up, not a defect,
+    // and this comment is here so a future reader does not delete the reload as
+    // redundant.
+    await page.reload();
+
     const historyToggle = page.getByText(/Lifecycle history/);
     await expect(historyToggle).toBeVisible();
     await historyToggle.click();
-    // TODO(backend Phase 2.3): `get_ndo_transition_history` is not implemented
-    // in zome_resource on dev — assert the explicit stub state today, and
-    // replace with a from→to row assertion when the backend lands.
-    await expect(page.getByText('No transitions recorded.')).toBeVisible();
+
+    const row = page.locator('li').filter({ hasText: 'Ideation' }).filter({
+      hasText: 'Specification'
+    });
+    await expectEventually(page, async () => {
+      await expect(row.first()).toBeVisible();
+    });
+
+    // Hashes must render base64-encoded, not as the raw byte array the conductor
+    // returns (PR #132, F9). `.slice` on a Uint8Array is legal TypeScript, so the
+    // compiler cannot catch a regression here and only a rendered assertion can.
+    const rowText = (await row.first().innerText()).replace(/\s+/g, ' ');
+    expect(rowText).toMatch(/uhC/);
+    expect(rowText).not.toMatch(/\d{1,3},\d{1,3},\d{1,3}/);
   });
 
   test('filter chips: OR within a dimension, AND across dimensions', async () => {
