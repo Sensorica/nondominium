@@ -359,6 +359,7 @@
         {specActionHash}
         {ndoCellId}
         lifecycleStage={ndoDescriptor?.lifecycle_stage ?? null}
+        propertyRegime={ndoDescriptor?.property_regime ?? null}
       />
     {:else if tab === 'governance'}
       <GovernanceTab

@@ -166,13 +166,25 @@ async fn create_ndo_at_stage(
     name: &str,
     stage: &str,
 ) -> ActionHash {
+    create_ndo_with_regime(conductors, cell, name, stage, "Commons").await
+}
+
+/// Same as `create_ndo_at_stage` but lets the caller pick the property regime, which the
+/// scope-coherence tests need: the gate keys off Layer 0's regime, not off the spec.
+async fn create_ndo_with_regime(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    name: &str,
+    stage: &str,
+    regime: &str,
+) -> ActionHash {
     let ndo: NdoOutput = conductors[0]
         .call(
             &cell.zome("zome_resource"),
             "create_ndo",
             NdoInput {
                 name: name.to_string(),
-                property_regime: "Commons".to_string(),
+                property_regime: regime.to_string(),
                 resource_nature: "Physical".to_string(),
                 lifecycle_stage: stage.to_string(),
                 description: None,
@@ -184,13 +196,22 @@ async fn create_ndo_at_stage(
 }
 
 fn spec_input(name: &str, category: &str, ndo: ActionHash) -> ResourceSpecificationInput {
+    spec_input_with_scope(name, category, ndo, "Public")
+}
+
+fn spec_input_with_scope(
+    name: &str,
+    category: &str,
+    ndo: ActionHash,
+    scope: &str,
+) -> ResourceSpecificationInput {
     ResourceSpecificationInput {
         name: name.to_string(),
         description: format!("Description for {name}"),
         category: category.to_string(),
         image_url: None,
         tags: vec![category.to_string()],
-        scope: "Public".to_string(),
+        scope: scope.to_string(),
         ndo_identity_hash: ndo,
         governance_rules: vec![],
     }
@@ -407,6 +428,109 @@ async fn resource_spec_rejected_at_ideation_stage() {
         result.is_err(),
         "creating a ResourceSpecification on an Ideation NDO must fail"
     );
+}
+
+// ---------------------------------------------------------------------------
+// Scope coherence with the Layer 0 property regime (REQ-RES-03)
+// ---------------------------------------------------------------------------
+
+/// A Nondominium NDO is uncapturable by design, but a Project-scoped spec is omitted from
+/// the global discovery anchor: the resource stays unownable while becoming invisible
+/// outside the narrowing group. Integrity must reject that, not merely warn about it.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_rejects_project_scope_on_nondominium_ndo() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_with_regime(
+        &conductors,
+        &alice,
+        "Uncapturable NDO",
+        "Active",
+        "Nondominium",
+    )
+    .await;
+
+    let result = conductors[0]
+        .call_fallible::<_, CreateResourceSpecificationOutput>(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Enclosed Spec", "tools", ndo, "Project"),
+        )
+        .await;
+
+    let err = result.expect_err("a Project-scoped spec on a Nondominium NDO must be rejected");
+    assert!(
+        format!("{err:?}").contains("open_regime_requires_public_scope"),
+        "rejection must name the scope-coherence rule, got: {err:?}"
+    );
+}
+
+/// Network is narrower than Public at the discovery layer, so it encloses too.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_rejects_network_scope_on_public_regime_ndo() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo =
+        create_ndo_with_regime(&conductors, &alice, "Public Steward NDO", "Active", "Public").await;
+
+    let result = conductors[0]
+        .call_fallible::<_, CreateResourceSpecificationOutput>(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Network Scoped Spec", "tools", ndo, "Network"),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a Network-scoped spec on a Public-regime NDO must be rejected"
+    );
+}
+
+/// The positive half: Public scope is accepted on an open regime, so the gate blocks
+/// enclosure rather than blocking Layer 1 activation.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_accepts_public_scope_on_nondominium_ndo() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_with_regime(
+        &conductors,
+        &alice,
+        "Uncapturable NDO Public Spec",
+        "Active",
+        "Nondominium",
+    )
+    .await;
+
+    let out: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Open Spec", "tools", ndo.clone(), "Public"),
+        )
+        .await;
+
+    assert_eq!(out.spec.scope, "Public");
+    assert_eq!(out.spec.ndo_identity_hash, ndo);
+}
+
+/// Regime and scope are orthogonal outside the open-access regimes: a Commons NDO may
+/// legitimately keep a spec scoped to one project, and the gate must not touch it.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_accepts_project_scope_on_commons_ndo() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Commons NDO", "Active").await;
+
+    let out: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Project Spec", "tools", ndo, "Project"),
+        )
+        .await;
+
+    assert_eq!(out.spec.scope, "Project");
 }
 
 /// Ownership-transfer rule on Nondominium is a Hard violation via dry-run query.

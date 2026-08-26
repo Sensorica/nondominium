@@ -4,7 +4,9 @@
 //! UI dry-run queries, and unit tests.
 
 use crate::rule_data::{Accessibility, RuleData, TransferType};
-use crate::types::{LifecycleStage, PropertyRegime, ResourceNature, Rivalry, VfAction};
+use crate::types::{
+  LifecycleStage, PropertyRegime, ResourceNature, ResourceScope, Rivalry, VfAction,
+};
 use serde::{Deserialize, Serialize};
 
 /// Lightweight, non-persisted classification facts for predicate evaluation.
@@ -153,6 +155,36 @@ pub fn check_capture_resistance(
   None
 }
 
+/// Hard: an open-access regime cannot narrow its Layer 1 specification below
+/// `Public` scope.
+///
+/// `Nondominium` is uncapturable by design and `Public` is open-access by policy of
+/// the stewarding body. Scoping either one to a single project or network is enclosure
+/// by visibility: the resource stays technically unownable while becoming undiscoverable
+/// to everyone outside the narrowing group, which is the outcome REQ-RES-03 exists to
+/// prevent. Scope is the one Layer 1 field that can quietly undo a Layer 0 guarantee,
+/// so it is Hard rather than advisory.
+pub fn check_scope_coherence(
+  ctx: &ResourceClassification,
+  scope: &ResourceScope,
+) -> Option<ConstraintViolation> {
+  let open_access = matches!(
+    ctx.property_regime,
+    PropertyRegime::Nondominium | PropertyRegime::Public
+  );
+  if !open_access || matches!(scope, ResourceScope::Public) {
+    return None;
+  }
+  Some(ConstraintViolation {
+    rule_id: "open_regime_requires_public_scope".to_string(),
+    message: format!(
+      "A {:?} resource cannot carry {:?} scope; it implies Public scope (REQ-RES-03).",
+      ctx.property_regime, scope
+    ),
+    severity: ConstraintSeverity::Hard,
+  })
+}
+
 /// Compose action-execution predicates.
 pub fn check_action_permitted(
   ctx: &ResourceClassification,
@@ -268,5 +300,74 @@ mod tests {
     let c = ctx(ResourceNature::Physical, PropertyRegime::Nondominium, None);
     let v = check_action_permitted(&c, &VfAction::Use);
     assert!(v.is_empty());
+  }
+
+  #[test]
+  fn nondominium_rejects_project_scope() {
+    let v = check_scope_coherence(
+      &ctx(ResourceNature::Physical, PropertyRegime::Nondominium, None),
+      &ResourceScope::Project,
+    )
+    .expect("Project scope on Nondominium is a Hard violation");
+    assert_eq!(v.rule_id, "open_regime_requires_public_scope");
+    assert_eq!(v.severity, ConstraintSeverity::Hard);
+  }
+
+  #[test]
+  fn nondominium_rejects_network_scope() {
+    // Network is narrower than Public at the discovery layer, so it encloses too.
+    let v = check_scope_coherence(
+      &ctx(ResourceNature::Digital, PropertyRegime::Nondominium, None),
+      &ResourceScope::Network,
+    );
+    assert!(v.is_some(), "Network scope on Nondominium must be rejected");
+  }
+
+  #[test]
+  fn public_regime_rejects_project_scope() {
+    let v = check_scope_coherence(
+      &ctx(ResourceNature::Physical, PropertyRegime::Public, None),
+      &ResourceScope::Project,
+    );
+    assert!(v.is_some(), "Project scope on a Public regime must be rejected");
+  }
+
+  #[test]
+  fn open_regimes_accept_public_scope() {
+    for regime in [PropertyRegime::Nondominium, PropertyRegime::Public] {
+      assert!(
+        check_scope_coherence(
+          &ctx(ResourceNature::Physical, regime.clone(), None),
+          &ResourceScope::Public,
+        )
+        .is_none(),
+        "Public scope is the only coherent scope for {regime:?} and must be accepted"
+      );
+    }
+  }
+
+  #[test]
+  fn closed_regimes_accept_any_scope() {
+    // Regime and scope are orthogonal everywhere except the open-access regimes; a
+    // Commons or Private resource may legitimately be scoped to one project.
+    for regime in [
+      PropertyRegime::Private,
+      PropertyRegime::Commons,
+      PropertyRegime::Collective,
+      PropertyRegime::Pool,
+      PropertyRegime::CommonPool,
+    ] {
+      for scope in [
+        ResourceScope::Project,
+        ResourceScope::Network,
+        ResourceScope::Public,
+      ] {
+        assert!(
+          check_scope_coherence(&ctx(ResourceNature::Physical, regime.clone(), None), &scope)
+            .is_none(),
+          "{regime:?} must accept {scope:?}"
+        );
+      }
+    }
   }
 }

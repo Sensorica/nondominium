@@ -440,6 +440,41 @@ fn validate_create_resource_spec(
     )));
   }
 
+  validate_spec_scope_against_regime(spec, &ndi)
+}
+
+/// Bind the spec's mutable `scope` to the NDO's immutable `property_regime`.
+///
+/// Scope is the one Layer 1 field that can quietly undo a Layer 0 guarantee. A
+/// `Nondominium` NDO is uncapturable by design and a `Public` one is open-access by the
+/// stewarding body's own policy, but a spec scoped to `Project` is omitted from the global
+/// discovery anchor: the resource stays unownable while becoming invisible to everyone
+/// outside the narrowing group. That is enclosure by visibility, which is the outcome
+/// REQ-RES-03 exists to prevent, so the predicate is Hard rather than advisory.
+///
+/// Enforced on update as well as create for the same reason `ndo_state_hash` is immutable:
+/// otherwise an edit launders a scope the create-time gate rejected.
+fn validate_spec_scope_against_regime(
+  spec: &ResourceSpecification,
+  ndi: &NondominiumIdentity,
+) -> ExternResult<ValidateCallbackResult> {
+  use nondominium_shared::constraints::{
+    check_scope_coherence, hard_violation_message, ResourceClassification,
+  };
+
+  let ctx = ResourceClassification {
+    resource_nature: ndi.resource_nature.clone(),
+    property_regime: ndi.property_regime.clone(),
+    lifecycle_stage: Some(ndi.lifecycle_stage.clone()),
+    rivalry_override: ndi.rivalry_override.clone(),
+  };
+
+  if let Some(violation) = check_scope_coherence(&ctx, &spec.scope) {
+    return Ok(ValidateCallbackResult::Invalid(hard_violation_message(&[
+      violation,
+    ])));
+  }
+
   Ok(ValidateCallbackResult::Valid)
 }
 
@@ -847,11 +882,14 @@ fn validate_update_resource_spec(
   _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
   // Phase 1: allow updates to mutable fields, but never reparent a spec to another NDO.
-  // The StoreEntry Update path only receives the new entry; original is fetched below
-  // by the caller when needed. Here we only have the new entry — reparent check is done
-  // in the UpdateEntry arm when original is available. For now, validate content shape.
-  let _ = spec;
-  Ok(ValidateCallbackResult::Valid)
+  // The reparent check lives in the UpdateEntry arm, which is the only place the original
+  // entry is available.
+  //
+  // `scope` IS mutable, so the regime coherence gate has to run here too: the UpdateEntry
+  // arm has already rejected any change to `ndo_identity_hash` or `ndo_state_hash`, so the
+  // NDO reached here is the same one the create-time gate judged.
+  let (_root_hash, ndi) = resolve_ndo_state(spec.ndo_state_hash.clone())?;
+  validate_spec_scope_against_regime(spec, &ndi)
 }
 
 fn validate_update_economic_resource(

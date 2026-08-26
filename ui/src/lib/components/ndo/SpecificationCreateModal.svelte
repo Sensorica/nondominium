@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ActionHash, CellId } from '@holochain/client';
-  import type { LifecycleStage, ResourceScope } from '@nondominium/shared-types';
+  import type { LifecycleStage, PropertyRegime, ResourceScope } from '@nondominium/shared-types';
   import { resourceStore } from '$lib/stores/resource.store.svelte';
 
   interface Props {
@@ -8,11 +8,20 @@
     /** The NDO's own clone cell; null for legacy NDOs in the shared cell. */
     ndoCellId?: CellId | null;
     lifecycleStage: LifecycleStage | string | null;
+    /** Layer 0 property regime; drives the scope lock (REQ-RES-03). */
+    propertyRegime?: PropertyRegime | string | null;
     onclose: () => void;
     oncreated?: () => void;
   }
 
-  let { ndoActionHash, ndoCellId = null, lifecycleStage, onclose, oncreated }: Props = $props();
+  let {
+    ndoActionHash,
+    ndoCellId = null,
+    lifecycleStage,
+    propertyRegime = null,
+    onclose,
+    oncreated
+  }: Props = $props();
 
   const ineligibleStages = new Set(['Ideation', 'Hibernating', 'Deprecated', 'EndOfLife']);
   const canCreate = $derived(!lifecycleStage || !ineligibleStages.has(lifecycleStage));
@@ -22,7 +31,15 @@
   let category = $state('general');
   let imageUrl = $state('');
   let tagsRaw = $state('');
-  let scope = $state<ResourceScope>('Project');
+  // Nondominium is uncapturable by design and Public is open-access by the stewarding
+  // body's policy. A Project- or Network-scoped spec is omitted from the global discovery
+  // anchor, so narrowing either one is enclosure by visibility (REQ-RES-03). Integrity
+  // rejects it; the form must not offer it in the first place.
+  const openAccessRegimes = new Set(['Nondominium', 'Public']);
+  const scopeLocked = $derived(!!propertyRegime && openAccessRegimes.has(propertyRegime));
+
+  let chosenScope = $state<ResourceScope>('Project');
+  const scope = $derived<ResourceScope>(scopeLocked ? 'Public' : chosenScope);
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
@@ -121,15 +138,22 @@
           <label class="mb-1 block text-sm font-medium text-gray-700" for="spec-scope">Scope</label>
           <select
             id="spec-scope"
-            bind:value={scope}
-            class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            value={scope}
+            disabled={scopeLocked}
+            onchange={(e) => (chosenScope = e.currentTarget.value as ResourceScope)}
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
           >
             <option value="Project">Project</option>
             <option value="Network">Network</option>
             <option value="Public">Public</option>
           </select>
           <p class="mt-1 text-xs text-gray-500">
-            Project-scoped specs are omitted from the global discovery anchor.
+            {#if scopeLocked}
+              A {propertyRegime} NDO is open access, so its specification is always Public. Narrowing
+              the scope would hide it from the global discovery anchor (REQ-RES-03).
+            {:else}
+              Project-scoped specs are omitted from the global discovery anchor.
+            {/if}
           </p>
         </div>
         <div>

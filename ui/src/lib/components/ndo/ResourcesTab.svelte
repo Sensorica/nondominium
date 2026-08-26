@@ -1,7 +1,11 @@
 <script lang="ts">
   import type { ActionHash, CellId } from '@holochain/client';
   import type { EconomicResourceRow } from '$lib/utils/holochain-records';
-  import type { LifecycleStage, ResourceSpecificationListing } from '@nondominium/shared-types';
+  import type {
+    LifecycleStage,
+    PropertyRegime,
+    ResourceSpecificationListing
+  } from '@nondominium/shared-types';
   import { operationalStateLabel } from '$lib/utils/operational-state-labels';
   import { Effect as E, Exit, pipe } from 'effect';
   import { resourceStore } from '$lib/stores/resource.store.svelte';
@@ -17,9 +21,16 @@
     /** The NDO's own clone cell; null for legacy NDOs in the shared cell. */
     ndoCellId?: CellId | null;
     lifecycleStage?: LifecycleStage | string | null;
+    /** Layer 0 property regime; forwarded so the create form can lock scope (REQ-RES-03). */
+    propertyRegime?: PropertyRegime | string | null;
   }
 
-  let { specActionHash, ndoCellId = null, lifecycleStage = null }: Props = $props();
+  let {
+    specActionHash,
+    ndoCellId = null,
+    lifecycleStage = null,
+    propertyRegime = null
+  }: Props = $props();
 
   let listings = $state<ResourceSpecificationListing[]>([]);
   let instancesBySpec = $state<Map<string, EconomicResourceRow[]>>(new Map());
@@ -63,6 +74,7 @@
     ndoActionHash={specActionHash}
     {ndoCellId}
     {lifecycleStage}
+    {propertyRegime}
     onclose={() => {
       showCreateModal = false;
     }}
