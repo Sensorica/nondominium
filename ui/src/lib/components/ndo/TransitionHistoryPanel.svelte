@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Effect as E, Exit, pipe } from 'effect';
+  import { encodeHashToBase64 } from '@holochain/client';
   import type { ActionHash } from '@holochain/client';
   import type { NdoTransitionHistoryEvent } from '@nondominium/shared-types';
   import { NdoServiceTag, NdoServiceResolved } from '$lib/services/zomes/ndo.service';
@@ -72,14 +73,16 @@
               <span class="font-medium text-gray-700">{event.to_stage}</span>
             </div>
             <div class="mt-1 text-gray-500">
-              By <span class="font-mono">{event.agent.slice(0, 10)}…</span>
+              By <span class="font-mono">{encodeHashToBase64(event.agent).slice(0, 10)}…</span>
               · {new Date(event.timestamp / 1000).toLocaleString()}
             </div>
             <div class="mt-0.5 flex items-center gap-1">
-              <span class="font-mono text-gray-400">{event.event_hash.slice(0, 12)}…</span>
+              <span class="font-mono text-gray-400"
+                >{encodeHashToBase64(event.event_hash).slice(0, 12)}…</span
+              >
               <button
                 type="button"
-                onclick={() => copyToClipboard(event.event_hash)}
+                onclick={() => copyToClipboard(encodeHashToBase64(event.event_hash))}
                 class="text-gray-400 hover:text-gray-700"
                 title="Copy event hash"
               >

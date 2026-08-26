@@ -257,9 +257,16 @@ export interface UpdateLifecycleStageInput {
 export interface NdoTransitionHistoryEvent {
   from_stage: string;
   to_stage: string;
-  agent: string;
+  /**
+   * Raw 39-byte key, as the conductor returns it. Declared as a string here
+   * until 2026-08-25, which typechecked `.slice(0, 10)` as a string slice and
+   * let TransitionHistoryPanel render a comma-separated byte list (PR #132, F9).
+   * Encode with `encodeHashToBase64` before displaying or copying.
+   */
+  agent: AgentPubKey;
   timestamp: number;
-  event_hash: string;
+  /** Raw 39-byte hash. Same encoding requirement as `agent`. */
+  event_hash: ActionHash;
 }
 
 /** Layer 0 identity entry (zome_resource `NondominiumIdentity`). */
