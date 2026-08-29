@@ -1,0 +1,56 @@
+name: Lint
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# Advisory, deliberately. `cargo fmt` currently reports 37 of 62 Rust files as
+# unformatted, several of them touched by every open PR, so a blocking gate here
+# would fail on day one and force a repo-wide reformat that conflicts with the
+# in-flight branches. This job makes the debt a number both maintainers see on
+# every PR instead of a thing we keep meaning to do.
+#
+# To make it blocking: land a dedicated `chore/rustfmt` PR while no other branch
+# is open, then delete the `continue-on-error` line below. That is the whole change.
+#
+# Clippy is deliberately absent. It has never been run against this workspace, and
+# adding a gate whose result nobody has seen is how CI starts getting ignored.
+# Add it in its own PR, with its output read first.
+jobs:
+  rustfmt:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: cachix/install-nix-action@v26
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v14
+        with:
+          name: holochain-ci
+          skipPush: true
+
+      # Reports per-file so the summary names what to fix, not just a count.
+      # `--check` exits non-zero on the first dirty file, hence the per-file loop.
+      - name: Report rustfmt status
+        run: |
+          nix develop --command bash -c '
+            dirty=0
+            total=0
+            for f in $(find crates dnas -name "*.rs" -not -path "*/target/*"); do
+              total=$((total + 1))
+              if ! rustfmt --edition 2021 --check "$f" >/dev/null 2>&1; then
+                dirty=$((dirty + 1))
+                echo "unformatted: $f"
+              fi
+            done
+            echo "### rustfmt: $dirty of $total files unformatted" >> "$GITHUB_STEP_SUMMARY"
+            echo "rustfmt: $dirty of $total files unformatted"
+            [ "$dirty" -eq 0 ]
+          '

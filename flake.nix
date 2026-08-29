@@ -68,6 +68,7 @@
             { src = inputs.holochain-agent-skill;                        name = "holochain"; }
             { src = "${./pai/claude}/skills/nondominium-domain"; name = "nondominium-domain"; }
             { src = "${./pai/claude}/skills/complexity-oriented-programming"; name = "complexity-oriented-programming"; }
+            { src = "${./pai/claude}/skills/nondominium-review"; name = "nondominium-review"; }
           ]}
         '';
       };

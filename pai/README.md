@@ -291,6 +291,10 @@ for generic Holochain questions not specific to nondominium.
 to the correct documentation section. It does not duplicate content; it redirects.
 All actual domain knowledge lives in `documentation/`. The skill is the index, not the book.
 
+**`nondominium-review`** — the shared pull request review procedure. Same routing discipline: `REVIEW.md` holds what to flag and accept, `CONTRIBUTING.md` holds the merge criteria, and the skill holds only the order of operations and the shape a verdict takes. It exists so that a review is something any collaborator can run and get a comparable answer from, rather than a judgement whose method lives in one person's own tooling.
+
+**`complexity-oriented-programming`** — design vocabulary for treating this codebase as an evolving coordination structure rather than a deterministic machine. Used as an extra lens during review and when designing anything governance-shaped.
+
 The `nondominium-domain` skill activates automatically in Claude Code when working on:
 - resource zome, governance zome, or person zome
 - lifecycle transitions or NDO layer activation
@@ -351,8 +355,13 @@ pai/
     ├── hooks/
     │   └── LoadProjectDocs.hook.ts        ← SessionStart: injects 6 docs into context
     └── skills/
-        └── nondominium-domain/
-            └── SKILL.md                   ← routing skill (task → documentation section)
+        ├── nondominium-domain/
+        │   └── SKILL.md                   ← routing skill (task → documentation section)
+        ├── nondominium-review/
+        │   └── SKILL.md                   ← shared PR review procedure (→ REVIEW.md, CONTRIBUTING.md)
+        └── complexity-oriented-programming/
+            ├── SKILL.md                   ← coordination-design lens
+            └── methodology.md
 
 .rules                                     ← canonical agent rules (CLAUDE.md/AGENTS.md/GEMINI.md → here)
 nix/
@@ -384,3 +393,35 @@ To inject a new documentation file into Claude Code sessions:
 1. Create the skill directory under `pai/claude/skills/<name>/`
 2. Add the skill to the `agentSkillsHook` call in `flake.nix`
 3. Run `nix develop` to distribute it to `.claude/skills/`, `.cursor/skills/`, `.agents/skills/`
+
+Use a kebab-case directory name. Cursor silently ignores a skill whose name is not kebab-case, which fails as a skill that is simply never invoked rather than as an error.
+
+---
+
+## Two Sources of Skills, and Why That Matters
+
+`agentSkillsHook` takes entries from two kinds of source, and the distinction is the whole point of this directory:
+
+| Source | Example | Belongs here when |
+|---|---|---|
+| **In-repo** (`pai/claude/skills/<name>/`) | `nondominium-domain`, `nondominium-review` | The knowledge is about *this* codebase. It versions with the code, and a PR that changes behaviour can change the skill in the same diff. |
+| **External flake input** | `holochain-agent-skill` (`github:Soushi888/holochain-agent-skill`) | The knowledge is useful beyond this repo. One upstream, pinned per-project by `flake.lock`, updated deliberately. |
+
+The external path is how a skill shared across several projects reaches this one without being copied into it. A copy has no upstream, so it drifts silently and nobody can tell which version is current; a pinned input has exactly one authority and a lock file that says which revision this repo is on.
+
+To add an external source:
+
+```nix
+# flake.nix, inputs:
+some-shared-skills = {
+  url   = "github:<owner>/<repo>";
+  flake = false;
+};
+
+# flake.nix, agentSkillsHook list:
+{ src = inputs.some-shared-skills; name = "<skill-name>"; }
+```
+
+Then `nix develop`. Update it later with `nix flake update some-shared-skills`, which moves `flake.lock` and is therefore a reviewable diff rather than an invisible change.
+
+**The rule that makes this work: a skill has exactly one home.** Either it is authored here, or it is pinned from upstream. Never both, and never vendored as a copy of something that also lives elsewhere.

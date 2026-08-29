@@ -1,8 +1,13 @@
 # PR Review Guidelines — nondominium
 
-> For Devin (and any AI PR reviewer): this file defines what to **check**, **flag**, and **accept**
+> For any reviewer, human or AI: this file defines what to **check**, **flag**, and **accept**
 > when reviewing pull requests in this repo.
 > Development setup, build commands, and architecture context live in `CLAUDE.md` — do not duplicate them here.
+>
+> **This file is the content; `pai/claude/skills/nondominium-review/` is the procedure.** The skill
+> says in what order these areas get walked, which merge criteria from `CONTRIBUTING.md` apply, and
+> what shape a verdict takes. It deliberately does not restate anything below. When what gets flagged
+> changes, it changes here.
 
 ---
 
@@ -80,8 +85,10 @@ This hApp implements the ValueFlows economic ontology. Flag if any of these are 
 - [ ] Tests use shared setup from `common::conductors`:
       `setup_two_agents()`, `setup_three_agents()`, or `setup_dual_dna_two_agents()`
       — not ad-hoc conductor setup
-- [ ] Multi-agent tests call `await_consistency(&[&cell_a, &cell_b]).await.unwrap()`
-      before asserting cross-agent state
+- [ ] Multi-agent tests call `await_consistency_20_s([&cell_a, &cell_b]).await.unwrap()`
+      before asserting cross-agent state. Holochain 0.6.0 requires a timeout argument, and the
+      array is passed **by value**: the bound is `IntoIterator<Item = &SweetCell>`, so `&[...]`
+      yields `&&SweetCell` and does not compile
 - [ ] New test modules are registered as a `[[test]]` target in `dnas/nondominium/tests/Cargo.toml`
       (the established pattern — `lib.rs` only declares `pub mod common;`)
 
