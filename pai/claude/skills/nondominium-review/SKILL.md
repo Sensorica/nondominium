@@ -63,6 +63,8 @@ From `CONTRIBUTING.md`, all of which are mechanical and none of which are judgem
 - [ ] The PR template sections are filled, not left as comments
 - [ ] Documentation updated per `REVIEW.md` §6, or the PR states why none was needed
 
+If the branch resolved a merge conflict, review the resolution as its own finding under `CONTRIBUTING.md` § Resolving Merge Conflicts. The question is whether a presentational change overwrote a semantic one: check that a rewrite arriving through a conflict did not drop the other side's meaning, that no `EntryTypes` or `LinkTypes` variant moved position, and that the PR says what was resolved and how it was checked. `git log --merges` and the range diff against the base show what was touched. A resolution the author cannot explain is a blocking finding, not a style note.
+
 ### Step 5 — Wait for the whole CI pipeline
 
 **Do not post an approval while any check is still running.** The pipeline is staged: `build`, then five sharded `sweettest` targets, then `e2e`. Later jobs are gated behind earlier ones, so a run that looks green early may still fail at the last stage.
@@ -100,6 +102,7 @@ Every review ends in exactly this shape. The verdict word is one of `APPROVE`, `
 | Test coverage | pass / n-a / <finding count> |
 | Zome boundaries | pass / n-a / <finding count> |
 | Documentation currency | pass / n-a / <finding count> |
+| Conflict resolution | n-a / pass / <finding count> |
 | Merge criteria | pass / <what is missing> |
 | CI | green / failing: <job> / still running |
 ```

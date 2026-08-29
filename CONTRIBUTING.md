@@ -95,6 +95,50 @@ feat(governance)!: rename EconomicEvent fields to match ValueFlows 2.0
 
 ---
 
+## Resolving Merge Conflicts
+
+The governing question is never "which version reads better". It is **which side was trying to change meaning, and which side was only trying to restate it.**
+
+### The intention rule
+
+Every conflicting hunk carries an intent. Sort the two sides before touching either:
+
+- **Semantic** — changes what the system does or what a requirement obliges. New validation, a changed enum variant, a corrected `REQ-*`, a different default.
+- **Presentational** — says the same thing differently. A rewrite, a reformulation, a reformat, a reordering, a clearer sentence.
+
+**Presentational yields to semantic, always.** A rewrite must never quietly overwrite a behaviour change or a meaning change because it arrived later or reads better. Keeping the better wording is fine; keeping it *and dropping the other side's meaning* is the failure. If you keep a rewrite, carry the semantic change into it and say so in the PR.
+
+**When both sides are semantic, you do not resolve it alone.** That is a decision between two authors, not a merge mechanic. Resolve provisionally, mark it clearly, and ask the other author on the PR before it is merged. Guessing here is precisely what this rule exists to prevent.
+
+### What "fundamental" means in this project
+
+- **Documentation** — a `REQ-*` entry's meaning is fundamental; its phrasing is not. If resolving a conflict changes what a requirement obliges, that is a scope change and needs its own discussion, not a merge commit.
+- **Business logic** — the validation a function enforces and the state transitions it permits are fundamental. Naming, structure and factoring are not. A refactor arriving through a conflict must leave behaviour identical.
+- **Ontology** — Valueflows field names and the NDO layer boundaries are fundamental. Nothing is ever resolved by renaming a VF field or moving a field between layers.
+
+### Prove the resolution, do not assert it
+
+A resolved conflict is a claim that meaning survived. Back it with evidence:
+
+- **Code** — the Sweettest target covering the touched zome passes: `cargo test --package nondominium_sweettest --test <target>`. If nothing covers the resolved behaviour, that absence is the finding; write the test.
+- **Documentation** — re-read the resolved section against the `REQ-*` or specification it describes and confirm both still say the same thing.
+- **Lock files** (`Cargo.lock`, `bun.lock`, `flake.lock`) — never hand-resolved. Take either side, regenerate, commit the regenerated file.
+
+Say in the PR what you resolved and how you checked it. A commit message reading "resolved conflicts" tells the reviewer nothing, and the reviewer is the person who has to trust it.
+
+### Mechanics
+
+Rebase onto `dev`; never merge `dev` into your branch. We squash-merge, so a rebase keeps the branch one clean commit while a merge commit adds noise the squash then hides. Rebase early and often: conflict size scales with how long a branch has been open, and both conflicting branches in this repo today are long-lived drafts.
+
+### Known hotspots
+
+| File | Why it conflicts | Resolution |
+|---|---|---|
+| `.rules` | one 181-line file that every agent-config change touches | Edits are usually in different sections, so both sides normally survive. Keep both unless they genuinely contradict. |
+| integrity `lib.rs` (`EntryTypes`, `LinkTypes`) | both sides append variants to the same enum | Keep both variants, **appended at the end**. `#[hdk_entry_types]` and `#[hdk_link_types]` derive type indices from declaration order, so inserting a variant in the middle, or tidying the enum into alphabetical order while resolving, silently invalidates every entry already on the DHT. This is the intention rule in its sharpest form: the cosmetically nicer resolution is the one that breaks the data. |
+
+---
+
 ## Releasing to main
 
 When `dev` is stable and ready for a release:
