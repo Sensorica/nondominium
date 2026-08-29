@@ -33,10 +33,12 @@ This separation enables independent evolution of data structures and governance 
 
 ### 3.2 Cross-Zome Interface
 
+> **Implementation status (2026-08-29, post-#132).** `GovernanceTransitionRequest`, `TransitionContext`, and `GovernanceTransitionResult` are defined in `crates/shared/src/io/governance.rs`, and `evaluate_state_transition` is live in `zome_gouvernance/src/transition.rs`. `request_resource_transition` does **not** exist: the resource zome does not yet call into this path, so evaluation runs **parallel and advisory** alongside `propose_commitment` / `log_economic_event` rather than as the mandatory funnel. Treat the request side of this document as the design target, not current behaviour. Status: `documentation/IMPLEMENTATION_STATUS.md` § Governance-as-Operator Architecture.
+
 The primary interface between zomes follows the governance operator pattern:
 
 ```rust
-// Resource zome requests state transition
+// Resource zome requests state transition (design target — not yet in code)
 #[hdk_extern]
 pub fn request_resource_transition(
     request: GovernanceTransitionRequest,
@@ -98,19 +100,28 @@ A template for a class of resources.
 - **Fields**:
   - `name: String`
   - `description: String`
+  - `category: String`
   - `image_url: Option<String>`
-  - `governance_rules: Vec<GovernanceRule>`: Embedded rules for resource access and management. Fulfills `REQ-GOV-06`.
+  - `tags: Vec<String>`
+  - `is_active: bool`
+  - `scope: ResourceScope`: `Project` | `Network` | `Public` — discovery visibility (mutable)
+  - `ndo_identity_hash: ActionHash`: immutable pointer to the Layer 0 `NondominiumIdentity` this spec activates
+  - `ndo_state_hash: ActionHash`: the NDO action the author observed at activation, resolved backward by validation
 - **Links**:
-  - `AllResourceSpecifications -> ResourceSpecification`: Anchor for discovery.
+  - `AllResourceSpecifications -> ResourceSpecification`: Anchor for discovery (`Project` scope skips it).
+  - `NdoToSpecification`: Layer 0 identity -> this spec. Creating it **is** Layer 1 activation (`REQ-NDO-L1-01`).
+  - `SpecificationToGovernanceRule -> GovernanceRule`: rules are separate entries, not an embedded vector.
 
 #### 3.2.2. `GovernanceRule`
 
 A rule embedded within a ResourceSpecification that defines how resources can be accessed and managed.
 
 - **Fields**:
-  - `rule_type: String`: e.g., "access_requirement", "usage_limit", "transfer_conditions"
-  - `rule_data: String`: JSON-encoded rule parameters
-  - `enforced_by: Option<AgentRole>`: Role required to enforce this rule
+  - `rule_data: RuleData`: tagged enum — `AccessRequirement` | `UsageLimit` | `TransferCondition` | `MaintenanceSchedule`, each with a typed payload. `GovernanceRuleType` is derived from the discriminant, never stored.
+  - `enforced_by: Option<String>`: Role required to enforce this rule
+  - `ndo_identity_hash: ActionHash`: Layer 0 pointer, required for constraint evaluation
+  - `property_regime: PropertyRegime`, `resource_nature: ResourceNature`: denormalized from Layer 0 so validation needs no DHT read
+  - `rivalry_override: Option<Rivalry>`: overrides the rivalry implied by the regime
 
 #### 3.2.3. `EconomicResource`
 
@@ -411,15 +422,17 @@ pub struct GovernanceTransitionResult {
     /// Whether the transition was approved
     pub success: bool,
     /// Updated resource state (if approved)
-    pub new_resource_state: Option<EconomicResource>,
-    /// Generated economic event for audit trail
-    pub economic_event: Option<EconomicEvent>,
-    /// Validation receipts from governance evaluation
-    pub validation_receipts: Vec<ValidationReceipt>,
+    pub new_resource_state: Option<EconomicResourceView>,
+    /// Reserved for when event generation is wired; currently always None on this path.
+    pub economic_event_hash: Option<ActionHash>,
     /// Detailed reasons for rejection (if applicable)
     pub rejection_reasons: Option<Vec<String>>,
     /// Required next steps or additional validation needed
     pub next_steps: Option<Vec<String>>,
+    /// Soft constraint violations — non-blocking advisory feedback
+    pub advisory_warnings: Option<Vec<String>>,
+    /// Soft violations in structured form, for UI dry-run parity
+    pub soft_violations: Option<Vec<ConstraintViolation>>,
 }
 ```
 
@@ -441,7 +454,7 @@ pub struct GovernanceTransitionResult {
 
 ### 4.2. `zome_resource` Functions
 
-- `create_resource_spec(name: String, description: String, governance_rules: Vec<GovernanceRule>) -> Record`: Creates a new resource specification with embedded governance rules. Fulfills `REQ-GOV-06`.
+- `create_resource_specification(input: ResourceSpecificationInput) -> CreateResourceSpecificationOutput`: Activates Layer 1 — creates the spec, its nested typed `GovernanceRule` entries, and the `NdoToSpecification` link. Fulfills `REQ-GOV-06` and `REQ-NDO-L1-01`.
   - **Capability**: `restricted_access` (Only Accountable Agents can define new resource types)
 - `create_economic_resource(spec_hash: ActionHash, quantity: f64, unit: String) -> Record`: Creates a new Economic Resource. This is the first step for a Simple Agent (`REQ-USER-S-05`). Automatically triggers validation process (`REQ-GOV-02`).
   - **Capability**: `general_access`

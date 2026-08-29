@@ -2,6 +2,7 @@
 
 [Introduction](README.md)
 [TELOS](TELOS.md)
+[Documentation Index](DOCUMENTATION_INDEX.md)
 
 ---
 
@@ -17,6 +18,7 @@
 
 ## Post-MVP Requirements
 
+- [Complete Resource Specification](requirements/post-mvp/complete-resource-specification.md)
 - [Digital Resource Integrity](requirements/post-mvp/digital-resource-integrity.md)
 - [Fractal Composable Resource Architecture](requirements/post-mvp/fractal-composable-resource-architecture.md)
 - [Many-to-Many Flows](requirements/post-mvp/many-to-many-flows.md)
@@ -24,6 +26,10 @@
 - [Open Know-How / IOPA](requirements/post-mvp/open-know-how-iopa.md)
 - [Project-Type NDO Specifications](requirements/post-mvp/project-type-ndo-specifications.md)
 - [Resource Transport Flow Protocol](requirements/post-mvp/resource-transport-flow-protocol.md)
+- [Source-NDO (planning scaffold)](requirements/post-mvp/Source-NDO.md)
+- [Source-NDO Paper](requirements/post-mvp/source-ndo-paper.md)
+- [Source-NDO Requirements](requirements/post-mvp/source-ndo-requirements.md)
+- [Source / ValueFlows Integration](requirements/post-mvp/source-valueflows-integration.md)
 - [ValueFlows DSL](requirements/post-mvp/valueflows-dsl.md)
 - [Unyt Integration](requirements/post-mvp/unyt-integration.md)
 - [Flowsta Integration](requirements/post-mvp/flowsta-integration.md)
@@ -39,6 +45,10 @@
 - [VfAction Usage](specifications/VfAction_Usage.md)
 - [Protocol Bridge Specifications](specifications/protocol-bridge-specifications.md)
 - [API Reference](API_REFERENCE.md)
+
+## Architecture Decision Records
+
+- [ADR-010–013: Per-NDO Cells](specifications/adr/ADR-010-013-per-ndo-cells.md)
 
 ## Governance Specifications
 
@@ -74,6 +84,7 @@
 - [Integration Strategy](hREA/integration-strategy.md)
 - [Strategic Roadmap](hREA/strategic-roadmap.md)
 - [ValueFlows 1.0 Compliance](hREA/valueflows-1.0-compliance.md)
+- [v0.2 Release Plan](hREA/v0.2-release-plan.md)
 
 ---
 
@@ -92,9 +103,11 @@
 
 - [Artcoin](Applications/artcoin_main_doc.md)
 - [Nondominium × Artcoin](Applications/nondominium_artcoin.md)
+- [Digital Dairy Chain](Applications/digitaldairychain.md)
 - [Distributed Journalism](Applications/distributed_journalism.md)
 - [ERP Holochain Bridge](Applications/erp_holochain_bridge.md)
 - [HealthNet](Applications/healthnet.md)
+- [Regenerative Farming](Applications/regen_farming.md)
 - [Strategic Development](Applications/strategic_development.md)
 
 ## User Stories
