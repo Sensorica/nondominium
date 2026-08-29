@@ -24,8 +24,12 @@ pai/
 │       └── complexity-oriented-programming/
 └── harnesses/              ← adapters. Only what a specific tool needs.
     └── claude/
-        └── settings.json       Claude Code project settings
+        ├── settings.json       Claude Code project settings
+        └── commands/           slash commands (Claude Code only)
+            └── nondominium-review.md
 ```
+
+Slash commands sit under `harnesses/claude/` because `/name` is a Claude Code mechanism, not a portable one. The command itself is deliberately thin: it points at the shared `nondominium-review` skill and adds nothing of its own. That keeps the split honest, since the procedure a reviewer follows must not depend on which editor they opened. `rsync` copies the whole `harnesses/claude/` tree, so a new command needs no `flake.nix` change.
 
 A directory appears under `harnesses/` only when that tool needs **source files** of its own. Cursor has none: its adapter is a pure transform, `nix/cursor-pai.nix`, which reads `pai/shared/` and `documentation/` and emits `.mdc` files. Adding a third harness means adding an adapter, not reorganising the shared content.
 

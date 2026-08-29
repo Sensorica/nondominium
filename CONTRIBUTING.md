@@ -87,7 +87,7 @@ feat(governance)!: rename EconomicEvent fields to match ValueFlows 2.0
 
 **Review:** One approval required before merge. Soushi reviews Tibi's PRs, Tibi reviews Soushi's. Mexi is notified for visibility but doesn't block merges.
 
-**How to review:** Follow the `nondominium-review` skill (`pai/shared/skills/nondominium-review/`). It is the shared procedure: the order the six `REVIEW.md` areas get walked, the merge criteria checked, and the verdict shape every review ends in. It is materialized into `.claude/skills/`, `.cursor/skills/`, and `.agents/skills/` by `nix develop`, so the same procedure runs whichever editor or assistant you use. Reviewing by hand is fine; the point is that the standard is one both of us can read and run, not one that lives in a single person's tooling.
+**How to review:** In Claude Code, run `/nondominium-review [PR number]`. The command ships with the repo, so it works after `nix develop` with nothing installed from anywhere else. It runs the `nondominium-review` skill (`pai/shared/skills/nondominium-review/`). It is the shared procedure: the order the six `REVIEW.md` areas get walked, the merge criteria checked, and the verdict shape every review ends in. It is materialized into `.claude/skills/`, `.cursor/skills/`, and `.agents/skills/` by `nix develop`, so the same procedure runs whichever editor or assistant you use. Reviewing by hand is fine; the point is that the standard is one both of us can read and run, not one that lives in a single person's tooling.
 
 **Never approve on a pipeline that has not finished.** The CI stages are chained (`build` → `sweettest` → `e2e`), so early-passing jobs say nothing about the later ones. Wait for `gh pr checks <N> --watch` to settle before posting a verdict.
 
