@@ -20,7 +20,7 @@
     systems = builtins.attrNames inputs.holonix.devShells;
     perSystem = { inputs', pkgs, ... }:
     let
-      cursorPAI      = (pkgs.callPackage ./nix/cursor-pai.nix { }) { paiDir = ./pai; docsDir = ./documentation; };
+      cursorPAI      = (pkgs.callPackage ./nix/cursor-pai.nix { }) { sharedDir = ./pai/shared; docsDir = ./documentation; };
       agentSkillsHook = pkgs.callPackage ./nix/agent-skills.nix { };
     in
     {
@@ -46,9 +46,12 @@
           export BINDGEN_EXTRA_CLANG_ARGS="-isystem ${pkgs.llvmPackages_19.libclang.lib}/lib/clang/19/include -isystem ${pkgs.glibc.dev}/include"
           git submodule update --init vendor/hrea 2>/dev/null || true
 
-          # Materialize .claude/ from pai/claude/
+          # Claude adapter: harness-specific source only (settings, hooks).
+          # Skills are NOT here — they are harness-agnostic and fan out below.
+          # No --delete here: .claude/skills/ is populated by the fan-out below and
+          # --delete would wipe it on every shell entry before that runs.
           mkdir -p .claude/skills
-          rsync -a --delete ${./pai/claude}/ .claude/
+          rsync -a ${./pai/harnesses/claude}/ .claude/
           # Nix store paths are read-only, and `rsync -a` preserves that mode on
           # the copy. Without this the NEXT write into .claude/ fails — the skills
           # hook below cannot mkdir .claude/skills/holochain, which is the
@@ -57,18 +60,18 @@
           chmod -R u+w .claude 2>/dev/null || true
           chmod u+x .claude/hooks/*.hook.ts 2>/dev/null || true
 
-          # Materialize Cursor rules from pai/
+          # Cursor adapter: pai/shared/ + documentation/ transformed into .mdc
           mkdir -p .cursor/rules
           rsync -a --delete ${cursorPAI}/ .cursor/rules/
           chmod -R u+w .cursor 2>/dev/null || true
 
-          # Materialize agent skills into .claude/, .cursor/, and .agents/
+          # Harness-agnostic skills, fanned out to every harness path
           mkdir -p .cursor/skills .agents/skills
           ${agentSkillsHook [
             { src = inputs.holochain-agent-skill;                        name = "holochain"; }
-            { src = "${./pai/claude}/skills/nondominium-domain"; name = "nondominium-domain"; }
-            { src = "${./pai/claude}/skills/complexity-oriented-programming"; name = "complexity-oriented-programming"; }
-            { src = "${./pai/claude}/skills/nondominium-review"; name = "nondominium-review"; }
+            { src = "${./pai/shared}/skills/nondominium-domain"; name = "nondominium-domain"; }
+            { src = "${./pai/shared}/skills/complexity-oriented-programming"; name = "complexity-oriented-programming"; }
+            { src = "${./pai/shared}/skills/nondominium-review"; name = "nondominium-review"; }
           ]}
         '';
       };

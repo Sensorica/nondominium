@@ -87,7 +87,7 @@ feat(governance)!: rename EconomicEvent fields to match ValueFlows 2.0
 
 **Review:** One approval required before merge. Soushi reviews Tibi's PRs, Tibi reviews Soushi's. Mexi is notified for visibility but doesn't block merges.
 
-**How to review:** Follow the `nondominium-review` skill (`pai/claude/skills/nondominium-review/`). It is the shared procedure: the order the six `REVIEW.md` areas get walked, the merge criteria checked, and the verdict shape every review ends in. It is materialized into `.claude/skills/`, `.cursor/skills/`, and `.agents/skills/` by `nix develop`, so the same procedure runs whichever editor or assistant you use. Reviewing by hand is fine; the point is that the standard is one both of us can read and run, not one that lives in a single person's tooling.
+**How to review:** Follow the `nondominium-review` skill (`pai/shared/skills/nondominium-review/`). It is the shared procedure: the order the six `REVIEW.md` areas get walked, the merge criteria checked, and the verdict shape every review ends in. It is materialized into `.claude/skills/`, `.cursor/skills/`, and `.agents/skills/` by `nix develop`, so the same procedure runs whichever editor or assistant you use. Reviewing by hand is fine; the point is that the standard is one both of us can read and run, not one that lives in a single person's tooling.
 
 **Never approve on a pipeline that has not finished.** The CI stages are chained (`build` → `sweettest` → `e2e`), so early-passing jobs say nothing about the later ones. Wait for `gh pr checks <N> --watch` to settle before posting a verdict.
 
@@ -208,24 +208,27 @@ Tibi: standard `git checkout` workflow works fine — worktrees are optional.
 
 ## AI Tooling Conventions
 
-Running `nix develop` materializes two AI asset directories (both gitignored):
-- `.cursor/rules/` — Cursor always-loaded rules from `pai/`
-- `.agents/skills/` — Open Agent Skills for Cursor, VS Code Copilot, and compatible editors
+Running `nix develop` materializes three AI asset directories (all gitignored):
+- `.claude/` — Claude Code settings and skills
+- `.cursor/` — Cursor always-loaded rules and skills
+- `.agents/skills/` — Open Agent Skills for VS Code Copilot and compatible editors
 
 ### Source files and what they drive
 
 | Source | Drives | When to edit |
 |---|---|---|
-| `documentation/TELOS.md` | `.cursor/rules/00-telos.mdc` + Claude Code session context | Project purpose / operating principles changed |
-| `pai/conventions.md` | `.cursor/rules/10-conventions.mdc` | Coding/process conventions changed |
-| `pai/cursor-rules/*.md` | `.cursor/rules/20-50-*.mdc` | Architecture, Rust, Svelte, or test patterns changed |
-| `pai/claude/skills/nondominium-domain/` | `.claude/skills/nondominium-domain/` + `.agents/skills/nondominium-domain/` | NDO domain knowledge updated; run `nix develop` to regenerate |
-| `pai/claude/skills/nondominium-review/` | same three trees, as `nondominium-review` | The shared review procedure changed. Note it routes to `REVIEW.md` rather than restating it, so a change to what gets flagged belongs in `REVIEW.md` |
-| `pai/claude/skills/complexity-oriented-programming/` | same three trees | Coordination-design vocabulary updated |
-| flake input `holochain-agent-skill` | `.claude/skills/holochain/` + `.agents/skills/holochain/` | Run `nix flake update holochain-agent-skill` to pin a new version |
+| `documentation/TELOS.md` | `.cursor/rules/00-telos.mdc` + Claude Code context via `.rules` | Project purpose / operating principles changed |
+| `pai/shared/conventions.md` | `.cursor/rules/10-conventions.mdc` | Coding/process conventions changed |
+| `pai/shared/rules/*.md` | `.cursor/rules/20-50-*.mdc` | Architecture, Rust, Svelte, or test patterns changed |
+| `pai/shared/skills/*/` | `.claude/skills/`, `.cursor/skills/`, `.agents/skills/` | A skill changed. These are harness-agnostic; every tool gets them |
+| `pai/harnesses/claude/` | `.claude/settings.json` | Claude Code settings changed. Harness-specific source only |
+| flake input `holochain-agent-skill` | the `holochain` skill in all three trees | Run `nix flake update holochain-agent-skill` to pin a new version |
 
-After editing any `pai/` file: `exit` the nix shell and `nix develop` to regenerate.
-The `.claude/`, `.cursor/`, and `.agents/` directories are gitignored — never edit them directly.
+`pai/shared/` is harness-agnostic and `pai/harnesses/` holds adapters. A directory appears under `harnesses/` only when a tool needs source files of its own; Cursor has none, because its adapter (`nix/cursor-pai.nix`) is a pure transform. Full architecture: `pai/README.md`.
+
+After editing any `pai/` file: `exit` the nix shell and `nix develop` to regenerate. For a faster loop while iterating on a skill, `bun run pai:sync` copies `pai/shared/skills/` straight from the working tree. Note that nix only sees git-tracked files, so a newly created skill must be committed before `nix develop` picks it up; nothing errors, the skill is simply never invoked.
+
+The `.claude/`, `.cursor/`, and `.agents/` directories are generated and gitignored. Never edit them directly.
 
 ---
 

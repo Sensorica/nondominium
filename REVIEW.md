@@ -4,7 +4,7 @@
 > when reviewing pull requests in this repo.
 > Development setup, build commands, and architecture context live in `CLAUDE.md` — do not duplicate them here.
 >
-> **This file is the content; `pai/claude/skills/nondominium-review/` is the procedure.** The skill
+> **This file is the content; `pai/shared/skills/nondominium-review/` is the procedure.** The skill
 > says in what order these areas get walked, which merge criteria from `CONTRIBUTING.md` apply, and
 > what shape a verdict takes. It deliberately does not restate anything below. When what gets flagged
 > changes, it changes here.
