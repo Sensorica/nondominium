@@ -29,7 +29,19 @@ pai/
             └── nondominium-review.md
 ```
 
-Slash commands sit under `harnesses/claude/` because `/name` is a Claude Code mechanism, not a portable one. The command itself is deliberately thin: it points at the shared `nondominium-review` skill and adds nothing of its own. That keeps the split honest, since the procedure a reviewer follows must not depend on which editor they opened. `rsync` copies the whole `harnesses/claude/` tree, so a new command needs no `flake.nix` change.
+### Invoking a skill as a slash command
+
+`/name` is not one mechanism, it is two, and knowing which one a tool uses decides where a file belongs.
+
+| Tool | How `/nondominium-review` resolves | What we ship for it |
+|---|---|---|
+| **Cursor** | Skills **are** the slash-command mechanism. Typing `/` lists the skills in `.cursor/skills/` and `.agents/skills/` and attaches the chosen one to the message. | Nothing extra. The skill we already distribute IS the command. |
+| **Any Agent Skills client** (`.agents/skills/`) | Same: the standard skill directory is the portable command surface. | Nothing extra. |
+| **Claude Code** | Skills are invocable, but `/name` reads `.claude/commands/*.md`, a separate surface. | A thin command file under `harnesses/claude/commands/`. |
+
+So the portable command is the **skill**, and Claude Code is the one harness needing an adapter file. That file adds no judgement of its own; it points at the shared skill. `rsync` copies the whole `harnesses/claude/` tree, so a new command needs no `flake.nix` change.
+
+A skill can be made explicit-invocation-only with `disable-model-invocation: true` in its frontmatter, which makes it behave like a traditional slash command. We deliberately leave it off for `nondominium-review`: an assistant that notices "review this PR" and reaches for the project procedure unprompted is the behaviour we want.
 
 A directory appears under `harnesses/` only when that tool needs **source files** of its own. Cursor has none: its adapter is a pure transform, `nix/cursor-pai.nix`, which reads `pai/shared/` and `documentation/` and emits `.mdc` files. Adding a third harness means adding an adapter, not reorganising the shared content.
 
