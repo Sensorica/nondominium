@@ -1,16 +1,23 @@
 # Test Commands Reference
 
-Quick reference for running tests from the project root.
+Canonical command reference for running tests from the project root. This is the one place
+that lists every suite; other docs link here rather than restating commands.
+
+**Suite status:** Sweettest (Rust) is the **primary** suite and the only place new tests are
+written. Tryorama (TypeScript, `tests/`) is **deprecated** — see [`tests/DEPRECATED.md`](../tests/DEPRECATED.md).
+E2E (Playwright) covers the UI-to-conductor seam — see [`ui/tests/README.md`](../ui/tests/README.md).
 
 ## 🦀 **Sweettest (Rust) — Primary**
 
 Runs Holochain in-process. Faster, no WebSocket round-trip, direct Rust types.
 
-Four `[[test]]` binaries (targets for `cargo test --test <name>`):
-- `misc` — ping test, validates full build chain end-to-end
-- `person` — Person zome + hREA bridge tests
-- `resource` — Resource zome tests
-- `nondominium` — NDO Layer 0 (`NondominiumIdentity`) lifecycle tests (8 scenarios)
+Each DNA has its own Sweettest package. `[[test]]` binaries (targets for `cargo test --test <name>`):
+
+| Package | Binaries |
+|---|---|
+| `nondominium_sweettest` | `misc` — ping test, validates full build chain end-to-end<br>`person` — Person zome + hREA bridge tests<br>`resource` — Resource zome tests<br>`governance` — Governance zome tests (hard links, contributions, agreements)<br>`nondominium` — NDO Layer 0 (`NondominiumIdentity`) lifecycle tests |
+| `group_sweettest` | `group` — group lifecycle, membership, work logs, soft links<br>`ndo_anchor` — NDO anchor tests |
+| `lobby_sweettest` | `lobby` — agent profiles and group announcements |
 
 ```bash
 # Build .dna bundle then run all Rust tests
@@ -70,6 +77,9 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test
 
 # Run a single test (no thread limit needed)
 CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test group join_group_creates_membership
+
+# NDO anchor tests (second binary in the same package)
+CARGO_TARGET_DIR=target/native-tests cargo test --package group_sweettest --test ndo_anchor
 ```
 
 ### NDO Layer 0 tests (`--test nondominium`)
@@ -82,12 +92,28 @@ CARGO_TARGET_DIR=target/native-tests cargo test --test nondominium
 CARGO_TARGET_DIR=target/native-tests cargo test --test nondominium ndo_cross_agent_discovery
 ```
 
-## 📋 **Tryorama (TypeScript) — Deprecated**
+## 🎭 **E2E (Playwright + real conductors)**
 
-Still the primary test suite until NDO refactor lands and Sweettest tests are co-evolved.
+Browser-level coverage of the Lobby → Group → NDO holarchy against real conductors. Full
+detail, architecture, and debugging notes: [`ui/tests/README.md`](../ui/tests/README.md).
 
+```bash
+bun run build:happ          # once, or after zome changes — e2e does NOT rebuild
+bun run e2e                 # headless
+bun run e2e:ui              # Playwright UI mode (debugging)
 
-## 🚀 **Basic Test Commands**
+E2E_PLAYGROUND=1 bun run e2e   # also start `hc playground` for DHT inspection
+```
+
+---
+
+## 📋 **Tryorama (TypeScript) — DEPRECATED**
+
+> **Do not write new tests here.** Everything below documents the legacy Tryorama suite in
+> `tests/`, kept as historical reference only and no longer maintained. New tests go in
+> Sweettest (above). Migration status: [`tests/DEPRECATED.md`](../tests/DEPRECATED.md).
+
+### Basic Test Commands (legacy)
 
 All commands automatically build zomes and package the hApp before running tests.
 
@@ -105,7 +131,7 @@ bun tests --watch
 bun tests --coverage
 ```
 
-## 🎯 **Pattern-Based Test Selection**
+### 🎯 **Pattern-Based Test Selection**
 
 The test system uses file name pattern matching to run specific test subsets:
 
@@ -123,7 +149,7 @@ bun tests governance
 bun tests ppr
 ```
 
-## 📂 **Layer-Specific Test Patterns**
+### 📂 **Layer-Specific Test Patterns**
 
 ```bash
 # Run all foundation tests (basic connectivity)
@@ -136,7 +162,7 @@ bun tests integration
 bun tests scenario
 ```
 
-## 🔧 **Specific Test Files**
+### 🔧 **Specific Test Files**
 
 ```bash
 # Run specific test files using partial name matching
@@ -155,7 +181,7 @@ bun tests person-capability
 bun tests governance-foundation
 ```
 
-## 🎯 **Development Workflow Commands**
+### 🎯 **Development Workflow Commands**
 
 ```bash
 # Development with hot reload
@@ -170,7 +196,7 @@ bun tests governance
 bun tests person
 ```
 
-## 🧹 **Test Quality & Type Checking**
+### 🧹 **Test Quality & Type Checking**
 
 ```bash
 # Run tests with type checking
@@ -183,10 +209,15 @@ cd tests && npm run check
 bun tests --coverage
 ```
 
+---
+
 ## 💡 **Test Development Tips**
 
 ### Test Isolation During Development
-Use `.only()` on specific test blocks to run single tests:
+
+Sweettest (Rust): mark unfinished tests `#[ignore]`, or filter by name with `cargo test <name>`.
+
+Tryorama (legacy): use `.only()` on specific test blocks to run single tests:
 
 ```typescript
 describe.only('specific test suite', () => { ... })  // Run only this suite
@@ -203,7 +234,13 @@ warn!("Checkpoint reached in function_name");
 warn!("Processing entry: {}", entry_hash);
 ```
 
-## 📊 **Test File Structure**
+---
+
+## 📦 **Tryorama legacy reference (deprecated)**
+
+> Everything in this section describes the deprecated `tests/` suite. Kept for archaeology.
+
+### 📊 **Test File Structure**
 
 ```
 tests/src/nondominium/
@@ -229,14 +266,14 @@ tests/src/nondominium/
     └── misc.test.ts
 ```
 
-## 🎯 **Recommended Testing Workflow**
+### 🎯 **Recommended Testing Workflow**
 
 1. **Feature Development**: `bun tests --watch <feature-area>`
 2. **Specific Test Debugging**: `bun tests --reporter=verbose <specific-test>`
 3. **Pre-commit Validation**: `bun tests foundation && bun tests --typecheck`
 4. **Full Validation**: `bun tests && bun tests --coverage`
 
-## 🔍 **Pattern Matching Rules**
+### 🔍 **Pattern Matching Rules**
 
 The `bun tests` command uses Vitest's file filtering:
 - **Prefix Matching**: `bun tests person` matches all files starting with "person-"
@@ -244,7 +281,7 @@ The `bun tests` command uses Vitest's file filtering:
 - **Specific Files**: Use unique parts of filenames for precise selection
 - **Multiple Patterns**: Chain multiple patterns for broader coverage
 
-## ⚡ **Performance Tips**
+### ⚡ **Performance Tips**
 
 - **Use Specific Patterns**: `bun tests person-foundation` is faster than `bun tests person`
 - **Foundation First**: Run foundation tests before integration/scenario tests

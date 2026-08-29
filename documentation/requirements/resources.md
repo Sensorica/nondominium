@@ -137,7 +137,7 @@ pub enum ResourceNature {
 
 > **Doc/code consistency:** `PropertyRegime` has **seven** canonical variants in Rust and the UI (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`). See §2.6. `ResourceNature` in code adds `Service` and `Information` beyond the three-variant design in `ndo_prima_materia.md`; forward-map variants `Space`, `Method`, and `Currency` (§6.2) are not yet in code.
 
-**`ResourceSpecification`**
+**`ResourceSpecification`** (Layer 1 — ✅ activated, PR #132)
 ```rust
 pub struct ResourceSpecification {
     pub name: String,
@@ -146,6 +146,14 @@ pub struct ResourceSpecification {
     pub image_url: Option<String>,
     pub tags: Vec<String>,
     pub is_active: bool,
+    /// Visibility / discovery scope. Project-scoped specs skip the global anchor.
+    pub scope: ResourceScope,
+    /// Immutable pointer to the Layer 0 NondominiumIdentity this spec activates.
+    pub ndo_identity_hash: ActionHash,
+    /// The NDO action the author observed when activating Layer 1. Integrity
+    /// cannot walk an update chain forward deterministically, so the author names
+    /// the state they saw and validation resolves it backward to the identity.
+    pub ndo_state_hash: ActionHash,
 }
 ```
 This is the **knowledge layer** in ValueFlows terminology: the type or template of a resource. It corresponds to the OVN concept of "Resource Type" — an abstract representation that groups interchangeable concrete instances.
@@ -159,20 +167,32 @@ pub struct EconomicResource {
                                 // to support Collective, Project, Network, and Bot agents as
                                 // Primary Accountable Agents. Currently assumes individual agent.
     pub current_location: Option<String>,
-    - operational_state: OperationalState,
+    pub operational_state: OperationalState,
 }
 ```
 This is the **observation layer**: a specific instance of a resource at a point in time, held by a specific custodian.
 
-**`GovernanceRule`**
+**`GovernanceRule`** (typed as of PR #132)
 ```rust
 pub struct GovernanceRule {
-    pub rule_type: String,   // free-form string (e.g., "access_requirement")
-    pub rule_data: String,   // JSON-encoded, completely untyped
-    pub enforced_by: Option<String>,
+    pub rule_data: RuleData,         // tagged enum, replaces the rule_type/rule_data string pair
+    pub enforced_by: Option<String>, // role required to enforce this rule
+    /// Direct pointer to Layer 0 — required for constraint evaluation context.
+    pub ndo_identity_hash: ActionHash,
+    /// Denormalized from Layer 0 (immutable source) — enables zero-DHT-read validation.
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub rivalry_override: Option<Rivalry>,
+}
+
+pub enum RuleData {
+    AccessRequirement(AccessRequirementData),
+    UsageLimit(UsageLimitData),
+    TransferCondition(TransferConditionData),
+    MaintenanceSchedule(MaintenanceScheduleData),
 }
 ```
-Economic rules governing access and use. Currently entirely untyped — `rule_data` is a free-form JSON string with no schema enforcement. - ToDo: explore how to make governance rules machine readable and executable, typed. 
+Economic rules governing access and use. The former untyped `rule_type: String` / `rule_data: String` pair is gone: `RuleData` is a tagged enum with a typed payload per variant, and `GovernanceRuleType` is derived from the discriminant rather than stored. Rules are checked against their NDO's classification by the predicates in [`crates/shared/src/constraints.rs`](../../crates/shared/src/constraints.rs) — `Hard` violations are rejected at integrity, `Soft` violations return as advisory warnings. Definitions: [`crates/shared/src/rule_data.rs`](../../crates/shared/src/rule_data.rs). 
 
 **`OperationalState`** (enum on `EconomicResource`) — ✅ **implemented** (`REQ-NDO-OS-01`)
 
@@ -203,7 +223,9 @@ The link types model resource discovery and navigation:
 - `NdoToSuccessor` — deprecated NDO → successor `NondominiumIdentity` (REQ-NDO-LC-06)
 - `NdoToTransitionEvent` — NDO → triggering `EconomicEvent` action hash (REQ-NDO-L0-05; link only, cross-zome event validation deferred)
 
-> **Not yet implemented:** `NDOToSpecification` and `NDOToProcess` links (Layers 1 & 2 activation per `ndo_prima_materia.md` §4).
+> **Layer 1 activation** (✅ implemented, PR #132): `NdoToSpecification` — NDO identity hash → `ResourceSpecification`, created on every `create_resource_specification`.
+>
+> **Not yet implemented:** `NDOToProcess` (Layer 2 activation per `ndo_prima_materia.md` §4).
 
 ### 2.3 What the MVP Does Well
 
@@ -222,7 +244,7 @@ The link types model resource discovery and navigation:
 | ~~`ResourceState` conflates lifecycle and operational dimensions~~ | ~~Cannot model in-transit, in-storage, or in-maintenance instances independently of Layer 0 lifecycle~~ | ✅ **`OperationalState` on `EconomicResource`** (`REQ-NDO-OS-01`); governance-operator transitions deferred (`REQ-NDO-OS-02`–`05`) |
 | ~~No property regime field~~ | ~~Cannot distinguish nondominium from commons from individual stewardship~~ | ✅ **`PropertyRegime` on `NondominiumIdentity`** (see §2.6 — seven variants) |
 | ~~No resource nature field~~ | ~~Cannot distinguish digital from physical from hybrid~~ | ✅ **`ResourceNature` on `NondominiumIdentity`** (5 variants in code; see §2.6) |
-| `GovernanceRule.rule_data` is untyped JSON string | No schema enforcement, no tooling support, no peer validation of rule semantics | 🔄 `GovernanceRuleType` enum with typed schemas (`ndo_prima_materia.md` + `unyt-integration.md`) |
+| ~~`GovernanceRule.rule_data` is untyped JSON string~~ | ~~No schema enforcement, no tooling support, no peer validation of rule semantics~~ | ✅ **Typed `RuleData` enum** (#132) — four variants with typed payloads, classification predicates enforced Hard/Soft; `EconomicAgreement` / `IdentityVerification` rule families remain post-MVP |
 | ~~No lifecycle before `PendingValidation`~~ | ~~Cannot model resources in ideation, design, development stages~~ | ✅ **`LifecycleStage` (10 stages) on Layer 0** with full transition validation |
 | Single custodian only | Cannot model shared tools, collective custody, resource pools | 🔄 Many-to-many flows (post-MVP) |
 | ~~No resource-level identity separate from specification hash~~ | ~~Identity changes when specification is updated~~ | ✅ **`NondominiumIdentity` Layer 0** — stable action hash independent of spec updates |
@@ -233,7 +255,7 @@ The link types model resource discovery and navigation:
 | No resource reliability | No way to track a tool's track record independent of custodian reputation | Gap — see Section 5 |
 | No cross-app identity or DID | Agents cannot prove identity across Holochain apps or networks; reputation is local to this DHT; no key recovery mechanism | 🔄 `FlowstaIdentity` CapabilitySlot on `Person` entry hash (`ndo_prima_materia.md` Section 6.7) |
 | No agent key recovery | If agent loses device, signing key (and all private entries/PPRs) are inaccessible; no deterministic key regeneration | 🔄 Flowsta Vault BIP39 recovery phrases; auto-backup; CAL-compliant data export (`ndo_prima_materia.md` Section 6.7) |
-| Layers 1 & 2 not linked to Layer 0 | Specification and process activity not activated via `NDOToSpecification` / `NDOToProcess` | 🔄 `ndo_prima_materia.md` §4 |
+| Layer 2 not linked to Layer 0 | Process activity not activated via `NDOToProcess` | 🔄 `ndo_prima_materia.md` §4 (Layer 1 activated via `NdoToSpecification`, #132) |
 | Governance-as-operator for lifecycle transitions | Transitions validated in integrity zome only; no automatic EconomicEvent generation | 🔄 REQ-NDO-LC-02, REQ-NDO-LC-03, REQ-NDO-LC-07 |
 
 ### 2.5 Federation, versioning & contribution layer (`zome_gouvernance`, ✅ PR #103)
@@ -305,7 +327,7 @@ The following improvements are designed in the post-MVP documentation. Items mar
 The most significant architectural change. Replaces the flat `ResourceSpecification + EconomicResource` model with a progressive three-layer structure:
 
 - **Layer 0 — NondominiumIdentity**: ✅ **Implemented** (PR #80/#84). A permanent, immutable identity anchor. The genesis entry whose action hash becomes the stable identifier for the resource across its entire existence. Contains `name`, `description`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `successor_ndo_hash`, `hibernation_origin`. Never voided — serves as the tombstone at end of life.
-- **Layer 1 — ResourceSpecification** (activated by `NDOToSpecification` link): 🔄 **Not started**. The form of the resource — design, governance rules, assets, digital integrity manifests. Activated when the resource has a form worth sharing. Legacy `ResourceSpecification` entries exist but are not yet linked to Layer 0.
+- **Layer 1 — ResourceSpecification** (activated by the `NdoToSpecification` link): ✅ **Implemented** (PR #132). The form of the resource — design, typed governance rules, scope. `create_resource_specification` writes the link and the spec carries `ndo_identity_hash` / `ndo_state_hash`, so a spec can no longer exist without an NDO parent. Activation is gated to lifecycle stages `Specification` through `Active`. Digital asset manifests (REQ-NDO-L1-06) remain post-MVP.
 - **Layer 2 — Process** (activated by `NDOToProcess` link): 🔄 **Not started**. The activity around the resource — EconomicEvents, Commitments, Claims, PPRs. Activated when multi-agent coordination begins. ValueFlows cycle exists in `zome_gouvernance` but is not yet linked to NDO identity via `NDOToProcess`.
 
 This model directly implements the complexity matching principle: coordination overhead grows with actual social complexity, not at resource creation. The three-layer structure describes the **resource face** of any entity — including collective entities. When a collective (project-organisation, cooperative, network) has an associated NDO, that NDO is its digital twin as a Resource: its permanent identity, lifecycle, specification, and governance. The collective also has an **agent face** (`AgentContext`) through which it participates in economic events. These are distinct — see `agent.md §3.1` for the dual-face model.

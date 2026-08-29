@@ -1,5 +1,7 @@
 # Cross-Zome API Specification
 
+> **Implementation status (2026-08-29, post-#132).** `GovernanceTransitionRequest`, `TransitionContext`, and `GovernanceTransitionResult` are defined in `crates/shared/src/io/governance.rs`, and `evaluate_state_transition` is live in `zome_gouvernance/src/transition.rs`. `request_resource_transition` does **not** exist: the resource zome does not yet call into this path, so evaluation runs **parallel and advisory** alongside `propose_commitment` / `log_economic_event` rather than as the mandatory funnel. Treat the request side of this document as the design target, not current behaviour. Status: `documentation/IMPLEMENTATION_STATUS.md` § Governance-as-Operator Architecture.
+
 Cross-zome contracts described here reflect the **MVP** split: `zome_resource` holds data; `zome_gouvernance` evaluates transitions. **Post-MVP**, typed rules for **Unyt** (`EconomicAgreement`, RAVE) and **Flowsta** (`IdentityVerification`) are specified in `documentation/requirements/ndo_prima_materia.md` §§6.6–6.7 and the integration stubs under `documentation/requirements/post-mvp/` — see also `governance-operator-architecture.md` §1.3.
 
 ## 1. Resource Zome API
