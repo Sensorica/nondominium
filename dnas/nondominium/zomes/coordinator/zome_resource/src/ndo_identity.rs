@@ -10,6 +10,8 @@ pub struct NdoInput {
   pub resource_nature: ResourceNature,
   pub lifecycle_stage: LifecycleStage,
   pub description: Option<String>,
+  /// Optional override of `ResourceNature::default_rivalry()`. Immutable after creation.
+  pub rivalry_override: Option<Rivalry>,
 }
 
 // Output from create_ndo — the action_hash IS the stable Layer 0 identity
@@ -23,6 +25,26 @@ pub struct NdoOutput {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetAllNdosOutput {
   pub ndos: Vec<NdoOutput>,
+}
+
+// One recorded lifecycle transition, derived from the NondominiumIdentity update chain.
+// REQ-UI-NDO-04.
+//
+// `event_hash` is the ActionHash of the Update action that recorded the transition. That
+// action always exists — it IS the transition — so the panel always has a hash to show and
+// copy. It is deliberately not the triggering EconomicEvent: `transition_event_hash` is
+// optional on `update_lifecycle_stage`, is null throughout the MVP, and its
+// `NdoToTransitionEvent` links hang off the NDO's original action hash with nothing tying a
+// given link to a given transition. Attributing one to a specific step would be a guess.
+// When REQ-NDO-LC-03 makes event generation automatic, that hash can be added as its own
+// field rather than by overloading this one.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NdoTransitionHistoryEvent {
+  pub from_stage: LifecycleStage,
+  pub to_stage: LifecycleStage,
+  pub agent: AgentPubKey,
+  pub timestamp: Timestamp,
+  pub event_hash: ActionHash,
 }
 
 // Input for updating a NondominiumIdentity's lifecycle stage (the only permitted mutation).
@@ -80,7 +102,7 @@ fn resolve_ndo_links(links: Vec<Link>) -> ExternResult<Vec<NdoOutput>> {
 /// Returns None if the original_action_hash does not exist on the DHT.
 ///
 /// Used by both get_ndo and update_lifecycle_stage to avoid duplicated chain traversal logic.
-fn resolve_latest_ndo_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
+pub(crate) fn resolve_latest_ndo_record(original_action_hash: ActionHash) -> ExternResult<Option<Record>> {
   let mut current_hash = original_action_hash;
   loop {
     match get_details(current_hash.clone(), GetOptions::default())? {
@@ -130,6 +152,7 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
     lifecycle_stage: input.lifecycle_stage,
     created_at: sys_time()?,
     description: input.description,
+    rivalry_override: input.rivalry_override,
     successor_ndo_hash: None,
     hibernation_origin: None,
   };
@@ -416,4 +439,84 @@ pub fn get_my_ndos(_: ()) -> ExternResult<GetAllNdosOutput> {
     GetStrategy::default(),
   )?;
   Ok(GetAllNdosOutput { ndos: resolve_ndo_links(links)? })
+}
+
+/// Return the ordered lifecycle transition history of an NDO (REQ-UI-NDO-04).
+///
+/// Walks the NondominiumIdentity update chain from the original action hash forward. Each
+/// Update in that chain is exactly one lifecycle transition: `update_lifecycle_stage` is the
+/// only writer of updates, and integrity validation rejects any update that changes a field
+/// other than `lifecycle_stage`, `successor_ndo_hash`, or `hibernation_origin`. So the chain
+/// IS the history — no separate log entry is needed, and none can drift from it.
+///
+/// `from_stage` is the stage of the record being superseded; `to_stage`, `agent`, and
+/// `timestamp` come from the Update itself, so the history reports who moved the NDO and
+/// when, not merely that it moved.
+///
+/// Returns an empty vec for an NDO that has never transitioned, and for an
+/// `original_action_hash` that does not resolve. Traversal follows the most recent update at
+/// each step, matching `resolve_latest_ndo_record`, so a forked chain reports the branch that
+/// `get_ndo` also reports — the history never disagrees with the displayed stage.
+#[hdk_extern]
+pub fn get_ndo_transition_history(
+  original_action_hash: ActionHash,
+) -> ExternResult<Vec<NdoTransitionHistoryEvent>> {
+  let mut history = Vec::new();
+  let mut current_hash = original_action_hash;
+
+  loop {
+    let Some(Details::Record(record_details)) =
+      get_details(current_hash.clone(), GetOptions::default())?
+    else {
+      return Ok(history);
+    };
+
+    if record_details.updates.is_empty() {
+      return Ok(history);
+    }
+
+    // The stage this update moves away from.
+    let Ok(Some(from_entry)) = record_details
+      .record
+      .entry()
+      .to_app_option::<NondominiumIdentity>()
+    else {
+      return Ok(history);
+    };
+
+    // Same traversal rule as resolve_latest_ndo_record: follow the most recent update.
+    let next = record_details
+      .updates
+      .into_iter()
+      .max_by_key(|sah| sah.action().timestamp())
+      .ok_or(ResourceError::EntryOperationFailed(
+        "Empty updates list during transition history traversal".to_string(),
+      ))?;
+
+    let update_hash = next.hashed.hash.clone();
+    let update_action = next.hashed.content.clone();
+
+    let Some(Details::Record(update_details)) =
+      get_details(update_hash.clone(), GetOptions::default())?
+    else {
+      return Ok(history);
+    };
+    let Ok(Some(to_entry)) = update_details
+      .record
+      .entry()
+      .to_app_option::<NondominiumIdentity>()
+    else {
+      return Ok(history);
+    };
+
+    history.push(NdoTransitionHistoryEvent {
+      from_stage: from_entry.lifecycle_stage,
+      to_stage: to_entry.lifecycle_stage,
+      agent: update_action.author().clone(),
+      timestamp: update_action.timestamp(),
+      event_hash: update_hash.clone(),
+    });
+
+    current_hash = update_hash;
+  }
 }

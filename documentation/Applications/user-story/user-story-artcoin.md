@@ -1,22 +1,34 @@
 # User Story: ArtCoin - Art Circulation and Discovery
 
-## Scenario: Artist Sharing Artwork Through Venues Using Nondominium
+## Scenario: Artist Sharing Artwork Through Venues or directly with art lovers (individuals) Using Nondominium
 
-**Context**: An independent artist wants to circulate their paintings through a network of venues (cafes, restaurants, offices) to gain exposure and generate rental income, using the Artcoin platform built on Nondominium infrastructure. **This scenario primarily demonstrates Nondominium's resource sharing capabilities, with optional extension for a more comprehensive cultural network economics.**
+**Context**: An independent artist wants to circulate their paintings through a network of venues (cafes, restaurants, offices) or directly with individual art lovers, to gain exposure and generate income, using the Artcoin platform built on Nondominium infrastructure. **This scenario primarily demonstrates Nondominium's resource sharing capabilities, with optional extension for a more comprehensive cultural network economics.**
 
-See also *artcoin_main_doc.md* and *Nondominium_Artcoin.md*.
+See also *artcoin_main_doc.md* and *nondominium_artcoin.md*.
 
+> **How to read this story.** The artwork is a **Nondominium Object (NDO)**: a permanent
+> `NondominiumIdentity` (Layer 0) plus a `ResourceSpecification` (Layer 1) and the
+> economic activity around it (Layer 2). Custody moves via `transfer_custody`; every
+> interaction generates bilateral **Private Participation Receipts (PPRs)**. Sequence
+> diagrams below use real Nondominium zome functions where they exist; some steps are
+> Artcoin platform-layer conveniences over those primitives. For the capability-by-capability
+> status (what is code-complete vs. planned — e.g. payment settlement), see
+> *nondominium_artcoin.md §5*.
 
 ---
 
+
+
 ## 🏗️ System Architecture Context
+
+
 
 ### **Resource Sharing Focus (Nondominium Sweet Spot)**
 
 ```mermaid
 graph TB
     subgraph "Nondominium - Perfect Match for Art Circulation"
-        Person[Person Zome - Artist/Venue Profiles]
+        Person[Person Zome - Artist/Venue/Individual Profiles]
         Resource[Resource Zome - Artwork Registry]
         Governance[Governance Zome - Display Rules]
         PPR[PPR Reputation System]
@@ -24,9 +36,9 @@ graph TB
 
     subgraph "Art Network Capabilities"
         Discovery[Artwork Discovery]
-        Access[Venue Access Control]
-        Transactions[Rental/Sales Transactions]
-        Reputation[Artist/Venue Reputation]
+        Access[Venue/Individual Access Control]
+        Transactions[Rental/Sales/Adoption Transactions]
+        Reputation[Artist/Venue/Individual Reputation]
     end
 
     Person --> Discovery
@@ -39,27 +51,29 @@ graph TB
 
 **Why Nondominium Excels for Art Networks**:
 
-- Perfect fit for bilateral resource sharing (artwork ↔ venue)
+- Perfect fit for bilateral resource sharing (artwork ↔ venue/individual)
 - PPR system captures artistic and custodial reputation effectively
-- Economic events handle rental and sales transactions cleanly
+- Economic events handle rental, sales or adoption transactions cleanly
 - Governance rules protect artwork and ensure proper care
+
+
 
 ### **Optional Enhancement (Cultural Economics Analysis)**
 
 ```mermaid
 graph TB
-    subgraph "TrueCommon - Cultural Network Analytics"
+    subgraph "Nondominium - Cultural Network Analytics"
         REA[Cultural Economics Analysis]
         Impact[Social Impact Measurement]
-        Accounting[Cultural Value Accounting]
+        Accounting[Cultural Accounting]
         Planning[Network Growth Planning]
     end
 
     subgraph "Enhanced Capabilities Optional"
         ArtistDevelopment[Artist Career Tracking]
         CulturalMetrics[Community Impact Analysis]
-        ValueCreation[Creative Value Measurement]
-        NetworkOptimization[Venue Network Optimization]
+        WealthCreation[Creative Wealth Measurement]
+        NetworkOptimization[Venue/Individual Network Optimization]
     end
 ```
 
@@ -67,12 +81,16 @@ graph TB
 
 **Enhancement**:
 
-- Cultural value beyond simple rental income
+- Cultural value beyond simple sales or rental income — beyond the transactional
 - Social impact measurement of public art access
 - Artist career development analytics
 - Community cultural enrichment metrics
 
+
+
 ## 🎨 The Players
+
+
 
 ### **Maya Rodriguez** - Independent Visual Artist
 
@@ -80,11 +98,25 @@ graph TB
 - **Goal**: Circulate artwork to gain public recognition and generate sustainable income
 - **Reputation**: Emerging artist with growing local following, strong craftsmanship record
 
+
+
 ### **Jean-Pierre Dubois** - Café Owner
 
 - **Role**: Primary Accountable Agent (Custodian)
 - **Goal**: Enhance café ambiance with rotating art while supporting local artists
 - **Reputation**: Established venue owner with excellent art care track record
+
+### **Amara Okafor** - Individual Art Lover
+
+- **Role**: Simple → Accountable Agent (Custodian)
+- **Goal**: Discover and adopt art encountered in everyday venues, becoming custodian of a piece she loves
+- **Reputation**: New to the network; builds custodial reputation through her first adoption
+
+### **Support Agents** - Transporter & Storer
+
+- **Roles**: Accountable Agents holding the validated `Transport` and `Storage` roles
+- **Goal**: Move and safely hold artworks between custodians, earning service PPRs
+- **Reputation**: Specialized service providers vetted through role validation (`REQ-GOV-04`)
 
 ### **The Artwork**
 
@@ -94,7 +126,11 @@ graph TB
 
 ---
 
+
+
 ## 🔄 Art Circulation Journey
+
+
 
 ### **Phase 1: Artwork Creation & Onboarding (Week 1)**
 
@@ -107,16 +143,19 @@ sequenceDiagram
     participant Gov as Governance Zome
 
     Maya->>Artcoin: Register as artist
-    Artcoin->>ND: create_person_with_role(Artist)
-    ND->>Res: Create artist profile
+    Artcoin->>ND: create_person(Maya)
+    ND->>Res: Create public Person profile (Accountable Agent)
 
     Maya->>Artcoin: Submit artwork details
     Maya->>ND: create_resource_specification(Oil Painting)
-    ND->>Res: Store art specification template
+    ND->>Res: Store art specification template (Layer 1)
 
-    Maya->>ND: create_economic_resource("Urban Rhythms")
-    ND->>Res: Register artwork with embedded governance
-    ND->>Gov: Link governance rules to artwork
+    Maya->>ND: create_ndo("Urban Rhythms", regime=Private, nature=Physical)
+    ND->>Res: Register NondominiumIdentity (Layer 0, permanent anchor)
+    Maya->>ND: create_economic_resource(spec, custodian=Maya)
+    ND->>Res: Register artwork instance (OperationalState: PendingValidation)
+    Maya->>ND: attach GovernanceRule entries (70/30 split, rental, care)
+    ND->>Gov: Link governance rules to the artwork spec
 ```
 
 
@@ -131,6 +170,8 @@ sequenceDiagram
   - Governance rules: 70/30 split, $40/month rental, insurance requirements
   - Care instructions and display preferences
 
+
+
 ### **Phase 2: Venue Discovery & Matching (Week 2)**
 
 ```mermaid
@@ -142,18 +183,18 @@ sequenceDiagram
     participant Gov as Governance Zome
 
     JeanPierre->>Artcoin: Browse available artworks
-    Artcoin->>ND: get_all_economic_resources()
-    ND->>Res: Query available artworks
+    Artcoin->>ND: get_all_ndos() / get_ndos_by_nature(Physical)
+    ND->>Res: Query available artwork NDOs
     Res-->>ND: Return artwork catalog with governance rules
     ND-->>Artcoin: Display curated selection
 
     JeanPierre->>Artcoin: View "Urban Rhythms" details
-    Artcoin->>ND: get_governance_rule_profile(artwork_hash)
+    Artcoin->>ND: get_resource_specification_with_rules(spec_hash)
     ND->>Gov: Return governance rules and requirements
 
     JeanPierre->>ND: derive_reputation_summary(Maya)
-    ND->>PPR: Calculate Maya's artist reputation
-    PPR-->>ND: Return artist profile (3 PPRs, 4.8/5 quality)
+    ND->>PPR: Aggregate Maya's private PPRs (self-disclosed)
+    PPR-->>ND: Return artist reputation (3 PPRs, 4.8/5 quality)
 
     JeanPierre->>Artcoin: Submit display commitment
     Artcoin->>ND: propose_commitment(AccessForUse)
@@ -176,6 +217,8 @@ sequenceDiagram
   - Quarterly rotation option
 4. **Display Commitment**: Jean-Pierre submits AccessForUse commitment for 3-month initial period
 
+
+
 ### **Phase 3: Validation & Trust Building (Week 3)**
 
 ```mermaid
@@ -189,16 +232,16 @@ sequenceDiagram
     ND->>Maya: Notify of venue interest
     Maya->>Artcoin: Review Jean-Pierre's venue profile
     Artcoin->>ND: derive_reputation_summary(JeanPierre)
-    ND->>PPR: Calculate venue reputation
+    ND->>PPR: Aggregate venue's disclosed PPRs
     PPR-->>ND: Return venue data (8 PPRs, 4.9/5 art care)
 
-    Maya->>ND: validate_venue_for_display()
-    ND->>Gov: Create validation receipt
+    Maya->>ND: accept_commitment(display agreement)
+    ND->>Gov: Create ValidationReceipt for the display commitment
     Gov-->>Artcoin: Display commitment approved
 
-    JeanPierre->>ND: validate_specialized_role(VenueOperator)
-    ND->>Gov: Issue venue operator validation
-    Gov->>PPR: record_validation_activity()
+    JeanPierre->>ND: propose_commitment(AccessForUse, 3 months)
+    ND->>Gov: Record custodianship + display commitment
+    Gov->>PPR: record ValidationActivity for both parties
 ```
 
 
@@ -214,26 +257,27 @@ sequenceDiagram
 3. **Display Agreement**: Both parties sign smart contract with automated revenue sharing
 4. **Trust Confirmation**: PPR system records mutual validation for future partnerships
 
+
+
 ### **Phase 4: Artwork Preparation & Transport (Week 4)**
 
 ```mermaid
 stateDiagram-v2
-    [*] --> InStudio: "Urban Rhythms" created
-    InStudio --> ReservedForDisplay: Display commitment approved
-    ReservedForDisplay --> PreparedForTransport: Maya prepares artwork
-    PreparedForTransport --> InTransit: Transporter initiated
-    InTransit --> InstalledAtVenue: Delivery completed
+    [*] --> Available: "Urban Rhythms" validated (PendingValidation → Available)
+    Available --> Reserved: Display commitment approved
+    Reserved --> InTransit: Transporter accepts custody (TransferCustody)
+    InTransit --> InUse: Delivery + CustodyAcceptance at venue
 
-    note right of ReservedForDisplay
-        Artwork status: Available → Reserved
+    note right of Reserved
+        OperationalState: Available → Reserved
         Display agreement activated
         Insurance verification complete
     end note
 
-    note right of PreparedForTransport
-        Maya signs artwork certificate
-        Transport logistics arranged
-        Installation instructions prepared
+    note right of InTransit
+        Maya signs certificate of authenticity
+        Transporter (Transport role) holds custody
+        CustodyTransfer PPR issued to Maya
     end note
 ```
 
@@ -249,6 +293,8 @@ stateDiagram-v2
 3. **Custody Transfer**: Maya transfers custody to transport agent (CustodyTransfer PPR)
 4. **Venue Installation**: Transport agent delivers and installs artwork at café
 5. **Acceptance Confirmation**: Jean-Pierre accepts custody (CustodyAcceptance PPR)
+
+
 
 ### **Phase 5: Public Display & Engagement (Months 1-3)**
 
@@ -291,44 +337,69 @@ graph LR
   - Public comments and ratings
 4. **Monthly Revenue**: Automated payment processing with 70/30 revenue split
 
+
+
 ### **Phase 6: Extended Discovery & Sales Opportunity (Month 2)**
 
 ```mermaid
 sequenceDiagram
-    participant Patron as Art Patron
+    participant Amara as Amara Okafor (Art Lover)
     participant JeanPierre as Jean-Pierre Dubois
     participant Artcoin as Artcoin Platform
     participant ND as Nondominium
-    participant Maya as Maya Rodriguez
+    participant Gov as Governance Zome
+    participant PPR as PPR System
 
-    Patron->>JeanPierre: Inquire about "Urban Rhythms"
-    JeanPierre->>Artcoin: Scan QR code for artwork details
-    Artcoin->>ND: get_artwork_profile()
-    ND-->>Artcoin: Display artwork with price: $2,800
+    Amara->>JeanPierre: Inquire about "Urban Rhythms"
+    JeanPierre->>Artcoin: Scan QR code (NDO action_hash)
+    Artcoin->>ND: get_ndo(hash) + get_economic_resource(hash)
+    ND-->>Artcoin: Display artwork + provenance, price: $2,800
 
-    Patron->>Artcoin: Submit purchase intent
-    Artcoin->>ND: initiate_transfer_process()
-    ND->>Maya: Notify of purchase interest
-    Maya->>ND: approve_sale_conditions()
+    Amara->>Artcoin: Submit adoption intent
+    Artcoin->>ND: propose_commitment(TransferCustody)
+    ND->>Gov: Evaluate transfer (regime, rules, validators)
+    Gov-->>Artcoin: Transfer approved
 
-    Patron->>ND: Complete purchase transaction
-    ND->>Gov: Execute revenue sharing (70% Maya, 20% JeanPierre, 10% platform)
-    Gov->>PPR: issue_participation_receipts()
+    JeanPierre->>ND: transfer_custody(resource, new_custodian=Amara)
+    ND->>Gov: Apply Agreement/BenefitClause split (70% Maya, 20% support, 10% protocol)
+    Gov->>PPR: issue_participation_receipts() (CustodyTransfer / CustodyAcceptance)
 ```
 
 
 
-**Sales Process Integration**:
+**Adoption Process Integration**:
 
-1. **Patron Discovery**: Art enthusiast discovers artwork during café visit
-2. **Authenticity Verification**: QR code provides blockchain-verified provenance
-3. **Direct Purchase**: Smart contract facilitates immediate purchase with automatic revenue distribution
-4. **Transfer Coordination**: Arrangements made for artwork collection or delivery
-5. **Success Celebration**: All parties receive PPRs for successful transaction
+1. **Discovery**: Amara, an individual art lover, discovers the artwork during a café visit
+2. **Authenticity Verification**: The QR code resolves the NDO's permanent Layer 0 `action_hash`, providing verifiable provenance
+3. **Governed Transfer**: The governance zome evaluates the custody transfer against the artwork's `PropertyRegime` and `GovernanceRule` entries before it is finalized
+4. **Custody Handover**: Custody moves from Jean-Pierre to Amara; she becomes the new Custodian (Simple → Accountable Agent after her first validated transaction)
+5. **Receipts**: Both parties receive bilateral PPRs (`CustodyTransfer` / `CustodyAcceptance`); revenue split via `Agreement`/`BenefitClause` is applied where value settlement is enabled (see *nondominium_artcoin.md §5*)
+
+
+
+### **Alternative Path: Storage Between Custodians**
+
+Not every display period ends in an adoption. When a rental/display period ends and no
+new custodian is immediately ready, the current custodian (e.g. the venue) requests
+**storage** rather than returning the piece to the artist:
+
+1. A **Storer** (Accountable Agent with the validated `Storage` role) commits to hold
+   the piece until a new agent wants to buy, rent, or adopt it — `StorageCommitmentAccepted` PPR
+2. Custody transfers from the venue to the storer (`transfer_custody`); the artwork
+   moves to `OperationalState::InStorage` — `CustodyTransfer` / `CustodyAcceptance` PPRs
+3. When a new custodian appears, the storer releases the piece (earning a
+   `StorageFulfillmentCompleted` PPR) and the circulation cycle continues
+
+This keeps artworks in safe, accountable custody throughout their circulation, with
+every hand-off recorded and reputation-scored.
 
 ---
 
+
+
 ## 📊 Network Effects & Artist Growth
+
+
 
 ### **Artist Reputation Development**
 
@@ -359,14 +430,16 @@ graph LR
 
 
 
-**Maya's PPR Growth**:
+**Maya's PPR Growth** (real `ParticipationClaimType` categories):
 
-- +1 UseService (venue display)
-- +1 ServiceValidation (artwork quality)
-- +1 CommitmentFulfillment (display period)
-- +1 SalesTransaction (artwork sale)
-- +2 VenueCollaboration (positive feedback)
-- **Reputation Impact**: 4.8 → 4.9 overall rating
+- +1 `ResourceCreation` (registering "Urban Rhythms" as an NDO)
+- +1 `CustodyTransfer` (handing custody to the transporter for display)
+- +1 `CustodyTransfer` (custody handover on adoption/sale)
+- +1 `RuleCompliance` (adherence to the artwork's display governance rules)
+- +1 `ValidationActivity` (participating in the venue/commitment validation)
+- **Reputation Impact**: 4.8 → 4.9 overall rating (derived from PPR `PerformanceMetrics`: timeliness, quality, reliability, communication, overall satisfaction)
+
+
 
 ### **Venue Benefits Expansion**
 
@@ -406,7 +479,11 @@ mindmap
 
 ---
 
+
+
 ## 🌐 Platform Integration Architecture
+
+
 
 ### **Artcoin Platform Integration**
 
@@ -445,6 +522,8 @@ graph TB
 
 
 
+
+
 ### **Artist-Centric Features**
 
 **Creative Empowerment Tools**:
@@ -463,7 +542,11 @@ graph TB
 
 ---
 
+
+
 ## 💡 Artistic Innovation Benefits
+
+
 
 ### **Creative Independence & Sustainability**
 
@@ -471,6 +554,8 @@ graph TB
 - **Artistic Control**: Artists retain ownership and creative direction
 - **Sustainable Career**: Ongoing passive income through rental rather than one-time sales
 - **Audience Building**: Direct connection with art enthusiasts and collectors
+
+
 
 ### **Cultural Democratization**
 
@@ -508,6 +593,8 @@ mindmap
 
 
 
+
+
 ### **Technology-Enhanced Art Experience**
 
 - **Provenance Tracking**: Complete artwork history with blockchain verification
@@ -517,7 +604,11 @@ mindmap
 
 ---
 
+
+
 ## 🎯 Strategic Outcomes
+
+
 
 ### **Immediate Artist Benefits**
 
@@ -526,12 +617,16 @@ mindmap
 - ✅ **Network Growth**: Invitations from 4 other venues for future displays
 - ✅ **Reputation Building**: Enhanced artist profile with verifiable success metrics
 
+
+
 ### **Long-Term Career Development**
 
 - **Sustainable Practice**: Ongoing rental income providing financial stability
 - **Direct Patron Relationships**: Building collector base without gallery intermediation
 - **Artistic Freedom**: Ability to experiment with new styles and mediums
 - **Community Recognition**: Established as contributor to local cultural ecosystem
+
+
 
 ### **Platform Evolution**
 
@@ -542,7 +637,11 @@ mindmap
 
 ---
 
+
+
 ## 🔮 Future Possibilities
+
+
 
 ### **Extended Art Forms Integration**
 
@@ -550,6 +649,8 @@ mindmap
 - **Performance Art**: Bookable performances in venue spaces
 - **Interactive Installations**: Technology-enhanced artwork experiences
 - **Multi-Sensory Art**: Integration with venue's ambiance and customer experience
+
+
 
 ### **Advanced Economic Models**
 
@@ -564,4 +665,4 @@ mindmap
 
 ---
 
-*Artwork "Urban Rhythms" successfully sold to a private collector after 2 months of café display. Maya now has 3 other artworks displayed across different venues and is earning consistent monthly rental income while building her artistic reputation.*
+*Artwork "Urban Rhythms" was adopted by Amara Okafor, an individual art lover, after 2 months of café display — a direct artist-to-individual custody transfer governed entirely by the artwork's embedded rules. Maya now has 3 other artworks circulating across venues and individual custodians, held in safe storage between hand-offs, earning consistent income while building a verifiable, self-sovereign reputation.*

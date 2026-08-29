@@ -123,6 +123,7 @@ pub enum PropertyRegime {
     Collective,    // Cooperative/collective ownership
     Pool,          // Rivalrous shared; custody/scheduling/maintenance
     CommonPool,    // Rivalrous consumable; quota/depletion rules
+    Public,        // Public/governmental stewardship; open-access; non-alienable by public body
     Nondominium,   // Uncapturable; contribution-based access; no alienation
 }
 
@@ -245,7 +246,7 @@ pub struct EconomicResource {
     pub conforms_to: ActionHash,           // → ResourceSpecification (required, embedded)
     pub current_location: Option<String>,
     // NDO-specific:
-    pub state: OperationalState,           // Was: ResourceState (now typed correctly)
+    pub operational_state: OperationalState, // Process condition on instance (REQ-NDO-OS-01)
     pub tracking_identifier: Option<String>, // Serial number, QR code, etc.
 }
 

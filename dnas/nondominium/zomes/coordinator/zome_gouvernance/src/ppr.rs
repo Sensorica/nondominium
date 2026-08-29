@@ -607,8 +607,8 @@ fn create_bilateral_signing_context(
 fn extract_private_participation_claim(
   record: &Record,
 ) -> ExternResult<Option<PrivateParticipationClaim>> {
-  if let Ok(Some(EntryTypes::PrivateParticipationClaim(claim))) =
-    record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+  if let Ok(Some(claim)) =
+    record.entry().to_app_option::<PrivateParticipationClaim>().map_err(|_| {
       wasm_error!(WasmErrorInner::Guest(
         "Failed to deserialize private participation claim".into()
       ))

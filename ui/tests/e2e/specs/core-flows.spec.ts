@@ -36,18 +36,44 @@ interface GetAllNdosOutput {
   ndos: NdoOutput[];
 }
 
+interface SpecEntry {
+  name: string;
+  description: string;
+  category: string;
+  scope: string;
+  ndo_identity_hash: Uint8Array;
+  ndo_state_hash: Uint8Array;
+  is_active: boolean;
+}
+interface GetSpecsOutput {
+  specifications: SpecEntry[];
+  action_hashes: Uint8Array[];
+}
+interface GetSpecWithRulesOutput {
+  specification: SpecEntry;
+  governance_rules: { rule_data: Record<string, unknown>; enforced_by: string | null }[];
+}
+
+/** An NDO together with the clone cell it actually lives on. */
+interface LocatedNdo {
+  ndo: NdoOutput;
+  cellId: CellId;
+}
+
 /**
  * Per-cell DHT read-back: enumerates the agent's `ndo` clone cells (created at
- * runtime by the UI) and reads the live NondominiumIdentity from the matching
- * cell. Replaces the pre-per-cell shared-cell `get_all_ndos` read-back — UI
- * NDOs now live on their own clone, not the shared nondominium cell. The seed
- * client shares agent 1's app, so UI-created clones are visible in its appInfo;
- * each needs signing credentials authorized before the zome call.
+ * runtime by the UI) and returns the matching NondominiumIdentity together with
+ * the cell it was found on. Replaces the pre-per-cell shared-cell
+ * `get_all_ndos` read-back — UI NDOs now live on their own clone, not the
+ * shared nondominium cell. The seed client shares agent 1's app, so UI-created
+ * clones are visible in its appInfo; each needs signing credentials authorized
+ * before the zome call.
+ *
+ * The cell is returned, not just the entry, because every Layer 1 assertion
+ * below has to name the cell it read from: "the spec exists" is not the claim,
+ * "the spec exists on the NDO's own cell and nowhere else" is (PR #132, F1).
  */
-async function readLiveNdoFromCloneCells(
-  seed: SeedClient,
-  name: string
-): Promise<NdoOutput | undefined> {
+async function locateNdo(seed: SeedClient, name: string): Promise<LocatedNdo | undefined> {
   const info = await seed.app.appInfo();
   for (const c of info.cell_info.ndo ?? []) {
     const ci = c as unknown as {
@@ -66,12 +92,34 @@ async function readLiveNdoFromCloneCells(
         payload: null
       })) as GetAllNdosOutput;
       const found = out.ndos.find((n) => n.entry.name === name);
-      if (found) return found;
+      if (found) return { ndo: found, cellId };
     } catch {
       // Cell not yet ready / disabled — try the next clone.
     }
   }
   return undefined;
+}
+
+async function readLiveNdoFromCloneCells(
+  seed: SeedClient,
+  name: string
+): Promise<NdoOutput | undefined> {
+  return (await locateNdo(seed, name))?.ndo;
+}
+
+/** Reads the Layer 1 specifications linked from an NDO on a specific cell. */
+async function specsForNdoOnCell(
+  seed: SeedClient,
+  cellId: CellId,
+  ndoActionHash: Uint8Array
+): Promise<GetSpecsOutput> {
+  await authorizeWithRetry(seed.admin, cellId);
+  return (await seed.app.callZome({
+    cell_id: cellId,
+    zome_name: 'zome_resource',
+    fn_name: 'get_specifications_for_ndo',
+    payload: ndoActionHash
+  })) as GetSpecsOutput;
 }
 
 test.describe.serial('nondominium core flows', () => {
@@ -234,14 +282,37 @@ test.describe.serial('nondominium core flows', () => {
     expect(widget?.entry.lifecycle_stage).toBe('Specification');
   });
 
-  test('lifecycle history panel present (backend rows pending)', async () => {
+  test('lifecycle history lists the Ideation to Specification transition', async () => {
+    // The backend landed in `get_ndo_transition_history` (REQ-UI-NDO-04), so this
+    // asserts the row rather than the stub copy it replaced. The old assertion
+    // outlived the absence it was written for and went red the moment the feature
+    // arrived, which is the point of replacing it here rather than relaxing it.
+    //
+    // The reload is load-bearing: TransitionHistoryPanel fetches `onMount` only,
+    // and the transition in the previous test happened after this page mounted,
+    // so the row is on the DHT but not in this component's state. Reloading
+    // remounts it. The onMount-only load is a tracked follow-up, not a defect,
+    // and this comment is here so a future reader does not delete the reload as
+    // redundant.
+    await page.reload();
+
     const historyToggle = page.getByText(/Lifecycle history/);
     await expect(historyToggle).toBeVisible();
     await historyToggle.click();
-    // TODO(backend Phase 2.3): `get_ndo_transition_history` is not implemented
-    // in zome_resource on dev — assert the explicit stub state today, and
-    // replace with a from→to row assertion when the backend lands.
-    await expect(page.getByText('No transitions recorded.')).toBeVisible();
+
+    const row = page.locator('li').filter({ hasText: 'Ideation' }).filter({
+      hasText: 'Specification'
+    });
+    await expectEventually(page, async () => {
+      await expect(row.first()).toBeVisible();
+    });
+
+    // Hashes must render base64-encoded, not as the raw byte array the conductor
+    // returns (PR #132, F9). `.slice` on a Uint8Array is legal TypeScript, so the
+    // compiler cannot catch a regression here and only a rendered assertion can.
+    const rowText = (await row.first().innerText()).replace(/\s+/g, ' ');
+    expect(rowText).toMatch(/uhC/);
+    expect(rowText).not.toMatch(/\d{1,3},\d{1,3},\d{1,3}/);
   });
 
   test('filter chips: OR within a dimension, AND across dimensions', async () => {
@@ -272,6 +343,182 @@ test.describe.serial('nondominium core flows', () => {
 
     await page.getByRole('button', { name: 'Clear filters' }).click();
     await expect(page.getByRole('heading', { name: 'E2E Method' })).toBeVisible();
+  });
+
+  // ── Phase 2: NDO Layer 1 (specification + typed governance rules) ─────────
+  //
+  // Why these exist at all. Layer 1 shipped with 7/7 green CI and was broken end
+  // to end in a browser: every Layer 1 and Layer 2 call went to the shared
+  // `nondominium` cell while the NDO identity lived on its own clone (PR #132,
+  // F1). Sweettest could not see it, because it creates the NDO and the spec in
+  // the same cell, and no e2e touched Layer 1 at all. The suite closed a test
+  // criterion and nothing else.
+  //
+  // So the load-bearing assertion in each test below is not "the entry exists",
+  // it is "the entry exists on the NDO's own clone cell and NOT on the shared
+  // one". Only a browser test spanning two cells can make that claim.
+
+  test('Layer 1: a specification created in the UI lands on the NDO clone cell', async () => {
+    // E2E Widget is Commons / Digital and was advanced to Specification above,
+    // so the lifecycle gate lets Layer 1 activate. Commons is not open access,
+    // so the scope select stays editable here — the locked case is its own test.
+    await gotoAgent(page, 1);
+    await expectEventually(page, async () => {
+      await expect(page.getByRole('heading', { name: 'E2E Widget' })).toBeVisible();
+    });
+    await page.getByRole('heading', { name: 'E2E Widget' }).click();
+    await page.waitForURL(/\/ndo\//);
+
+    await page.getByRole('button', { name: 'Resources', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Layer 1 specifications' })).toBeVisible();
+    await expect(page.getByText('No resource specifications for this NDO yet.')).toBeVisible();
+
+    await page.getByRole('button', { name: '+ New specification' }).click();
+    await expect(page.getByRole('heading', { name: 'Create resource specification' })).toBeVisible();
+    await page.locator('#spec-name').fill('Widget Fabrication Spec');
+    await page.locator('#spec-desc').fill('Bill of materials and assembly steps for E2E Widget.');
+    await page.locator('#spec-cat').fill('fabrication');
+
+    // Commons is not an open-access regime, so the scope control must remain the
+    // author's choice. Asserted as the negative half of REQ-RES-03: a lock that
+    // fires on every regime is not a lock, it is a constant.
+    await expect(page.locator('#spec-scope')).toBeEnabled();
+    await page.locator('#spec-scope').selectOption('Public');
+
+    await page.getByRole('button', { name: 'Create specification' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Create resource specification' })
+    ).toBeHidden({ timeout: 60_000 });
+
+    // Parent of the name node, i.e. the card body carrying name + metadata line.
+    const specCard = page.getByText('Widget Fabrication Spec', { exact: true }).locator('..');
+    await expectEventually(page, async () => {
+      await expect(page.getByText('Widget Fabrication Spec', { exact: true })).toBeVisible();
+      // The metadata line is rendered from the stored spec, so this is the UI
+      // half of the scope claim the DHT read-back below makes structurally.
+      await expect(specCard).toContainText('fabrication');
+      await expect(specCard).toContainText('scope');
+      await expect(specCard).toContainText('Public');
+    });
+
+    // DHT read-back on the NDO's own clone cell (REQ-NDO-L1-01): the
+    // NdoToSpecification link is what `get_specifications_for_ndo` traverses, so
+    // a non-empty result IS the Layer 1 activation edge.
+    const located = await locateNdo(seed, 'E2E Widget');
+    expect(located).toBeTruthy();
+    const onClone = await specsForNdoOnCell(seed, located!.cellId, located!.ndo.action_hash);
+    expect(onClone.specifications).toHaveLength(1);
+    expect(onClone.specifications[0]?.name).toBe('Widget Fabrication Spec');
+    expect(onClone.specifications[0]?.scope).toBe('Public');
+    // The spec must point back at the Layer 0 identity it activates.
+    expect(Array.from(onClone.specifications[0]!.ndo_identity_hash)).toEqual(
+      Array.from(located!.ndo.action_hash)
+    );
+
+    // The F1 regression guard. Before b898f41 the UI wrote through the shared
+    // provisioned cell, where the NDO identity does not exist, and the call
+    // failed with "Linked NondominiumIdentity not found". If cell routing
+    // regresses, the spec lands here instead of on the clone and this flips.
+    const onShared = (await callZome<GetSpecsOutput>(
+      seed,
+      'nondominium',
+      'zome_resource',
+      'get_specifications_for_ndo',
+      located!.ndo.action_hash
+    ).catch(() => ({ specifications: [], action_hashes: [] }))) as GetSpecsOutput;
+    expect(
+      onShared.specifications,
+      'the specification must live on the NDO clone cell, never on the shared nondominium cell'
+    ).toHaveLength(0);
+  });
+
+  test('Layer 1: a typed governance rule attaches to the specification', async () => {
+    await page.getByRole('button', { name: 'Governance', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Governance rules' })).toBeVisible();
+
+    await page.getByRole('button', { name: '+ New rule' }).click();
+    await expect(page.getByRole('heading', { name: 'New governance rule' })).toBeVisible();
+    await page.locator('#rule-kind').selectOption('AccessRequirement');
+    await page.locator('#access').selectOption('Credentialed');
+    await page.locator('#req-role').fill('Steward');
+    await page.getByRole('button', { name: 'Create rule' }).click();
+    await expect(page.getByRole('heading', { name: 'New governance rule' })).toBeHidden({
+      timeout: 60_000
+    });
+
+    await expectEventually(page, async () => {
+      const row = page.locator('li').filter({ hasText: 'AccessRequirement' });
+      await expect(row.first()).toBeVisible();
+      await expect(row.first()).toContainText('Widget Fabrication Spec');
+    });
+
+    // DHT read-back doubles as the F2 guard. A rule written without a
+    // specification_hash commits fine and is then unreachable by every read
+    // path — a silent write-only rule. Reading it back *through the spec's*
+    // SpecificationToGovernanceRule link is the only assertion that can tell an
+    // attached rule from an orphaned one.
+    const located = await locateNdo(seed, 'E2E Widget');
+    const specs = await specsForNdoOnCell(seed, located!.cellId, located!.ndo.action_hash);
+    const withRules = (await seed.app.callZome({
+      cell_id: located!.cellId,
+      zome_name: 'zome_resource',
+      fn_name: 'get_resource_specification_with_rules',
+      payload: specs.action_hashes[0]
+    })) as GetSpecWithRulesOutput;
+    expect(withRules.governance_rules).toHaveLength(1);
+    // Typed RuleData, not the JSON blob it replaced: the discriminant IS the
+    // GovernanceRuleType, so a stringly-typed regression shows up right here.
+    expect(Object.keys(withRules.governance_rules[0]!.rule_data)).toEqual(['AccessRequirement']);
+  });
+
+  test('Layer 1: an open-access regime locks the specification scope to Public', async () => {
+    // REQ-RES-03. A Nondominium NDO is uncapturable, but a Project-scoped spec
+    // is omitted from the global discovery anchor: the resource stays unownable
+    // while becoming invisible to everyone outside the narrowing group. That is
+    // enclosure by visibility, so the predicate is Hard at integrity and the
+    // form must not offer the invalid choice in the first place.
+    //
+    // Created directly at Specification so no lifecycle transition is needed;
+    // Ideation through Active are all creatable at registration.
+    await gotoAgent(page, 1, `/group/${encodeURIComponent(groupId)}`);
+    await createNdo(page, {
+      name: 'E2E Uncapturable',
+      regime: 'Nondominium',
+      nature: 'Digital',
+      stage: 'Specification'
+    });
+    await expectEventually(page, async () => {
+      await expect(page.getByRole('heading', { name: 'E2E Uncapturable' })).toBeVisible();
+    });
+    await page.getByRole('heading', { name: 'E2E Uncapturable' }).click();
+    await page.waitForURL(/\/ndo\//);
+
+    await page.getByRole('button', { name: 'Resources', exact: true }).click();
+    await page.getByRole('button', { name: '+ New specification' }).click();
+    await expect(page.getByRole('heading', { name: 'Create resource specification' })).toBeVisible();
+
+    // The affordance: fixed to Public and not offerable. Asserted on the DOM
+    // property rather than on the rendered label, because a disabled select that
+    // still submits a narrowed scope would satisfy a text assertion.
+    const scopeSelect = page.locator('#spec-scope');
+    await expect(scopeSelect).toBeDisabled();
+    await expect(scopeSelect).toHaveValue('Public');
+
+    await page.locator('#spec-name').fill('Uncapturable Press Design');
+    await page.locator('#spec-desc').fill('Open design for the E2E Uncapturable NDO.');
+    await page.getByRole('button', { name: 'Create specification' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Create resource specification' })
+    ).toBeHidden({ timeout: 60_000 });
+
+    // The gate: what actually reached the DHT is Public. The UI lock derives
+    // from the cached anchor regime and fails open on a cold cache (F8), so the
+    // stored value is the claim that matters, not the disabled attribute above.
+    const located = await locateNdo(seed, 'E2E Uncapturable');
+    expect(located).toBeTruthy();
+    const specs = await specsForNdoOnCell(seed, located!.cellId, located!.ndo.action_hash);
+    expect(specs.specifications).toHaveLength(1);
+    expect(specs.specifications[0]?.scope).toBe('Public');
   });
 
   test('connection failure surfaces error state with a working retry', async ({ browser }) => {

@@ -403,7 +403,8 @@ Pydantic/JSON field names **must match Rust zome field names exactly** (Holochai
 
 **Enum Values (PascalCase strings):**
 
-- `ResourceState`: `"PendingValidation"`, `"Active"`, `"Maintenance"`, `"Retired"`, `"Reserved"`
+- `OperationalState`: `"PendingValidation"`, `"Available"`, `"Reserved"`, `"InTransit"`, `"InStorage"`, `"InMaintenance"`, `"InUse"`
+- `LifecycleStage` (on `NondominiumIdentity`): `"Ideation"`, `"Specification"`, … through `"EndOfLife"`
 - `VfAction`: 16 variants — `"Transfer"`, `"Use"`, `"InitialTransfer"`, `"TransferCustody"`, etc.
 - `ParticipationClaimType`: 16 variants — `"ResourceProvider"`, `"ResourceReceiver"`, `"Custodian"`, etc.
 

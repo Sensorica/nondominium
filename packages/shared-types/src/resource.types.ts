@@ -1,12 +1,14 @@
 import type { ActionHash, AgentPubKey, DnaHash, EntryHash, Record, Timestamp } from '@holochain/client';
 
-// Resource State Types
-export type ResourceState =
-  | "PendingValidation"
-  | "Active"
-  | "Maintenance"
-  | "Retired"
-  | "Reserved";
+// Resource operational state types (Layer 2 instance condition)
+export type OperationalState =
+  | "Available"
+  | "Reserved"
+  | "InTransit"
+  | "InStorage"
+  | "InMaintenance"
+  | "InUse"
+  | "PendingValidation";
 
 // Core Resource Types
 export interface ResourceSpecification {
@@ -18,6 +20,8 @@ export interface ResourceSpecification {
   image_url?: string;
   tags?: string[];
   is_active?: boolean;
+  scope?: ResourceScope;
+  ndo_identity_hash?: ActionHash;
 }
 
 export interface EconomicResource {
@@ -25,14 +29,17 @@ export interface EconomicResource {
   unit: string;
   custodian: AgentPubKey;
   current_location?: string;
-  state: ResourceState;
+  operational_state: OperationalState;
 }
 
 // Governance Types
 export interface GovernanceRule {
-  rule_type: string;
-  rule_data: string;
+  rule_data: RuleData;
   enforced_by?: string;
+  ndo_identity_hash: ActionHash;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  rivalry_override?: Rivalry;
 }
 
 export interface GovernanceRules {
@@ -60,7 +67,14 @@ export interface ResourceSpecificationInput {
   category: string;
   image_url?: string;
   tags: string[];
-  governance_rules: GovernanceRuleInput[];
+  scope: ResourceScope;
+  ndo_identity_hash: ActionHash;
+  governance_rules: NestedGovernanceRuleInput[];
+}
+
+export interface NestedGovernanceRuleInput {
+  rule_data: RuleData;
+  enforced_by?: string;
 }
 
 export interface EconomicResourceInput {
@@ -71,9 +85,21 @@ export interface EconomicResourceInput {
 }
 
 export interface GovernanceRuleInput {
-  rule_type: string;
-  rule_data: string;
+  rule_data: RuleData;
   enforced_by?: string;
+  ndo_identity_hash: ActionHash;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  rivalry_override?: Rivalry;
+  /** When set, links the rule to a Layer 1 specification. */
+  specification_hash?: ActionHash;
+}
+
+export interface CheckRuleDataConstraintsInput {
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  rivalry_override?: Rivalry;
+  rule_data: RuleData;
 }
 
 export interface CreateResourceSpecificationOutput {
@@ -111,6 +137,7 @@ export interface NdoDescriptor {
   created_at: number | null;
   successor_ndo_hash: string | null;
   hibernation_origin: string | null;
+  rivalry_override: string | null;
 }
 
 export interface GroupDescriptor {
@@ -155,6 +182,7 @@ export interface NdoInput {
   resource_nature: ResourceNature;
   lifecycle_stage: LifecycleStage;
   description?: string;
+  rivalry_override?: Rivalry;
 }
 
 /**
@@ -229,17 +257,27 @@ export interface UpdateLifecycleStageInput {
 export interface NdoTransitionHistoryEvent {
   from_stage: string;
   to_stage: string;
-  agent: string;
+  /**
+   * Raw 39-byte key, as the conductor returns it. Declared as a string here
+   * until 2026-08-25, which typechecked `.slice(0, 10)` as a string slice and
+   * let TransitionHistoryPanel render a comma-separated byte list (PR #132, F9).
+   * Encode with `encodeHashToBase64` before displaying or copying.
+   */
+  agent: AgentPubKey;
   timestamp: number;
-  event_hash: string;
+  /** Raw 39-byte hash. Same encoding requirement as `agent`. */
+  event_hash: ActionHash;
 }
 
 /** Layer 0 identity entry (zome_resource `NondominiumIdentity`). */
 export type PropertyRegime =
   | "Private"
   | "Commons"
-  | "Nondominium"
-  | "CommonPool";
+  | "Collective"
+  | "Pool"
+  | "CommonPool"
+  | "Public"
+  | "Nondominium";
 
 export type ResourceNature =
   | "Physical"
@@ -247,6 +285,58 @@ export type ResourceNature =
   | "Service"
   | "Hybrid"
   | "Information";
+
+export type Rivalry = "Rivalrous" | "NonRivalrous";
+
+export type ResourceScope = "Project" | "Network" | "Public";
+
+export type ConstraintSeverity = "Hard" | "Soft";
+
+export interface ConstraintViolation {
+  rule_id: string;
+  message: string;
+  severity: ConstraintSeverity;
+}
+
+export type Accessibility = "Free" | "Credentialed" | "Gated";
+
+export type TransferType = "Ownership" | "Custody" | "UseRights" | "Benefit";
+
+export type GovernanceRuleType =
+  | "AccessRequirement"
+  | "UsageLimit"
+  | "TransferCondition"
+  | "MaintenanceSchedule";
+
+export interface AccessRequirementData {
+  accessibility: Accessibility;
+  required_role?: string;
+  min_affiliation?: string;
+}
+
+export interface UsageLimitData {
+  max_duration_hours?: number;
+  max_quantity_per_period?: number;
+  period_days?: number;
+}
+
+export interface TransferConditionData {
+  transfer_type: TransferType;
+  requires_validation: boolean;
+  validator_role?: string;
+}
+
+export interface MaintenanceScheduleData {
+  interval_days: number;
+  required_role?: string;
+}
+
+/** Tagged RuleData — mirrors Rust `RuleData` enum (externally tagged by default). */
+export type RuleData =
+  | { AccessRequirement: AccessRequirementData }
+  | { UsageLimit: UsageLimitData }
+  | { TransferCondition: TransferConditionData }
+  | { MaintenanceSchedule: MaintenanceScheduleData };
 
 export type LifecycleStage =
   | "Ideation"
@@ -281,6 +371,7 @@ export interface NondominiumIdentity {
   lifecycle_stage: LifecycleStage;
   created_at: Timestamp;
   description?: string;
+  rivalry_override?: Rivalry;
   successor_ndo_hash?: ActionHash;
   hibernation_origin?: LifecycleStage;
 }
@@ -315,6 +406,11 @@ export interface TransferCustodyInput {
 export interface TransferCustodyOutput {
   updated_resource_hash: ActionHash;
   updated_resource: EconomicResource;
+}
+
+export interface UpdateOperationalStateInput {
+  resource_hash: ActionHash;
+  new_operational_state: OperationalState;
 }
 
 // Zome Function Types

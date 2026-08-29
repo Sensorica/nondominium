@@ -74,7 +74,7 @@ hREA exposes a GraphQL API intended for UI consumption. For Nondominium, integra
 | unit      | `String`                           | `unit_of_effort: Option<ActionHash>` (Unit is a first-class entry)                                                |
 | custodian | `AgentPubKey` (direct)             | `primary_accountable: Option<ActionHash>` (links to ReaAgent entry)                                               |
 | location  | `Option<String>`                   | `current_location: Option<String>` (same)                                                                         |
-| state     | `ResourceState` enum               | `state: Option<String>` (string-based)                                                                            |
+| operational_state | `OperationalState` enum on `EconomicResource` | `state: Option<String>` (string-based)                                                                    |
 | spec link | via `SpecificationToResource` link | `conforms_to: Option<ActionHash>` (embedded)                                                                      |
 | —         | missing                            | `contained_in: Option<ActionHash>` (nested resources)                                                             |
 | —         | missing                            | `stage: Option<ActionHash>` (lifecycle stage entry)                                                               |

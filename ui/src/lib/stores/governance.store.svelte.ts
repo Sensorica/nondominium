@@ -1,12 +1,22 @@
 import { Effect as E, Exit, pipe } from 'effect';
-import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
+import type { ActionHash, AgentPubKey, CellId, Timestamp } from '@holochain/client';
 import {
   GovernanceServiceTag,
   GovernanceServiceResolved,
   type GovernanceService
 } from '../services/zomes/governance.service.js';
 import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-helpers/core';
-import type { Commitment, EconomicEvent } from '@nondominium/shared-types';
+import type {
+  Commitment,
+  EconomicEvent,
+  ProposeCommitmentInput,
+  ProposeCommitmentOutput,
+  LogEconomicEventInput,
+  LogEconomicEventOutput,
+  CheckActionConstraintsInput,
+  ConstraintViolation,
+  VfCommitment
+} from '@nondominium/shared-types';
 
 export interface ResourceFlow {
   events: EconomicEvent[];
@@ -34,11 +44,20 @@ export type GovernanceStore = {
   createCommitment: (
     commitmentData: Omit<Commitment, 'created_at'>
   ) => Promise<ActionHash | null>;
+  proposeCommitment: (
+    input: ProposeCommitmentInput,
+    cellId?: CellId
+  ) => Promise<ProposeCommitmentOutput | null>;
   fetchCommitment: (hash: ActionHash) => Promise<Commitment | null>;
+  fetchAllCommitments: (cellId?: CellId) => Promise<VfCommitment[]>;
   fulfillCommitment: (hash: ActionHash) => Promise<ActionHash | null>;
   createEconomicEvent: (
     eventData: Omit<EconomicEvent, 'occurred_at'>
   ) => Promise<ActionHash | null>;
+  logEconomicEvent: (
+    input: LogEconomicEventInput,
+    cellId?: CellId
+  ) => Promise<LogEconomicEventOutput | null>;
   fetchEconomicEvent: (hash: ActionHash) => Promise<EconomicEvent | null>;
   fetchCommitmentsByProvider: (provider: AgentPubKey) => Promise<Commitment[]>;
   fetchCommitmentsByReceiver: (receiver: AgentPubKey) => Promise<Commitment[]>;
@@ -65,6 +84,10 @@ export type GovernanceStore = {
     operation: string,
     agent: AgentPubKey
   ) => Promise<boolean>;
+  checkActionConstraints: (
+    input: CheckActionConstraintsInput,
+    cellId?: CellId
+  ) => Promise<ConstraintViolation[]>;
   createDispute: (
     commitment: ActionHash,
     complainant: AgentPubKey,
@@ -137,6 +160,18 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
       return hash;
     }
 
+    async function proposeCommitment(
+      input: ProposeCommitmentInput,
+      cellId?: CellId
+    ): Promise<ProposeCommitmentOutput | null> {
+      return run(governanceService.proposeCommitment(input, cellId));
+    }
+
+    async function fetchAllCommitments(cellId?: CellId): Promise<VfCommitment[]> {
+      const exit = await E.runPromiseExit(governanceService.getAllCommitments(cellId));
+      return Exit.isSuccess(exit) ? exit.value : [];
+    }
+
     async function fetchCommitment(hash: ActionHash): Promise<Commitment | null> {
       const commitment = await run(governanceService.getCommitment(hash));
       if (commitment) commitmentCache.set(hash.toString(), commitment);
@@ -165,6 +200,23 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
         if (eventData.receiver) await fetchEventsByAgent(eventData.receiver);
       }
       return hash;
+    }
+
+    async function logEconomicEvent(
+      input: LogEconomicEventInput,
+      cellId?: CellId
+    ): Promise<LogEconomicEventOutput | null> {
+      return run(governanceService.logEconomicEvent(input, cellId));
+    }
+
+    async function checkActionConstraints(
+      input: CheckActionConstraintsInput,
+      cellId?: CellId
+    ): Promise<ConstraintViolation[]> {
+      const exit = await E.runPromiseExit(
+        governanceService.checkActionConstraints(input, cellId)
+      );
+      return Exit.isSuccess(exit) ? exit.value : [];
     }
 
     async function fetchEconomicEvent(hash: ActionHash): Promise<EconomicEvent | null> {
@@ -338,9 +390,12 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
       get eventsByType() { return eventsByType; },
 
       createCommitment,
+      proposeCommitment,
       fetchCommitment,
+      fetchAllCommitments,
       fulfillCommitment,
       createEconomicEvent,
+      logEconomicEvent,
       fetchEconomicEvent,
       fetchCommitmentsByProvider,
       fetchCommitmentsByReceiver,
@@ -355,6 +410,7 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
       fetchEventsInTimeRange,
       fetchResourceFlow,
       validateGovernanceRules,
+      checkActionConstraints,
       createDispute,
       voteOnDispute,
       selectCommitment,

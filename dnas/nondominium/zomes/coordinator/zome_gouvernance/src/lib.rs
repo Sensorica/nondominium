@@ -11,6 +11,8 @@ pub mod validation;
 pub mod agreement;
 pub mod contribution;
 pub mod hard_link;
+// Phase B: governance-as-operator transition interface (parallel path)
+pub mod transition;
 
 pub use commitment::*;
 pub use economic_event::*;
@@ -20,6 +22,7 @@ pub use validation::*;
 pub use agreement::*;
 pub use contribution::*;
 pub use hard_link::*;
+pub use transition::*;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Debug)]

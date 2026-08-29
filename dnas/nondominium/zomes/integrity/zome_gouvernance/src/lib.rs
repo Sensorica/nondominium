@@ -5,7 +5,8 @@ use hdi::prelude::*;
 // nondominium_shared::types so coordinator zomes and Sweettest test crates can import
 // them directly without WASM-crate dependency constraints.
 pub use nondominium_shared::types::{
-  BeneficiaryRef, BenefitClause, BenefitType, NdoLinkType, VfAction,
+  BeneficiaryRef, BenefitClause, BenefitType, LifecycleStage, NdoLinkType, PropertyRegime,
+  ResourceNature, Rivalry, VfAction,
 };
 
 pub mod ppr;
@@ -33,6 +34,8 @@ pub struct EconomicEvent {
   pub resource_quantity: f64,
   pub event_time: Timestamp,
   pub note: Option<String>,
+  /// Direct pointer to Layer 0 for action-constraint evaluation.
+  pub ndo_identity_hash: ActionHash,
 }
 
 #[hdk_entry_helper]
@@ -47,6 +50,8 @@ pub struct Commitment {
   pub due_date: Timestamp,
   pub note: Option<String>,
   pub committed_at: Timestamp,
+  /// Direct pointer to Layer 0 for action-constraint evaluation.
+  pub ndo_identity_hash: ActionHash,
 }
 
 #[hdk_entry_helper]
@@ -58,7 +63,7 @@ pub struct Claim {
   pub note: Option<String>,
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, SerializedBytes)]
 pub enum ResourceValidationStatus {
   Pending,
   Approved,
@@ -68,7 +73,7 @@ pub enum ResourceValidationStatus {
 impl FromStr for ResourceValidationStatus {
   type Err = String;
 
-   fn from_str(s: &str) -> Result<Self, Self::Err> {
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
     match s {
       "pending" => Ok(Self::Pending),
       "approved" => Ok(Self::Approved),
@@ -211,6 +216,12 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         }
         EntryTypes::Agreement(a) => {
           return validate_create_agreement(a, action);
+        }
+        EntryTypes::EconomicEvent(event) => {
+          return validate_create_economic_event(&event, &action.author);
+        }
+        EntryTypes::Commitment(commitment) => {
+          return validate_create_commitment(&commitment, &action.author);
         }
         _ => {}
       },
@@ -405,4 +416,78 @@ pub fn validate_private_participation_claim(
   let _description = claim.claim_type.description();
 
   Ok(ValidateCallbackResult::Valid)
+}
+
+/// Wire mirror of Layer 0 classification fields (SerializedBytes for integrity decode).
+#[derive(Debug, Clone, Serialize, Deserialize, SerializedBytes)]
+struct NdoClassificationWire {
+  property_regime: PropertyRegime,
+  resource_nature: ResourceNature,
+  lifecycle_stage: LifecycleStage,
+  rivalry_override: Option<Rivalry>,
+}
+
+/// Fetch Layer 0 classification via direct entry read (deterministic; no get_links).
+fn fetch_ndo_classification(
+  ndo_identity_hash: &ActionHash,
+) -> ExternResult<nondominium_shared::io::governance::NdoClassificationView> {
+  use nondominium_shared::io::governance::NdoClassificationView;
+  let record = must_get_valid_record(ndo_identity_hash.clone())?;
+  let wire: NdoClassificationWire = record
+    .entry()
+    .to_app_option()
+    .map_err(|e| {
+      wasm_error!(WasmErrorInner::Guest(format!(
+        "Failed to deserialize NondominiumIdentity classification: {:?}",
+        e
+      )))
+    })?
+    .ok_or(wasm_error!(WasmErrorInner::Guest(
+      "NondominiumIdentity entry not found for ndo_identity_hash".to_string()
+    )))?;
+  Ok(NdoClassificationView {
+    property_regime: wire.property_regime,
+    resource_nature: wire.resource_nature,
+    lifecycle_stage: wire.lifecycle_stage,
+    rivalry_override: wire.rivalry_override,
+  })
+}
+
+fn validate_action_against_ndo(
+  ndo_identity_hash: &ActionHash,
+  action: &VfAction,
+) -> ExternResult<ValidateCallbackResult> {
+  use nondominium_shared::constraints::{
+    check_action_permitted, hard_violation_message, ConstraintSeverity, ResourceClassification,
+  };
+
+  let ndi = fetch_ndo_classification(ndo_identity_hash)?;
+  let ctx = ResourceClassification {
+    resource_nature: ndi.resource_nature,
+    property_regime: ndi.property_regime,
+    lifecycle_stage: Some(ndi.lifecycle_stage),
+    rivalry_override: ndi.rivalry_override,
+  };
+  let hard: Vec<_> = check_action_permitted(&ctx, action)
+    .into_iter()
+    .filter(|v| v.severity == ConstraintSeverity::Hard)
+    .collect();
+  if !hard.is_empty() {
+    return Ok(ValidateCallbackResult::Invalid(hard_violation_message(&hard)));
+  }
+  Ok(ValidateCallbackResult::Valid)
+}
+
+fn validate_create_economic_event(
+  event: &EconomicEvent,
+  _author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+  validate_action_against_ndo(&event.ndo_identity_hash, &event.action)
+}
+
+fn validate_create_commitment(
+  commitment: &Commitment,
+  _author: &AgentPubKey,
+) -> ExternResult<ValidateCallbackResult> {
+  validate_action_against_ndo(&commitment.ndo_identity_hash, &commitment.action)
 }

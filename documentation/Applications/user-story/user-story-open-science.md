@@ -4,6 +4,21 @@
 
 **Context**: A university research team needs specialized laboratory equipment for a critical experiment, accessing it through their institutional platform integrated with Nondominium. **This scenario demonstrates Nondominium's capabilities for specialized equipment access, with post MVP capabilities providing enhanced research network coordination and impact measurement.**
 
+> **How to read this story (grounding note).** The shared instrument (CEM-3000) is an
+> **NDO**: a permanent Layer 0 `NondominiumIdentity`, a Layer 1 `ResourceSpecification`
+> carrying access `GovernanceRule`s (certification, protocol approval, monitoring), and
+> a Layer 2 `EconomicResource` instance whose `OperationalState` cycles
+> `Available → Reserved → InUse` during the experiment (lifecycle maturity stays on
+> Layer 0). Access is a **Use** process: the researcher submits `propose_commitment(AccessForUse)`,
+> the custodian evaluates trust via `derive_reputation_summary`, and completion issues
+> bilateral **PPRs** from the 16-category set — here `CustodyAcceptance` /
+> `CustodyTransfer` for the access grant, `ValidationActivity` and `RuleCompliance`
+> for protocol adherence, and (for the custodian's service) the maintenance/service
+> categories. Narrative labels like `UseService`, `ServiceValidation`, and
+> `CommitmentFulfillment` are shorthand for these real `ParticipationClaimType`
+> values. Real-time monitoring, LIMS, and publication tooling are **host-platform**
+> concerns; steps against `ND` are the ValueFlows/governance zome calls. Multi-institution
+> coordination and impact accounting are **post-MVP** (hREA/NRP).
 
 ---
 
@@ -99,14 +114,14 @@ sequenceDiagram
     participant Gov as Governance Zome
 
     Elena->>Platform: Search for electron microscopes
-    Platform->>ND: get_resources_by_specification()
+    Platform->>ND: get_all_ndos() / get_ndos_by_nature(Physical)
     ND->>Res: Query CEM-3000 availability
     Res-->>ND: Return microscope specs and calendar
     ND-->>Platform: Display equipment with governance rules
     Platform-->>Elena: Show available slots and requirements
 
     Elena->>Platform: Review research certification requirements
-    Platform->>ND: get_governance_rule_profile()
+    Platform->>ND: get_resource_specification_with_rules()
     ND->>Gov: Return research protocol requirements
     Elena->>Platform: Submit research proposal and credentials
     Platform->>ND: propose_commitment(AccessForUse)
@@ -139,11 +154,11 @@ sequenceDiagram
     PPR-->>ND: Return research collaboration history
     ND-->>Chen: Display Elena's research reputation
 
-    Chen->>ND: validate_research_protocol()
-    ND->>Gov: Review experimental methodology
+    Chen->>ND: validate_specialized_role(Research) / check_validation_status()
+    ND->>Gov: Review experimental methodology, create ValidationReceipt
     Gov-->>ND: Protocol validation result
-    Chen->>ND: approve_commitment_with_conditions()
-    ND->>Gov: Create usage agreement with monitoring
+    Chen->>ND: create_agreement(BenefitClause) + monitoring GovernanceRule
+    ND->>Gov: Record usage agreement with monitoring conditions
 ```
 
 **Research Validation Process**:
@@ -166,7 +181,8 @@ stateDiagram-v2
     PreparedForUse --> UsageReady: System calibration complete
 
     note right of Reserved
-        Equipment state: Active → Reserved
+        OperationalState: Available → Reserved
+        (LifecycleStage stays Active on Layer 0)
         Research protocol linked
         Monitoring systems activated
     end note
@@ -195,21 +211,18 @@ sequenceDiagram
     participant Res as Resource Zome
     participant PPR as PPR System
 
-    Elena->>ND: initiate_use_process(research_experiment)
-    ND->>Res: validate_usage_permissions()
+    Elena->>ND: update_operational_state(InUse)
+    ND->>Gov: Evaluate access commitment (AccessForUse)
     Elena->>System: Start experimental procedure
-    System->>ND: log_economic_event(Use, real_time)
-    ND->>PPR: generate_usage_metrics()
 
     loop Research Duration (2 weeks)
-        Elena->>System: Log experimental data
-        System->>ND: continuous_usage_tracking()
-        ND->>PPR: update_performance_metrics()
-        System->>Chen: send_usage_reports()
+        Elena->>System: Log experimental data (platform-side telemetry)
+        System->>Chen: send_usage_reports() (host-platform)
     end
 
-    Elena->>ND: complete_research_session()
-    ND->>PPR: issue_participation_receipts()
+    Elena->>ND: claim_commitment() + update_operational_state(Available)
+    ND->>Gov: Record Use economic event against the resource
+    Gov->>PPR: issue_participation_receipts() with PerformanceMetrics
 ```
 
 **Research Usage Process**:
@@ -231,11 +244,11 @@ graph TB
         E --> F[Research Publication Support]
     end
 
-    subgraph "PPR Categories Generated"
-        G[UseService - Research Application]
-        H[ServiceValidation - Protocol Compliance]
-        I[CommitmentFulfillment - Research Completion]
-        J[ValidationActivity - Equipment Care]
+    subgraph "PPR Categories Generated (16-category set)"
+        G[CustodyAcceptance - Researcher took responsibility]
+        H[RuleCompliance - Protocol adherence]
+        I[CustodyTransfer - Custodian granted access]
+        J[ValidationActivity - Equipment care & validation]
     end
 
     E --> G
@@ -321,8 +334,8 @@ graph LR
     end
 
     subgraph "After Research Usage"
-        Elena_After["Elena: Research Specialist<br/>4.9 out of 5 - 12 PPRs<br/>plus 1 UseService<br/>plus 1 ResearchCollaboration"]
-        Chen_After["Chen: Research Support Leader<br/>4.9 out of 5 - 15 PPRs<br/>plus 1 ServiceProvision<br/>plus 1 ResearchValidation"]
+        Elena_After["Elena: Research Specialist<br/>4.9 out of 5 - 12 PPRs<br/>plus 1 CustodyAcceptance<br/>plus 1 RuleCompliance"]
+        Chen_After["Chen: Research Support Leader<br/>4.9 out of 5 - 15 PPRs<br/>plus 1 CustodyTransfer<br/>plus 1 ValidationActivity"]
     end
 
     Elena_Before --> Phase1

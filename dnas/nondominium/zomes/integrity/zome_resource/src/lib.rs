@@ -1,42 +1,12 @@
 use hdi::prelude::*;
-pub use nondominium_shared::types::{LifecycleStage, PropertyRegime, ResourceNature, NdoDnaProperties};
+pub use nondominium_shared::types::{
+  LifecycleStage, NdoDnaProperties, OperationalState, PropertyRegime, ResourceNature, ResourceScope,
+  Rivalry,
+};
+pub use nondominium_shared::rule_data::RuleData;
 
-// TODO (post-MVP): Split ResourceState into two orthogonal enums and migrate EconomicResource:
-//
-// 1. LifecycleStage — now in nondominium_shared::types (imported above).
-//
-// 2. OperationalState — the current process acting on this specific resource instance (cycles
-//    frequently as processes begin and end). Governance-zome controlled.
-//    Values: Available, Reserved, InTransit, InStorage, InMaintenance, InUse, PendingValidation
-//
-// The current ResourceState enum CONFLATES both dimensions and is kept for EconomicResource
-// backwards-compatibility until the OperationalState refactor (REQ-NDO-OS-06).
-//
-// See: documentation/requirements/ndo_prima_materia.md — Section 5 (LifecycleStage + OperationalState)
-// See: documentation/archives/resources.md — Section 2.4 (known gaps)
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
-pub enum ResourceState {
-  #[default]
-  PendingValidation,
-  Active,
-  Maintenance,
-  Retired,
-  Reserved,
-}
-
-impl std::fmt::Display for ResourceState {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      ResourceState::PendingValidation => write!(f, "pending_validation"),
-      ResourceState::Active => write!(f, "active"),
-      ResourceState::Maintenance => write!(f, "maintenance"),
-      ResourceState::Retired => write!(f, "retired"),
-      ResourceState::Reserved => write!(f, "reserved"),
-    }
-  }
-}
-
-// LifecycleStage, PropertyRegime, ResourceNature are re-exported from nondominium_shared::types
+// LifecycleStage, PropertyRegime, ResourceNature, OperationalState are re-exported from
+// nondominium_shared::types
 // (see the `pub use` at the top of this file). Both DNAs share the same definitions, eliminating
 // the duplication that previously existed between this file and zome_lobby_integrity.
 
@@ -49,14 +19,36 @@ pub struct ResourceSpecification {
   pub image_url: Option<String>,
   pub tags: Vec<String>, // For flexible discovery and filtering
   pub is_active: bool,   // For filtering active vs inactive specs
+  /// Visibility / discovery scope (mutable). Project-scoped specs skip the global
+  /// AllResourceSpecifications anchor. Network currently behaves as Public at the
+  /// DHT-anchor level until network-layer federation exists.
+  pub scope: ResourceScope,
+  /// Immutable pointer to the Layer 0 NondominiumIdentity this spec activates.
+  /// Always the *original* create_ndo action hash — the stable identity.
+  pub ndo_identity_hash: ActionHash,
+  /// The NDO action the author observed when activating Layer 1.
+  ///
+  /// `lifecycle_stage` is mutable, and Holochain integrity cannot resolve "the
+  /// latest state" — walking an update chain *forward* is non-deterministic
+  /// because the chain keeps growing. Walking *backward* is deterministic, so
+  /// the author names the state they saw and validation proves that state
+  /// belongs to `ndo_identity_hash` before gating on its stage.
+  ///
+  /// Equal to `ndo_identity_hash` when the NDO has never been updated.
+  pub ndo_state_hash: ActionHash,
 }
 
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct GovernanceRule {
-  pub rule_type: String, // e.g., "access_requirement", "usage_limit", "transfer_conditions"
-  pub rule_data: String, // JSON-encoded rule parameters
+  pub rule_data: RuleData,
   pub enforced_by: Option<String>, // Role required to enforce this rule
+  /// Direct pointer to Layer 0 — required for constraint evaluation context.
+  pub ndo_identity_hash: ActionHash,
+  /// Denormalized from Layer 0 (immutable source) — enables zero-DHT-read validation.
+  pub property_regime: PropertyRegime,
+  pub resource_nature: ResourceNature,
+  pub rivalry_override: Option<Rivalry>,
 }
 
 #[hdk_entry_helper]
@@ -66,7 +58,7 @@ pub struct EconomicResource {
   pub unit: String,
   pub custodian: AgentPubKey, // The Primary Accountable Agent holding the resource
   pub current_location: Option<String>, // Physical or virtual location TODO: use an enum
-  pub state: ResourceState,
+  pub operational_state: OperationalState,
 }
 
 // NDO Layer 0 — NondominiumIdentity (REQ-NDO-L0-01, REQ-NDO-L0-07)
@@ -91,6 +83,9 @@ pub struct NondominiumIdentity {
   // original intent. Post-MVP: consider a separate mutable `notes` field if editorial
   // corrections are needed without altering the canonical identity record.
   pub description: Option<String>,
+  /// Optional override of `ResourceNature::default_rivalry()`. Immutable after creation.
+  /// Use when nature's default is wrong (e.g. rivalrous Service slot).
+  pub rivalry_override: Option<Rivalry>,
   // Required when lifecycle_stage == Deprecated (REQ-NDO-LC-06).
   // Set exactly once during the Deprecated transition; immutable once set.
   // #[serde(default)] ensures existing pre-field records deserialize to None.
@@ -167,6 +162,9 @@ pub enum LinkTypes {
   // Link only; full event validation deferred (integrity cannot
   // cross-zome call to zome_gouvernance)
 
+  // NDO Layer 1 activation: Layer 0 → ResourceSpecification
+  NdoToSpecification,
+
   // Hierarchical linking for efficient queries
   SpecificationToResource,       // ResourceSpec -> EconomicResource
   CustodianToResource,           // Agent -> Resources they custody
@@ -180,11 +178,8 @@ pub enum LinkTypes {
   // Service-type patterns (inspired by R&O ServiceType queries)
   SpecsByCategory,     // Category -> ResourceSpecs
   ResourcesByLocation, // Location -> EconomicResources
-  ResourcesByState,    // ResourceState -> EconomicResources
-  // TODO (REQ-NDO-OS-06): Split ResourcesByState into two independent link types:
-  //   ResourcesByLifecycleStage  — NondominiumIdentity lifecycle facet queries
-  //   ResourcesByOperationalState — EconomicResource operational facet queries
-  // See: documentation/requirements/ndo_prima_materia.md — Section 9.4 (REQ-NDO-OS-06)
+  // Lifecycle faceting for NDO identity is served by NdoByLifecycleStage (Layer 0).
+  ResourcesByOperationalState, // OperationalState -> EconomicResource action hashes
 
   // Governance patterns
   RulesByType,          // RuleType -> GovernanceRules
@@ -230,6 +225,32 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         app_entry, action, ..
       } => match app_entry {
         EntryTypes::ResourceSpecification(spec) => {
+          let original_record = must_get_valid_record(action.original_action_address.clone())?;
+          let original: ResourceSpecification = original_record
+            .entry()
+            .to_app_option()
+            .map_err(|e| {
+              wasm_error!(WasmErrorInner::Guest(format!(
+                "Failed to deserialize original ResourceSpecification: {:?}",
+                e
+              )))
+            })?
+            .ok_or(wasm_error!(WasmErrorInner::Guest(
+              "Original ResourceSpecification entry not found in record".to_string()
+            )))?;
+          if spec.ndo_identity_hash != original.ndo_identity_hash {
+            return Ok(ValidateCallbackResult::Invalid(
+              "ResourceSpecification ndo_identity_hash is immutable after creation".to_string(),
+            ));
+          }
+          // Also immutable: otherwise an edit could re-point the spec at a
+          // newer, eligible state and launder a Layer 1 activation that the
+          // create-time gate rejected.
+          if spec.ndo_state_hash != original.ndo_state_hash {
+            return Ok(ValidateCallbackResult::Invalid(
+              "ResourceSpecification ndo_state_hash is immutable after creation".to_string(),
+            ));
+          }
           validate_update_resource_spec(&spec, &action.author)
         }
         EntryTypes::EconomicResource(resource) => {
@@ -310,6 +331,61 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   }
 }
 
+/// Longest NDO update chain integrity will walk. A NondominiumIdentity moves
+/// through at most 10 lifecycle stages, so a legitimate chain is far shorter;
+/// the cap only bounds work if a chain is ever driven pathologically long.
+const MAX_NDO_CHAIN_WALK: usize = 64;
+
+/// Reads the NondominiumIdentity at `state_hash` and walks the update chain
+/// *backward* to its genesis Create, returning `(root_action_hash, entry)`.
+///
+/// Backward traversal is deterministic — every Update names exactly one
+/// predecessor via `original_action_address`, and that edge never changes.
+/// Forward traversal (`get_details(..).updates`) is not: the set grows as new
+/// updates land, so validation that depended on it would not be replayable.
+/// This is why the author supplies the state they observed rather than
+/// validation resolving "latest" itself.
+fn resolve_ndo_state(
+  state_hash: ActionHash,
+) -> ExternResult<(ActionHash, NondominiumIdentity)> {
+  let record = must_get_valid_record(state_hash.clone())?;
+  let ndi: NondominiumIdentity = record
+    .entry()
+    .to_app_option()
+    .map_err(|e| {
+      wasm_error!(WasmErrorInner::Guest(format!(
+        "Failed to deserialize NondominiumIdentity at ndo_state_hash: {:?}",
+        e
+      )))
+    })?
+    .ok_or(wasm_error!(WasmErrorInner::Guest(
+      "ndo_state_hash does not reference a NondominiumIdentity entry".to_string()
+    )))?;
+
+  let mut current = record;
+  let mut current_hash = state_hash;
+  for _ in 0..MAX_NDO_CHAIN_WALK {
+    match current.action() {
+      Action::Create(_) => return Ok((current_hash, ndi)),
+      Action::Update(update) => {
+        current_hash = update.original_action_address.clone();
+        current = must_get_valid_record(current_hash.clone())?;
+      }
+      other => {
+        return Err(wasm_error!(WasmErrorInner::Guest(format!(
+          "ndo_state_hash resolved to an unexpected action type: {:?}",
+          other.action_type()
+        ))))
+      }
+    }
+  }
+
+  Err(wasm_error!(WasmErrorInner::Guest(format!(
+    "NondominiumIdentity update chain exceeded {} hops",
+    MAX_NDO_CHAIN_WALK
+  ))))
+}
+
 fn validate_create_resource_spec(
   spec: &ResourceSpecification,
   _author: &AgentPubKey,
@@ -332,6 +408,73 @@ fn validate_create_resource_spec(
     ));
   }
 
+  // Lifecycle gate: Layer 1 cannot activate while Layer 0 is Ideation / suspended / terminal.
+  //
+  // Read the stage from `ndo_state_hash` (the state the author observed), NOT
+  // from `ndo_identity_hash` — the latter is the genesis record and always
+  // carries the *creation-time* stage, so gating on it rejects the ordinary
+  // "create at Ideation, advance to Specification, then activate Layer 1" flow
+  // and accepts an NDO that has since been Deprecated.
+  let (root_hash, ndi) = resolve_ndo_state(spec.ndo_state_hash.clone())?;
+
+  // The state must belong to the NDO the spec claims to activate.
+  if root_hash != spec.ndo_identity_hash {
+    return Ok(ValidateCallbackResult::Invalid(
+      "ResourceSpecification.ndo_state_hash belongs to a different NondominiumIdentity \
+       than ndo_identity_hash"
+        .to_string(),
+    ));
+  }
+
+  let ineligible = matches!(
+    ndi.lifecycle_stage,
+    LifecycleStage::Ideation
+      | LifecycleStage::Hibernating
+      | LifecycleStage::Deprecated
+      | LifecycleStage::EndOfLife
+  );
+  if ineligible {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "Cannot activate Layer 1 while the NDO is {:?}.",
+      ndi.lifecycle_stage
+    )));
+  }
+
+  validate_spec_scope_against_regime(spec, &ndi)
+}
+
+/// Bind the spec's mutable `scope` to the NDO's immutable `property_regime`.
+///
+/// Scope is the one Layer 1 field that can quietly undo a Layer 0 guarantee. A
+/// `Nondominium` NDO is uncapturable by design and a `Public` one is open-access by the
+/// stewarding body's own policy, but a spec scoped to `Project` is omitted from the global
+/// discovery anchor: the resource stays unownable while becoming invisible to everyone
+/// outside the narrowing group. That is enclosure by visibility, which is the outcome
+/// REQ-RES-03 exists to prevent, so the predicate is Hard rather than advisory.
+///
+/// Enforced on update as well as create for the same reason `ndo_state_hash` is immutable:
+/// otherwise an edit launders a scope the create-time gate rejected.
+fn validate_spec_scope_against_regime(
+  spec: &ResourceSpecification,
+  ndi: &NondominiumIdentity,
+) -> ExternResult<ValidateCallbackResult> {
+  use nondominium_shared::constraints::{
+    check_scope_coherence, hard_violation_message, ResourceClassification,
+  };
+
+  let ctx = ResourceClassification {
+    resource_nature: ndi.resource_nature.clone(),
+    property_regime: ndi.property_regime.clone(),
+    lifecycle_stage: Some(ndi.lifecycle_stage.clone()),
+    rivalry_override: ndi.rivalry_override.clone(),
+  };
+
+  if let Some(violation) = check_scope_coherence(&ctx, &spec.scope) {
+    return Ok(ValidateCallbackResult::Invalid(hard_violation_message(&[
+      violation,
+    ])));
+  }
+
   Ok(ValidateCallbackResult::Valid)
 }
 
@@ -351,6 +494,12 @@ fn validate_create_economic_resource(
     ));
   }
 
+  if resource.operational_state != OperationalState::PendingValidation {
+    return Ok(ValidateCallbackResult::Invalid(
+      "New economic resources must start in PendingValidation operational state".to_string(),
+    ));
+  }
+
   Ok(ValidateCallbackResult::Valid)
 }
 
@@ -358,16 +507,64 @@ fn validate_create_governance_rule(
   rule: &GovernanceRule,
   _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
-  if rule.rule_type.trim().is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Governance rule type cannot be empty".to_string(),
-    ));
+  use nondominium_shared::constraints::{
+    check_rule_data_permitted, hard_violation_message, has_hard_violation, ResourceClassification,
+  };
+
+  // Bind the denormalized classification to Layer 0 BEFORE judging the rule
+  // against it. Without this the classification is writer-controlled, and every
+  // regime-driven constraint (capture resistance above all) becomes advisory:
+  // an ownership-transfer rule on a Nondominium NDO passes simply by declaring
+  // `Private` on the rule entry.
+  //
+  // `property_regime`, `resource_nature`, and `rivalry_override` are immutable
+  // on NondominiumIdentity, so the genesis record reached through the stable
+  // Layer 0 hash is authoritative for all three — no update-chain walk needed,
+  // which is what makes this affordable inside integrity validation.
+  let ndo_record = must_get_valid_record(rule.ndo_identity_hash.clone())?;
+  let ndi: NondominiumIdentity = ndo_record
+    .entry()
+    .to_app_option()
+    .map_err(|e| {
+      wasm_error!(WasmErrorInner::Guest(format!(
+        "Failed to deserialize NondominiumIdentity referenced by GovernanceRule: {:?}",
+        e
+      )))
+    })?
+    .ok_or(wasm_error!(WasmErrorInner::Guest(
+      "GovernanceRule.ndo_identity_hash does not reference a NondominiumIdentity".to_string()
+    )))?;
+
+  if rule.property_regime != ndi.property_regime {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "GovernanceRule declares property_regime {:?} but its NDO is {:?}",
+      rule.property_regime, ndi.property_regime
+    )));
+  }
+  if rule.resource_nature != ndi.resource_nature {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "GovernanceRule declares resource_nature {:?} but its NDO is {:?}",
+      rule.resource_nature, ndi.resource_nature
+    )));
+  }
+  if rule.rivalry_override != ndi.rivalry_override {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "GovernanceRule declares rivalry_override {:?} but its NDO is {:?}",
+      rule.rivalry_override, ndi.rivalry_override
+    )));
   }
 
-  if rule.rule_data.trim().is_empty() {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Governance rule data cannot be empty".to_string(),
-    ));
+  let ctx = ResourceClassification {
+    resource_nature: rule.resource_nature.clone(),
+    property_regime: rule.property_regime.clone(),
+    lifecycle_stage: None, // not needed by current rule-definition predicates
+    rivalry_override: rule.rivalry_override.clone(),
+  };
+  let violations = check_rule_data_permitted(&ctx, &rule.rule_data);
+  if has_hard_violation(&violations) {
+    return Ok(ValidateCallbackResult::Invalid(hard_violation_message(
+      &violations,
+    )));
   }
 
   Ok(ValidateCallbackResult::Valid)
@@ -435,6 +632,21 @@ fn validate_create_nondominium_identity(
       "hibernation_origin must be None at creation".to_string(),
     ));
   }
+
+  // Phase A: all seven PropertyRegime variants are accepted at creation.
+  // Semantic helpers live on `nondominium_shared::PropertyRegime`
+  // (`is_rivalrous`, `permits_ownership_transfer`, `is_uncapturable`,
+  // `default_accessibility`). Regime-driven governance enforcement
+  // (transfer-rights matrix, Nondominium/Public no-alienation guard,
+  // GovernanceDefaultsEngine) is Phase B — see resources.md §4.4.4–§4.4.5 / §6.6
+  // and implementation_plan.md PropertyRegime Phase B.
+  let _regime_semantics_hook = (
+    ndi.property_regime.is_rivalrous(),
+    ndi.property_regime.permits_ownership_transfer(),
+    ndi.property_regime.is_uncapturable(),
+    ndi.property_regime.default_accessibility(),
+  );
+  let _ = _regime_semantics_hook;
 
   // ADR-013 (binding): on an NDO cell cloned with `NdoDnaProperties`, the entry's
   // classification fields must agree with the DNA properties (name/regime/nature).
@@ -505,6 +717,11 @@ fn validate_update_nondominium_identity(
   if new_entry.resource_nature != original.resource_nature {
     return Ok(ValidateCallbackResult::Invalid(
       "NondominiumIdentity resource_nature is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.rivalry_override != original.rivalry_override {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity rivalry_override is immutable after creation".to_string(),
     ));
   }
   if new_entry.created_at != original.created_at {
@@ -661,12 +878,18 @@ fn validate_delete_nondominium_identity() -> ExternResult<ValidateCallbackResult
 }
 
 fn validate_update_resource_spec(
-  _spec: &ResourceSpecification,
+  spec: &ResourceSpecification,
   _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
-  // For Phase 1, allow updates
-  // Phase 2 will add governance-based update validation
-  Ok(ValidateCallbackResult::Valid)
+  // Phase 1: allow updates to mutable fields, but never reparent a spec to another NDO.
+  // The reparent check lives in the UpdateEntry arm, which is the only place the original
+  // entry is available.
+  //
+  // `scope` IS mutable, so the regime coherence gate has to run here too: the UpdateEntry
+  // arm has already rejected any change to `ndo_identity_hash` or `ndo_state_hash`, so the
+  // NDO reached here is the same one the create-time gate judged.
+  let (_root_hash, ndi) = resolve_ndo_state(spec.ndo_state_hash.clone())?;
+  validate_spec_scope_against_regime(spec, &ndi)
 }
 
 fn validate_update_economic_resource(
@@ -679,10 +902,9 @@ fn validate_update_economic_resource(
 }
 
 fn validate_update_governance_rule(
-  _rule: &GovernanceRule,
+  rule: &GovernanceRule,
   _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
-  // For Phase 1, allow updates
-  // Phase 2 will add proper governance rule update validation
-  Ok(ValidateCallbackResult::Valid)
+  // Same Hard constraint checks as create — Soft remains unsurfaced at integrity layer.
+  validate_create_governance_rule(rule, _author)
 }

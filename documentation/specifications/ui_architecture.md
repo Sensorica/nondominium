@@ -344,7 +344,7 @@ Three independent chip groups with multi-select:
 |-------|---------|-------|
 | LifecycleStage | 10 variants | OR within group |
 | ResourceNature | 5 variants | OR within group |
-| PropertyRegime | 6 variants | OR within group |
+| PropertyRegime | 7 variants | OR within group |
 
 **Cross-group logic**: AND (an NDO must match at least one selection in every active group).
 **Default**: all filters empty = show all NDOs.

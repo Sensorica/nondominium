@@ -491,6 +491,34 @@ These are not gaps but noteworthy observations for maintainers.
 
 - Add `primary_location: Option<ActionHash>` (or `Option<String>` if SpatialThing not yet implemented)
 
+### P3 — Future (Nondominium-specific extensions beyond VF 1.0)
+
+**P3-1: `vf:Source` — Third flow endpoint primitive (Source-NDO)**
+
+ValueFlows 1.0 permits only `vf:Agent` and `vf:EconomicResource` as `provider` and `receiver` in economic events. The **Source-NDO** extension ([`source-ndo-requirements.md`](../requirements/post-mvp/source-ndo-requirements.md)) requires a third typed role: `vf:Source`.
+
+A `vf:Source` endpoint represents a generative ecological system (watershed, river, fishery, forest) that:
+- **yields** economic resources when accessed (extraction events)
+- **receives** ecological effects (loading/pollution events)
+- **conditions** future events through a changing `SourceRegimeState`
+- is **not ownable** and **not agentive** (neither `vf:Agent` nor `vf:EconomicResource` fits)
+
+**Proposed implementation:**
+
+```
+vf:Source  rdfs:subClassOf  owl:Thing
+           rdfs:comment     "A generative ecological system that yields resources,
+                             receives ecological effects, and conditions future
+                             possibilities without being ownable or intentional."
+
+vf:EconomicEvent  vf:fromSource  vf:Source   (extraction: Source as provider)
+vf:EconomicEvent  vf:toSource    vf:Source   (loading: Source as receiver)
+```
+
+**Impact:** Without this extension, Nondominium cannot express watershed governance, fishery commons, or any ecological commons under the `Nondominium` property regime without ontological fictions (false `primaryAccountable`, phantom `raise` events). This is a **Nondominium-proposed extension to ValueFlows 1.0**, not yet submitted to the VF working group.
+
+**Priority:** Required for Source-NDO implementation (post-MVP). Does not affect hREA 1.0 compliance score; should be tracked as a future contribution to the VF standard.
+
 ---
 
 ## Appendix: Full Field Mapping Tables

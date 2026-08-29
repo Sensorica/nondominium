@@ -24,6 +24,7 @@ pub enum PropertyRegime {
     Collective,   // Cooperative/collective ownership
     Pool,         // Rivalrous shared resources; custody/scheduling/maintenance
     CommonPool,   // Rivalrous consumable; quota/depletion rules
+    Public,       // Public/governmental stewardship; open-access; non-alienable by public body
     Nondominium,  // Uncapturable by design; no alienation permitted
 }
 ```
@@ -68,9 +69,8 @@ pub enum LifecycleStage {
 Transitions are governance-validated (governance zome as state transition operator).
 At `EndOfLife`, only Layer 0 survives as a permanent tombstone.
 
-## OperationalState Enum (7 states — planned, not yet in code)
-Source: `documentation/requirements/ndo_prima_materia.md §5`
-Note: currently `ResourceState` in `zome_resource/src/lib.rs` — refactor tracked as REQ-NDO-OS-06
+## OperationalState Enum (7 states — implemented on EconomicResource)
+Source: `documentation/requirements/ndo_prima_materia.md §5`, `crates/shared/src/types.rs`
 
 ```rust
 pub enum OperationalState {
@@ -85,7 +85,7 @@ pub enum OperationalState {
 ```
 
 Orthogonal to `LifecycleStage`: an `Active`-stage resource can be `InMaintenance`;
-a `Prototype` can be `InTransit`. The split fixes the current `ResourceState` conflation.
+a `Prototype` can be `InTransit`. Lifecycle maturity remains on `NondominiumIdentity` (`LifecycleStage`).
 
 ## VfAction Enum (16 actions)
 Source: `documentation/specifications/specifications.md §3.3.1`

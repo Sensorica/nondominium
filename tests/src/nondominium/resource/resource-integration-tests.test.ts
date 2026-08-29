@@ -261,7 +261,7 @@ test("resource state management across agents", async () => {
       // Lynn updates her resource state
       const stateUpdateResult = await updateResourceState(lynn.cells[0], {
         resource_hash: context.lynnResourceHash!,
-        new_state: RESOURCE_STATES.ACTIVE,
+        new_operational_state: RESOURCE_STATES.ACTIVE,
       });
 
       assert.ok(stateUpdateResult);
@@ -289,7 +289,7 @@ test("resource state management across agents", async () => {
       // Test state transition to maintenance
       await updateResourceState(lynn.cells[0], {
         resource_hash: context.lynnResourceHash!,
-        new_state: RESOURCE_STATES.MAINTENANCE,
+        new_operational_state: RESOURCE_STATES.MAINTENANCE,
       });
 
       await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);

@@ -171,10 +171,10 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 | Document | Description |
 | --- | --- |
-| **[Artcoin Integration](Applications/nondominium_artcoin.md)** | Artcoin application integration |
-| **[User Story — Artcoin](Applications/user-story/user-story-artcoin.md)** | Complete Artcoin user journey |
-| **[User Story — Art Distribution](Applications/user-story/user-story-art-distribution.md)** | Art distribution scenario |
-| **[User Story — Art Production](Applications/user-story/user-story-art-production.md)** | Art production scenario |
+| **[Artcoin Integration](Applications/nondominium_artcoin.md)** | Artcoin mapped onto the NDO model (property regimes, roles, custody, PPRs) + implementation status |
+| **[User Story — Artcoin](Applications/user-story/user-story-artcoin.md)** | Art circulation & discovery via venues and individual art lovers |
+| **[User Story — Art Distribution](Applications/user-story/user-story-art-distribution.md)** | Multi-venue exhibition tour: custody chain, transport & storage |
+| **[User Story — Art Production](Applications/user-story/user-story-art-production.md)** | Collaborative art production with shared studio resources (REA edge) |
 | **[User Story — ERP Bridge](Applications/user-story/user-story-ERP-bridge.md)** | ERP bridge integration scenario |
 | **[User Story — Food Basket](Applications/user-story/user-story-food-basket.md)** | Food basket sharing scenario |
 | **[User Story — Material Peer Production](Applications/user-story/user-story-material-peer-production.md)** | Material peer production scenario |
@@ -229,10 +229,10 @@ Full reference: **[API Reference](API_REFERENCE.md)**
 - `create_economic_resource()` - Create resource instances with initial state
 - `get_economic_resource()` - Retrieve resource current state and history
 - `get_economic_resource_with_state()` - Retrieve resource with full state transitions
-- `update_economic_resource_state()` - Update resource state (requires governance approval)
+- `update_operational_state()` - Update `EconomicResource.operational_state`
 - `get_my_resources()` - Discover resources where calling agent is custodian
 - `get_resources_by_specification()` - Find resources conforming to specification
-- `get_resources_by_state()` - Query resources by current state
+- `get_resources_by_operational_state()` - Query resources by operational state
 
 **Cross-Zome State Transitions**
 

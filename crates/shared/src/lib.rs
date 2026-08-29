@@ -1,9 +1,13 @@
 // Types and I/O structs are available to all compilation targets
 // (integrity zomes, coordinator zomes, native test crates).
+pub mod constraints;
 pub mod io;
+pub mod rule_data;
 pub mod types;
 
 // Re-export types at crate root for ergonomic imports
+pub use constraints::*;
+pub use rule_data::*;
 pub use types::*;
 
 // The following modules use hdk (coordinator-only) and are gated behind

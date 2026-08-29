@@ -8,6 +8,8 @@ The project's central goal is to support a true sharing economy, overcoming the 
 
 Built on the Holochain framework and using the ValueFlows standard, nondominium allows any Agent to interact with these Resources in a permissionless but accountable environment, with automatic reputation tracking through Private Participation Receipts (PPRs).
 
+**Optional post-MVP economic ontology:** The universal NDO baseline models ValueFlows' **Agent** and **Resource** primitives. Applications whose domain includes generative, non-ownable systems may progressively activate **`Source`** as a third category (watersheds, rivers, forests, fisheries, knowledge commons) that yields Resources, receives ecological effects, and carries adaptive stewardship governance. Source is not required for ordinary Project NDOs or resource-mutualisation applications. Sources are **not** owned `EconomicResource` instances and **not** intentional Agents. Normative detail: [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md) (REQ-SOURCE-*); implementation phasing: [implementation_plan.md](../implementation_plan.md) §12.7.
+
 ## 2. Objective & Goals
 
 ### 2.1 Main Objective
@@ -24,7 +26,7 @@ Develop a new class of Resources that are:
 - **Credentials and Reputation-enabled**: Built-in accountability through cryptographically-signed participation tracking
 - **Process-aware**: Supporting structured Economic Processes (Use, Transport, Storage, Repair)
 - **Fully specified**: Machine readable in terms of function, design architecture, standards (dimensions, tolerances, quality), etc.
-- **Composable**: Resources can be combined into come complex resources, allow fork and remix
+- **Composable**: Resources can be combined into complex resources, allow fork and remix
 - **Hard to Clone**: Governance, set of rules and incentives to make unnecessary copying of a resource unlikely.
 - **Lifecycle Managed**: Resources have managed lifecycles from creation through validation to end-of-life.
 - **Traceable**: Full provenance and economic activity tracking, affiliation to component resources
@@ -38,22 +40,26 @@ Develop a new class of Resources that are:
 4.  **Identity and Role System**: Develop Agent identity infrastructure supporting pseudonymity, credentials, and private entry identification
 5.  **Reputation System**: Implement Private Participation Receipts (PPRs) for trustworthy, cumulative reputation tracking
 6.  **Process Management**: Support structured Economic Processes with role-based access control
+7.  **Ecological and knowledge commons (optional post-MVP profile)**: Where an application's domain actually includes a generative system, activate `Source` / Source-NDO so boundary events (extraction, loading, restoration) are recorded on-ledger and govern adaptive access — without imposing Source concepts on simpler Project or resource-sharing applications (REQ-SOURCE-APP-*, REQ-SOURCE-*)
 
-### 2.3 Post-MVP capability integrations (NDO, Unyt, Flowsta)
+### 2.3 Post-MVP capability integrations and application profiles
 
 The **current MVP** in this repository implements `ResourceSpecification`, `EconomicResource`, and `GovernanceRule` with governance-as-operator patterns as specified elsewhere in this document. **Normative requirements** for the generic **Nondominium Object (NDO)** — three-layer model, lifecycle vs operational state, capability slot surface, and typed integration with external operators — live in **[ndo_prima_materia.md](ndo_prima_materia.md)** (REQ-NDO-L0 through REQ-NDO-AGENT-08, REQ-NDO-CS-01 through REQ-NDO-CS-15, migration §10).
 
-Optional, pay-as-you-grow integrations (communities may adopt one, both, or neither):
+Optional, pay-as-you-grow integrations and application profiles (communities may adopt any subset):
 
 | Integration | Role | Normative detail | Design stub |
 |-------------|------|------------------|-------------|
 | **Lobby DNA** | Multi-network federation: entry point (Lobby DHT) + per-group coordination (Group DHT) + NDO-to-NDO hard links, Contributions, Smart Agreements; dual deployment (standalone + Moss applet) | REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-* | [lobby-dna.md](post-mvp/lobby-dna.md) / [lobby-architecture.md](../specifications/post-mvp/lobby-architecture.md) |
 | **Unyt** | Economic settlement (Smart Agreements, RAVE proofs, PPR↔RAVE provenance) | `ndo_prima_materia.md` §6.6, §11.5; REQ-NDO-CS-07–CS-11 | [unyt-integration.md](post-mvp/unyt-integration.md) |
 | **Flowsta** | Cross-app identity (Vault `IsSamePersonEntry`, `FlowstaIdentity` slot, DID, recovery); Tier 1 (Phase 1) vs Tier 2 (Phase 3) | `ndo_prima_materia.md` §6.5–6.7, §11.6; REQ-NDO-CS-12–CS-15; REQ-NDO-AGENT-07–08 | [flowsta-integration.md](post-mvp/flowsta-integration.md) |
+| **Source-NDO application profile** | Optional third primitive for applications governing generative ecological or knowledge systems. Not activated for ordinary Project NDOs (e.g. open-hardware design) or mature-resource mutualisation (e.g. sharing a 3D printer) unless the application explicitly needs to govern a generative Source and its boundary effects. | REQ-SOURCE-APP-*, REQ-SOURCE-ONT-*, REQ-SOURCE-GOV-*, REQ-SOURCE-DATA-*, REQ-SOURCE-EVENT-*; REQ-USER-ST-*, REQ-UI-SOURCE-* (§4.6) | [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md) / [source-ndo-paper.md](post-mvp/source-ndo-paper.md) |
 
-**Knowledge-base context** (ontology, OVN alignment, gap analysis): [resources.md](../archives/resources.md), [agent.md](../archives/agent.md), [governance.md](../archives/governance.md). This PRD remains the anchor for MVP user stories and REQ-USER / REQ-RES / REQ-GOV IDs; NDO-wide REQ-NDO-* IDs are defined in `ndo_prima_materia.md` §9.
+**Knowledge-base context** (ontology, OVN alignment, gap analysis): [resources.md](../archives/resources.md), [agent.md](../archives/agent.md), [governance.md](../archives/governance.md), [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md). This PRD remains the anchor for MVP user stories and REQ-USER / REQ-RES / REQ-GOV IDs; NDO-wide REQ-NDO-* IDs are defined in `ndo_prima_materia.md` §9; Source-NDO REQ-SOURCE-* IDs are defined in `source-ndo-requirements.md` §8.
 
 ## 3. nondominium Resource Characteristics
+
+The requirements below apply to **appropriable Resources** (`EconomicResource` instances under a `ResourceSpecification`). They do **not** apply to **Sources** (generative ecological or knowledge systems modeled as Source-NDOs post-MVP) — see §4.6 and REQ-SOURCE-ONT-02. In Ostrom's SES terms: a Source is the *resource system*; an `EconomicResource` is the *resource unit* extracted or held in custody from it.
 
 nondominium Resources must exhibit the following characteristics:
 
@@ -66,6 +72,7 @@ nondominium Resources must exhibit the following characteristics:
 - **REQ-RES-07: Shareable by Default**: Resources are designed for sharing from inception
 - **REQ-RES-08: Process-Enabled**: Resources can be used in structured Economic Processes (Use, Transport, Storage, Repair)
 - **REQ-RES-09: Lifecycle Managed**: Resources have managed lifecycles from creation through validation to end-of-life
+- **REQ-RES-10: Source Boundary (post-MVP)**: Generative ecological or knowledge systems (watersheds, rivers, forests, fisheries, open knowledge commons) SHALL NOT be modeled as owned `EconomicResource` instances with a `primaryAccountable` custodian when their correct ontological category is **Source**. Such systems SHALL be registered as Source-NDOs (`NondominiumIdentity` + `SourceProfile`) with `property_regime` of `Nondominium` or `CommonPool` only. Extracted or appropriated units (water m³, fish landed, timber cut) remain `EconomicResource` instances linked to boundary events on the Source. See REQ-SOURCE-ONT-01, REQ-SOURCE-ONT-02, and §4.6.
 
 ## 4. User Roles & Stories
 
@@ -106,7 +113,7 @@ A user who can signal intent to access Resources and participate in governance. 
 
 **Role & Process Management**
 
-- **REQ-USER-A-05**: As an Accountable Agent, I want to acquire specialized roles (Transport, Repair, Storage) through validation
+- **REQ-USER-A-05**: As an Accountable Agent, I want to acquire specialized roles (Transport, Repair, Storage) through validation. *Conditional post-MVP note*: applications that enable the Source-NDO profile add **Steward** as a validated functional role for generative-system governance (§4.6, REQ-USER-ST-*); other applications do not expose it
 - **REQ-USER-A-06**: As an Accountable Agent, I want to initiate and complete Economic Processes according to my roles
 - **REQ-USER-A-07**: As an Accountable Agent, I want to chain multiple process actions (e.g., transport → repair → transport) in a single commitment
 
@@ -152,7 +159,7 @@ The agent with physical possession (custodianship) of a material nondominium Res
 
 - **REQ-AGENT-04: Five-State Affiliation**: The system must model the OVN affiliation spectrum — UnaffiliatedStranger, CloseAffiliate, ActiveAffiliate, CoreAffiliate, InactiveAffiliate — as a *derived* (not stored) property computed algorithmically from PPR activity, recency, and contribution history. Binary "in/out" membership is insufficient for governance decisions.
 - **REQ-AGENT-05: Affiliation Record**: Formal network entry must be formalised as an `AffiliationRecord` entry: the agent cryptographically signs acknowledgement of the Terms of Participation (ToP), the Nondominium & Custodian agreement, and the Benefit Redistribution Algorithm. This record is the prerequisite for `ActiveAffiliate` status.
-- **REQ-AGENT-06: Configurable Role Taxonomy**: The `RoleType` enum must become configurable at the network level. Communities must be able to define their own role taxonomies rather than relying on the six predefined types (`SimpleAgent`, `AccountableAgent`, `PrimaryAccountableAgent`, `Transport`, `Repair`, `Storage`). Predefined roles become defaults, not constraints.
+- **REQ-AGENT-06: Configurable Role Taxonomy**: The `RoleType` enum must become configurable at the network level. Communities must be able to define their own role taxonomies rather than relying on the six predefined types (`SimpleAgent`, `AccountableAgent`, `PrimaryAccountableAgent`, `Transport`, `Repair`, `Storage`). Predefined roles become defaults, not constraints. *Post-MVP note*: Source-enabled applications add **`Steward`** as an application-profile role for generative-system governance (§4.6); applications without Sources SHALL NOT expose or require it.
 
 ### Composable Profile
 
@@ -208,11 +215,91 @@ These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `
 
 ### NDO Management
 
-- **REQ-UI-NDO-01: NDO Creation Form**: The NDO creation form must include: `name` (text), `property_regime` (select, 4 canonical options — Private, Commons, Nondominium, CommonPool — with tooltips; Collective and Pool removed after design review), `resource_nature` (select, 5 options with tooltips), `lifecycle_stage` (select, 7 creatable-at-registration stages — Ideation through Active; Hibernating and terminal stages are transition-only), `description` (textarea). Name uniqueness is checked client-side against existing lobby NDOs (warning, not block).
+- **REQ-UI-NDO-01: NDO Creation Form**: The NDO creation form must include: `name` (text), `property_regime` (select, 7 canonical options — Private, Commons, Collective, Pool, CommonPool, Public, Nondominium — with tooltips), `resource_nature` (select, 5 options with tooltips), `lifecycle_stage` (select, 7 creatable-at-registration stages — Ideation through Active; Hibernating and terminal stages are transition-only), `description` (textarea). Name uniqueness is checked client-side against existing lobby NDOs (warning, not block).
 - **REQ-UI-NDO-02: Initiator Display**: The NDO identity panel must display the initiator's `Person.name` as a profile link, or fall back to a truncated `AgentPubKey` if no `Person` entry exists.
 - **REQ-UI-NDO-03: Lifecycle Transition**: The initiator of an NDO must have access to a lifecycle transition button. The frontend must encode the full valid transition table (mirroring the Rust validation). Special cases: `Deprecated` requires successor NDO selection; `Hibernating` requires confirmation.
 - **REQ-UI-NDO-04: Transition History**: NDO identity panels must show a collapsible transition history panel listing `from_stage`, `to_stage`, `agent`, `timestamp`, and `event_hash` (with copy-to-clipboard) for each recorded transition.
 - **REQ-UI-NDO-05: Fork Button**: An informational "Fork this NDO" button must be accessible to all authenticated users. The fork modal must explain the fork friction concept (negotiation, consensus, post-MVP Unyt stake) and provide a copy-initiator-pubkey CTA. Actual fork submission is post-MVP.
+
+## 4.6 Source Ontology Requirements (Post-MVP)
+
+> **Status**: Optional post-MVP application profile. Normative REQ-SOURCE-* IDs and full data-model specification live in [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md). Academic grounding: [source-ndo-paper.md](post-mvp/source-ndo-paper.md). Implementation phasing: [implementation_plan.md](../implementation_plan.md) §12.7. Source-NDO does not break existing REQ-NDO-* invariants (Layer 0 permanence, PPR privacy model) and is not part of the minimum UI or ontology for every NDO application.
+
+### Applicability and progressive activation
+
+Source follows **dynamic complexity matching**: the application SHALL expose only the primitives required by its actual coordination problem. Agent + Resource remain the baseline. Source is activated only when agents must govern a generative system's condition, boundary flows, regeneration, or assimilation capacity.
+
+**Source is normally relevant when:**
+- the object of governance is a resource system rather than an appropriable unit (e.g. watershed vs water in a tank; fishery vs landed fish);
+- extraction, loading, regeneration, or coupled Source condition must be visible on-ledger;
+- adaptive stewardship rules must respond to accumulated condition signals.
+
+**Source is normally not relevant when:**
+- a Project-type NDO coordinates the design of an open-source hardware device; Agents contribute work and the design/artifacts are Resources;
+- an NDO represents a mature, in-use Resource being mutualised, such as a 3D printer shared within or between Groups; Agents, custody, access, maintenance, and Resource events are sufficient;
+- no generative system or Source boundary is itself being governed. Provenance from nature alone does not require Source activation.
+
+- **REQ-SOURCE-APP-01: Optional Application Profile**: Source support SHALL be an opt-in application/profile capability, not a mandatory primitive in every NDO creation flow or detail view.
+- **REQ-SOURCE-APP-02: Complexity-Matched Activation**: Applications SHALL activate Source features only when their domain requires governance of a generative system or its boundary effects. Ordinary Project and resource-mutualisation flows SHALL remain complete using Agent and Resource primitives alone.
+- **REQ-SOURCE-APP-03: No Universal UI Burden**: Applications that do not enable the Source profile SHALL NOT display Source type selectors, regime-state fields, stewardship workflows, Source coupling graphs, or Source-specific navigation.
+- **REQ-SOURCE-APP-04: Progressive Enablement**: Enabling Source support SHALL add Source-specific data, governance, and UI modules without changing existing Agent/Resource semantics or requiring existing NDOs to migrate into Source-NDOs.
+
+### Ontological position
+
+ValueFlows and REA model **Agent** (acts, commits, bears responsibility) and **Resource** (appropriable output). A river, watershed, forest, or fishery fits neither honestly: as `EconomicResource` it implies ownership; as `Agent` it imports false intention; omitted entirely, extraction appears as resource-from-nowhere (`raise`) and depletion vanishes from the ledger.
+
+**`Source`** is the third flow endpoint: a generative, non-ownable, partially unknowable system that yields Resources, receives ecological effects, conditions other Sources, and accumulates boundary-event history for adaptive stewardship. Source-NDOs use the same three-layer NDO model; Layer 0 carries a linked **`SourceProfile`**; stewardship uses **`stewardedBy`** (obligations), not `primaryAccountable` (ownership).
+
+| Ostrom SES concept | Nondominium mapping |
+|---|---|
+| Resource system | **Source** (`SourceProfile` on Layer 0) |
+| Resource unit | **`EconomicResource`** |
+| Governance system | `GovernanceRule` + adaptive loop (§6.6) |
+| Users / actors | **Agents** (+ **`Steward`** functional role) |
+
+- **REQ-SOURCE-ONT-01**: The system SHALL recognise `Source` as a distinct ontological category for flow endpoints in economic events, separable from both `Agent` and `EconomicResource` (`vf:Source` ValueFlows extension).
+- **REQ-SOURCE-ONT-02**: Source-NDOs SHALL NOT require a `primaryAccountable` agent. `property_regime` SHALL be `Nondominium` or `CommonPool` only. Governance SHALL reject any rule that assigns Source ownership or alienation.
+- **REQ-SOURCE-ONT-03**: The system SHALL support Source-to-Source links (`yields`, `conditions`, `providedBy`) for hierarchies and ecological coupling (e.g. watershed → river; forest conditions river flow).
+- **REQ-SOURCE-ONT-04**: Source-NDOs SHALL be `NondominiumIdentity` entries with a linked `SourceProfile`, using the permanent Layer 0 hash as the boundary-event ledger anchor.
+
+### Data model
+
+- **REQ-SOURCE-DATA-01**: `SourceProfile` SHALL record ecological condition state (`current_stock`, `flux_rate`, `assimilation_capacity`, `regime_state`, `resilience`, `tipping_threshold`), complexity-economics indicators (`adaptive_capacity`, `generative_capacity`, `dependency_index`), classification (`source_type`, `complex_interior`), and `stewarded_by`. Full field spec: `source-ndo-requirements.md` §4.1.
+- **REQ-SOURCE-DATA-02**: `SourceRegimeState` SHALL progress through `Pristine → Stable → Stressed → Degraded → Critical → Transformed`, with governance-validated transitions (not unilateral writes).
+- **REQ-SOURCE-DATA-03**: Layer 1 `SourceSpecification` SHOULD support a multidimensional ecological value vector (Sustenance, Regeneration, Resilience, Adaptive Capacity, Generative Capacity, Commons Value, Learning Value).
+
+**Black-box principle:** Ecological Source interiors are not modeled. Governance operates on observable boundary signals (withdrawals, pollutant loads, monitoring data, community observation) and adapts rules from the accumulated ledger — consistent with complexity-science treatment of SES as partially unknowable (`source-ndo-requirements.md` §2.4, §5.1).
+
+### Steward user stories
+
+The **`Steward`** role is a functional stewardship role (obligations without alienation rights), distinct from `PrimaryAccountableAgent` custody of material Resources.
+
+**Source registration and monitoring**
+
+- **REQ-USER-ST-01**: As a Steward, I want to register a Source-NDO (watershed, river, fishery, knowledge commons) with initial condition indicators and named co-stewards, without assigning ownership
+- **REQ-USER-ST-02**: As a Steward, I want to submit monitoring data and qualitative condition observations that update the Source's regime state through governance-validated assessment
+- **REQ-USER-ST-03**: As a Steward, I want to link sub-Sources and coupling relations (watershed yields river; forest conditions river) so ecological structure is legible on the DHT
+
+**Boundary events and access**
+
+- **REQ-USER-ST-04**: As an Accountable Agent, I want to record extraction from a Source (provider: Source, receiver: Agent) so depletion is visible against `current_stock` or period quota — not as a phantom `raise`
+- **REQ-USER-ST-05**: As an Accountable Agent, I want to record pollutant loading into a Source (receiver: Source) so assimilation capacity debits are visible on-ledger
+- **REQ-USER-ST-06**: As a Steward, I want access affordance rules (quotas, seasonal limits, discharge caps) to adapt when regime state or monitoring indicates stress, through a defined governance process — not only static one-shot rule evaluation
+
+**Governance adaptation**
+
+- **REQ-USER-ST-07**: As a Steward, I want to propose `SourceRegimeState` transitions with evidence and multi-validator approval when ecological interpretation changes
+- **REQ-USER-ST-08**: As a Steward, I want precautionary blocking when a proposed boundary event would push the Source past its `tipping_threshold`
+- **REQ-USER-ST-09**: As a Steward, I want to participate in stewardship succession (transfer of steward obligations) through governance-validated events, without privatising the Source
+
+### Source UI requirements (conditional post-MVP profile)
+
+The following requirements apply **only when the host application enables the Source-NDO profile**. They SHALL NOT expand the default Project or resource-mutualisation UI.
+
+- **REQ-UI-SOURCE-01**: A Source-enabled NDO creation flow SHALL offer a distinct Source-NDO variant with `property_regime` restricted to `Nondominium` / `CommonPool`, `SourceType` selection, steward assignment, and optional initial condition fields. The generic NDO form SHALL remain unchanged when Source support is disabled
+- **REQ-UI-SOURCE-02**: Source-enabled detail views SHALL display regime state, condition indicators, steward list, and boundary-event history linked to the Layer 0 hash; ordinary Resource and Project detail views SHALL omit these panels
+- **REQ-UI-SOURCE-03**: A Source-enabled application SHALL visualise Source hierarchies and coupling links (watershed → river → resources) when Layer 1/Composition views mature
+- **REQ-UI-SOURCE-04**: Source-enabled applications SHALL provide stewards a dashboard for monitoring obligations, pending regime transitions, and access-affordance rule proposals
 
 ## 5. Economic Process Requirements
 
@@ -231,6 +318,15 @@ These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `
 - **REQ-PROC-08: Process Chaining**: Agents with multiple roles can chain process actions within a single commitment
 - **REQ-PROC-09: Process History**: Complete audit trail of all processes affecting each Resource
 
+### 5.3 Source boundary events (Conditional Post-MVP Profile)
+
+> **Status**: Applies only to Source-enabled applications. Requires `vf:Source` and the Source-NDO data model (§4.6). Boundary events on Sources are economic events where the Source is provider or receiver — distinct from, and unnecessary for, ordinary custody and use processes on `EconomicResource` instances.
+
+- **REQ-PROC-10: Source Extraction Recording**: Extraction of resource units from a Source (water abstraction, fish harvest, timber cut) SHALL be recorded as boundary `EconomicEvent` entries with the Source as provider and an Agent as receiver, decrementing `SourceProfile.current_stock` or period quota — not as unanchored `raise` events (REQ-SOURCE-EVENT-01, REQ-SOURCE-EVENT-02)
+- **REQ-PROC-11: Source Loading Recording**: Discharge, pollutant loading, or waste deposition into a Source SHALL be recorded with the Source as receiver, decrementing `assimilation_capacity` where applicable (REQ-SOURCE-EVENT-01, REQ-SOURCE-EVENT-02)
+- **REQ-PROC-12: Source Regeneration Recording**: Restoration, remediation, or regeneration actions on a Source (reforestation, riparian repair) SHALL be recordable as governance-validated events that may increment stock, flux, assimilation capacity, or resilience indicators (REQ-SOURCE-EVENT-03)
+- **REQ-PROC-13: Non-Consumptive Source Use**: Non-consumptive use of a Source (e.g. hydro flow alteration affecting regime without volume extraction) SHALL be recordable as boundary events affecting `SourceRegimeState` or flux characteristics without implying Resource custody transfer
+
 ## 6. Governance & Validation Requirements
 
 ### 6.1 Resource Lifecycle Management
@@ -248,8 +344,8 @@ These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `
 
 ### 6.3 Governance Rules
 
-- **REQ-GOV-08: Embedded Rules**: ResourceSpecifications must contain embedded governance rules for access and process management
-- **REQ-GOV-09: Rule Enforcement**: Governance rules must be enforced programmatically across all interactions. *Post-MVP note*: the governance evaluation engine (`evaluate_transition`) must be extended to support `AffiliationState`-based rule conditions in addition to the current role-membership check. This requires a cross-zome query from `zome_governance` to `zome_person` to derive the requesting agent's `AffiliationState` before evaluating `GovernanceRule.rule_data["min_affiliation"]`. See `REQ-AGENT-03`, `REQ-AGENT-05`, `implementation_plan.md §3 [G2+Resource]`, and `governance-operator-architecture.md §2.1 TODO G2`.
+- **REQ-GOV-08: Embedded Rules**: ResourceSpecifications must contain embedded governance rules for access and process management. *Post-MVP note*: Source-NDOs use Layer 1 **`SourceSpecification`** for boundary definitions, monitoring framework, and access-affordance rule templates; adaptive revision is governed by §6.6
+- **REQ-GOV-09: Rule Enforcement**: Governance rules must be enforced programmatically across all interactions. *Post-MVP note*: the governance evaluation engine (`evaluate_transition`) must be extended to support `AffiliationState`-based rule conditions in addition to the current role-membership check. This requires a cross-zome query from `zome_governance` to `zome_person` to derive the requesting agent's `AffiliationState` before evaluating `GovernanceRule.rule_data["min_affiliation"]`. See `REQ-AGENT-03`, `REQ-AGENT-05`, `implementation_plan.md §3 [G2+Resource]`, and `governance-operator-architecture.md §2.1 TODO G2`. *Source-NDO note*: Source governance extends evaluation with an **adaptive loop** — boundary events accumulate on the Source Layer 0 hash, ecological interpretation feeds rule revision, and revised access affordances condition future boundary events (§6.6).
 - **REQ-GOV-10: Rule Transparency**: All governance rules must be publicly visible and machine-readable
 
 ### 6.4 End-of-Life Management
@@ -288,6 +384,28 @@ These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `
   pseudonymous agents are blocked from governance roles requiring legal accountability
   (refs G10, `governance.md §5.3`)
 
+### 6.6 Source governance and adaptive stewardship (Conditional Post-MVP Profile)
+
+> **Status**: Applies only to Source-enabled applications. Full REQ-SOURCE-GOV-* set in [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md) §5.3. Extends governance-as-operator with a **cybernetic** loop for complex ecological systems — rules adapt as the Source event ledger grows, without modeling ecological interiors (black-box principle). Applications that coordinate Projects or mutualise mature Resources continue to use ordinary governance-as-operator without this loop.
+
+**Adaptive governance loop:**
+
+```text
+boundary events → ledger on Source L0 hash → ecological interpretation
+  → governance rule revision → access affordances → conditioned future events
+```
+
+- **REQ-SOURCE-GOV-01**: Source-NDO governance MUST support adaptive rule revision with maintained rule version history; rules SHALL be updatable through a defined governance process, not only by the initiator
+- **REQ-SOURCE-GOV-02**: Source-NDOs MUST support access affordance rules as quantitative constraints on boundary events (extraction quotas, discharge caps, seasonal limits, minimum restoration per extraction)
+- **REQ-SOURCE-GOV-03**: Governance evaluation for Source boundary events MUST check `SourceRegimeState` and MAY block or require multi-validator approval when an event would approach or exceed `tipping_threshold`
+- **REQ-SOURCE-GOV-04**: Source-NDOs SHOULD support monitoring obligations as a `GovernanceRule` class: continued access may require condition-data submission that updates `SourceProfile` indicators
+- **REQ-SOURCE-GOV-05**: `SourceRegimeState` transitions MUST be governance-validated with evidence and multi-validator approval
+- **REQ-SOURCE-GOV-06**: All Source boundary events MUST be recorded as `EconomicEvent` entries linked to the Source's Layer 0 hash, forming an auditable ledger
+- **REQ-SOURCE-GOV-07**: Source-NDOs MUST accept qualitative and community-validated condition signals (narrative observation, indigenous knowledge assessments) as legitimate governance inputs alongside quantitative monitoring
+- **REQ-SOURCE-GOV-08**: Sensitive ecological data attached to Source records SHALL use Holochain private entries with capability-grant access control, following the `PrivatePersonData` model
+
+**Stewardship vs custody:** Sources have no `EconomicResource.custodian`. Responsibility is expressed through `stewardedBy` links and the `Steward` role — obligations to monitor, interpret, and implement governance decisions, without alienation or privatisation rights (REQ-SOURCE-ONT-02; `source-ndo-requirements.md` §5.4).
+
 ## 7. Private Participation Receipt (PPR) Requirements
 
 ### 7.1 Receipt Generation
@@ -319,6 +437,23 @@ These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `
 - **REQ-PPR-14: ZKP-Compatible Reputation Sharing**: The reputation summary derived from PPRs must be ZKP-compatible, allowing agents to produce proofs of the form "I have at least N claims of type T" without revealing the counterparties, timestamps, or raw scores. This is a prerequisite for privacy-preserving meritocracy — governance access based on contribution without requiring surveillance.
 - **REQ-PPR-15: Cross-Network Reputation Export**: The `ReputationSummary` must be exportable as a `PortableCredential` (see `REQ-AGENT-12`), signed by a Primary Accountable Agent and countersigned by the claim owner, verifiable by receiving networks. Without portability, contribution history cannot flow across organisational boundaries, blocking growth of the P2P ecosystem.
 
+### 7.5 Source stewardship receipts (Conditional Post-MVP Profile)
+
+> **Status**: Applies only to Source-enabled applications. Uses the existing 16-category PPR taxonomy; Source interactions do not introduce a global reputation aggregator. Stewardship participation remains user-sovereign private entries.
+
+Source-NDO stewardship emphasises these PPR categories (`source-ndo-requirements.md` §7):
+
+| Category | Source-NDO use |
+|---|---|
+| `ResourceCreation` | Registration of a new Source-NDO and initial condition assessment |
+| `ValidationActivity` | Monitoring submission, condition assessment, governance interpretation |
+| `RuleCompliance` | Compliance with extraction quotas, discharge limits, monitoring obligations |
+| `MaintenanceCommitmentAccepted` / `MaintenanceFulfillmentCompleted` | Restoration commitments (reforestation, remediation, riparian repair) |
+| `DisputeResolutionParticipation` | Disputes over condition assessment or access affordances |
+| `GoodFaithTransfer` | Stewardship succession — transfer of steward obligations |
+
+- **REQ-PPR-16: Stewardship PPR Eligibility**: Stewardship participation on Source-NDOs (monitoring, restoration, governance interpretation, rule compliance) SHALL generate bilateral PPRs using the existing private-entry model, enabling stewards to accumulate governance standing through contribution to Source health without exposing individual interaction history by default
+
 ## 8. Security & Access Control
 
 ### 8.1 Capability-Based Security
@@ -331,7 +466,7 @@ These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `
 
 - **REQ-SEC-04: Private Identity**: Personal identification information stored as Holochain private entries
 - **REQ-SEC-05: Private Receipts**: Participation receipts stored privately while enabling reputation derivation
-- **REQ-SEC-06: Selective Disclosure**: Agents control what private information to share and with whom
+- **REQ-SEC-06: Selective Disclosure**: Agents control what private information to share and with whom. *Post-MVP note*: sensitive ecological data on Source-NDOs (endangered species locations, sacred sites) follows the same capability-grant model as `PrivatePersonData` (REQ-SOURCE-GOV-08)
 
 ### 8.3 Network Security
 
@@ -343,21 +478,21 @@ These requirements govern the Svelte 5 / SvelteKit frontend implemented in the `
 
 ### 9.1 Zome Structure
 
-The hApp must be structured with three zomes:
+The hApp must be structured with three zomes. Source support, where enabled, SHALL be added as profile-specific modules within these zomes rather than imposed on every application:
 
-- **`zome_person`**: Agent identity, roles, reputation, and private data management
-- **`zome_resource`**: Resource specifications, economic resources, and process management (pure data model)
-- **`zome_governance`**: Validation, commitments, claims, and PPR issuance
+- **`zome_person`**: Agent identity, roles, reputation, and private data management. *Source-enabled profile only*: `Steward` functional role (§4.6)
+- **`zome_resource`**: Resource specifications, economic resources, and process management (pure data model). *Source-enabled profile only*: `SourceProfile`, Source coupling links, and Source-NDO creation extending Layer 0 (§4.6)
+- **`zome_governance`**: Validation, commitments, claims, and PPR issuance. *Source-enabled profile only*: Source-as-provider/receiver on `EconomicEvent` and adaptive Source governance evaluation (§6.6)
 
 ### 9.2 ValueFlows Compliance
 
-- **REQ-ARCH-01: REA Model**: Implement Resources, Events, Agents pattern with Economic Processes
-- **REQ-ARCH-02: Standard Actions**: Support all relevant ValueFlows actions with nondominium-specific extensions
-- **REQ-ARCH-03: Multi-Layer Ontology**: Support Knowledge, Plan, and Observation levels
+- **REQ-ARCH-01: REA Model**: Implement the Agent–Resource–Event pattern with Economic Processes. *Conditional post-MVP extension*: Source-enabled applications recognise **Source** as a third flow endpoint (`vf:Source`) so boundary events on generative systems are first-class economic records; other applications remain complete with Agent and Resource (REQ-SOURCE-APP-02, REQ-SOURCE-ONT-01)
+- **REQ-ARCH-02: Standard Actions**: Support all relevant ValueFlows actions with nondominium-specific extensions. *Source-enabled profile only*: boundary events use extraction, loading, non-consumptive use, and regeneration (`raise` on a Source) with Sources as provider or receiver — see REQ-SOURCE-EVENT-* and §5.3
+- **REQ-ARCH-03: Multi-Layer Ontology**: Support Knowledge, Plan, and Observation levels. *Source-enabled profile only*: Layer 0 = `NondominiumIdentity` + `SourceProfile`; Layer 1 = `SourceSpecification`; Layer 2 = boundary events, commitments, claims, PPRs (`source-ndo-requirements.md` §6)
 
 ### 9.3 Modular Governance Architecture
 
-**REQ-ARCH-07: Modular Governance**: The resource zome operates as a pure data model, while the governance zome operates as a state transition operator. This separation enables independent evolution of data structures and governance rules.
+**REQ-ARCH-07: Modular Governance**: The resource zome operates as a pure data model, while the governance zome operates as a state transition operator. This separation enables independent evolution of data structures and governance rules. *Conditional post-MVP note*: the Source profile extends the operator with an adaptive ecological loop; the base operator SHALL NOT depend on Source types or require Source configuration.
 
 **Business Benefits**:
 - **Swappable Governance**: Governance rules can be updated without modifying resource data structures
@@ -380,7 +515,7 @@ The hApp must be structured with three zomes:
 - **Event Generation**: All state changes must generate corresponding economic events
 - **Audit Trail**: Complete history of governance decisions and state changes
 
-**REQ-ARCH-10: Event-Driven State Changes**: All resource state changes must generate corresponding economic events to maintain complete ValueFlows compliance and audit trails.
+**REQ-ARCH-10: Event-Driven State Changes**: All resource state changes must generate corresponding economic events to maintain complete ValueFlows compliance and audit trails. *Post-MVP note*: Source boundary events (extraction, loading, regeneration) and governance-validated `SourceProfile` indicator updates are economic events anchored to the Source Layer 0 hash (REQ-SOURCE-GOV-06, REQ-ARCH-12).
 
 **Event Requirements**:
 - **Complete History**: Every state transition must be recorded as an economic event
@@ -393,6 +528,14 @@ The hApp must be structured with three zomes:
 - **REQ-ARCH-04: Entry Validation**: Comprehensive validation logic in integrity zomes
 - **REQ-ARCH-05: Link Management**: Proper linking between related entries across zomes
 - **REQ-ARCH-06: State Management**: Resource and process state tracking with proper transitions
+
+### 9.5 Source flow endpoints (Conditional Post-MVP Profile)
+
+These requirements apply only when Source support is enabled. An application satisfying Agent/Resource use cases SHALL NOT need to implement or surface Source endpoints.
+
+- **REQ-ARCH-11: vf:Source Extension**: A Source-enabled economic event model SHALL support `vf:Source` as a typed flow endpoint role, enabling `EconomicEvent` entries where a Source is provider (extraction, non-consumptive use) or receiver (loading, pollution) without attributing agency to the Source or ownership via `primaryAccountable` (REQ-SOURCE-ONT-01, REQ-SOURCE-EVENT-01)
+- **REQ-ARCH-12: Source Event Ledger**: Boundary events on a Source SHALL anchor to the Source's permanent Layer 0 `NondominiumIdentity` hash, enabling queryable history of extraction, loading, restoration, and regime-relevant use independent of `EconomicResource` custody chains (REQ-SOURCE-GOV-06)
+- **REQ-ARCH-13: Source Condition Updates**: Updates to `SourceProfile` indicators (`current_stock`, `assimilation_capacity`, `regime_state`, etc.) from boundary events SHALL be governance-validated state transitions, not direct writes by extracting or discharging agents (REQ-SOURCE-EVENT-02)
 
 ## 10. Future Enhancements
 
@@ -409,6 +552,7 @@ The hApp must be structured with three zomes:
 - Advanced reputation algorithms and trust networks
 - Scalable validation schemes for large networks
 - Economic incentive mechanisms and value accounting
+- **Source-NDO (optional application profile)**: For applications governing generative systems only — `SourceProfile`, `vf:Source` boundary events, adaptive stewardship, and cross-DNA source hierarchies (§4.6, §6.6; `implementation_plan.md` §12.7)
 
 ## 11. Future Development: Architecture Variants for P2P and Organizational Contexts
 
@@ -527,7 +671,7 @@ While the core ValueFlows logic and resource model remain consistent, the govern
 ### 11.8 Architecture Modularity Requirements
 
 - **REQ-FUT-ARCH-01**: Design modular architecture supporting both P2P and organizational contexts
-- **REQ-FUT-ARCH-02**: Core ValueFlows and resource model must remain context-agnostic
+- **REQ-FUT-ARCH-02**: Core ValueFlows and resource model must remain context-agnostic. *Post-MVP note*: Source is an optional extension profile that must not burden organizational bridges or applications that need only Agent/Resource semantics; when enabled, extracted units remain `EconomicResource` and generative systems remain Source-NDOs
 - **REQ-FUT-ARCH-03**: Governance and identity layers must support pluggable implementations
 - **REQ-FUT-ARCH-04**: Support seamless interoperability between P2P agents and organizational agents
 - **REQ-FUT-ARCH-05**: Enable organizations to act as agents in the P2P network with equal standing
@@ -575,3 +719,4 @@ The nondominium system is successful when:
 4. Economic Processes support real-world sharing scenarios
 5. System scales while maintaining decentralized principles
 6. Privacy is preserved while enabling accountability
+7. **(Conditional post-MVP)** Applications whose domain includes generative ecological or knowledge commons can enable Source-NDO so boundary events are visible and stewardship adapts, while Project and mature-resource mutualisation applications remain simple and complete with Agent and Resource primitives

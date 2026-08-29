@@ -75,8 +75,8 @@ pub fn get_validation_history(item_hash: ActionHash) -> ExternResult<Vec<Validat
   for link in links {
     if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
       if let Some(record) = get(any_dht_hash, GetOptions::default())? {
-        if let Ok(Some(EntryTypes::ValidationReceipt(receipt))) =
-          record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+        if let Ok(Some(receipt)) =
+          record.entry().to_app_option::<ValidationReceipt>().map_err(|_| {
             wasm_error!(WasmErrorInner::Guest(
               "Failed to deserialize validation receipt".into()
             ))
@@ -105,8 +105,8 @@ pub fn get_all_validation_receipts(_: ()) -> ExternResult<Vec<ValidationReceipt>
   for link in links {
     if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
       if let Some(record) = get(any_dht_hash, GetOptions::default())? {
-        if let Ok(Some(EntryTypes::ValidationReceipt(receipt))) =
-          record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+        if let Ok(Some(receipt)) =
+          record.entry().to_app_option::<ValidationReceipt>().map_err(|_| {
             wasm_error!(WasmErrorInner::Guest(
               "Failed to deserialize validation receipt".into()
             ))
@@ -193,8 +193,8 @@ pub fn check_validation_status(
   if let Some(link) = links.first() {
     if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
       if let Some(record) = get(any_dht_hash, GetOptions::default())? {
-        if let Ok(Some(EntryTypes::ResourceValidation(validation))) =
-          record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+        if let Ok(Some(validation)) =
+          record.entry().to_app_option::<ResourceValidation>().map_err(|_| {
             wasm_error!(WasmErrorInner::Guest(
               "Failed to deserialize resource validation".into()
             ))

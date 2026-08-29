@@ -9,7 +9,7 @@ function isEconomicResource(x: unknown): x is EconomicResource {
     typeof o.quantity === 'number' &&
     typeof o.unit === 'string' &&
     o.custodian instanceof Uint8Array &&
-    typeof o.state === 'string'
+    typeof o.operational_state === 'string'
   );
 }
 

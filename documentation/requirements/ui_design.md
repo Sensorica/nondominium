@@ -55,12 +55,12 @@ NDOs can only be created from within a Group. The "Create NDO" button in a Group
 | Field | Control | Notes |
 |---|---|---|
 | `name` | text input | required; uniqueness warning shown if name already exists in the lobby |
-| `property_regime` | select | 4 variants: **Private**, **Commons**, **Nondominium**, **CommonPool**; tooltip per option |
+| `property_regime` | select | 7 variants: **Private**, **Commons**, **Collective**, **Pool**, **CommonPool**, **Public**, **Nondominium**; tooltip per option |
 | `resource_nature` | select | 5 variants: Physical, Digital, Service, Hybrid, Information; tooltip per option |
 | `lifecycle_stage` | select | **seven** creatable-at-registration stages: Ideation, Specification, Development, Prototype, Stable, Distributed, Active (matches `create_ndo` validation); Hibernating and terminal stages (Deprecated, EndOfLife) are **not** selectable here — only via lifecycle transitions after registration |
 | `description` | textarea | optional |
 
-> Note: the original spec listed 6 property-regime variants (including Collective and Pool) and 4 initial lifecycle stages (including Prototype). Both have been revised — see the Rust `PropertyRegime` enum and `LifecycleStage` for current canonical values.
+> Note: PropertyRegime is protocol-canonical at **seven** variants (including Collective, Pool, and Public). The UI creation form, filters, and badges expose all seven. See the Rust `PropertyRegime` enum in `crates/shared/src/types.rs` and `LifecycleStage` for current canonical values.
 
 ---
 
@@ -85,7 +85,7 @@ Clicking an NDO card navigates to `/ndo/:hash`.
 
 **Implemented:**
 - "Browse NDOs" in sidebar → root page showing all unique NDOs from all groups the user has created or joined
-- Filter chips by Lifecycle Stage, Resource Nature, and Property Regime (4 variants)
+- Filter chips by Lifecycle Stage, Resource Nature, and Property Regime (7 variants)
 - NDO cards with name, badges, description excerpt, and truncated hash
 - "No NDOs yet" state when the user has no groups or no NDOs
 

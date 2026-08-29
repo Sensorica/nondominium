@@ -48,6 +48,16 @@ export interface NdoService {
     targetGroupId: string
   ) => E.Effect<void, ResourceError | NdoNotFoundError>;
   /**
+   * Resolves the cloned `ndo` cell holding this NDO's Layer 0 identity,
+   * provisioning it from the anchor coordinates when this agent never joined.
+   * Returns null for legacy NDOs still living in the shared `nondominium`
+   * cell, in which case callers omit the cellId and hit the provisioned cell.
+   *
+   * Layer 1 and Layer 2 reads and writes MUST route through this: the identity
+   * they reference only exists inside the NDO's own DHT (ADR-010/ADR-013).
+   */
+  resolveCellIdForNdo: (ndoHash: ActionHash) => E.Effect<CellId | null, ResourceError>;
+  /**
    * Declare participation in an NDO. Idempotent: joining twice is a no-op, not an error.
    * Membership makes participation listable; it is not an access grant (the agent already
    * holds the cloned cell to read the NDO at all).
@@ -79,6 +89,9 @@ function anchorToDescriptor(anchor: NdoAnchorEntry): NdoDescriptor {
     initiator: encodeHashToBase64(anchor.initiator),
     created_at: Number(anchor.ndo_created_at),
     successor_ndo_hash: null,
+    // The anchor caches only the card fields; rivalry_override is not among
+    // them, so it stays null here and is filled by the live read on open.
+    rivalry_override: null,
     hibernation_origin: null
   };
 }
@@ -97,7 +110,8 @@ function identityToDescriptor(hash: ActionHash, entry: NondominiumIdentity): Ndo
     successor_ndo_hash: entry.successor_ndo_hash
       ? encodeHashToBase64(entry.successor_ndo_hash)
       : null,
-    hibernation_origin: entry.hibernation_origin ? String(entry.hibernation_origin) : null
+    hibernation_origin: entry.hibernation_origin ? String(entry.hibernation_origin) : null,
+    rivalry_override: entry.rivalry_override ? String(entry.rivalry_override) : null
   };
 }
 
@@ -456,11 +470,15 @@ export const NdoServiceLive: Layer.Layer<
             E.catchAll(() => E.succeed(null))
           );
           if (resolved) {
+            // Deliberately NOT caught: `get_ndo_transition_history` exists in
+            // `zome_resource` now, so a failure here is a real failure and the panel
+            // must say so. Swallowing it into `[]` is what made the missing zome
+            // function read as "0 transitions" forever (PR #132 round 1, F4).
             return yield* callNdoZome<NdoTransitionHistoryEvent[]>(
               resolved.cellId,
               'get_ndo_transition_history',
               ndoHash
-            ).pipe(E.catchAll(() => E.succeed([])));
+            );
           }
           return yield* resource.getNdoTransitionHistory(ndoHash);
         }),
@@ -517,6 +535,14 @@ export const NdoServiceLive: Layer.Layer<
               resource_nature: a.resource_nature
             })
             .pipe(E.mapError((e) => ResourceError.fromError(e, 'CREATE_NDO_ANCHOR')));
+        }),
+
+      resolveCellIdForNdo: (ndoHash) =>
+        E.gen(function* () {
+          const resolved = yield* resolveNdoCellForIdentity(
+            encodeHashToBase64(ndoHash)
+          ).pipe(E.catchAll(() => E.succeed(null)));
+          return resolved ? resolved.cellId : null;
         }),
 
       joinNdo: (ndoHashB64) =>

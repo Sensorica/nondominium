@@ -4,12 +4,14 @@
     NdoDescriptor,
     NdoInput,
     PropertyRegime,
-    ResourceNature
+    ResourceNature,
+    Rivalry
   } from '@nondominium/shared-types';
   import { CREATABLE_NDO_LIFECYCLE_STAGES } from '@nondominium/shared-types';
   import { goto } from '$app/navigation';
   import { groupStore } from '$lib/stores/group.store.svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
+  import { defaultRivalryFor } from '$lib/utils/rivalry';
 
   interface Props {
     groupId: string;
@@ -18,12 +20,21 @@
 
   let { groupId, onclose }: Props = $props();
 
-  const allRegimes: PropertyRegime[] = ['Private', 'Commons', 'Nondominium', 'CommonPool'];
+  const allRegimes: PropertyRegime[] = [
+    'Private',
+    'Commons',
+    'Collective',
+    'Pool',
+    'CommonPool',
+    'Public',
+    'Nondominium'
+  ];
   const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
 
   let name = $state('');
   let property_regime = $state<PropertyRegime>('Commons');
   let resource_nature = $state<ResourceNature>('Physical');
+  let rivalry_override = $state<Rivalry | ''>('');
   let lifecycle_stage = $state<CreatableNdoLifecycleStage>('Ideation');
   let description = $state('');
   let isSubmitting = $state(false);
@@ -36,11 +47,16 @@
       : ''
   );
 
+  const natureDefaultRivalry = $derived(defaultRivalryFor(resource_nature));
+
   const regimeTooltips: Record<PropertyRegime, string> = {
     Private: 'Owned and controlled by a single agent.',
     Commons: 'Shared, self-governed resource open to a defined community.',
-    Nondominium: 'Cannot be captured or exclusively owned; maximally open.',
-    CommonPool: 'A commons with a defined boundary and subtractable access.'
+    Collective: 'Cooperatively owned by a defined group of agents.',
+    Pool: 'Rivalrous shareable; scheduling, custody, and maintenance apply.',
+    CommonPool: 'A commons with a defined boundary and subtractable access.',
+    Public: 'Under public/governmental stewardship; open-access; non-alienable by the public body.',
+    Nondominium: 'Cannot be captured or exclusively owned; maximally open.'
   };
 
   const natureTooltips: Record<ResourceNature, string> = {
@@ -63,7 +79,8 @@
       property_regime,
       resource_nature,
       lifecycle_stage,
-      ...(description.trim() && { description: description.trim() })
+      ...(description.trim() && { description: description.trim() }),
+      ...(rivalry_override && { rivalry_override })
     };
     const hashB64 = await groupStore.createNdo(input);
     isSubmitting = false;
@@ -140,6 +157,35 @@
           {/each}
         </select>
         <p class="mt-1 text-xs text-gray-500">{natureTooltips[resource_nature]}</p>
+        {#if natureDefaultRivalry}
+          <p class="mt-1 text-xs text-gray-500">
+            Default rivalry for this nature: <span class="font-medium">{natureDefaultRivalry}</span>
+          </p>
+        {:else}
+          <p class="mt-1 text-xs text-amber-600">
+            Service nature has no confident rivalry default — set an override if this is a rivalrous
+            slot (e.g. booking time).
+          </p>
+        {/if}
+      </div>
+
+      <!-- Rivalry override -->
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700" for="ndo-rivalry">
+          Rivalry override <span class="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <select
+          id="ndo-rivalry"
+          bind:value={rivalry_override}
+          class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+        >
+          <option value="">— use nature default —</option>
+          <option value="Rivalrous">Rivalrous</option>
+          <option value="NonRivalrous">NonRivalrous</option>
+        </select>
+        <p class="mt-1 text-xs text-gray-500">
+          Override only when the nature default is wrong for this resource.
+        </p>
       </div>
 
       <!-- Lifecycle Stage -->
