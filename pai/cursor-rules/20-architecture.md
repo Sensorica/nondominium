@@ -32,9 +32,14 @@ Source: `documentation/specifications/specifications.md §3`, `documentation/req
 
 Resource zome owns data. Governance zome owns transitions.
 ```
-request_resource_transition(GovernanceTransitionRequest) → evaluate_state_transition() → GovernanceTransitionResult
+evaluate_state_transition(GovernanceTransitionRequest) → GovernanceTransitionResult
 ```
 This separation means governance logic can evolve without touching data structures.
+
+**Current status:** `evaluate_state_transition` exists and evaluates the Hard/Soft classification
+constraints in `crates/shared/src/constraints.rs`. It is a **parallel advisory path**, not yet the
+mandatory funnel: `propose_commitment` and `log_economic_event` still write directly. The
+`request_resource_transition` entry point named in the design docs does not exist in code.
 
 ## NDO Three-Layer Model
 Source: `documentation/requirements/ndo_prima_materia.md §4–§5`
