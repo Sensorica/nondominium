@@ -12,8 +12,14 @@ on:
 # in-flight branches. This job makes the debt a number both maintainers see on
 # every PR instead of a thing we keep meaning to do.
 #
-# To make it blocking: land a dedicated `chore/rustfmt` PR while no other branch
-# is open, then delete the `continue-on-error` line below. That is the whole change.
+# The job always exits 0. `continue-on-error` was the obvious way to write this and
+# is wrong: it keeps the WORKFLOW green but still reports the JOB as failed, so the
+# PR shows a red X and `gh pr checks` reports a failure. A permanent red X is how a
+# team learns to stop reading CI, and our review procedure treats any failing check
+# as a merge blocker. Reporting a number is the whole job; it does not fail.
+#
+# To make it blocking: land a dedicated `chore/rustfmt` PR while no other branch is
+# open, then uncomment the exit line at the bottom of the script.
 #
 # Clippy is deliberately absent. It has never been run against this workspace, and
 # adding a gate whose result nobody has seen is how CI starts getting ignored.
@@ -21,7 +27,6 @@ on:
 jobs:
   rustfmt:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,5 +57,6 @@ jobs:
             done
             echo "### rustfmt: $dirty of $total files unformatted" >> "$GITHUB_STEP_SUMMARY"
             echo "rustfmt: $dirty of $total files unformatted"
-            [ "$dirty" -eq 0 ]
+            # Uncomment to make this a blocking gate:
+            # [ "$dirty" -eq 0 ]
           '
