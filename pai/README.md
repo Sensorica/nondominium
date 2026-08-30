@@ -43,6 +43,8 @@ So the portable command is the **skill**, and Claude Code is the one harness nee
 
 A skill can be made explicit-invocation-only with `disable-model-invocation: true` in its frontmatter, which makes it behave like a traditional slash command. We deliberately leave it off for `nondominium-review`: an assistant that notices "review this PR" and reaches for the project procedure unprompted is the behaviour we want.
 
+> **One file is not yet classified.** `pai/human_ai_collaboration.md` arrived from #132 and sits at the `pai/` root, which this structure otherwise does not use. It reads as harness-agnostic reference material, so `pai/shared/` is the likely home, but it is @TiberiusB's document and the call is his. Left where it is on purpose rather than moved as a side effect of this refactor.
+
 A directory appears under `harnesses/` only when that tool needs **source files** of its own. Cursor has none: its adapter is a pure transform, `nix/cursor-pai.nix`, which reads `pai/shared/` and `documentation/` and emits `.mdc` files. Adding a third harness means adding an adapter, not reorganising the shared content.
 
 ```mermaid
