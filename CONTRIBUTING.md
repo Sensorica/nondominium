@@ -58,7 +58,7 @@ Conventional Commits format — already in use, keep it consistent.
 {type}({scope}): imperative verb + specific object
 ```
 
-**Scopes:** `person`, `resource`, `governance`, `ui`, `tests`, `hrea`, `ci`, `nix`, `docs`
+**Scopes:** `person`, `resource`, `governance`, `ui`, `tests`, `hrea`, `ci`, `nix`, `docs`, `pai` (agent configuration under `pai/`)
 
 ```
 feat(governance): add resource claim validation
