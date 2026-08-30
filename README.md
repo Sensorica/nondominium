@@ -91,7 +91,7 @@ primary discovery path) on every `nix develop`. `.agents/` is gitignored.
 **Source files** (edit these; tools update on next `nix develop`):
 - `documentation/TELOS.md` — Project purpose and operating principles
 - `pai/conventions.md` — Coding and process conventions
-- `pai/cursor-rules/` — Architecture, Rust, Svelte, test patterns
+- `pai/shared/rules/` — Architecture, Rust, Svelte, test patterns (harness-agnostic)
 - `.claude/skills/nondominium-domain/` — Claude Code skill (no rebuild needed)
 
 ## Environment Setup
