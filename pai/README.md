@@ -10,6 +10,8 @@ The organising rule: **content that describes the project is harness-agnostic; o
 
 ```
 pai/
+├── nondominium.code-workspace  ← VS Code workspace file; kept at this path because
+│                                 editors resolve it by location, not by our layout
 ├── shared/                 ← harness-agnostic. Every agent gets this content.
 │   ├── conventions.md          conventions quick-reference
 │   ├── human_ai_collaboration.md   how we delegate to agents, and what stays human
