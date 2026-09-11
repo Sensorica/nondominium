@@ -30,7 +30,7 @@ This index is the entry point for phased delivery. **Current implementation base
 | [post-mvp/source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md) | **Source-NDO (optional profile)** — `Source` as third flow endpoint when an application governs generative systems; `SourceProfile`, adaptive loop, `vf:Source` (REQ-SOURCE-*); applicability REQ-SOURCE-APP-* in [requirements.md §4.6](requirements/requirements.md) |
 | [post-mvp/Source-NDO.md](requirements/post-mvp/Source-NDO.md) | Paper planning scaffold — thesis, Ostrom/VF argument structure (informative) |
 | [post-mvp/source-ndo-paper.md](requirements/post-mvp/source-ndo-paper.md) | Academic grounding: Occam's razor proof, river case study, Ostrom SES mapping (informative) |
-| [post-mvp/versioning.md](requirements/post-mvp/versioning.md) | Version DAG — **REQ-NDO-L1-03** (multiple `ResourceSpecification` links per NDO identity) |
+| [post-mvp/ndo-versioning.md](requirements/post-mvp/ndo-versioning.md) | Version DAG — **REQ-NDO-L1-03** (multiple `ResourceSpecification` links per NDO identity) |
 | [post-mvp/digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md) | Content-addressed manifests, composable verification — **REQ-NDO-L1-06** `DigitalAsset` capability slots (prima materia §9.2) |
 | [post-mvp/fractal-composable-resource-architecture.md](requirements/post-mvp/fractal-composable-resource-architecture.md) | Archival design — atomic / component / composite nesting; informs integrity (R5–R6) and Composition tab (post-MVP) |
 
@@ -60,7 +60,7 @@ This index is the entry point for phased delivery. **Current implementation base
 
 | Source | Role |
 |--------|------|
-| [post-mvp/lobby-dna.md](requirements/post-mvp/lobby-dna.md) | Multi-network federation — Lobby / Group / NDO DNA extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) |
+| [lobby-dna.md](requirements/lobby-dna.md) | Multi-network federation — Lobby / Group / NDO DNA extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) |
 | [requirements/agent.md](requirements/agent.md) | Agent ontology — roles, affiliation, `AgentContext` (post-MVP); background for governance participation and process access |
 
 ### 1.2 Status synchronization convention
@@ -141,7 +141,7 @@ Work below is grouped into **parallel tracks** so MVP delivery, NDO migration, a
 |--------|--------|-------------------|
 | **MVP core** | Phases 2–4 in Section 5: private data sharing, economic processes, PPR, promotion, security, cross-zome coordination | [requirements.md](requirements/requirements.md) REQ-USER / REQ-PROC / REQ-GOV |
 | **NDO model and migration** | `NondominiumIdentity`, `NDOToSpecification` / `NDOToProcess`, holonic links, `CapabilitySlot`, lifecycle plus operational split, faceted discovery links, one-time migration (REQ-NDO-MIG-*) | [ndo_prima_materia.md](requirements/ndo_prima_materia.md) §§8–10, §9 |
-| **Agent ontology** | REQ-AGENT-* / REQ-NDO-AGENT-* items under Phases 2–4 | [requirements.md §4.4](requirements/requirements.md); [archives/agent.md](archives/agent.md) for OVN background |
+| **Agent ontology** | REQ-AGENT-* / REQ-NDO-AGENT-* items under Phases 2–4 | [requirements.md §4.4](requirements/requirements.md); [requirements/agent.md](requirements/agent.md) for OVN background |
 | **Unyt / Flowsta** | Phased integration; governance enforcement in later phases | Section 12.2–12.3; REQ-NDO-CS-07–CS-15 |
 | **Source-NDO application profile** | Optional third VF primitive (`vf:Source`) for applications governing generative ecological/knowledge systems — **not** activated for ordinary Project NDOs or mature-resource mutualisation (e.g. shared 3D printer). Opt-in modules only; default UI stays Agent + Resource. | [requirements.md §4.6](requirements/requirements.md) REQ-SOURCE-APP-*; [source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md); §12.7 |
 | **Extended post-MVP** | Many-to-many flows, full version DAG, digital integrity, RTP-FP, VF DSL, Moss contract, and remaining federation work. Lobby/Group DNAs and the first NDO federation primitives are already implemented. | `documentation/requirements/post-mvp/*.md` |
@@ -288,7 +288,7 @@ _Role entries, assignment APIs, promotion externs, and governance validation ent
   - [ ] Enforce agent identity validation with private data verification
   - [ ] Specialized role validation with existing role holder approval
 
-**Agent Ontology Items (Post-MVP, Phase 2 — see [requirements.md §4.4](requirements/requirements.md) and [archives/agent.md](archives/agent.md) §5.3; `REQ-AGENT-*`):**
+**Agent Ontology Items (Post-MVP, Phase 2 — see [requirements.md §4.4](requirements/requirements.md) and [requirements/agent.md](requirements/agent.md) §5.3; `REQ-AGENT-*`):**
 
 - [ ] **[G13] Fix `request_role_promotion` stub** (HIGH PRIORITY — broken workflow):
   - [ ] Create a real `RolePromotionRequest` entry type in `zome_person` integrity, replacing the current placeholder hash return
@@ -336,7 +336,7 @@ _Building on existing capability infrastructure with Economic Process integratio
   - [ ] Enhanced private data access control with granular field permissions
   - [ ] Cross-zome capability validation for complex workflows
 
-**Agent Ontology Items (Post-MVP, Phase 3 — see [requirements.md §4.4](requirements/requirements.md) and [archives/agent.md](archives/agent.md) §5.3; `REQ-AGENT-*`):**
+**Agent Ontology Items (Post-MVP, Phase 3 — see [requirements.md §4.4](requirements/requirements.md) and [requirements/agent.md](requirements/agent.md) §5.3; `REQ-AGENT-*`):**
 
 - [ ] **[G1] `AgentEntityType` configuration** (NEW):
   - [ ] Define `AgentEntityType` enum in `zome_person` integrity: `Individual`, `Collective(String)`, `Project(ActionHash)`, `Network(ActionHash)`, `Bot { capabilities: Vec<String>, operator: AgentPubKey }`, `ExternalOrganisation(String)`
@@ -469,7 +469,7 @@ _Building sophisticated process chaining and automation on established foundatio
   - [ ] Resource utilization analytics and efficiency metrics
   - [ ] Agent performance trends and specialization insights
 
-**Agent Ontology Items (Post-MVP, Phase 4 — see [requirements.md §4.4](requirements/requirements.md) and [archives/agent.md](archives/agent.md) §5.3; `REQ-AGENT-*`):**
+**Agent Ontology Items (Post-MVP, Phase 4 — see [requirements.md §4.4](requirements/requirements.md) and [requirements/agent.md](requirements/agent.md) §5.3; `REQ-AGENT-*`):**
 
 - [ ] **[G8] `PortableCredential` structure and export** (NEW):
   - [ ] Define `PortableCredential` struct: `issuing_network` (DNA hash), `agent`, `credential_type: PortableCredentialType`, `claims`, `issued_at`, `valid_until`, `issuer_signature`, `agent_signature`
@@ -775,7 +775,7 @@ This plan ensures the nondominium hApp will fulfill its vision of decentralized,
 
 ## 12. Post-MVP design tracks (NDO, integrations, extensions)
 
-**Status:** This section mixes implemented post-MVP foundations with unscheduled design tracks. Checked items are present in the current WASM/UI; unchecked items remain specifications until scheduled. Normative NDO requirements: [ndo_prima_materia.md](requirements/ndo_prima_materia.md) (§9 REQ-NDO-*, §10 migration). Integration stubs: [unyt-integration.md](requirements/post-mvp/unyt-integration.md), [flowsta-integration.md](requirements/post-mvp/flowsta-integration.md). Supplementary ontology context: [archives/resources.md](archives/resources.md), [archives/agent.md](archives/agent.md), [archives/governance.md](archives/governance.md).
+**Status:** This section mixes implemented post-MVP foundations with unscheduled design tracks. Checked items are present in the current WASM/UI; unchecked items remain specifications until scheduled. Normative NDO requirements: [ndo_prima_materia.md](requirements/ndo_prima_materia.md) (§9 REQ-NDO-*, §10 migration). Integration stubs: [unyt-integration.md](requirements/post-mvp/unyt-integration.md), [flowsta-integration.md](requirements/post-mvp/flowsta-integration.md). Supplementary ontology context: [requirements/resources.md](requirements/resources.md), [requirements/agent.md](requirements/agent.md), [requirements/governance.md](requirements/governance.md).
 
 ### 12.1 Generic NDO (three-layer model, lifecycle split)
 
@@ -811,24 +811,24 @@ Phase B (tracked — not yet implemented; `zome_gouvernance` currently has zero 
 
 ### 12.4 Agent capability surface (G15)
 
-- [ ] `Person` entry hash as stigmergic attachment point for `FlowstaIdentity` and future slots (`REQ-NDO-AGENT-07`, `REQ-AGENT-11`) — see [archives/agent.md](archives/agent.md) §3.2, [person_zome.md](zomes/person_zome.md) Person TODO.
+- [ ] `Person` entry hash as stigmergic attachment point for `FlowstaIdentity` and future slots (`REQ-NDO-AGENT-07`, `REQ-AGENT-11`) — see [requirements/agent.md](requirements/agent.md) §3.2, [person_zome.md](zomes/person_zome.md) Person TODO.
 
 ### 12.5 Extended post-MVP specifications
 
 High-level ordering and dependencies (detailed requirements live in each file):
 
 - **[many-to-many-flows.md](requirements/post-mvp/many-to-many-flows.md):** Shared custody and n-ary `EconomicEvent` / `Commitment` participants — plan after **AgentContext** / collective custodianship (Phase 3 agent ontology) stabilizes; PPR rules must be extended for multi-party flows.
-- **[versioning.md](requirements/post-mvp/versioning.md):** DAG of versions across material, digital, and app-as-resource — complements **REQ-NDO-L1-03** (multiple `ResourceSpecification` links per NDO); non-breaking addition over existing spec/resource entries.
+- **[ndo-versioning.md](requirements/post-mvp/ndo-versioning.md):** DAG of versions across material, digital, and app-as-resource — complements **REQ-NDO-L1-03** (multiple `ResourceSpecification` links per NDO); non-breaking addition over existing spec/resource entries.
 - **[digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md):** Content-addressed manifests and hierarchical verification — attach via Layer 1 **DigitalAsset** capability slots (prima materia §9.2); aligns with distributed storage expectations for specs.
 - **[resource-transport-flow-protocol.md](requirements/post-mvp/resource-transport-flow-protocol.md):** Multi-dimensional transport and flow semantics — builds on mature **EconomicEvent** metadata and process modeling; cross-link to operational state and RTP-style location/custody dimensions.
 - **[valueflows-dsl.md](requirements/post-mvp/valueflows-dsl.md):** Scriptable network bootstrap and recipe definition — operational tooling; depends on stable VF entry types and governance evaluation surfaces in the DNA.
 - **[source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md):** Optional `Source` application profile; progressive activation per REQ-SOURCE-APP-* — see §12.7; PRD anchor [requirements.md §4.6](requirements/requirements.md)
-- **[lobby-dna.md](requirements/post-mvp/lobby-dna.md):** Federation foundation is implemented; remaining Moss, push-signal, per-NDO-cell, and integration work is tracked in §12.6.
+- **[lobby-dna.md](requirements/lobby-dna.md):** Federation foundation is implemented; remaining Moss, push-signal, per-NDO-cell, and integration work is tracked in §12.6.
 
 ### 12.6 Lobby DNA — multi-network federation
 
-Requirements: [lobby-dna.md](requirements/post-mvp/lobby-dna.md) (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*)
-Architecture: [specifications/post-mvp/lobby-architecture.md](specifications/post-mvp/lobby-architecture.md)
+Requirements: [lobby-dna.md](requirements/lobby-dna.md) (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*)
+Architecture: [specifications/lobby-architecture.md](specifications/lobby-architecture.md)
 
 Two implementation sub-scopes with different delivery ordering:
 

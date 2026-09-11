@@ -283,7 +283,7 @@ Adding **one** primitive (`vf:Source`) removes **three fictions and four residue
 | `EconomicEvent.resource_inventoried_as` | `ActionHash` → `EconomicResource`                                                           | REQ-SOURCE-EVENT-01 also targets Source Layer 0 hash |
 | `primaryAccountable`                    | `EconomicResource.custodian`                                                                | Inappropriate for Source-NDO                         |
 | `Commitment` / `Claim`                  | `zome_gouvernance` entries                                                                  | Need Source-aware evaluation                         |
-| `GovernanceRule`                        | `rule_type: String`, `rule_data: String`                                                    | Untyped; sufficient for MVP adaptive rules           |
+| `GovernanceRule`                        | `rule_data: RuleData` (4 typed variants, #132)                                              | No Source-aware variant; adaptive rules need a new one |
 | Layer 0 identity                        | `NondominiumIdentity`                                                                       | Permanent anchor; Source-NDO uses same entry         |
 | NDO federation links                    | `NdoHardLink` (`Component`, `DerivedFrom`, `Supersedes`)                                    | Cross-NDO; not Source coupling                       |
 | `VfAction`                              | 16 variants in `crates/shared/src/types.rs`                                                 | No `Extract`                                         |

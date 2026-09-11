@@ -108,21 +108,21 @@ The joining agent and join time are **not** stored in the entry: they come from 
 
 ```rust
 pub struct ResourceSpecification {
-    pub name: String,                     // Resource specification name
-    pub description: String,              // Detailed description
-    pub category: String,                 // Category for efficient queries
-    pub image_url: Option<String>,        // Optional resource image
-    pub tags: Vec<String>,               // Flexible discovery tags
-    pub governance_rules: Vec<ActionHash>, // Embedded governance
-    pub created_by: AgentPubKey,         // Creator agent
-    pub created_at: Timestamp,           // Creation timestamp
-    pub is_active: bool,                 // Active/inactive filter
+    pub name: String,              // Resource specification name
+    pub description: String,       // Detailed description
+    pub category: String,          // Category for efficient queries
+    pub image_url: Option<String>, // Optional resource image
+    pub tags: Vec<String>,         // Flexible discovery tags
+    pub is_active: bool,           // Active/inactive filter
+    pub scope: ResourceScope,      // Project | Network | Public (mutable)
+    pub ndo_identity_hash: ActionHash, // Immutable Layer 0 pointer (original create_ndo hash)
+    pub ndo_state_hash: ActionHash,    // The NDO action the author observed at activation
 }
 ```
 
+**Layer 1 activation**: creating a spec writes an `NdoToSpecification` link from `ndo_identity_hash` and is gated to lifecycle stages `Specification` through `Active` (#132). `governance_rules`, `created_by`, and `created_at` are not fields on this entry: rules are separate `GovernanceRule` entries reached through `SpecificationToGovernanceRule`, and authorship comes from the action.
 **ValueFlows**: Compliant with resource specification standards
-**Governance**: Embedded rules for access and usage control
-**Discovery**: Category and tag-based efficient queries
+**Discovery**: Category and tag-based efficient queries; `Project`-scoped specs skip the global anchor
 
 ### EconomicResource Entry
 
@@ -176,23 +176,30 @@ pub enum OperationalState {
 
 ```rust
 pub struct GovernanceRule {
-    pub rule_type: String,           // Rule category (access, usage, transfer)
-    pub rule_data: String,          // JSON-encoded rule parameters
-    pub enforced_by: Option<String>, // Role required for enforcement
-    pub created_by: AgentPubKey,    // Rule creator
-    pub created_at: Timestamp,      // Creation timestamp
+    pub rule_data: RuleData,           // Tagged payload; replaces the rule_type/rule_data strings
+    pub enforced_by: Option<String>,   // Role required for enforcement
+    pub ndo_identity_hash: ActionHash, // Layer 0 pointer for constraint evaluation
+    pub property_regime: PropertyRegime, // Denormalized from Layer 0 (zero-DHT-read validation)
+    pub resource_nature: ResourceNature,
+    pub rivalry_override: Option<Rivalry>,
     // TODO (post-MVP, governance.md §4.8): add `expires_at: Option<Timestamp>` for temporal
     // governance. Rules with an expiry become inactive after the deadline without requiring a
     // manual update. Enables sunset clauses and time-limited access grants.
-    // TODO (post-MVP): add `EconomicAgreement` to typed `GovernanceRuleType` for Unyt Smart
-    // Agreement integration. See ndo_prima_materia.md §6.6, REQ-NDO-CS-07–CS-11, and
-    // documentation/specifications/governance/governance.md (EconomicAgreement TODO).
+    // TODO (post-MVP): add `EconomicAgreement` and `IdentityVerification` variants to `RuleData`
+    // for Unyt and Flowsta integration. See ndo_prima_materia.md §6.6-6.7, REQ-NDO-CS-07–CS-15.
+}
+
+pub enum RuleData {
+    AccessRequirement(AccessRequirementData),
+    UsageLimit(UsageLimitData),
+    TransferCondition(TransferConditionData),
+    MaintenanceSchedule(MaintenanceScheduleData),
 }
 ```
 
-**Flexibility**: JSON-encoded parameters for complex rule logic
+**Typing**: `GovernanceRuleType` is derived from the `RuleData` discriminant, never stored. `created_by` / `created_at` are not fields: authorship and time come from the action.
+**Constraints**: each rule is checked against its NDO's classification by `check_rule_data_permitted` in [`crates/shared/src/constraints.rs`](../../crates/shared/src/constraints.rs). `Hard` violations are rejected by the integrity zome; `Soft` violations surface as advisory warnings.
 **Enforcement**: Role-based rule enforcement delegation
-**Governance**: Community-driven rule creation and management
 
 ## API Functions
 
@@ -472,9 +479,16 @@ Creates a new governance rule.
 
 ```rust
 pub struct GovernanceRuleInput {
-    pub rule_type: String,
-    pub rule_data: String,
+    pub rule_data: RuleData,
     pub enforced_by: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub rivalry_override: Option<Rivalry>,
+    /// When set, also create `SpecificationToGovernanceRule` so the rule appears
+    /// in `get_resource_specification_with_rules`. Omitting it creates an orphan
+    /// rule that no read path surfaces.
+    pub specification_hash: Option<ActionHash>,
 }
 ```
 

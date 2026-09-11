@@ -90,6 +90,7 @@ pub struct EconomicEvent {
     pub resource_quantity: f64,           // Quantity involved in the event
     pub event_time: Timestamp,            // When the event occurred
     pub note: Option<String>,             // Optional event description
+    pub ndo_identity_hash: ActionHash,    // Layer 0 pointer for action-constraint evaluation (#132)
 }
 ```
 
@@ -112,6 +113,7 @@ pub struct Commitment {
     pub due_date: Timestamp,              // Commitment due date
     pub note: Option<String>,             // Optional commitment description
     pub committed_at: Timestamp,          // When commitment was made
+    pub ndo_identity_hash: ActionHash,    // Layer 0 pointer for action-constraint evaluation (#132)
 }
 ```
 
@@ -293,11 +295,15 @@ pub struct LogEconomicEventInput {
     pub provider: AgentPubKey,
     pub receiver: AgentPubKey,
     pub resource_inventoried_as: ActionHash,
-    pub affects: ActionHash,
     pub resource_quantity: f64,
     pub note: Option<String>,
+    pub commitment_hash: Option<ActionHash>, // Commitment being fulfilled
+    pub generate_pprs: Option<bool>,         // Auto-generate PPR claims
+    pub ndo_identity_hash: ActionHash,       // Layer 0 identity, required (#132)
 }
 ```
+
+`affects` is not an input field: the coordinator sets it from `resource_inventoried_as`.
 
 **Business Logic**:
 
@@ -349,14 +355,16 @@ Creates a new economic commitment.
 ```rust
 pub struct ProposeCommitmentInput {
     pub action: VfAction,
+    pub resource_hash: Option<ActionHash>,      // Specific resource, if any
+    pub resource_spec_hash: Option<ActionHash>, // Resource specification, if general
     pub provider: AgentPubKey,
-    pub receiver: AgentPubKey,
-    pub resource_conforms_to: Option<ActionHash>,
-    pub input_of: Option<ActionHash>,
     pub due_date: Timestamp,
     pub note: Option<String>,
+    pub ndo_identity_hash: ActionHash,          // Layer 0 identity, required (#132)
 }
 ```
+
+The caller is the receiver, so `receiver` is not an input field; `input_of` is set by the process path, not by this input.
 
 **Business Logic**:
 

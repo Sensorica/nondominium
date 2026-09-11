@@ -42,21 +42,33 @@ bun run package          # Create final .webhapp distribution
 
 ### Testing Commands
 
-**Primary test suite: Sweettest (Rust)** in `dnas/nondominium/tests/`
+**Primary test suite: Sweettest (Rust).** Full reference: `documentation/TEST_COMMANDS.md`.
 
 ```bash
 # Prerequisites — must run before any test execution:
 bun run build:happ
 
-# Run all Sweettest tests
+# Sweettest via package scripts
+bun run sweettest            # build:happ + run all nondominium Sweettest tests
+bun run sweettest:verbose    # same, with --nocapture
+bun run sweettest:only       # skip the build step
+
+# Or cargo directly (inside nix develop)
 CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 
-# Run a specific test module
+# Run a specific test binary
 CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test misc
 
 # Run a specific test function
 CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person person_create_populates_hrea_agent_hash
+```
+
+**E2E (Playwright + real conductors)** — see `ui/tests/README.md`:
+
+```bash
+bun run build:happ           # required once, or after zome changes
+bun run e2e                  # headless
+bun run e2e:ui               # Playwright UI mode
 ```
 
 > **Deprecated:** `bun run tests` runs the legacy Tryorama (TypeScript) test suite. All tests in `tests/` are deprecated. New tests must be written in Sweettest. See `tests/DEPRECATED.md`.
@@ -84,21 +96,33 @@ bun run --filter tests test        # Backend test execution
 
 ## Architecture Overview
 
-nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant resource sharing:
+nondominium is a **multi-DNA Holochain hApp** implementing ValueFlows-compliant resource sharing. The `workdir/happ.yaml` manifest declares five roles:
 
-### Zome Architecture
+| Role | Provisioning | Source |
+|---|---|---|
+| `lobby` | provisioned, fixed seed `nondominium-lobby-v1` | `dnas/lobby/` — agent presence, global group registry |
+| `nondominium` | provisioned | `dnas/nondominium/` — the 3-zome core below |
+| `hrea` | provisioned | `vendor/hrea/` (git submodule) — canonical ValueFlows event recording |
+| `group` | cloned on demand, `clone_limit: 64` | `dnas/group/` — per-group coordination DHT |
+| `ndo` | cloned on demand, `clone_limit: 512` | `dnas/ndo/` — one DHT per Nondominium Object (#112) |
+
+### Zome Architecture (Nondominium DNA core)
 
 - **`zome_person`**: Agent identity, profiles, roles, capability-based access
 - **`zome_resource`**: Resource specifications and lifecycle management
 - **`zome_gouvernance`**: Commitments, claims, economic events, governance rules, PPR system
 
+The Lobby and Group DNAs have their own zomes (`zome_lobby_coordinator`, `zome_group`). See `documentation/zomes/architecture_overview.md`.
+
 ### Technology Stack
 
+Canonical list: `README.md` § Technology Stack. Summary:
+
 - **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), WASM compilation target
-- **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
-- **UI Stack**: UnoCSS (atomic CSS) + Melt UI next-gen (`melt`) for headless components
+- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7
+- **UI Stack**: UnoCSS (atomic CSS) + Melt UI next-gen (`melt`) + Effect-TS
 - **Testing**: Sweettest (Rust, `holochain = "=0.6.0" features = ["test_utils"]`) — primary; Tryorama (TypeScript) deprecated
-- **Client**: @holochain/client 0.19.0 for DHT interaction
+- **Client**: @holochain/client ^0.20.0 (UI); ^0.19.1 (root dev tooling)
 
 ### Data Model Foundations
 
@@ -112,7 +136,7 @@ nondominium is a **3-zome Holochain hApp** implementing ValueFlows-compliant res
 - **Normative NDO / capability requirements:** `documentation/requirements/ndo_prima_materia.md` (REQ-NDO-*, §6.6 Unyt, §6.7 Flowsta)
 - **Master index:** `documentation/DOCUMENTATION_INDEX.md`
 - **Integration stubs:** `documentation/requirements/post-mvp/unyt-integration.md`, `documentation/requirements/post-mvp/flowsta-integration.md`
-- **Ontology archives:** `documentation/archives/resources.md`, `agent.md`, `governance.md`
+- **Ontology references:** `documentation/requirements/resources.md`, `agent.md`, `governance.md`
 
 ## Key Development Patterns
 
@@ -135,7 +159,7 @@ create_link(path.path_entry_hash()?, hash.clone(), LinkTypes::AnchorType, LinkTa
 ### Privacy Model
 
 - **Public Data**: `Person` entries with name/avatar (discoverable)
-- **Private Data**: `EncryptedProfile` entries with PII (access-controlled)
+- **Private Data**: `PrivatePersonData` entries with PII, stored as Holochain private entries (capability-gated)
 - **Role Assignments**: Linked to profiles with validation metadata in link tags
 
 ### Function Naming Convention
@@ -150,21 +174,33 @@ create_link(path.path_entry_hash()?, hash.clone(), LinkTypes::AnchorType, LinkTa
 
 ### Primary: Sweettest (Rust)
 
-All new tests are written in Sweettest (Rust) in `dnas/nondominium/tests/src/`.
+All new tests are written in Sweettest (Rust). Each DNA has its own suite and its own `[[test]]` binaries:
+
+| Package | Location | `--test` binaries |
+|---|---|---|
+| `nondominium_sweettest` | `dnas/nondominium/tests/src/` | `misc`, `person`, `resource`, `governance`, `nondominium` |
+| `group_sweettest` | `dnas/group/tests/src/` | `group`, `ndo_anchor` |
+| `lobby_sweettest` | `dnas/lobby/tests/src/` | `lobby` |
 
 ```
 dnas/nondominium/tests/src/
 ├── lib.rs                  # Module declarations
-├── common/
-│   └── conductors.rs       # Shared setup: setup_two_agents(), setup_dual_dna_two_agents()
+├── common/conductors.rs    # Shared setup: setup_two_agents(), setup_dual_dna_two_agents()
 ├── misc/mod.rs             # Misc zome tests (ping)
-└── person/mod.rs           # Person zome + hREA bridge tests
+├── person/mod.rs           # Person zome + hREA bridge tests
+├── resource/mod.rs         # Resource zome tests
+├── governance/mod.rs       # Governance zome tests
+└── nondominium/            # NDO Layer 0 lifecycle tests (ndo_layer0/)
 ```
 
-**Shared setup functions** (from `common::conductors`):
-- `setup_two_agents()` — two conductors with nondominium DNA
-- `setup_three_agents()` — three conductors with nondominium DNA
+**Shared setup functions** (per suite, from `common::conductors`):
+- `setup_two_agents()` — two conductors with the suite's DNA
+- `setup_three_agents()` — three conductors with the suite's DNA
 - `setup_dual_dna_two_agents()` — two conductors with nondominium + hREA DNAs (explicit role names)
+
+> Group suite tests spin up 2 conductors each; run the full suite with `-- --test-threads 6`.
+
+Full command reference: `documentation/TEST_COMMANDS.md`.
 
 **DHT sync** between agents: `await_consistency_20_s([&cell_a, &cell_b]).await.unwrap()` (holochain 0.6.0 requires a timeout arg; use the `_20_s` wrapper). Pass the array **by value**, not `&[...]`: the bound is `IntoIterator<Item = &SweetCell>`, so a slice reference yields `&&SweetCell` and fails to compile.
 
@@ -174,8 +210,9 @@ Tests in `tests/` use Tryorama and are deprecated. See `tests/DEPRECATED.md` for
 
 ## Development Status
 
-**Phase 1 (Complete)**: Person management with role-based access control
-**Phase 2 (In Progress)**: Resource lifecycle and governance implementation, PPR system
-- NDO Layer 0 (`NondominiumIdentity` identity anchor): complete (#80)
+Canonical status: `README.md` § Development Status and `documentation/IMPLEMENTATION_STATUS.md`. Summary:
+
+- **Complete**: person management with role-based access, NDO Layer 0 (`NondominiumIdentity`, #80), MVP UI (Lobby → Group → NDO), Lobby DNA (#103), Group DNA (#107), DHT-backed group UI (#111)
+- **In progress**: NDO-per-cell architecture (#112), economic processes, PPR receipt generation, governance-as-operator, agent promotion workflows
 
 The codebase follows Holochain best practices with comprehensive testing, clear zome separation, and ValueFlows standard compliance.

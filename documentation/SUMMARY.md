@@ -2,6 +2,7 @@
 
 [Introduction](README.md)
 [TELOS](TELOS.md)
+[Documentation Index](DOCUMENTATION_INDEX.md)
 
 ---
 
@@ -12,17 +13,24 @@
 - [Resource Ontology](requirements/resources.md)
 - [Governance Ontology](requirements/governance.md)
 - [NDO Prima Materia](requirements/ndo_prima_materia.md)
+- [Lobby DNA](requirements/lobby-dna.md)
 - [UI Design](requirements/ui_design.md)
 
 ## Post-MVP Requirements
 
 - [Complete Resource Specification](requirements/post-mvp/complete-resource-specification.md)
 - [Digital Resource Integrity](requirements/post-mvp/digital-resource-integrity.md)
+- [Fractal Composable Resource Architecture](requirements/post-mvp/fractal-composable-resource-architecture.md)
 - [Many-to-Many Flows](requirements/post-mvp/many-to-many-flows.md)
+- [NDO Versioning](requirements/post-mvp/ndo-versioning.md)
+- [Open Know-How / IOPA](requirements/post-mvp/open-know-how-iopa.md)
+- [Project-Type NDO Specifications](requirements/post-mvp/project-type-ndo-specifications.md)
 - [Resource Transport Flow Protocol](requirements/post-mvp/resource-transport-flow-protocol.md)
-- [Versioning](requirements/post-mvp/versioning.md)
+- [Source-NDO (planning scaffold)](requirements/post-mvp/Source-NDO.md)
+- [Source-NDO Paper](requirements/post-mvp/source-ndo-paper.md)
+- [Source-NDO Requirements](requirements/post-mvp/source-ndo-requirements.md)
+- [Source / ValueFlows Integration](requirements/post-mvp/source-valueflows-integration.md)
 - [ValueFlows DSL](requirements/post-mvp/valueflows-dsl.md)
-- [Lobby DNA](requirements/post-mvp/lobby-dna.md)
 - [Unyt Integration](requirements/post-mvp/unyt-integration.md)
 - [Flowsta Integration](requirements/post-mvp/flowsta-integration.md)
 
@@ -38,6 +46,10 @@
 - [Protocol Bridge Specifications](specifications/protocol-bridge-specifications.md)
 - [API Reference](API_REFERENCE.md)
 
+## Architecture Decision Records
+
+- [ADR-010–013: Per-NDO Cells](specifications/adr/ADR-010-013-per-ndo-cells.md)
+
 ## Governance Specifications
 
 - [Governance Specification](specifications/governance/governance.md)
@@ -47,9 +59,10 @@
 - [Private Participation Receipt](specifications/governance/private-participation-receipt.md)
 - [PPR Security Implementation](specifications/governance/PPR_Security_Implementation.md)
 
+- [Lobby Architecture](specifications/lobby-architecture.md)
+
 ## Post-MVP Specifications
 
-- [Lobby Architecture](specifications/post-mvp/lobby-architecture.md)
 - [ValueFlows DSL Specs](specifications/post-mvp/valueflows-dsl-specs.md)
 
 ---
@@ -60,6 +73,8 @@
 - [Person Zome](zomes/person_zome.md)
 - [Resource Zome](zomes/resource_zome.md)
 - [Governance Zome](zomes/governance_zome.md)
+- [Lobby Zome](zomes/lobby_zome.md)
+- [Group Zome](zomes/group_zome.md)
 
 ---
 
@@ -69,6 +84,7 @@
 - [Integration Strategy](hREA/integration-strategy.md)
 - [Strategic Roadmap](hREA/strategic-roadmap.md)
 - [ValueFlows 1.0 Compliance](hREA/valueflows-1.0-compliance.md)
+- [v0.2 Release Plan](hREA/v0.2-release-plan.md)
 
 ---
 
@@ -79,6 +95,7 @@
 - [Development Report](development-report.md)
 - [Testing Infrastructure](Testing_Infrastructure.md)
 - [Test Commands](TEST_COMMANDS.md)
+- [E2E Test Suite](../ui/tests/README.md)
 
 ---
 
@@ -86,9 +103,11 @@
 
 - [Artcoin](Applications/artcoin_main_doc.md)
 - [Nondominium × Artcoin](Applications/nondominium_artcoin.md)
+- [Digital Dairy Chain](Applications/digitaldairychain.md)
 - [Distributed Journalism](Applications/distributed_journalism.md)
 - [ERP Holochain Bridge](Applications/erp_holochain_bridge.md)
 - [HealthNet](Applications/healthnet.md)
+- [Regenerative Farming](Applications/regen_farming.md)
 - [Strategic Development](Applications/strategic_development.md)
 
 ## User Stories
@@ -113,7 +132,6 @@
 
 - [P2P Models Comparison](archives/P2PMODELS_COMPARISON_REPORT.md)
 - [Nondominium Mutualization](archives/nondominium_mutualization.md)
-- [Fractal Composable Resource Architecture](archives/fractal-composable-resource-architecture.md)
 - [Digital Fabrics Concept](archives/digital_fabrics_concept_definition_2025-10-28.md)
 - [Holochain Storage Verification Patterns](archives/holochain-storage-verification-patterns.md)
 - [Complexity Oriented Programming](archives/complexity_oriented_programming.md)

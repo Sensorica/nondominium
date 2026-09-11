@@ -44,7 +44,7 @@ That model is well-grounded in the ValueFlows standard and works well for resour
 
 **Still outstanding** (this document remains the normative target for these gaps):
 
-- **Layers 1 & 2 not activated:** `ResourceSpecification`, `EconomicResource`, and process entries are not yet linked to Layer 0 via `NDOToSpecification` or `NDOToProcess`. Legacy resource specs can still exist without an NDO parent; specification assets are not yet attached via `DigitalAsset` capability slots (REQ-NDO-L1-06).
+- **Layer 2 not activated:** process entries are not yet linked to Layer 0 via `NDOToProcess`. Layer 1 is activated (#132): `create_resource_specification` writes an `NdoToSpecification` link and the spec carries its Layer 0 pointers, so a spec can no longer be created without an NDO parent. Specification assets are still not attached via `DigitalAsset` capability slots (REQ-NDO-L1-06).
 - **Specification richness:** Structured project-type know-how bundles ([`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md)) are post-MVP requirements only — the MVP `ResourceSpecification` entry remains a thin summary (name, description, category, tags).
 - **`ResourceState` conflation:** ~~On `EconomicResource`~~ **Resolved (data layer):** `EconomicResource.operational_state` uses `OperationalState`; lifecycle maturity lives on `NondominiumIdentity.lifecycle_stage`. Governance-zome transition ownership (REQ-NDO-OS-02/03) remains deferred.
 - **Governance-as-operator for lifecycle:** MVP allows only the NDO `initiator` to call `update_lifecycle_stage`. Governance-validated transitions, role authorization per Section 5.3, and automatic `EconomicEvent` generation on each transition (REQ-NDO-LC-02, REQ-NDO-LC-03) remain deferred.
@@ -943,11 +943,11 @@ let ndo_hash = create_entry(&EntryTypes::NondominiumIdentity(identity))?;
 
 ### Pattern 2: Complexity-Matched Layer Activation
 
-> **Status:** 🔄 **Post-MVP** — `NDOToSpecification` and `NDOToProcess` link types not yet in code.
+> **Status:** 🔄 **Partial** — `NdoToSpecification` (Layer 1) is in code as of #132; `NDOToProcess` (Layer 2) is not.
 
 **Intent:** Activate only the structural complexity that the current coordination environment demands. Do not pay coordination costs in advance of need.
 
-**Structure:** Layer activation via link creation. Layer 1 activates when `NDOToSpecification` link is created. Layer 2 activates when `NDOToProcess` link is created. Both can be created retroactively, at any lifecycle stage.
+**Structure:** Layer activation via link creation. Layer 1 activates when the `NdoToSpecification` link is created. Layer 2 activates when the `NDOToProcess` link is created. Both can be created retroactively, at any lifecycle stage the target layer's gate permits: Layer 1 accepts `Specification` through `Active` (Section 5.2), and the Layer 2 gate is not yet enforced.
 
 **Rationale:** Benkler's information opportunity cost analysis: overhead that exceeds the value of the coordination it enables is pure waste. A tool being lent between friends does not need a full ValueFlows process. A community hardware standard being developed across fifty fabrication networks does. The NDO model allows the system's complexity to grow with the resource's social complexity, not ahead of it.
 
@@ -1166,20 +1166,22 @@ NdoByNature,          // Path "ndo.nature.{Nature:?}" → NondominiumIdentity
 NdoByPropertyRegime,  // Path "ndo.regime.{Regime:?}" → NondominiumIdentity
 NdoToSuccessor,       // deprecated NDO → successor NondominiumIdentity (REQ-NDO-LC-06)
 NdoToTransitionEvent, // NDO → EconomicEvent (link only; cross-zome event validation deferred)
+
+// Layer 1 activation and operational state (MVP — PR #132)
+NdoToSpecification,          // NondominiumIdentity → ResourceSpecification (Layer 1 activation)
+ResourcesByOperationalState, // Path "resources.operational.{State:?}" → EconomicResource
 ```
 
-Legacy resource links (`SpecificationToResource`, `ResourcesByState`, etc.) remain for pre-NDO `ResourceSpecification` / `EconomicResource` flows.
+Legacy resource links (`SpecificationToResource`, `ResourcesByLocation`, etc.) remain for pre-NDO `ResourceSpecification` / `EconomicResource` flows. `ResourcesByState` was replaced by `ResourcesByOperationalState` in #132.
 
 **Planned additions (post-MVP — not yet in `LinkTypes` enum):**
 
 ```rust
-NDOToSpecification,     // NondominiumIdentity → ResourceSpecification (Layer 1 activation)
 NDOToProcess,           // NondominiumIdentity → Process (Layer 2 activation)
 NDOToComponent,         // NondominiumIdentity → NondominiumIdentity (holonic composition)
 CapabilitySlot,         // NondominiumIdentity → capability target (typed by tag)
 NDOLifecycleHistory,    // NondominiumIdentity → LifecycleEvent (audit trail alternative/complement to NdoToTransitionEvent)
-ResourcesByLifecycleStage,   // split from ResourcesByState (REQ-NDO-OS-06)
-ResourcesByOperationalState, // split from ResourcesByState (REQ-NDO-OS-06)
+ResourcesByLifecycleStage,   // NDO-facing complement to ResourcesByOperationalState (REQ-NDO-OS-06)
 ```
 
 **Implemented in `zome_gouvernance` (federation — PR #103):** `NdoToHardLinks`, `HardLinkByType` (for `NdoHardLink` entries). See §11.7.
@@ -1283,7 +1285,7 @@ Normative requirements below remain valid as design targets. Status reflects the
 | Track | Status | Notes |
 |---|---|---|
 | Layer 0 (`NondominiumIdentity`, discovery, lifecycle validation) | ✅ MVP (#80) | Initiator-only transitions; optional `NdoToTransitionEvent` |
-| Layer 1 activation (`NDOToSpecification`) | ❌ Post-MVP | Legacy `ResourceSpecification` exists unlinked |
+| Layer 1 activation (`NdoToSpecification`) | ✅ MVP (#132) | Created on every `create_resource_specification`; spec carries `ndo_identity_hash` + `ndo_state_hash` and a lifecycle gate |
 | Layer 2 activation (`NDOToProcess`) | ❌ Post-MVP | Governance events exist unlinked to NDO identity |
 | `OperationalState` split | ✅ Data layer | `operational_state` on `EconomicResource`; `ResourcesByOperationalState`; governance-operator transitions deferred |
 | Governance-as-operator lifecycle (REQ-NDO-LC-02/03/07) | 🔄 Partial | Integrity validation only; no role-gated governance zome path |
@@ -1306,10 +1308,10 @@ Legend: ✅ implemented · 🔄 partial · ❌ not started
 
 ### 9.2 Layer 1 — Specification Requirements
 
-> **Status:** ❌ Post-MVP (requirements normative; `NDOToSpecification` not in code). Project-type know-how bundles: [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md).
+> **Status:** 🔄 Partial (MVP, #132) — activation, the Layer 0 pointer pair, and the lifecycle gate are in code; asset attachment (REQ-NDO-L1-06) and role-gated activation remain post-MVP. Project-type know-how bundles: [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md).
 
-- **REQ-NDO-L1-01** ❌: Layer 1 shall be activated by creating an `NDOToSpecification` link from the NDO identity hash to a `ResourceSpecification` entry. No modification of the `NondominiumIdentity` entry is required for activation.
-- **REQ-NDO-L1-02**: Layer 1 may be activated at any lifecycle stage at or after `Ideation`. Retroactive activation (for NDOs that began at `Ideation` without a spec) shall be fully supported.
+- **REQ-NDO-L1-01** ✅: Layer 1 shall be activated by creating an `NdoToSpecification` link from the NDO identity hash to a `ResourceSpecification` entry. No modification of the `NondominiumIdentity` entry is required for activation. The specification additionally carries `ndo_identity_hash` (the immutable Layer 0 pointer) and `ndo_state_hash` (the NDO action the author observed), because integrity validation cannot resolve "the latest state" by walking an update chain forward.
+- **REQ-NDO-L1-02** ✅: Layer 1 may be activated at any lifecycle stage from `Specification` through `Active`, matching the activation table in Section 5.2. `Ideation` is excluded (an idea has no form to specify yet), and `Hibernating`, `Deprecated`, and `EndOfLife` are excluded as suspended or terminal. Retroactive activation is fully supported for any NDO that has reached `Specification`.
 - **REQ-NDO-L1-03**: Multiple `ResourceSpecification` entries may be linked to one NDO identity, representing version evolution. The most recent link shall be considered the canonical Layer 1 specification.
 - **REQ-NDO-L1-04**: When Layer 1 enters dormant state (hibernation or end of life), the specification shall be marked `is_active: false`. The `NDOToSpecification` link shall remain readable.
 - **REQ-NDO-L1-05**: `GovernanceRule` entries shall continue to be linked to `ResourceSpecification` entries as currently implemented. They are considered Layer 1 assets.

@@ -13,7 +13,7 @@
 2. [Rationale: why Flowsta, why a capability](#2-rationale-why-flowsta-why-a-capability)
 3. [How Flowsta entered the foundational documents](#3-how-flowsta-entered-the-foundational-documents)
 4. [Architecture summary](#4-architecture-summary)
-5. [Relationship to Unyt and the foundational spec](#5-relationship-to-unyt-and-the-foundational-spec)
+5. [Relationship to Unyt and the prima materia](#5-relationship-to-unyt-and-the-prima-materia)
 6. [Integration path (three phases)](#6-integration-path-three-phases)
 7. [Requirements traceability](#7-requirements-traceability)
 8. [Current MVP vs planned enforcement](#8-current-mvp-vs-planned-enforcement)
@@ -159,7 +159,7 @@ Phases are **independent and cumulative** — no rollback of earlier phases requ
 
 As of the Nondominium MVP codebase:
 
-- **`GovernanceRule`** in `zome_resource` remains **`rule_type: String` / `rule_data: String`** — not a typed enum — and **Flowsta zomes are not yet part of the shipped DNA** unless explicitly added in a future milestone.
+- **`GovernanceRule`** in `zome_resource` is now the typed **`rule_data: RuleData`** enum (#132), but its four variants are `AccessRequirement`, `UsageLimit`, `TransferCondition`, and `MaintenanceSchedule`: there is **no `IdentityVerification` variant**, and **Flowsta zomes are not part of the shipped DNA** unless explicitly added in a future milestone.
 - **`zome_gouvernance`** exposes flows such as **`validate_agent_for_promotion`** and **`validate_agent_for_custodianship`** for **private-field** validation, **not** for Flowsta **`IdentityVerification`**.
 
 Therefore **Tier 2** and **Phase 3** are **specified and documented** but **not yet implemented** in WASM. This document and the archive sections describe **target behavior**; `governance.md` §3.7 states the folding of identity checks into unified **transition evaluation** explicitly.

@@ -11,7 +11,7 @@
 | **Version**      | 1.0 (2025-12-28)                                                             |
 | **Repository**   | [github.com/sensorica/nondominium](https://github.com/sensorica/nondominium) |
 
-> **Technical Specifications**: See [Valueflows DSL Technical Specifications](../specifications/valueflows-dsl-specs.md) for implementation details, syntax specifications, and technical architecture.
+> **Technical Specifications**: See [Valueflows DSL Technical Specifications](../../specifications/post-mvp/valueflows-dsl-specs.md) for implementation details, syntax specifications, and technical architecture.
 
 > **Scope note (ValueFlows version)**: This document specifies a DSL for **ValueFlows 1.0** — the current, ratified vocabulary that Nondominium implements today (two flow-endpoint primitives: `Agent` and `EconomicResource`). A separate, in-progress design proposes an **augmented ValueFlows** profile that adds a third primitive, **`vf:Source`**, for generative non-ownable systems (watersheds, forests, knowledge commons). Anywhere this document refers to `Source`, `vf:Source`, `extract`, or Source-NDOs, it is describing **future/work-in-progress** capability, not the MVP DSL. See [`source-valueflows-integration.md`](source-valueflows-integration.md) and [`source-ndo-requirements.md`](source-ndo-requirements.md). The delineation is made explicit throughout (see §2.1.1).
 
@@ -768,7 +768,7 @@ Support for the `Source` primitive (§6.1.7, §9.7) — `source` declarations, t
 - **hREA Project:** https://github.com/h-REA/hREA
 - **REA Ontology:** https://wiki.p2pfoundation.net/Resource-Event-Agent_Model
 - **Holochain Documentation:** https://developer.holochain.org/
-- **Technical Specifications:** [Valueflows DSL Technical Specifications](../specifications/valueflows-dsl-specs.md)
+- **Technical Specifications:** [Valueflows DSL Technical Specifications](../../specifications/post-mvp/valueflows-dsl-specs.md)
 - **Augmented ValueFlows — Source integration (planned/WIP):** [`source-valueflows-integration.md`](source-valueflows-integration.md)
 - **Source-NDO requirements (planned/WIP):** [`source-ndo-requirements.md`](source-ndo-requirements.md)
 

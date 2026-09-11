@@ -1,6 +1,9 @@
 # Nondominium Project Documentation Index
 
-**Updated**: 2026-05-04
+**Updated**: 2026-08-13
+
+> Annotated guide to the documentation set. For the topic-grouped hub see
+> [README.md](README.md); for a flat table of contents see [SUMMARY.md](SUMMARY.md).
 
 ---
 
@@ -23,8 +26,9 @@
 ### Prerequisites & Setup
 
 ```bash
-nix develop              # Enter reproducible environment (REQUIRED)
-bun install              # Install dependencies
+git submodule update --init --recursive  # Initialize the hREA submodule (REQUIRED)
+nix develop                              # Enter reproducible environment (REQUIRED)
+bun install                              # Install dependencies
 ```
 
 **Key Documentation:**
@@ -41,16 +45,20 @@ bun run start            # Start 2-agent development network with UIs
 AGENTS=3 bun run network # Custom agent network
 
 # Testing — Sweettest (Rust, primary)
-bun run build:happ
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest -- --nocapture
+bun run sweettest        # build:happ + all nondominium Sweettest tests
+bun run sweettest:only   # skip the build step
+
+# Testing — E2E (Playwright + real conductors)
+bun run e2e
+bun run e2e:ui
 
 # Build
 bun run build:zomes     # Compile Rust zomes to WASM
-bun run build:happ      # Package DNA into .happ bundle
+bun run build:happ      # Build zomes + hREA, pack all DNAs into the .happ bundle
 bun run package         # Create final .webhapp distribution
 ```
+
+Canonical command reference for every suite: [TEST_COMMANDS.md](TEST_COMMANDS.md).
 
 > **Note**: Tryorama (TypeScript) tests in `tests/` are **deprecated**. All new tests use Sweettest (Rust). See `tests/DEPRECATED.md`.
 
@@ -63,9 +71,9 @@ bun run package         # Create final .webhapp distribution
 nondominium implements a **Governance-as-Operator** architecture that separates data management from business logic enforcement:
 
 - **Framework**: Holochain HDK ^0.6.0 / HDI ^0.7.0 (Rust + WASM)
-- **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
+- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) deprecated
-- **Client**: @holochain/client 0.19.0
+- **Client**: @holochain/client ^0.20.0
 - **Package Management**: Bun for dependency management and build orchestration
 
 ### Zome Structure
