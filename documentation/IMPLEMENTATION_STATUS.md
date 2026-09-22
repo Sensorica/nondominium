@@ -10,14 +10,16 @@ This document tracks what is **actually implemented and verified** in the curren
 
 ### Technology Stack
 
+Canonical list: [README.md § Technology Stack](../README.md#technology-stack). Summary:
+
 - **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), compiled to WASM
-- **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5 + UnoCSS + Melt UI next-gen
+- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7 + UnoCSS + Melt UI next-gen + Effect-TS
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) is deprecated
-- **Client**: @holochain/client 0.19.0 for DHT interaction
+- **Client**: @holochain/client ^0.20.0 (UI); ^0.19.1 (root dev tooling)
 
 ### Multi-DNA hApp Architecture
 
-The packaged hApp currently contains four roles:
+The packaged hApp declares five roles in `workdir/happ.yaml`:
 
 1. **`lobby`** — fixed, permissionless federation DHT for Lobby profiles and Group discovery
 2. **`nondominium`** — the core NDO DNA, containing:
@@ -26,8 +28,9 @@ The packaged hApp currently contains four roles:
    - `zome_gouvernance` — events, commitments, claims, validation, PPR prototypes, and federation extensions
 3. **`hrea`** — bundled hREA DNA used by the Person/ReaAgent bridge
 4. **`group`** — deferred template role; each Group is provisioned as an isolated cloned cell (`clone_limit: 64`)
+5. **`ndo`** — deferred template role; each NDO is provisioned as an isolated cloned cell (`clone_limit: 512`, ADR-010/ADR-013)
 
-Each local DNA domain follows the integrity/coordinator pattern. The core Nondominium domain remains a three-zome architecture, but the installed hApp is a multi-DNA system.
+Each local DNA domain follows the integrity/coordinator pattern; the Lobby and Group DNAs carry their own zomes (`zome_lobby_coordinator`, `zome_group`). The core Nondominium domain remains a three-zome architecture, but the installed hApp is a multi-DNA system. See [ARCHITECTURE_COMPONENTS.md](ARCHITECTURE_COMPONENTS.md) and [zomes/architecture_overview.md](zomes/architecture_overview.md).
 
 ### Status Terminology
 
@@ -188,11 +191,13 @@ These are operational prototypes. Claim discovery uses DHT links (`AgentToPrivat
 - Multi-reviewer status tracking and validation history queries
 - Person↔governance private-data validation helpers
 
-Several checks are still simplified or stubbed: specialized-role validation auto-approves, authorization is incomplete in places, GovernanceRule semantics are not evaluated, and event/PPR generation is not uniformly automatic.
+Several checks are still simplified or stubbed: specialized-role validation auto-approves, authorization is incomplete in places, and event/PPR generation is not uniformly automatic. GovernanceRule *classification* semantics are now enforced (see below); per-rule runtime conditions are not.
 
-### Governance-as-Operator Architecture ❌ Specified, not implemented
+### Governance-as-Operator Architecture 🔄 Evaluate side implemented; Request side not wired
 
-The Request→Evaluate→Apply architecture is documented in `documentation/specifications/governance/`, but the Rust DNA does **not** currently define `GovernanceTransitionRequest`, `TransitionContext`, `GovernanceTransitionResult`, `evaluate_state_transition`, `evaluate_governance_transition`, or `request_resource_transition`. Existing validation and private-data helpers are related infrastructure, not that operator path. Tracked in #41–#44.
+`GovernanceTransitionRequest`, `TransitionContext`, and `GovernanceTransitionResult` are defined in `crates/shared/src/io/governance.rs`, and `evaluate_state_transition` is a live `#[hdk_extern]` in `zome_gouvernance/src/transition.rs` (#132). It evaluates the Hard and Soft classification constraints from `crates/shared/src/constraints.rs` and returns advisory warnings plus structured `soft_violations` for UI dry-run parity.
+
+Two pieces of the documented architecture are still absent: `request_resource_transition` (the resource-zome-side entry point) and `evaluate_governance_transition`. The evaluation path is therefore **parallel and advisory** rather than the mandatory funnel — `propose_commitment` and `log_economic_event` still write directly, with their own inline constraint checks, instead of routing through the operator. `GovernanceTransitionResult.economic_event_hash` is always `None` on this path because event generation is not yet wired. Tracked in #41–#44.
 
 ---
 
@@ -451,7 +456,8 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
 | Role promotion and specialized validation              | 🔄 Partial; placeholder/auto-approval paths remain |
 | Resource specifications and economic resources         | ✅ CRUD/query model implemented |
 | GovernanceRule persistence                             | ✅ Implemented |
-| GovernanceRule semantic enforcement                    | ❌ Not implemented |
+| GovernanceRule classification constraints              | ✅ Hard/Soft predicates enforced at integrity and in `evaluate_state_transition` (#132) |
+| GovernanceRule per-rule runtime conditions             | ❌ Not implemented (`requires_validation`, `min_affiliation`, quotas) |
 | ValueFlows action vocabulary + EconomicEvents          | ✅ Implemented |
 | Commitments and Claims                                 | ✅ Implemented |
 | PPR types, validation, local queries, and summaries     | 🔄 Prototype |
@@ -500,12 +506,12 @@ The following are documented and traceable to REQ-NDO-\* in `documentation/requi
 | Track                                             | Design sources                                                                    | Implementation status                                                                                                                                  |
 | ------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **NDO Layer 0 (identity anchor)**                 | `ndo_prima_materia.md` §§4, 8; REQ-NDO-L0-01–07                                   | **Implemented** (#80/#84) — identity, lifecycle validation, and facet anchors exist; required EconomicEvent generation and complete link-integrity hardening remain pending |
-| **NDO Layers 1 & 2**                              | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3                              | Not started — Layer 1 (Specification links), Layer 2 (Process links), cross-layer link types pending                                                   |
+| **NDO Layers 1 & 2**                              | `ndo_prima_materia.md` §§4, 8, 10; `resources.md` §3                              | 🔄 Layer 1 implemented (#132) — `NdoToSpecification` created on every `create_resource_specification`, with the Layer 0 pointer pair (`ndo_identity_hash` / `ndo_state_hash`) and a lifecycle gate. Layer 2 (`NDOToProcess`) not started |
 | **Lifecycle vs operational state split**          | `ndo_prima_materia.md` §5, §9.4 (`REQ-NDO-OS-01`, `REQ-NDO-OS-06`)                | ✅ Data layer — `OperationalState` on `EconomicResource`; governance-operator transitions (`REQ-NDO-OS-02`–`05`) deferred |
 | **Unyt (EconomicAgreement, RAVE)**                | `ndo_prima_materia.md` §6.6, §11.5; `unyt-integration.md`; REQ-NDO-CS-07–CS-11    | Not started — no Unyt cell / RAVE validation in governance zome                                                                                        |
 | **Flowsta (agent linking, IdentityVerification)** | `ndo_prima_materia.md` §6.7, §11.6; `flowsta-integration.md`; REQ-NDO-CS-12–CS-15 | Not started — `flowsta-agent-linking` zomes not bundled                                                                                                |
 | **Person capability slot (G15)**                  | `agent.md` §3.2; `person_zome.md`; REQ-AGENT-11, REQ-NDO-AGENT-07                 | Not started — no `FlowstaIdentity` links on `Person` hash                                                                                              |
-| **Lobby DNA (multi-network federation entry point)** | `post-mvp/lobby-dna.md` REQ-LOBBY-*; `specifications/post-mvp/lobby-architecture.md` | **Implemented** (#103) — Lobby DNA with `LobbyAgentProfile` + `GroupAnnouncement`, 9 coordinator externs, 5 Sweettest scenarios, `lobby` role in `happ.yaml`, and Moss manifest. Group DNA complete for its current scope (#107). |
-| **NDO DNA extensions (NdoHardLink, Contribution, Agreement)** | `post-mvp/lobby-dna.md` REQ-NDO-EXT-01–16; `specifications/post-mvp/lobby-architecture.md §6` | **Implemented** (#103) — entry types, link types, and coordinator modules exist; hard-link Sweettest is active, while Agreement/Contribution scenarios are currently ignored. |
+| **Lobby DNA (multi-network federation entry point)** | `requirements/lobby-dna.md` REQ-LOBBY-*; `specifications/lobby-architecture.md` | **Implemented** (#103) — Lobby DNA with `LobbyAgentProfile` + `GroupAnnouncement`, 9 coordinator externs, 5 Sweettest scenarios, `lobby` role in `happ.yaml`, and Moss manifest. Group DNA complete for its current scope (#107). |
+| **NDO DNA extensions (NdoHardLink, Contribution, Agreement)** | `requirements/lobby-dna.md` REQ-NDO-EXT-01–16; `specifications/lobby-architecture.md §6` | **Implemented** (#103) — entry types, link types, and coordinator modules exist; hard-link Sweettest is active, while Agreement/Contribution scenarios are currently ignored. |
 
 See `documentation/implementation_plan.md` Section 12 for a phased checklist aligned with the prima materia.

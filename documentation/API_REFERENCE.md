@@ -1,7 +1,7 @@
 # Nondominium API Reference
 
-**Generated**: 2025-12-17
-**Version**: 3.0 (Updated with Current Implementation)
+**Generated**: 2025-12-17 · **Resource / governance input structs re-synced against source 2026-08-29 (post-#132)**
+**Version**: 3.1 (Updated with Current Implementation)
 **Scope**: Complete function documentation for all zomes based on actual codebase
 
 ---
@@ -600,29 +600,32 @@ pub struct UpdateLifecycleStageInput {
 
 ### Resource Specification Management
 
-#### `create_resource_specification(input: ResourceSpecificationInput) -> ExternResult<Record>`
-**Purpose**: Define new resource type with properties and governance rules
-**Authorization**: Any agent can create resource specifications
+#### `create_resource_specification(input: ResourceSpecificationInput) -> ExternResult<CreateResourceSpecificationOutput>`
+**Purpose**: Activate NDO Layer 1 — define the resource's form and its typed governance rules
+**Authorization**: Any agent; the target NDO must be at lifecycle stage `Specification` through `Active`
 **Input**:
 ```rust
 pub struct ResourceSpecificationInput {
     pub name: String,
     pub description: String,
-    pub resource_class: String,
-    pub default_unit: String,
-    pub custom_properties: HashMap<String, PropertyValue>,
-    pub behavior: Option<String>,
-    pub conforming: bool,
-    pub image: Option<String>,
-    pub category: Option<String>,
+    pub category: String,
+    pub image_url: Option<String>,
     pub tags: Vec<String>,
-    pub governance_rules: Vec<ActionHash>,
+    pub scope: ResourceScope,          // Project | Network | Public
+    pub ndo_identity_hash: ActionHash, // Layer 0 NDO this spec activates
+    pub governance_rules: Vec<NestedGovernanceRuleInput>,
+}
+
+pub struct NestedGovernanceRuleInput {
+    pub rule_data: RuleData,
+    pub enforced_by: Option<String>,
 }
 ```
-**Returns**: Created `ResourceSpecification` entry
+**Returns**: `CreateResourceSpecificationOutput { spec_hash, spec, governance_rule_hashes }`
 **Side Effects**:
-- Creates specification entry with discovery anchors
-- Links to governance rules for compliance
+- Creates the specification entry with discovery anchors (`Project` scope skips the global anchor)
+- Creates the `NdoToSpecification` link — this is Layer 1 activation
+- Creates each nested `GovernanceRule` and links it via `SpecificationToGovernanceRule`, so rules are never orphaned
 - Creates category and tag-based discovery links
 
 #### `get_latest_resource_specification(original_action_hash: ActionHash) -> ExternResult<ResourceSpecification>`
@@ -786,21 +789,20 @@ pub struct UpdateOperationalStateInput {
 ### Governance Rules Management
 
 #### `create_governance_rule(input: GovernanceRuleInput) -> ExternResult<Record>`
-**Purpose**: Create governance rule for resource or process compliance
-**Authorization**: Governance role required
+**Purpose**: Create a typed governance rule bound to an NDO's classification
+**Authorization**: Any agent; `check_rule_data_permitted` rejects rules the NDO's `PropertyRegime` / `ResourceNature` forbid
 **Input**:
 ```rust
 pub struct GovernanceRuleInput {
-    pub name: String,
-    pub description: String,
-    pub rule_type: String,
-    pub resource_specification: Option<ActionHash>,
-    pub economic_process: Option<String>,
-    pub condition_expression: String,
-    pub action_required: String,
-    pub validation_method: String,
-    pub active: bool,
-    pub priority: u32,
+    pub rule_data: RuleData,           // AccessRequirement | UsageLimit | TransferCondition | MaintenanceSchedule
+    pub enforced_by: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub rivalry_override: Option<Rivalry>,
+    /// Set this to link the rule to a spec. Omitting it creates an orphan rule
+    /// that `get_resource_specification_with_rules` cannot surface.
+    pub specification_hash: Option<ActionHash>,
 }
 ```
 **Returns**: Created `GovernanceRule` entry

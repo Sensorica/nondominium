@@ -50,12 +50,12 @@ Optional, pay-as-you-grow integrations and application profiles (communities may
 
 | Integration | Role | Normative detail | Design stub |
 |-------------|------|------------------|-------------|
-| **Lobby DNA** | Multi-network federation: entry point (Lobby DHT) + per-group coordination (Group DHT) + NDO-to-NDO hard links, Contributions, Smart Agreements; dual deployment (standalone + Moss applet) | REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-* | [lobby-dna.md](post-mvp/lobby-dna.md) / [lobby-architecture.md](../specifications/post-mvp/lobby-architecture.md) |
+| **Lobby DNA** | Multi-network federation: entry point (Lobby DHT) + per-group coordination (Group DHT) + NDO-to-NDO hard links, Contributions, Smart Agreements; dual deployment (standalone + Moss applet) | REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-* | [lobby-dna.md](lobby-dna.md) / [lobby-architecture.md](../specifications/lobby-architecture.md) |
 | **Unyt** | Economic settlement (Smart Agreements, RAVE proofs, PPR↔RAVE provenance) | `ndo_prima_materia.md` §6.6, §11.5; REQ-NDO-CS-07–CS-11 | [unyt-integration.md](post-mvp/unyt-integration.md) |
 | **Flowsta** | Cross-app identity (Vault `IsSamePersonEntry`, `FlowstaIdentity` slot, DID, recovery); Tier 1 (Phase 1) vs Tier 2 (Phase 3) | `ndo_prima_materia.md` §6.5–6.7, §11.6; REQ-NDO-CS-12–CS-15; REQ-NDO-AGENT-07–08 | [flowsta-integration.md](post-mvp/flowsta-integration.md) |
 | **Source-NDO application profile** | Optional third primitive for applications governing generative ecological or knowledge systems. Not activated for ordinary Project NDOs (e.g. open-hardware design) or mature-resource mutualisation (e.g. sharing a 3D printer) unless the application explicitly needs to govern a generative Source and its boundary effects. | REQ-SOURCE-APP-*, REQ-SOURCE-ONT-*, REQ-SOURCE-GOV-*, REQ-SOURCE-DATA-*, REQ-SOURCE-EVENT-*; REQ-USER-ST-*, REQ-UI-SOURCE-* (§4.6) | [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md) / [source-ndo-paper.md](post-mvp/source-ndo-paper.md) |
 
-**Knowledge-base context** (ontology, OVN alignment, gap analysis): [resources.md](../archives/resources.md), [agent.md](../archives/agent.md), [governance.md](../archives/governance.md), [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md). This PRD remains the anchor for MVP user stories and REQ-USER / REQ-RES / REQ-GOV IDs; NDO-wide REQ-NDO-* IDs are defined in `ndo_prima_materia.md` §9; Source-NDO REQ-SOURCE-* IDs are defined in `source-ndo-requirements.md` §8.
+**Knowledge-base context** (ontology, OVN alignment, gap analysis): [resources.md](resources.md), [agent.md](agent.md), [governance.md](governance.md), [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md). This PRD remains the anchor for MVP user stories and REQ-USER / REQ-RES / REQ-GOV IDs; NDO-wide REQ-NDO-* IDs are defined in `ndo_prima_materia.md` §9; Source-NDO REQ-SOURCE-* IDs are defined in `source-ndo-requirements.md` §8.
 
 ## 3. nondominium Resource Characteristics
 
@@ -147,7 +147,7 @@ The agent with physical possession (custodianship) of a material nondominium Res
 
 ## 4.4 Agent Ontology Requirements (Post-MVP)
 
-> **Status**: Post-MVP. Gaps identified against the OVN wiki ontology (15 years of commons-based peer production practice). See `documentation/archives/agent.md` for the full analysis. Requirements below are design targets for the generic NDO; the current MVP implements individual agents only.
+> **Status**: Post-MVP. Gaps identified against the OVN wiki ontology (15 years of commons-based peer production practice). See `documentation/requirements/agent.md` for the full analysis. Requirements below are design targets for the generic NDO; the current MVP implements individual agents only.
 
 ### Agent Type Taxonomy
 
@@ -431,7 +431,7 @@ boundary events → ledger on Source L0 hash → ecological interpretation
 
 ### 7.4 Privacy Tiers and Cross-Network Portability (Post-MVP)
 
-> **TODO**: The following requirements depend on post-MVP agent architecture (see `REQ-AGENT-12` through `REQ-AGENT-15` and `documentation/archives/agent.md` Sections 4.4–4.5).
+> **TODO**: The following requirements depend on post-MVP agent architecture (see `REQ-AGENT-12` through `REQ-AGENT-15` and `documentation/requirements/agent.md` Sections 4.4–4.5).
 
 - **REQ-PPR-13: Per-Interaction Privacy Level**: Agents must be able to choose their privacy level per interaction type: fully anonymous (no PPRs, no reputation accumulation), pseudonymous (PPRs linked to persistent pseudonym, not physical identity), or named (PPRs linked to public `Person` entry). The current model only supports named participation.
 - **REQ-PPR-14: ZKP-Compatible Reputation Sharing**: The reputation summary derived from PPRs must be ZKP-compatible, allowing agents to produce proofs of the form "I have at least N claims of type T" without revealing the counterparties, timestamps, or raw scores. This is a prerequisite for privacy-preserving meritocracy — governance access based on contribution without requiring surveillance.

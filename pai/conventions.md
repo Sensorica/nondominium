@@ -69,7 +69,7 @@ Source: `REVIEW.md` — read before proposing any PR-shaped change
 
 - Every new `#[hdk_extern]` needs a Sweettest test
 - ValueFlows: EconomicEvents must have all required fields; PPR claim types from the 16-category enum
-- Capability checks on functions that expose EncryptedProfile or role-privileged data
+- Capability checks on functions that expose PrivatePersonData or role-privileged data
 - Documentation updated per the table in `REVIEW.md §6`
 
 ## `pai/` Editing Workflow
