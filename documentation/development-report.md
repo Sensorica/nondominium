@@ -31,13 +31,11 @@ However, the NRP-CAS prototype demonstrated stability and security limitations t
 
 ### Evolution to Web 3 and Architecture Refinement
 
-The year 2025 marked a significant milestone with the initiation of TrueCommons, a Web 3 implementation designed to modernize the NRP-CAS concept. TrueCommons leverages Holochain as its underlying infrastructure and incorporates [hREA](https://hrea.io/), the Holochain-native implementation of the Valueflows ontology. The ambitious vision for TrueCommons encompassed a comprehensive implementation of Valueflows to support complete peer production processes.
+The year 2025 marked a significant milestone with the initiation of Nondominium, a Holochain implementation designed to modernize the NRP-CAS concept. Nondominium leverages Holochain as its underlying infrastructure and plans to incorporate [hREA](https://hrea.io/), the Holochain-native implementation of the Valueflows ontology. The ambitious vision for Nondominium encompassed a comprehensive implementation of Valueflows to support complete peer production processes.
 
 During the development process, a critical architectural insight emerged: the need to isolate the resource transfer mechanism as a distinct, reusable component. This recognition led to a strategic separation of concerns between two complementary systems.
 
-**Nondominium** serves as the resource transfer and flow engine, designed as an organization-agnostic system that embeds governance rules directly within resource definitions. This approach enables resources to carry their own governance parameters, ensuring that transfer protocols remain consistent regardless of organizational context.
-
-**TrueCommons** builds upon the Nondominium foundation to provide a complete peer production system. It incorporates additional capabilities including contribution accounting, benefit redistribution algorithms, and project management functionalities.
+First, **Nondominium** serves as the resource transfer and flow engine, designed as an organization-agnostic system that embeds governance rules directly within resource definitions. This approach enables resources to carry their own governance parameters, ensuring that transfer protocols remain consistent regardless of organizational context.builds upon the Nondominium foundation to provide a complete peer production system. Second, it incorporates additional capabilities including contribution accounting, benefit redistribution algorithms, and project management functionalities.
 
 ## Current Development Scope
 

@@ -2,13 +2,17 @@
 
 **Status**: Post-MVP Requirements  
 **Created**: 2026-07-01  
-**Relates to**: [`ndo_prima_materia.md`](../ndo_prima_materia.md), [`resources.md`](../resources.md), [`governance.md`](../governance.md), [`requirements.md`](../requirements.md)  
-**Academic grounding**: [`source-ndo-paper.md`](source-ndo-paper.md) (full theoretical justification, river case study, Occam's razor proof, complexity economics analysis)  
-**Sibling NDO types**: [`project-type-ndo-specifications.md`](project-type-ndo-specifications.md)
+**Relates to**: `[ndo_prima_materia.md](../ndo_prima_materia.md)`, `[resources.md](../resources.md)`, `[governance.md](../governance.md)`, `[requirements.md](../requirements.md)`  
+**Grounding**: `[source-ndo-paper.md](source-ndo-paper.md)` (full theoretical justification, river case study, Occam's razor proof, complexity economics analysis)  
+**Other docs**: `[Source-NDO-brainstorming.md](Source-NDO-brainstorming.md)`, `[source-valueflows-integration.mdd](source-valueflows-integration.md)`
+
+**Sibling NDO types**: `[project-type-ndo-specifications.md](project-type-ndo-specifications.md)`
 
 ---
 
 ## 1. Problem Statement and Ontological Position
+
+
 
 ### 1.1 The missing primitive
 
@@ -18,19 +22,21 @@ If modelled as an `EconomicResource`, the system requires a `primaryAccountable`
 
 The academic paper (`source-ndo-paper.md`) demonstrates this with Occam's razor: without the `Source` primitive, a faithful representation of a watershed under `Nondominium` governance requires **three active fictions** (false ownership, phantom `raise`, resource/agent dual-typing for pollution receivers) and **four inexpressible relations** (source hierarchy, cross-source coupling, black-box epistemics, governance reflexivity). Adding one primitive removes all seven.
 
-**`Source` is therefore a third ontological primitive**: neither resource nor person, neither property nor agent, but a generative, non-ownable, partially unknowable system that yields resources, receives ecological effects, conditions future possibilities, and accumulates the historical evidence required for its own stewardship.
+`Source` **is therefore a third ontological primitive**: neither resource nor person, neither property nor agent, but a generative, non-ownable, partially unknowable system that yields resources, receives ecological effects, conditions future possibilities, and accumulates the historical evidence required for its own stewardship.
 
 ### 1.2 Ostrom mapping
 
 The Source/Resource distinction has a direct lineage in Elinor Ostrom's Social-Ecological Systems framework:
 
-| Ostrom / SES concept | Source-NDO equivalent |
-|---|---|
-| Resource system (e.g. fishery, watershed) | **Source** |
-| Resource unit (e.g. fish, gallons of water) | **Resource** (`EconomicResource`) |
-| Governance system | Object-attached `GovernanceRule` entries (governance-as-operator) |
-| Users / actors | **Agents** |
-| Action situation | Economic events, commitments, claims |
+
+| Ostrom / SES concept                        | Source-NDO equivalent                                             |
+| ------------------------------------------- | ----------------------------------------------------------------- |
+| Resource system (e.g. fishery, watershed)   | **Source**                                                        |
+| Resource unit (e.g. fish, gallons of water) | **Resource** (`EconomicResource`)                                 |
+| Governance system                           | Object-attached `GovernanceRule` entries (governance-as-operator) |
+| Users / actors                              | **Agents**                                                        |
+| Action situation                            | Economic events, commitments, claims                              |
+
 
 The Source-NDO operationalises Ostrom's analytical categories as machine-readable accounting and governance objects — the resource system can receive and originate economic events and carry adaptive governance rules, not merely be described analytically.
 
@@ -42,7 +48,11 @@ Source-NDO is a **post-MVP** extension. It does not require breaking changes to 
 
 ---
 
+
+
 ## 2. Conceptual Model
+
+
 
 ### 2.1 Three ontological categories
 
@@ -63,23 +73,26 @@ A Source **yields** Resources (a river yields cubic metres of water when abstrac
 ### 2.2 Source as NDO
 
 In the Nondominium architecture, a Source-NDO is a `NondominiumIdentity` entry with:
+
 - `property_regime: Nondominium` (or `CommonPool` for rivalrous consumable ecological stocks)
 - `resource_nature: Physical` or `Information` (see §2.3)
 - A set of **Source-specific Layer 0 extension attributes** (§4.1)
-- **No `primaryAccountable`** — stewardship relations use `stewardedBy` links to Agent(s) with a stewardship role, never ownership
+- **No** `primaryAccountable` — stewardship relations use `stewardedBy` links to Agent(s) with a stewardship role, never ownership
 - **Governance-as-adaptive-operator** (§5): the governance loop is cybernetic rather than rule-evaluation only
 
 The Layer 0 identity hash becomes the stable anchor for the source's entire economic history — all events that extract from it, discharge into it, or restore it are linked against this hash.
 
 ### 2.3 Source type taxonomy
 
-| Source type | Examples | ResourceNature equivalent | Notes |
-|---|---|---|---|
-| **Ecological — hydrological** | Watershed, river, groundwater, wetland | `Physical` | Rivalrous; extraction and pollution compete |
-| **Ecological — biological** | Forest, fishery, soil system, biodiversity | `Physical` | Some rivalrous (fishery); some regenerative |
-| **Ecological — atmospheric** | Atmosphere, climate system | `Physical` | Assimilation capacity rivalrous |
-| **Knowledge commons** | Open-source design repository, scientific commons, language corpus | `Information` | Non-rivalrous; yields knowledge resources |
-| **Social commons** | Community, network, trust fabric | `Information` | Non-rivalrous; yields social capital and governance capacity |
+
+| Source type                   | Examples                                                           | ResourceNature equivalent | Notes                                                        |
+| ----------------------------- | ------------------------------------------------------------------ | ------------------------- | ------------------------------------------------------------ |
+| **Ecological — hydrological** | Watershed, river, groundwater, wetland                             | `Physical`                | Rivalrous; extraction and pollution compete                  |
+| **Ecological — biological**   | Forest, fishery, soil system, biodiversity                         | `Physical`                | Some rivalrous (fishery); some regenerative                  |
+| **Ecological — atmospheric**  | Atmosphere, climate system                                         | `Physical`                | Assimilation capacity rivalrous                              |
+| **Knowledge commons**         | Open-source design repository, scientific commons, language corpus | `Information`             | Non-rivalrous; yields knowledge resources                    |
+| **Social commons**            | Community, network, trust fabric                                   | `Information`             | Non-rivalrous; yields social capital and governance capacity |
+
 
 The existing `ResourceNature` enum covers Source types adequately for Layer 0 classification; a separate `SourceType` sub-classification is recommended for Layer 1 (§4.2).
 
@@ -108,7 +121,11 @@ The watershed is treated as a **black box**: its full interior is not modelled. 
 
 ---
 
+
+
 ## 3. ValueFlows Extension: `vf:Source`
+
+
 
 ### 3.1 The extension
 
@@ -117,6 +134,7 @@ Source-NDO proposes adding `vf:Source` as a typed role for flow endpoints in Val
 ### 3.2 Event types using Sources as flow endpoints
 
 **Extraction (Source as provider):**
+
 ```
 EconomicEvent {
   action: extract,
@@ -128,6 +146,7 @@ EconomicEvent {
 ```
 
 **Non-consumptive use (Source as provider of flux, not stock):**
+
 ```
 EconomicEvent {
   action: use,
@@ -138,6 +157,7 @@ EconomicEvent {
 ```
 
 **Pollution / loading (Source as receiver):**
+
 ```
 EconomicEvent {
   action: produce,
@@ -149,6 +169,7 @@ EconomicEvent {
 ```
 
 **Regeneration (Agent raises a Source):**
+
 ```
 EconomicEvent {
   action: raise,
@@ -159,23 +180,31 @@ EconomicEvent {
 → Forest.conditions(River): improved infiltration raises River.fluxRate and resilience
 ```
 
+
+
 ### 3.3 What the extension removes
 
 Adding `vf:Source` eliminates:
 
-| Fiction removed | Description |
-|---|---|
-| **False ownership claim** | No `primaryAccountable` needed; no fictional steward-as-owner |
-| **Resource-from-nowhere `raise`** | Extraction from a Source is debited against it; depletion is visible |
-| **Resource/Agent dual-typing** | Sources can receive pollution events without being attributed agency |
-| **Inexpressible source hierarchy** | `Source yields Source` is a native edge |
-| **Inexpressible cross-source coupling** | `Source conditions Source` is a native edge |
-| **Missing black-box epistemics** | `complexInterior: true` and `regimeState` encode partial knowability |
-| **Missing governance reflexivity** | Events accumulate on the Source → rules adapt → future events are conditioned |
+
+| Fiction removed                         | Description                                                                   |
+| --------------------------------------- | ----------------------------------------------------------------------------- |
+| **False ownership claim**               | No `primaryAccountable` needed; no fictional steward-as-owner                 |
+| **Resource-from-nowhere** `raise`       | Extraction from a Source is debited against it; depletion is visible          |
+| **Resource/Agent dual-typing**          | Sources can receive pollution events without being attributed agency          |
+| **Inexpressible source hierarchy**      | `Source yields Source` is a native edge                                       |
+| **Inexpressible cross-source coupling** | `Source conditions Source` is a native edge                                   |
+| **Missing black-box epistemics**        | `complexInterior: true` and `regimeState` encode partial knowability          |
+| **Missing governance reflexivity**      | Events accumulate on the Source → rules adapt → future events are conditioned |
+
 
 ---
 
+
+
 ## 4. Data Model
+
+
 
 ### 4.1 Source-specific Layer 0 attributes (extension to `NondominiumIdentity`)
 
@@ -227,19 +256,25 @@ pub enum SourceType {
 }
 ```
 
+
+
 ### 4.2 Ecological value vector (Layer 1 — informative)
 
 The ecological value of a Source is multidimensional and cannot be collapsed into one metric (aligned with IPBES Values Assessment and OVN value theory). At Layer 1, the `SourceSpecification` should support expressing:
 
-| Dimension | Description | Example metrics |
-|---|---|---|
-| **Sustenance** | Ongoing provision of economic resources | Water availability, biomass, fish population, pollination rates |
-| **Regeneration** | Capacity to restore itself and other sources | Soil formation rate, carbon sequestration, water quality recovery |
-| **Resilience** | Stabilisation of the broader socio-ecological system | Biodiversity index, redundancy, shock response |
-| **Adaptive capacity** | Ability to evolve into new viable configurations | Genetic diversity, habitat diversity, innovation potential |
-| **Generative capacity** | Capacity to produce future resources and opportunities not yet known | Ecosystem complexity, connectivity, carrying capacity |
-| **Commons value** | Significance as shared infrastructure across the agent network | Number and diversity of dependent agents, dependency ratio |
-| **Learning value** | Knowledge generated through observation and interaction | Monitoring outputs, governance improvements, model accuracy |
+
+| Dimension               | Description                                                          | Example metrics                                                   |
+| ----------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Sustenance**          | Ongoing provision of economic resources                              | Water availability, biomass, fish population, pollination rates   |
+| **Regeneration**        | Capacity to restore itself and other sources                         | Soil formation rate, carbon sequestration, water quality recovery |
+| **Resilience**          | Stabilisation of the broader socio-ecological system                 | Biodiversity index, redundancy, shock response                    |
+| **Adaptive capacity**   | Ability to evolve into new viable configurations                     | Genetic diversity, habitat diversity, innovation potential        |
+| **Generative capacity** | Capacity to produce future resources and opportunities not yet known | Ecosystem complexity, connectivity, carrying capacity             |
+| **Commons value**       | Significance as shared infrastructure across the agent network       | Number and diversity of dependent agents, dependency ratio        |
+| **Learning value**      | Knowledge generated through observation and interaction              | Monitoring outputs, governance improvements, model accuracy       |
+
+
+
 
 ### 4.3 Source-to-Source links
 
@@ -261,7 +296,11 @@ pub struct SourceCouplingLink {
 
 ---
 
+
+
 ## 5. Governance Requirements
+
+
 
 ### 5.1 Adaptive governance loop
 
@@ -290,9 +329,11 @@ This is "beyond Ostrom" in the complexity-science sense: Ostrom's design princip
 
 Source-NDOs SHALL observe the following property regime constraints:
 
-- **MUST be `Nondominium` or `CommonPool`**: `Private`, `Commons`, `Pool`, `Collective`, and `Public` regimes are inappropriate for ecological sources — they imply ownership, enclosure, or public-body dominion that the Source primitive is designed to prevent.
+- **MUST be** `Nondominium` **or** `CommonPool`: `Private`, `Commons`, `Pool`, `Collective`, and `Public` regimes are inappropriate for ecological sources — they imply ownership, enclosure, or public-body dominion that the Source primitive is designed to prevent.
 - `PropertyRegime::Nondominium` is preferred: governance-embedded uncapturability, no `primaryAccountable`.
 - `PropertyRegime::CommonPool` may apply to rivalrous consumable stock sources (e.g., a specific fish stock where the extraction quota is the primary governance mechanism).
+
+
 
 ### 5.3 Governance rule requirements (REQ-SOURCE-GOV-*)
 
@@ -312,12 +353,14 @@ Source-NDOs SHALL observe the following property regime constraints:
 
 Source-NDOs use **stewardship** rather than ownership:
 
-| Concept | Standard NDO | Source-NDO |
-|---|---|---|
-| Custodian | `EconomicResource.custodian: AgentPubKey` | Not applicable (Sources are not held in custody) |
-| Primary responsible | `primaryAccountable: AgentPubKey` | `stewardedBy: Vec<AgentPubKey>` — obligations, not rights |
-| Role type | `PrimaryAccountableAgent` | `Steward` — a new functional role for Source governance |
-| Transfer | Custody transfer event | Stewardship succession event (governance-validated) |
+
+| Concept             | Standard NDO                              | Source-NDO                                                |
+| ------------------- | ----------------------------------------- | --------------------------------------------------------- |
+| Custodian           | `EconomicResource.custodian: AgentPubKey` | Not applicable (Sources are not held in custody)          |
+| Primary responsible | `primaryAccountable: AgentPubKey`         | `stewardedBy: Vec<AgentPubKey>` — obligations, not rights |
+| Role type           | `PrimaryAccountableAgent`                 | `Steward` — a new functional role for Source governance   |
+| Transfer            | Custody transfer event                    | Stewardship succession event (governance-validated)       |
+
 
 The `Steward` role carries **obligations** (monitoring, maintaining condition indicators, processing access requests, implementing governance decisions) without conferring **alienation rights**. No steward can privatise a Source-NDO.
 
@@ -329,22 +372,30 @@ The `Steward` role carries **obligations** (monitoring, maintaining condition in
 
 ---
 
+
+
 ## 6. Lifecycle and Layer Activation
+
+
 
 ### 6.1 LifecycleStage for Source-NDOs
 
 Source-NDOs use the same `LifecycleStage` enum as other NDOs, but the semantic mapping differs:
 
-| LifecycleStage | Source-NDO meaning |
-|---|---|
-| `Ideation` | Source identified and named; Layer 0 only; minimal condition data |
-| `Specification` | Boundary conditions defined; stakeholders identified; monitoring plan drafted |
-| `Development` | Active monitoring established; governance rules being developed; stewards named |
-| `Stable` | Governance rules active; monitoring operational; event ledger accumulating |
-| `Active` | Full governance loop operational; regular rule revision cycle in place |
-| `Hibernating` | Governance temporarily paused (e.g. seasonal closure, dispute resolution in progress) |
-| `Deprecated` | Source governance superseded by a broader governance structure (e.g. a watershed-level Source-NDO supersedes a river-level one) |
-| `EndOfLife` | Irreversible loss (e.g. geological change, complete ecosystem collapse); Layer 0 tombstone preserved as historical record |
+
+| LifecycleStage  | Source-NDO meaning                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `Ideation`      | Source identified and named; Layer 0 only; minimal condition data                                                               |
+| `Specification` | Boundary conditions defined; stakeholders identified; monitoring plan drafted                                                   |
+| `Development`   | Active monitoring established; governance rules being developed; stewards named                                                 |
+| `Stable`        | Governance rules active; monitoring operational; event ledger accumulating                                                      |
+| `Active`        | Full governance loop operational; regular rule revision cycle in place                                                          |
+| `Hibernating`   | Governance temporarily paused (e.g. seasonal closure, dispute resolution in progress)                                           |
+| `Deprecated`    | Source governance superseded by a broader governance structure (e.g. a watershed-level Source-NDO supersedes a river-level one) |
+| `EndOfLife`     | Irreversible loss (e.g. geological change, complete ecosystem collapse); Layer 0 tombstone preserved as historical record       |
+
+
+
 
 ### 6.2 Layer activation
 
@@ -356,24 +407,32 @@ Source-NDOs use the same three-layer model as all NDOs:
 
 ---
 
+
+
 ## 7. PPR Integration
 
 Private Participation Receipts for Source-NDO interactions use the existing 16-category system with the following emphasis:
 
-| PPR category | Source-NDO use |
-|---|---|
-| `ValidationActivity` | Monitoring data submission, condition assessment, governance interpretation |
-| `RuleCompliance` | Compliance with extraction quotas, discharge limits, monitoring obligations |
-| `MaintenanceCommitmentAccepted` / `MaintenanceFulfillmentCompleted` | Restoration commitments (reforestation, riparian restoration, remediation) |
-| `DisputeResolutionParticipation` | Disputes about Source condition assessments or access affordances |
-| `ResourceCreation` | Registration of a new Source-NDO and initial condition assessment |
-| `GoodnFaithTransfer` | Stewardship succession — transfer of steward obligations to a new agent |
+
+| PPR category                                                        | Source-NDO use                                                              |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `ValidationActivity`                                                | Monitoring data submission, condition assessment, governance interpretation |
+| `RuleCompliance`                                                    | Compliance with extraction quotas, discharge limits, monitoring obligations |
+| `MaintenanceCommitmentAccepted` / `MaintenanceFulfillmentCompleted` | Restoration commitments (reforestation, riparian restoration, remediation)  |
+| `DisputeResolutionParticipation`                                    | Disputes about Source condition assessments or access affordances           |
+| `ResourceCreation`                                                  | Registration of a new Source-NDO and initial condition assessment           |
+| `GoodnFaithTransfer`                                                | Stewardship succession — transfer of steward obligations to a new agent     |
+
 
 Stewardship participation records (monitoring contributions, governance interpretation events, restoration work) SHALL be PPR-eligible, enabling stewards to accumulate governance standing through contribution to Source health.
 
 ---
 
+
+
 ## 8. Requirements Summary (REQ-SOURCE-*)
+
+
 
 ### 8.1 Ontological requirements
 
@@ -405,45 +464,57 @@ See §5.3 (REQ-SOURCE-GOV-01 through REQ-SOURCE-GOV-08) for the full governance 
 
 ---
 
+
+
 ## 9. Implementation Phasing (informative)
 
-| Phase | Deliverable |
-|---|---|
-| **Phase A** | `SourceProfile` entry type; `SourceType` and `SourceRegimeState` enums; Layer 0 + SourceProfile link; Source-to-Source coupling links; `Steward` role type |
-| **Phase B** | `vf:Source` event role; boundary event recording (extraction, loading, regeneration); event-triggered `current_stock` and `assimilation_capacity` updates |
+
+| Phase       | Deliverable                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Phase A** | `SourceProfile` entry type; `SourceType` and `SourceRegimeState` enums; Layer 0 + SourceProfile link; Source-to-Source coupling links; `Steward` role type                     |
+| **Phase B** | `vf:Source` event role; boundary event recording (extraction, loading, regeneration); event-triggered `current_stock` and `assimilation_capacity` updates                      |
 | **Phase C** | Adaptive governance loop: `SourceRegimeState` transitions; access affordance rules; monitoring obligation `GovernanceRule` type; precautionary blocking at `tipping_threshold` |
-| **Phase D** | Ecological value vector expression in Layer 1 `SourceSpecification`; PPR integration for stewardship participation; ZKP-compatible proof of monitoring obligation fulfilment |
-| **Phase E** | Cross-DNA source hierarchy links (watershed-level Source-NDO governing river-level Source-NDOs across different communities); federation-level source governance |
+| **Phase D** | Ecological value vector expression in Layer 1 `SourceSpecification`; PPR integration for stewardship participation; ZKP-compatible proof of monitoring obligation fulfilment   |
+| **Phase E** | Cross-DNA source hierarchy links (watershed-level Source-NDO governing river-level Source-NDOs across different communities); federation-level source governance               |
+
 
 ---
+
+
 
 ## 10. Relation to Complexity Oriented Programming
 
 Source-NDO is a direct application of COP principles (see `complexity-oriented-programming` skill):
 
-| COP principle | Source-NDO enactment |
-|---|---|
-| **Dynamic complexity matching** | Governance overhead grows from Layer 0 (Ideation, minimal) to full adaptive loop (Active); the system never requires complete ecological specification upfront |
-| **Stigmergic coordination** | Source-NDOs modify the governance environment via their ledger: stewards respond to source condition signals rather than following explicit orders |
-| **Anti-fragility** | The adaptive governance loop treats ecological stress events as information for rule revision, not as failures; the system gets better at governance as the ledger grows |
-| **Path-dependency awareness** | `SourceRegimeState` history and event ledger preserve the full trajectory; governance rules carry their provenance |
-| **Fractal composability** | Source hierarchies (watershed → river → water) use the same NDO primitives at every scale; governance principles are self-similar |
-| **Probe-sense-respond** | The governance loop is explicitly cybernetic: boundary events probe; condition monitoring senses; governance rule adaptation responds |
+
+| COP principle                   | Source-NDO enactment                                                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Dynamic complexity matching** | Governance overhead grows from Layer 0 (Ideation, minimal) to full adaptive loop (Active); the system never requires complete ecological specification upfront           |
+| **Stigmergic coordination**     | Source-NDOs modify the governance environment via their ledger: stewards respond to source condition signals rather than following explicit orders                       |
+| **Anti-fragility**              | The adaptive governance loop treats ecological stress events as information for rule revision, not as failures; the system gets better at governance as the ledger grows |
+| **Path-dependency awareness**   | `SourceRegimeState` history and event ledger preserve the full trajectory; governance rules carry their provenance                                                       |
+| **Fractal composability**       | Source hierarchies (watershed → river → water) use the same NDO primitives at every scale; governance principles are self-similar                                        |
+| **Probe-sense-respond**         | The governance loop is explicitly cybernetic: boundary events probe; condition monitoring senses; governance rule adaptation responds                                    |
+
 
 ---
 
+
+
 ## 11. Traceability
 
-| Source | Normative IDs |
-|---|---|
-| `source-ndo-paper.md` §8 (Implementation) | REQ-SOURCE-ONT-01 – -04 |
-| `source-ndo-paper.md` §4 (Black-box principle) | REQ-SOURCE-GOV-01, -03, -04 |
-| `source-ndo-paper.md` §6 (Governance loop) | REQ-SOURCE-GOV-02, -06, REQ-SOURCE-EVENT-01 – -03 |
-| Ostrom SES framework | REQ-SOURCE-ONT-01 (resource system = Source) |
-| `ndo_prima_materia.md` §4 (three-layer model) | §6 (Layer activation) |
-| `ndo_prima_materia.md` governance-as-operator | §5.1 (adaptive governance loop) |
-| `resources.md` §4.4.3 (property regimes) | REQ-SOURCE-ONT-02 |
-| `governance.md` §2.1 (governance-as-operator) | §5.1 |
+
+| Source                                         | Normative IDs                                     |
+| ---------------------------------------------- | ------------------------------------------------- |
+| `source-ndo-paper.md` §8 (Implementation)      | REQ-SOURCE-ONT-01 – -04                           |
+| `source-ndo-paper.md` §4 (Black-box principle) | REQ-SOURCE-GOV-01, -03, -04                       |
+| `source-ndo-paper.md` §6 (Governance loop)     | REQ-SOURCE-GOV-02, -06, REQ-SOURCE-EVENT-01 – -03 |
+| Ostrom SES framework                           | REQ-SOURCE-ONT-01 (resource system = Source)      |
+| `ndo_prima_materia.md` §4 (three-layer model)  | §6 (Layer activation)                             |
+| `ndo_prima_materia.md` governance-as-operator  | §5.1 (adaptive governance loop)                   |
+| `resources.md` §4.4.3 (property regimes)       | REQ-SOURCE-ONT-02                                 |
+| `governance.md` §2.1 (governance-as-operator)  | §5.1                                              |
+
 
 ---
 

@@ -61,6 +61,24 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest 
 
 > **Deprecated:** `bun run tests` runs the legacy Tryorama (TypeScript) test suite. All tests in `tests/` are deprecated. New tests must be written in Sweettest. See `tests/DEPRECATED.md`.
 
+### Known Recurring Issue: `install_app` Timeout on `bun run start` / `bun run network`
+
+**Symptom**: `[launch-happ] Failed: Error: Request timed out in 300000 ms: install_app` after the conductors report `Conductor ready.` but before `All conductors installed.`
+
+**Root cause (confirmed via diagnosis, not a bug)**: `bun run network` always runs `hc sandbox clean` first, so every launch gets a brand-new conductor data root — the WASM module-compilation cache is never warm across runs. Cold-compiling the non-deferred DNAs (`lobby` + `nondominium` + `hrea`, several MB combined) can legitimately take several CPU-bound minutes, especially on a slower or shared/throttled machine. The client-side `installApp` call can time out while the conductor is still working — this is **not an actual hang**.
+
+**How to verify it's slow-not-stuck** (before assuming a real regression): the conductor process(es) survive the script's timeout error (`pgrep -af holochain`). Query the still-running admin websocket directly instead of re-diagnosing from scratch:
+
+```js
+import { AdminWebsocket } from '@holochain/client';
+const ws = await AdminWebsocket.connect({ url: new URL('ws://localhost:<admin_port>'), defaultTimeout: 10000 });
+console.log(await ws.listApps({}));  // if "nondominium" shows up (even disabled/never_started), it's slow, not stuck
+console.log(await ws.listDnas());
+```
+Admin ports are logged as `Conductor launched #!N {"admin_port":...}` earlier in the same run's output.
+
+**Current mitigation**: `INSTALL_TIMEOUT_MS` in `scripts/launch-happ.mjs` is set to `900_000` (15 min) specifically for this. If it still times out on a given machine, bump that constant further rather than assuming zome code broke — this has recurred before purely due to slow hardware, and the fix each time is a timeout bump, not a code change. Kill any orphaned `holochain`/`lair-keystore` processes left behind by a timed-out run before retrying (`pgrep -af "holochain|lair-keystore"` then `kill`).
+
 **Test Development Tips**:
 
 1. **Test Isolation**: Use `#[ignore]` on tests not yet ready, or filter by name with `cargo test <name>`.

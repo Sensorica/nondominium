@@ -18,7 +18,15 @@ const connectionPath = path.join(root, 'ui', 'static', 'hc-connection.json');
 const happPath = path.join(root, 'workdir', 'nondominium.happ');
 const appId = 'nondominium';
 const LAIR_PASS = 'pass';
-const INSTALL_TIMEOUT_MS = 300_000;
+// `bun run network`/`bun run start` always run `hc sandbox clean` first (see
+// package.json), so every launch gets a brand-new conductor data root and
+// pays the full cold WASM-compilation cost at genesis for every non-deferred
+// DNA (lobby + nondominium + hrea) — there is no warm module cache to reuse
+// across runs. On slower/shared-CPU dev machines this has been observed to
+// take well over 5 minutes even though the conductor is not actually hung
+// (verify via `AdminWebsocket.listApps`/`listDnas` against the still-running
+// conductor if this ever times out again). 900s gives comfortable headroom.
+const INSTALL_TIMEOUT_MS = 900_000;
 const WS_ORIGIN = 'nondominium-launch';
 
 /**
