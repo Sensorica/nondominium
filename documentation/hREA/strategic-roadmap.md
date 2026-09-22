@@ -41,16 +41,18 @@ A full compliance audit against the VF 1.0 TTL ontology (`https://w3id.org/value
 - **P1:** Add `purpose` to `ReaProposal` (offer/request distinction). Required for Requests and Offers filtering.
 - **P2:** `vf:SpatialThing` as a proper entry type (replace `Option<String>` location fields); `vf:BatchLotRecord`; missing Action effect dimensions (`locationEffect`, `stageEffect`, `stateEffect`, `containedEffect`, `createResource`, `eventQuantity`).
 
-Full field-by-field gap analysis: [hREA VF 1.0 Compliance Analysis](./valueflows-1.0-compliance.md)
+**Status update, 2026-09-10.** `hREA happ-0.5.0-beta` is about to land, built on PR #408 (`feat/vf-proposal-purpose`, still open) and Holochain 0.7. Verified by reading that branch's integrity zome source directly: both P0 items close (`vf:Claim` as `rea_claim.rs` with `EconomicEvent.settles`; `effortQuantity` on `ReaEconomicEvent`), and so do four of the five P1 items (`reciprocalRealizationOf`, `reciprocalClauseOf`, `mediumOfExchange`, `substitutable`, `purpose`). Of the P2 items, `vf:SpatialThing` is added as its own entry type, though `EconomicResource.currentLocation` has not yet been migrated from a plain string to reference it. `vf:BatchLotRecord` remains genuinely absent, tracked on the PR itself as a named follow-up once the old `ProductBatch` concept was removed. The Action effect dimensions gap also remains open: `git grep` for `location_effect`, `stage_effect`, `state_effect`, `contained_effect`, `create_resource`, `event_quantity` across the branch's integrity zomes returns nothing. Full field-by-field gap analysis, plus the two corrections found while re-checking it against this update: [hREA VF 1.0 Compliance Analysis](./valueflows-1.0-compliance.md)
 
 **Stub validation implementation**
 
-Every integrity zome validation function is currently a stub returning `ValidateCallbackResult::Valid` with a `// TODO` comment. This is the most consequential correctness gap: invalid entries can be written to the DHT by any non-compliant client. Phase 1 implements, at minimum:
+Every integrity zome validation function was a stub returning `ValidateCallbackResult::Valid` with a `// TODO` comment, on the `main-0.6` state this roadmap was originally written against. This was the most consequential correctness gap: invalid entries could be written to the DHT by any non-compliant client. Phase 1 called for implementing, at minimum:
 
 - Action input/output constraint on `EconomicEvent` creation (using `get_builtin_action()`)
 - Temporal consistency: `has_beginning < has_end` where both are present
 - Quantity positivity check
 - `provider`/`receiver` presence validation for transfer actions
+
+**Status update, 2026-09-10.** PR #408 (`feat/vf-proposal-purpose`) implements this and more, verified by reading the branch: shared validators for temporal consistency, quantity non-negativity, required-string presence, VF builtin-action validity and field immutability, with create and update validation wired for `EconomicEvent`, `Commitment`, `Intent`, `EconomicResource`, `Process`, `Proposal`, `Claim`, `Unit` and `SpatialThing`. This has not yet been re-audited entry type by entry type against the full rule list this section originally called for; treat it as substantially addressed rather than exhaustively verified.
 
 This serves both the VF community (spec compliance) and any existing hREA users in production, meaning external communities who cannot absorb silent data corruption during the transition.
 

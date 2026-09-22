@@ -35,6 +35,24 @@ The most consequential gap for immediate interoperability is the absence of `vf:
 
 ---
 
+## Update: hREA v0.5.0-beta (2026-09-10)
+
+`hREA happ-0.5.0-beta` is about to land, built on Holochain 0.7 (hdk 0.7.0 / hdi 0.8.0) and on the VF 1.0 work staged in PR #408 (`h-REA/hREA`, branch `feat/vf-proposal-purpose`, still open as of this writing). Verified locally: the zomes build clean, Sweettest is 10/10 and the GraphQL acceptance battery is 65/65 against a live 0.7 conductor with `@holochain/client` 0.21.
+
+This closes most of the P0 and P1 gaps this analysis found, confirmed by reading `feat/vf-proposal-purpose`'s integrity zome source directly.
+
+**Closed:** `vf:Claim` (P0-1, `dnas/hrea/zomes/integrity/hrea/src/rea_claim.rs`) with `settles: Option<ActionHash>` added to `ReaEconomicEvent`; `effortQuantity` on `ReaEconomicEvent` (P0-2); `reciprocalRealizationOf` on `ReaEconomicEvent` (P1-1); `reciprocalClauseOf` on `ReaCommitment` (P1-2); `mediumOfExchange` and `substitutable` on `ReaResourceSpecification` (P1-3); `purpose` on `ReaProposal`, validated against `{"offer", "request"}` and made immutable on update (P1-5); `vf:SpatialThing` as `rea_spatial_thing.rs` (P2-1, see the caveat below); `vf:AgreementBundle` as `rea_agreement_bundle.rs` (P2-5). Every stub integrity validation this analysis flagged in the Validation Gaps section below is also replaced with real, DHT-wide checks on this branch: temporal consistency, quantity non-negativity, required-field presence, and VF builtin-action validity, wired for create and update on `EconomicEvent`, `Commitment`, `Intent`, `EconomicResource`, `Process`, `Proposal`, `Claim`, `Unit` and `SpatialThing` (P1-4, substantially addressed; not re-audited rule by rule here).
+
+**Caveat on SpatialThing:** the entry type exists, but `EconomicResource.currentLocation` has not been migrated from `Option<String>` to reference it; that field-level wiring is an open follow-up on the PR itself.
+
+**Still open, checked directly against `feat/vf-proposal-purpose` and found absent:** `vf:BatchLotRecord` (P2-2, the PR removes the old `ProductBatch` concept and tracks `BatchLotRecord` as a named, not-yet-implemented follow-up) and `vf:ProposalList` with `listedIn` (Missing Entity Type 5, below). The Action effect dimensions (P2-3: `locationEffect`, `stageEffect`, `stateEffect`, `containedEffect`, `createResource`, `eventQuantity`) also remain absent; `git grep` for each of those field names across the branch's integrity zomes returns nothing. `RecipeProcess.hasDuration`/`.processClassifiedAs` (P2-4) and `Agent.primaryLocation` (P2-6) were checked the same way and are also still absent.
+
+**Two corrections to this analysis**, found while checking it against `@valueflows/vf-graphql` 0.9.1-alpha.6's own schema files, unrelated to the v0.5.0-beta timing: the `vf:Agreement` section below invents properties that VF 1.0 does not have (see the note there), and the `ProposedIntent` remark under Naming and Structural Observations has the compliance direction backwards (see the note there).
+
+The module interface question (a separate axis from VF compliance, tracked in [the strategic roadmap](./strategic-roadmap.md) and [the v0.2 release plan](./v0.2-release-plan.md)) is untouched by any of this. The ~65% overall score and the per-domain breakdown above predate this update and have not been recalculated; that recalculation should wait until `happ-0.5.0-beta` is tagged and the pieces above are confirmed against a released build rather than an open PR branch.
+
+---
+
 ## Methodology
 
 Analysis performed by:
@@ -88,6 +106,8 @@ These VF 1.0 classes have **no corresponding entry type** in hREA `main-0.6`.
 
 **Implementation path:** Add `ReaClaim` integrity entry type; add `settles: Option<Vec<ActionHash>>` to `ReaEconomicEvent`.
 
+**Status (2026-09-10):** closed in hREA v0.5.0-beta. See the Update section above.
+
 ---
 
 ### 2. `vf:SpatialThing` (P1)
@@ -101,6 +121,8 @@ These VF 1.0 classes have **no corresponding entry type** in hREA `main-0.6`.
 **Impact:** Interoperability with location-aware VF clients or Bonfire's SpatialThing support is broken. Cross-system queries on location cannot be typed.
 
 **Implementation path:** Add `ReaSpatialThing` entry type. Replace `*_location: Option<String>` fields with `*_location: Option<ActionHash>` referencing a `ReaSpatialThing`.
+
+**Status (2026-09-10):** the entry type closes in hREA v0.5.0-beta (`rea_spatial_thing.rs`). `EconomicResource.current_location` has not been migrated from `Option<String>` to reference it; that field-level wiring is still open on the PR itself.
 
 ---
 
@@ -116,6 +138,8 @@ These VF 1.0 classes have **no corresponding entry type** in hREA `main-0.6`.
 
 **Implementation path:** Add `ReaBatchLotRecord` entry type. Change `lot: Option<String>` to `of_batch_lot: Option<ActionHash>` on `ReaEconomicResource`.
 
+**Status (2026-09-10):** still genuinely absent. hREA v0.5.0-beta removes the old `ProductBatch` concept and tracks `BatchLotRecord` as its own named follow-up, not yet implemented.
+
 ---
 
 ### 4. `vf:AgreementBundle` (P2)
@@ -128,6 +152,8 @@ These VF 1.0 classes have **no corresponding entry type** in hREA `main-0.6`.
 
 **Implementation path:** Add `ReaAgreementBundle` entry type; add `bundled_in: Option<ActionHash>` to `ReaAgreement`.
 
+**Status (2026-09-10):** the entry type closes in hREA v0.5.0-beta (`rea_agreement_bundle.rs`). Whether `bundled_in` was also added to `ReaAgreement` itself was not checked.
+
 ---
 
 ### 5. `vf:ProposalList` (P2)
@@ -135,6 +161,8 @@ These VF 1.0 classes have **no corresponding entry type** in hREA `main-0.6`.
 **VF 1.0 definition:** "Grouping of proposals for publishing."
 
 **Current hREA state:** No equivalent. `ReaProposal` has no `listed_in` field.
+
+**Status (2026-09-10):** still genuinely absent. Checked directly against `feat/vf-proposal-purpose`: no mention of `ProposalList` or `listed_in` anywhere in that branch's `dnas/hrea` tree.
 
 **Impact:** Marketplace-style proposal catalogues (e.g., hAppenings Requests & Offers grouped by category) cannot be expressed at the VF ontology level.
 
@@ -286,15 +314,17 @@ Extra hREA fields: `name`, `has_beginning`, `has_end`, `created`, `note`.
 
 ### `vf:Agreement` / `ReaAgreement`
 
-| VF 1.0 Property           | hREA Field    | Status      | Notes                                       |
-| ------------------------- | ------------- | ----------- | ------------------------------------------- |
-| `vf:stipulates`           | _(via links)_ | PARTIAL     | Relationship exists via Commitment.clauseOf |
-| `vf:stipulatesReciprocal` | _(absent)_    | **MISSING** | Second side of bilateral agreement          |
-| `vf:realizes`             | _(via links)_ | PARTIAL     | Inverse: EconomicEvent.realizationOf        |
-| `vf:realizesReciprocal`   | _(absent)_    | **MISSING** | Second side of bilateral realization        |
-| `vf:bundledIn`            | _(absent)_    | **MISSING** | AgreementBundle reference                   |
+**Correction (2026-09-10):** the table below invented three properties, `vf:stipulates`, `vf:stipulatesReciprocal` and `vf:realizesReciprocal`, that do not exist in VF 1.0. Checked directly against `@valueflows/vf-graphql` 0.9.1-alpha.6's `schemas/agreement.gql` and its `schemas/bridging/*.agreement.gql` files: VF 1.0's `Agreement` is `{id, revisionId, name, created, note}`, with `commitments` (the inverse of `Commitment.clauseOf`) and `economicEvents`/`unplannedEconomicEvents` (the inverse of `EconomicEvent.realizationOf`) added by the bridging modules. `grep -rn "stipulates\|realizes\b"` across the whole `@valueflows/vf-graphql` schema tree returns nothing. There is no party-bound stipulation or realization pair, bilateral or otherwise, anywhere in the current ontology. The claim that `ReaAgreement` is "severely under-specified" was wrong: its `name`/`created`/`note` fields match VF 1.0's `Agreement` field-for-field.
 
-hREA `ReaAgreement` has only `name`, `created`, `note`. Agreement is severely under-specified relative to VF 1.0. Bilateral exchange workflows (standard in OVN contexts) cannot be fully expressed.
+| VF 1.0 property (corrected)        | hREA field                                                 | Status      | Notes                                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------ |
+| `clauseOf` (on Commitment)          | `clause_of: Option<ActionHash>` on `ReaCommitment`            | PRESENT     | Correct VF 1.0 name; the original table's `vf:stipulates` is not a real VF 1.0 property                |
+| `realizationOf` (on EconomicEvent)  | `realization_of: Option<ActionHash>` on `ReaEconomicEvent`    | PRESENT     | Correct VF 1.0 name; the original table's `vf:realizes` is not a real VF 1.0 property                  |
+| (no VF 1.0 equivalent)              | n/a                                                            | N/A         | `vf:stipulatesReciprocal` is not a VF 1.0 property; bilateral reciprocity is `Commitment.reciprocalClauseOf` (Commitment table above), not an Agreement-side field |
+| (no VF 1.0 equivalent)              | n/a                                                            | N/A         | `vf:realizesReciprocal` is not a VF 1.0 property; there is no reciprocal counterpart to `realizationOf` on Agreement |
+| `vf:bundledIn`                      | _(absent on `main-0.6`)_                                       | **MISSING**, closed in hREA v0.5.0-beta | `rea_agreement_bundle.rs` on `feat/vf-proposal-purpose` adds `ReaAgreementBundle`; whether `bundled_in` was also added to `ReaAgreement` itself was not checked |
+
+Bilateral exchange (the "I commit to X in exchange for Y" pattern OVN contexts need) is expressed through `Commitment.reciprocalClauseOf`, not through a bilateral Agreement. That field closes in hREA v0.5.0-beta (P1-2, see the Update section above).
 
 ---
 
@@ -409,13 +439,15 @@ These are not gaps but noteworthy observations for maintainers.
 
 **`agreed_in: Option<String>` on EconomicEvent and Commitment.** This field does not appear in the VF 1.0 ontology. It appears to be a legacy field or a custom extension. Its semantics overlap with `realization_of (Agreement)`. Clarify intent and either map it to a proper VF property or document it as an hREA extension.
 
-**Proposal embeds `publishes` and `reciprocal` inline.** VF 1.0 expresses these as relationships via ProposedIntent (`vf:publishedIn`). hREA stores them as `Vec<ActionHash>` directly on Proposal. This is a denormalized approach that works but diverges from the VF graph model. ProposedIntent as a separate entity is missing.
+**Correction (2026-09-10): this had the compliance direction backwards.** `ProposedIntent` was removed from ValueFlows in the VF 1.0 refactor, along with `Fulfillment` and `Satisfaction` (`@valueflows/vf-graphql` CHANGELOG, entry `0.9.1-alpha.0`: "Removed `proposedIntent`", "Removed `satisfaction`", "Removed `fulfillment`"). VF 1.0's `Proposal` carries `publishes: [Intent!]!` and `reciprocal: [Intent!]!` as direct fields (`schemas/proposal.gql`), exactly what `ReaProposal` implements as `publishes: Option<Vec<ActionHash>>` and `reciprocal: Option<Vec<ActionHash>>`. hREA's direct-field approach is the VF 1.0 compliant one, not a divergence from it. There is no `ProposedIntent` entity to be missing.
 
 **`RecipeExchange` vs `Recipe`.** VF 1.0 defines a `vf:Recipe` class (with `recipeIncludes` and `primaryOutput`) distinct from `vf:RecipeExchange`. hREA's `ReaRecipeExchange` maps to VF's `RecipeExchange` but there is no equivalent of VF's `Recipe` wrapper class in hREA. If recipes need a primary output specification, this wrapper is needed.
 
 ---
 
 ## Recommendations
+
+**Status (2026-09-10):** P0-1, P0-2, P1-1, P1-2, P1-3, P1-5, P2-1 and P2-5 close in hREA v0.5.0-beta; P1-4 is substantially addressed. P2-2, P2-3, P2-4 and P2-6 remain open, confirmed still absent by reading `feat/vf-proposal-purpose` directly. Detail and citations: the Update section near the top of this document.
 
 ### P0 — Critical (breaks core VF workflows)
 
