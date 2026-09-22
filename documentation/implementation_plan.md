@@ -28,7 +28,7 @@ This index is the entry point for phased delivery. **Current implementation base
 | [requirements/resources.md](requirements/resources.md) | Resource ontology — implemented vs planned; Layer 1 activation gap; governance defaults from `PropertyRegime` × `ResourceNature` (non-normative REQ IDs) |
 | [post-mvp/project-type-ndo-specifications.md](requirements/post-mvp/project-type-ndo-specifications.md) | Structured know-how bundles for project-type NDOs (OSHWA / Open Know-How → Layer 1 assets); lifecycle-matched completeness |
 | [post-mvp/source-ndo-requirements.md](requirements/post-mvp/source-ndo-requirements.md) | **Source-NDO (optional profile)** — `Source` as third flow endpoint when an application governs generative systems; `SourceProfile`, adaptive loop, `vf:Source` (REQ-SOURCE-*); applicability REQ-SOURCE-APP-* in [requirements.md §4.6](requirements/requirements.md) |
-| [post-mvp/Source-NDO.md](requirements/post-mvp/Source-NDO.md) | Paper planning scaffold — thesis, Ostrom/VF argument structure (informative) |
+| [post-mvp/Source-NDO-brainstorming.md](requirements/post-mvp/Source-NDO-brainstorming.md) | Paper planning scaffold — thesis, Ostrom/VF argument structure (informative) |
 | [post-mvp/source-ndo-paper.md](requirements/post-mvp/source-ndo-paper.md) | Academic grounding: Occam's razor proof, river case study, Ostrom SES mapping (informative) |
 | [post-mvp/ndo-versioning.md](requirements/post-mvp/ndo-versioning.md) | Version DAG — **REQ-NDO-L1-03** (multiple `ResourceSpecification` links per NDO identity) |
 | [post-mvp/digital-resource-integrity.md](requirements/post-mvp/digital-resource-integrity.md) | Content-addressed manifests, composable verification — **REQ-NDO-L1-06** `DigitalAsset` capability slots (prima materia §9.2) |

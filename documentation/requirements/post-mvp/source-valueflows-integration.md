@@ -2,7 +2,7 @@
 
 **Status**: Post-MVP design (implementation-informing)  
 **Created**: 2026-07-05  
-**Relates to**: `[source-ndo-requirements.md](source-ndo-requirements.md)`, `[Source-NDO.md](Source-NDO.md)`, `[ndo_prima_materia.md](../ndo_prima_materia.md)`, `[specifications.md](../../specifications/specifications.md)`  
+**Relates to**: `[source-ndo-requirements.md](source-ndo-requirements.md)`, `[Source-NDO-brainstorming.md](Source-NDO-brainstorming.md)`, `[ndo_prima_materia.md](../ndo_prima_materia.md)`, `[specifications.md](../../specifications/specifications.md)`  
 **Normative requirements**: REQ-SOURCE-* in `[source-ndo-requirements.md](source-ndo-requirements.md)`
 
 ---
@@ -119,7 +119,7 @@ Using Valueflows 1.0 as-is for a watershed commons produces:
 3. **Black-box epistemics** — no construct for "interior opaque; govern boundary only."
 4. **Governance reflexivity** — events → policy → access rules cannot close on the ecological object itself.
 
-See `Source-NDO.md` [§3–§5](Source-NDO.md) for the full river/watershed worked comparison and Occam's-razor analysis.
+See `Source-NDO-brainstorming.md` [§3–§5](Source-NDO-brainstorming.md) for the full river/watershed worked comparison and Occam's-razor analysis.
 
 ## 1.4 The `vf:Source` proposal
 
@@ -975,7 +975,7 @@ R-2026-03: { max_load_kg_per_month: 10, source: ndo:river, pollutant: "heavy_met
 | Document                                                             | Role                                                 |
 | -------------------------------------------------------------------- | ---------------------------------------------------- |
 | `[source-ndo-requirements.md](source-ndo-requirements.md)`           | Normative REQ-SOURCE-* requirements                  |
-| `[Source-NDO.md](Source-NDO.md)`                                     | Academic grounding, river case study, Occam analysis |
+| `[Source-NDO-brainstorming.md](Source-NDO-brainstorming.md)`                                     | Academic grounding, river case study, Occam analysis |
 | `[ndo_prima_materia.md](../ndo_prima_materia.md)`                    | NDO three-layer model, Layer 0 invariants            |
 | `[specifications.md](../../specifications/specifications.md)`        | MVP `EconomicEvent`, governance-as-operator          |
 | [Valueflows specification](https://github.com/valueflows/valueflows) | VF 1.0 ontology baseline                             |

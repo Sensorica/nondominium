@@ -26,8 +26,9 @@
 - [Open Know-How / IOPA](requirements/post-mvp/open-know-how-iopa.md)
 - [Project-Type NDO Specifications](requirements/post-mvp/project-type-ndo-specifications.md)
 - [Resource Transport Flow Protocol](requirements/post-mvp/resource-transport-flow-protocol.md)
-- [Source-NDO (planning scaffold)](requirements/post-mvp/Source-NDO.md)
+- [Source-NDO (planning scaffold)](requirements/post-mvp/Source-NDO-brainstorming.md)
 - [Source-NDO Paper](requirements/post-mvp/source-ndo-paper.md)
+- [Source-NDO Paper (second draft)](requirements/post-mvp/source-ndo-paper2.md)
 - [Source-NDO Requirements](requirements/post-mvp/source-ndo-requirements.md)
 - [Source / ValueFlows Integration](requirements/post-mvp/source-valueflows-integration.md)
 - [ValueFlows DSL](requirements/post-mvp/valueflows-dsl.md)
@@ -108,7 +109,9 @@
 - [ERP Holochain Bridge](Applications/erp_holochain_bridge.md)
 - [HealthNet](Applications/healthnet.md)
 - [Regenerative Farming](Applications/regen_farming.md)
+- [Social Forests Protocol](Applications/social-forests-protocol.md)
 - [Strategic Development](Applications/strategic_development.md)
+- [Water Stewarding](Applications/water-stewarding.md)
 
 ## User Stories
 
@@ -130,7 +133,6 @@
 
 # Research & Archives
 
-- [P2P Models Comparison](archives/P2PMODELS_COMPARISON_REPORT.md)
 - [Nondominium Mutualization](archives/nondominium_mutualization.md)
 - [Digital Fabrics Concept](archives/digital_fabrics_concept_definition_2025-10-28.md)
 - [Holochain Storage Verification Patterns](archives/holochain-storage-verification-patterns.md)
