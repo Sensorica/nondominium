@@ -125,8 +125,126 @@ At the Lobby level the User can be anyone. At this level the User creates a Lobb
 
 
 
+## Perspectives (Next)
+
+A **Perspective** is a lens on the DHT data, each with its own focus, filters and default tools. The Agent is always in exactly one Perspective and can jump between them (see [Cross-Perspective Navigation](#cross-perspective-navigation)). There are four Perspectives:
+
+| Perspective | Question it answers | Centre of gravity |
+|---|---|---|
+| 📦 **Resource** | What can I use, borrow, offer or manage? | Resources (NDOs) |
+| 👥 **Agent** | Who can I connect or collaborate with? | Agents and Groups |
+| 🧭 **Intelligence** | Where should I allocate my time and resources strategically? | Opportunities beyond the Agent's current sphere |
+| 🛠️ **Work** | What do I work on today, and with whom? | Project-type NDOs the Agent belongs to |
+
+### 📦 **Resource Perspective**
+
+Resource-centric view of the DHT.
+
+- **Use cases**: find a resource to use or borrow; offer a resource (by creating a new NDO); manage resources the Agent owns, custodies or maintains.
+- **Sources**: may be included to the extent a Resource is linked to a Source (e.g. a gallon of water from a river).
+- **Expanded resource view**: shows linked Agents and their capacity (e.g. Custodian, Repair agent). Clicking one jumps to the Agent Perspective.
+
+```yaml
+resource_view:
+  focus_filter: resource_type | nature | regime | lifecycle_stage
+  group_by: category | status | source
+  layout: cluster_hierarchy
+```
+
+### 👥 **Agent Perspective**
+
+Agent-centric view of the DHT.
+
+- **Use cases**: find Agents by skills; invite Agents to collaborate on a project; discover Groups and decide to join them.
+- **Navigation**: opening an Agent profile shows the Agents connected to them (collaborations, shared groups, roles on resources), enabling chained exploration.
+
+```yaml
+agent_view:
+  focus_filter: skills | collaboration_potential | group_membership
+  relationship_mapping: trust_network
+  layout: network_graph
+```
+
+### 🧭 **Intelligence Perspective** _(formerly Role Perspective)_
+
+Strategic decision-support view. Helps the Agent decide where to allocate time and resources. Unlike the Work Perspective, it gathers information from **outside** the Agent's current sphere of activity.
+
+- **Personalised filtering**: data is filtered by the Agent's role, skills, reputation (PPR) and past interactions.
+- **Navigable contexts**: Groups, project-type NDOs, and other possible collaboration or work contexts, including ones the Agent has not joined.
+- **Discovery and assessment**: find new Groups and projects and assess how relevant they are before joining.
+- **Tools invocable here**: simulations (e.g. benefit-redistribution algorithms), geographic mapping, and other decision tools.
+
+```yaml
+intelligence_view:
+  focus_filter: role_fit | skills_match | reputation | past_interactions
+  scope: outside_current_activity
+  tools: [simulation, map, ...]
+  layout: ranked_opportunities
+```
+
+### 🛠️ **Work Perspective** _(new)_
+
+Project-centric view of the Agent's **active** engagements.
+
+- **Project list**: all project-type NDOs the Agent has subscribed to or contributed to. Selecting one opens its collaboration tools.
+- **Per-project tools**: kanban board, tasks, planning; commit to work, take a task, log contributions; coordinate with other Agents on the development of the NDO.
+- **Stigmergic signals** across projects: which projects are active or need attention, invitations to contribute, calls for decision-making. These help the Agent choose what to work on today.
+- **Joining**: a project joined from the Intelligence Perspective lands here.
+
+```yaml
+work_view:
+  focus_filter: subscribed | contributed
+  panels: [project_list, kanban, planning, contributions, signals]
+  priority_order: attention_needed | invitations | activity
+  layout: project_workspace
+```
+
+### 🧰 **Tools (cross-perspective)**
+
+Tools are not Perspectives; they can be invoked from any Perspective and applied to that Perspective's data. The **Geographic map** maps Resources, Agents, Groups or Projects, depending on where it is opened. Other tools: simulations, kanban (Work), filters and search.
+
+### Cross-Perspective Navigation
+
+Perspectives are connected by **contextual jumps** carrying the current entity (resource, agent, project, group) along.
+
+| From | Trigger | To |
+|---|---|---|
+| Work | "Discover new projects" action | Intelligence |
+| Intelligence | Join a discovered project | Work (project opens in context) |
+| Resource | Click a linked Agent (Custodian, Repair agent, ...) in the expanded resource view | Agent (that Agent's profile and connections) |
+| Agent | Click a resource linked to the Agent | Resource |
+| Agent / Intelligence | Join a discovered Group | Work or Group panel |
+
+**Return path**: every jump pushes an entry on a **navigation trail** (breadcrumb across Perspectives, e.g. `Resource: Drill press → Agent: Alice → Groups`). A persistent "Back to <origin>" control and the breadcrumb let the Agent resume the original exploration, with its filters and scroll position preserved.
+
+**Perspective switcher**: always visible; besides switching manually, the UI offers contextual hints (a button or badge) when another Perspective is relevant to the current task.
+
+### Perspectives ToDos
+
+> **Status: imminent work** (next after the MVP ToDos above). Start with the navigation skeleton, then fill each Perspective incrementally; Perspectives that depend on missing backend data ship first as thin, filtered views over existing Lobby / Group / NDO data.
+
+1. **Perspective switcher** — persistent shell control (Resource · Agent · Intelligence · Work) and one route per Perspective; the current Browse NDOs page becomes the seed of the Resource Perspective.
+2. **Navigation trail** — cross-Perspective history stack with breadcrumb and "Back to <origin>"; restores filters and scroll of the origin view.
+3. **Contextual jumps** — implement the jump table above (linked Agent → Agent Perspective, Work ↔ Intelligence, joined project → Work), plus contextual "you may want Perspective X" hints.
+4. **Resource Perspective** — extend NDO expanded view with linked Agents and their capacity (Custodian, Repair agent, ...); offer/create NDO entry point; Sources as linked context.
+5. **Agent Perspective** — Agent profile view (pseudonymous, per the identity model), connected Agents, skills search, Group discovery via Lobby announcements.
+6. **Intelligence Perspective** — first version: ranked discovery of Groups and project-type NDOs outside the Agent's current sphere, filtered by role / skills / reputation / past interactions; tool slot for simulations.
+7. **Work Perspective** — project list (subscribed or contributed), per-project workspace (kanban, tasks, commit / take task / log contribution), stigmergic attention signals.
+8. **Tools registry** — perspective-agnostic tool host; Geographic map as the first tool, invocable from any Perspective.
+
+**Dependencies / open points**
+
+- **Project-type NDO**: how a project is identified (e.g. a `resource_nature` / NDO type marker) must be decided before Work and Intelligence can filter on it.
+- **Skills, reputation, past interactions**: depend on Person data and PPR zome functions still in progress; use placeholders until then.
+- **Stigmergic signals and invitations**: need push reactivity (Holochain remote signals, `TODO(signals)`); pull-based polling as interim.
+- **Per-Perspective data scope**: Resource and Work read the Agent's own groups; Agent and Intelligence need cross-group / Lobby-level discovery beyond the current "own groups only" rule.
+
+Technical mapping: `documentation/specifications/ui_architecture.md § 16`.
+
+---
+
 ## Post MVP
-This section is about UI improvements after a functional MVP.
+This section is about UI improvements after a functional MVP. The visual language below (layers, entities, proximity) is applied on top of the [Perspectives](#perspectives-next) defined above.
 
 ### Core Design Philosophy
 
@@ -163,56 +281,6 @@ This section is about UI improvements after a functional MVP.
 - **Opacity**: 0.4-0.7, 2-4px blur
 - **Content**: Overview of entire resource network
 - **Interaction**: Hover preview, click to refocus meso layer
-
-### Perspective Types
-
-#### 👷 **Role Perspective**
-
-Agent sees resources relevant to their role/capabilities
-
-```yaml
-maintainer_role:
-  focus_filter: needs_maintenance = true
-  priority_order: urgency_level
-  color_scheme: earth_tones
-  layout: spatial_proximity
-```
-
-#### 📦 **Resource Perspective**
-
-Focus on specific resource types or categories
-
-```yaml
-resource_view:
-  focus_filter: resource_type = selected
-  group_by: category | location | status
-  color_scheme: resource_type_colors
-  layout: cluster_hierarchy
-```
-
-#### 👥 **Agent Perspective**
-
-Social/collaborative view of other agents
-
-```yaml
-social_view:
-  focus_filter: collaboration_potential
-  relationship_mapping: trust_network
-  color_scheme: relationship_strength
-  layout: network_graph
-```
-
-#### 📍 **Geographic Perspective**
-
-Location-based resource organization
-
-```yaml
-geographic_view:
-  focus_filter: spatial_proximity
-  center_point: agent_location
-  radius: role_responsibility_area
-  layout: concentric_circles
-```
 
 ### Visual Design System
 
