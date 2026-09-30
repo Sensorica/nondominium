@@ -603,14 +603,18 @@ A **Perspective** is a lens (filters, default tools, layout) over data already r
 
 ### 16.1 Perspectives and data sources
 
-| Perspective | Route | Primary data | Backing services |
-|---|---|---|---|
-| Resource | `/resource` | NDOs across own groups; linked Agents (custodian, repair, ...); Sources | `NdoServiceTag`, `LobbyServiceTag`, `PersonServiceTag` |
-| Agent | `/agent`, `/agent/[pubkey]` | Agent profiles, group members, skills, Group announcements | `PersonServiceTag`, `GroupServiceTag`, `LobbyServiceTag` |
-| Intelligence | `/intelligence` | Groups and project-type NDOs, incl. ones outside the agent's own groups; role / skills / reputation (PPR) / interaction history | `LobbyServiceTag`, `NdoServiceTag`, `GovernanceServiceTag` (PPR) |
-| Work | `/work`, `/work/[projectHash]` | Project-type NDOs the agent subscribed to or contributed to; tasks, commitments, contributions, stigmergic signals | `NdoServiceTag` (`joinNdo` / `getNdoMembers`), `GovernanceServiceTag`, `GroupServiceTag` |
+Each Perspective has a **base primitive** and answers "what is the agent doing?" (see `ui_design.md § Perspectives`).
 
-Known gaps to close first: (1) a way to identify **project-type NDOs**; (2) cross-group / Lobby-level discovery — today the Lobby only aggregates the agent's *own* groups; (3) skills / reputation data (Person + PPR still in progress); (4) push signals for Work's stigmergic feed (pull-based polling as interim, see § 8).
+| Perspective | Route | Base primitive | Primary data | Backing services |
+|---|---|---|---|---|
+| Resource | `/resource` | Resource (NDO) | NDOs across own groups; linked Agents (custodian, repair, ...); Sources and the Source view | `NdoServiceTag`, `LobbyServiceTag`, `PersonServiceTag` |
+| Agent | `/agent`, `/agent/[pubkey]` | Agent (incl. Groups) | Agent profiles, group members, skills, relationship graph, Group announcements | `PersonServiceTag`, `GroupServiceTag`, `LobbyServiceTag` |
+| Intelligence | `/intelligence` | Projects / organizations beyond the current sphere | Groups and project-type NDOs, incl. outside the agent's own groups; role / skills / reputation (PPR) / interaction history; project-declared benefits; MCP assistant | `LobbyServiceTag`, `NdoServiceTag`, `GovernanceServiceTag` (PPR) |
+| Work | `/work`, `/work/[projectHash]` | Process / work item, scoped to a resource, project or group | Project-type NDOs the agent subscribed to or contributed to; tasks, commitments, contributions, stigmergic signals | `NdoServiceTag` (`joinNdo` / `getNdoMembers`), `GovernanceServiceTag`, `GroupServiceTag` |
+
+**Progressive layering**: within a Perspective, a view starts from its primitive and adds layers on demand (e.g. Resource: communities → local map → users → owner organization). Layers are modelled as an ordered list in each Perspective's view config, not as separate routes.
+
+Known gaps to close first: (1) a way to identify **project-type NDOs**; (2) **project-declared benefits** must be added to the project-type NDO specification (`requirements/post-mvp/project-type-ndo-specifications.md`) before Intelligence can assess them; (3) cross-group / Lobby-level discovery — today the Lobby only aggregates the agent's *own* groups; (4) skills / reputation data (Person + PPR still in progress); (5) push signals for Work's stigmergic feed (pull-based polling as interim, see § 8); (6) an MCP server exposing the agent's profile and project data for the Intelligence assistant.
 
 ### 16.2 State
 
@@ -647,13 +651,13 @@ Tools are **not** Perspectives. A small tool registry (`tools/registry.ts`) lets
 
 ```typescript
 interface PerspectiveTool<T> {
-  id: string;                          // 'map', 'simulation', 'kanban', ...
+  id: string;                          // 'map', 'chat', 'simulation', 'kanban', ...
   accepts: (kind: EntityKind) => boolean;
   component: Component<{ entities: T[]; onSelect: (e: T) => void }>;
 }
 ```
 
-The **Geographic map** is the first tool (it replaces the former Geographic Perspective): opened from Resource it maps NDOs, from Agent it maps Agents, from Intelligence it maps opportunities. Kanban is Work-scoped; simulations (e.g. benefit redistribution) are primarily hosted by Intelligence.
+The **Chat** tool (direct contact with an Agent, possibly via the Capability Surface) is available from several Perspectives. The **Geographic map** is the first tool (it replaces the former Geographic Perspective): opened from Resource it maps NDOs, from Agent it maps Agents, from Intelligence it maps opportunities. Kanban is Work-scoped; simulations (time-allocation portfolio, benefit redistribution) are primarily hosted by Intelligence, next to the MCP-based assistant.
 
 ### 16.5 Component / file plan
 
@@ -668,3 +672,7 @@ The **Geographic map** is the first tool (it replaces the former Geographic Pers
 | `ToolHost` | `tools/ToolHost.svelte` | Mounts registered tools in any Perspective |
 
 Implementation order follows `ui_design.md § Perspectives ToDos`: switcher and trail first, then Resource (reusing `NdoBrowser`), Agent, Intelligence, Work.
+
+### 16.6 Community-specific implementations (later)
+
+Community-specific UIs (terminology → workflows → visuals) sit on top of the four base Perspectives; ValueFlows stays the background vocabulary. Architecturally this implies a **dictionary layer**: a per-community mapping from display terms to the base vocabulary, consulted by components instead of hard-coded labels (so new base components should already route user-facing terms through a single `t()`-style lookup). How this relates to the Surface / Surface Attachment (capability slots) is to be specified; see `ui_design.md § Community-Specific Implementations`. Higher-level interoperability concerns are parked (`ui_design.md § Future Reflection`).
