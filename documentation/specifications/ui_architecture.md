@@ -34,7 +34,7 @@ On top of this hierarchy, the **next** UI iteration adds a cross-cutting **Persp
 | Language               | TypeScript (strict mode)                                                        |
 | Styling                | UnoCSS (atomic CSS, preset-wind)                                                |
 | Headless components    | Melt UI next-gen (`melt`)                                                       |
-| Async / error handling | Effect-TS (`effect` package) — `Context.Tag`, `Layer`, `E.gen`                  |
+| Async / error handling | Effect-TS 4 (`effect` 4.0.0): `Context.Service`, `Layer`, `E.gen`, `Result`     |
 | Holochain client       | `@holochain/client` ^0.20.0                                                     |
 | Shared types           | `@nondominium/shared-types` (workspace package)                                 |
 | Build                  | Vite 7                                                                          |
@@ -59,27 +59,31 @@ On top of this hierarchy, the **next** UI iteration adds a cross-cutting **Persp
 │         UserProfileForm                                          │
 │ group/: GroupView, NdoCreateModal, GroupProfileModal, MemberList │
 │ ndo/:   NdoView, NdoIdentityLayer, LifecycleTransitionModal,     │
-│         TransitionHistoryPanel, ForkNdoModal                     │
+│         TransitionHistoryPanel, ForkNdoModal, tabs               │
 │ shell/: Sidebar (global nav)                                     │
+│ Read store state, call store commands. Never import `effect`     │
+│ or `$lib/services` (I1).                                         │
 └──────────────────────────────────────────────────────────────────┘
                                 ↓
 ┌──────────────────────────────────────────────────────────────────┐
-│ STORES (Svelte 5 $state + Effect-TS)                             │
-│ app.context.svelte.ts   — cross-view app state                   │
-│ lobby.store.svelte.ts   — Lobby-level NDOs, groups, filters      │
-│ group.store.svelte.ts   — Group-scoped NDOs                      │
-│ resource.store.svelte.ts — ResourceSpecification list            │
+│ STORES (Svelte 5 $state + Effect-TS 4)                           │
+│ app.context.svelte.ts:   cross-view app state                  │
+│ lobby.store.svelte.ts:   Lobby-level NDOs, groups, filters     │
+│ group.store.svelte.ts:   Group-scoped NDOs                     │
+│ ndo.store.svelte.ts:     one instance per open NDO (context)   │
+│ resource / governance / person / connection stores               │
+│ The only callers of services. Layers are provided once at module │
+│ scope. No store imports another store (I2).                      │
 └──────────────────────────────────────────────────────────────────┘
-                                ↓
-┌──────────────────────────────────────────────────────────────────┐
-│ SERVICES (Effect-TS Context.Tag / Layer)                         │
-│ person.service.ts    — PersonServiceTag / PersonServiceLive      │
-│ resource.service.ts  — ResourceServiceTag / ResourceServiceLive  │
-│ governance.service.ts — GovernanceServiceTag / Live              │
-│ ndo.service.ts       — NdoServiceTag / NdoServiceLive            │
-│ lobby.service.ts     — LobbyServiceTag / LobbyServiceLive        │
-│ group.service.ts     — GroupServiceTag / GroupServiceLive (stub) │
-└──────────────────────────────────────────────────────────────────┘
+        ↓ calls                                  ↓ imports
+┌────────────────────────────────────┐ ┌───────────────────────────┐
+│ SERVICES (Context.Service / Layer) │ │ DOMAIN (pure TypeScript)  │
+│ person / resource / governance /   │ │ entity-state.ts           │
+│ ndo / lobby / group .service.ts    │ │ lifecycle.ts              │
+│ *ServiceTag / *ServiceLive /       │ │ ndo-filters.ts            │
+│ *ServiceResolved                   │ │ Imports no svelte, effect,│
+│                                    │ │ services or stores (I3).  │
+└────────────────────────────────────┘ └───────────────────────────┘
                                 ↓
 ┌──────────────────────────────────────────────────────────────────┐
 │ HOLOCHAIN CLIENT                                                 │
@@ -94,6 +98,8 @@ On top of this hierarchy, the **next** UI iteration adds a cross-cutting **Persp
 │ ndo DNA (cloned per NDO, #112) · hrea DNA (vendored)             │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+Dependencies only point down: routes render components, components read stores, stores call services, services call the Holochain client. The domain layer sits beside the services and is imported by stores and components. The three rules that keep it that way are enforced by a script (see [§17](#17-architecture-invariants)).
 
 ---
 
@@ -258,7 +264,7 @@ Cross-view singleton. All `$state` variables are module-level (Svelte 5 rune pat
 
 ### `lobby.store.svelte.ts`
 
-Effect-TS `E.gen` store instantiated once at module load via `E.runSync`.
+Effect-TS `E.gen` store instantiated once at module load via `E.runSync`. The pure filter logic (`applyFilters`, `ActiveFilters`) lives in `domain/ndo-filters.ts` (see §11) and the store re-exports the `ActiveFilters` type.
 
 
 | Reactive field  | Derives from                                                |
@@ -268,6 +274,8 @@ Effect-TS `E.gen` store instantiated once at module load via `E.runSync`.
 | `groups`        | `LobbyServiceTag.getMyGroups()`                             |
 | `activeFilters` | Mutations via `setFilters()` / `clearFilters()`             |
 | `myPerson`      | `PersonServiceTag.getMyPersonProfile()`                     |
+
+`syncLobbyAgentProfile(profile)` pushes the Level 1 profile to the lobby DNA as a fire-and-forget call, so `ProfileSetupModal` never touches a service.
 
 
 
@@ -287,6 +295,67 @@ Singleton per-session; `loadGroupData(groupId)` switches context:
 - `loadGroupData(groupId, { silent? })` — on a full (non-silent) load it first runs `lobbyService.ensureMembership(groupId)` (idempotent self-heal so a joined agent always becomes a committed member), then fetches NDOs + members. A **silent** load (used by the pull layer) skips the membership reconcile, does not toggle `isLoading`, and keeps existing data on transient failure (no flicker/blanking).
 - `refreshCurrentGroup()` — silent re-fetch of the currently-open group; driven by `GroupView`'s pull-based reactivity (tab focus / visibility change + gentle ~8 s poll while visible). `TODO(signals)`: replace the pull layer with Holochain remote signals (focus/poll kept only as an offline/missed-signal fallback).
 
+
+### `ndo.store.svelte.ts`
+
+One store per open NDO, created by `createNdoStore(hashB64)`. Unlike the Lobby and Group singletons it is **view-scoped**: `NdoView` creates it in an `$effect` keyed on `specHashB64`, publishes it to descendants through Svelte context, and destroys it when the hash changes or the view tears down.
+
+```typescript
+// NdoView.svelte (script)
+let store = $state.raw<NdoStore | null>(null);
+setNdoStore(() => store!);
+
+$effect(() => {
+  const hashB64 = specHashB64;
+  const next = untrack(() => createNdoStore(hashB64));
+  store = next;
+  return () => next.destroy();
+});
+```
+
+Context carries an accessor, `() => NdoStore`, not the store, because `NdoView` swaps the store when the hash changes while its children stay mounted. Children call `getNdoStore()` and then `ndo().method()`.
+
+| Member                          | Role                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `descriptor`                    | `EntityState<NdoDescriptor, string>`, seeded from `ndoDescriptorCache`                                  |
+| `members`                       | `EntityState<NdoMember[], string>`                                                                     |
+| `ndo` / `isLoading` / `loadError` | Getters derived from `descriptor`, so component markup is unchanged                                  |
+| `refresh()` / `loadMembers()`   | Fire-and-forget reads that feed `reduce`                                                               |
+| `join()` / `advanceLifecycle(input)` | Commands; `advanceLifecycle` returns `{ ok: true } \| { ok: false; cause }`                       |
+| `transitionHistory`, `associatedGroupIds`, `specificationsWithInstances`, `governanceRules`, `myRoles`, `activity`, `personName` | Tab queries that return Promises |
+| `destroy()`                     | Interrupts every fiber the store forked; no result is written afterwards                               |
+
+The store resolves its services once at module scope (`Layer.mergeAll(...)` provided and run with `E.runSync`), so no layer is rebuilt per call, and it calls services directly, never another store. Every Effect is forked through `createFiberSet()` (`utils/fiber-set.ts`), which uses `E.runFork`, `fiber.addObserver` and `fiber.interruptUnsafe()`. A task whose fiber was interrupted, or that finishes after `destroy()`, rejects with `TaskInterrupted`, so a late result never lands in the next view.
+
+### `EntityState` (`domain/entity-state.ts`)
+
+The NDO store holds each remotely fetched slice as one value of a six-state union, and a pure `reduce` is the only way it changes:
+
+```typescript
+export type EntityState<A, E> =
+  | { readonly _tag: 'Idle' }
+  | { readonly _tag: 'Loading' }
+  | { readonly _tag: 'Refreshing'; readonly data: A }
+  | { readonly _tag: 'Stale'; readonly data: A; readonly error: E }
+  | { readonly _tag: 'Failure'; readonly error: E }
+  | { readonly _tag: 'Success'; readonly data: A; readonly fetchedAt: number };
+
+export type EntityEvent<A, E> =
+  | { readonly _tag: 'FetchStarted' }
+  | { readonly _tag: 'FetchSucceeded'; readonly data: A; readonly at: number }
+  | { readonly _tag: 'FetchFailed'; readonly error: E }
+  | { readonly _tag: 'Seeded'; readonly data: A }; // cache hit before the first fetch
+```
+
+| Event            | Result                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `FetchStarted`   | `Refreshing` when data is held, otherwise `Loading`                                                     |
+| `FetchSucceeded` | `Success`                                                                                               |
+| `FetchFailed`    | `Stale` when data is held (data kept, error recorded), otherwise `Failure`                              |
+| `Seeded`         | From `Idle`: `Success` with `fetchedAt: SEEDED_AT`. From `Loading`: `Refreshing`. From `Failure`: `Stale`. Otherwise unchanged |
+
+Helpers `dataOf`, `errorOf` and `isBusy` read a state. Once data is held no event drops it, and only `Stale` carries data and an error together. Lobby and Group still use `isLoading` / `errorMessage`; converting them is follow-up work.
+
 ---
 
 
@@ -297,13 +366,19 @@ Singleton per-session; `loadGroupData(groupId)` switches context:
 
 ### Pattern
 
-All services use the `wz<T>` factory:
+Services are `Context.Service` classes with a `Layer` per zome domain (`*ServiceTag`, `*ServiceLive`, `*ServiceResolved`). All zome calls use the `wz<T>` factory:
 
 ```typescript
 const wz = <T>(fnName: string, payload: unknown, context: string) =>
   wrapZomeCallWithErrorFactory<T, DomainError>(
     holochainClient, 'zome_name', fnName, payload, context, DomainError.fromError
   );
+```
+
+The tag is declared with Effect 4's `Context.Service` (from `ndo.service.ts`):
+
+```typescript
+export class NdoServiceTag extends Context.Service<NdoServiceTag, NdoService>()('NdoService') {}
 ```
 
 
@@ -331,7 +406,7 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 | Method                                     | Behaviour                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `getMyGroups()`                            | Enumerate group clone cells from `appInfo` + `get_my_group` per cell                                                                                                                                                                                                                                                                                                      |
-| `createGroup(name, createdBy)`             | `createCloneCell` → `create_group` → `join_group` → `announce_group` (the `join_group`/`announce_group` post-steps are best-effort via `E.catchAll`, so transient contention never aborts creation)                                                                                                                                                                       |
+| `createGroup(name, createdBy)`             | `createCloneCell` → `create_group` → `join_group` → `announce_group` (the `join_group`/`announce_group` post-steps are best-effort via `E.catch`, so transient contention never aborts creation)                                                                                                                                                                       |
 | `joinGroup(inviteCode)`                    | Decode invite → `createCloneCell(same seed)` → `fetchGroupProfileWithRetry` (poll `get_my_group`, 6× / ~2.4 s for DHT gossip) → `is_member` guard → best-effort `join_group` → on profile miss, build a `GroupDescriptor` from the invite payload so the group still appears immediately. `TODO(signals)`: replace the poll with a Holochain remote signal once available |
 | `ensureMembership(groupId)`                | Idempotent membership self-heal: resolve group hash via `get_my_group` → `is_member` → best-effort `join_group` if missing. Covers joins that missed the membership commit (payload-fallback path / swallowed `join_group`). Called on every full `loadGroupData` so a joined agent always reconciles into the member list                                                |
 | `generateInviteLink(groupId)`              | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL                                                                                                                                                                                                                                                                                                    |
@@ -394,7 +469,7 @@ Consequence: a change made by another member appears within the poll interval, o
 
 ## 10. NDO Lifecycle State Machine (Frontend Mirror)
 
-`LifecycleTransitionModal.svelte` encodes the same state machine as the Rust validation in `zome_resource`. Allowed transitions:
+`domain/lifecycle.ts` (`LIFECYCLE_TRANSITIONS` and `allowedNextStages(descriptor)`) encodes the same state machine as the Rust validation in `zome_resource`; `LifecycleTransitionModal.svelte` calls it. Allowed transitions:
 
 
 | From          | Allowed next stages                               |
@@ -423,7 +498,7 @@ Special handling:
 
 ## 11. Filter Architecture (NdoBrowser)
 
-Three independent chip groups with multi-select:
+Three independent chip groups with multi-select. The filtering itself is the pure `applyFilters` in `domain/ndo-filters.ts`, called by `lobby.store`:
 
 
 | Group          | Options     | Logic           |
@@ -479,52 +554,142 @@ The following UI capabilities are documented but not yet implemented. **Perspect
 
 ## 14. Effect-TS Patterns
 
+The UI runs on Effect 4 (`effect` 4.0.0). `@effect/platform` is no longer a dependency. Every snippet below is taken from code in `ui/src/lib/`.
 
+### Service definition
 
-### Service injection
+A service is a `Context.Service` class (v3's `Context.Tag`), a `Live` layer that builds it from other tags, and a `Resolved` layer with those dependencies already provided:
 
 ```typescript
-// Resolved layer for direct component use
-export const NdoServiceResolved: Layer.Layer<NdoServiceTag> =
-  NdoServiceLive.pipe(Layer.provide(ResourceServiceResolved));
+// services/zomes/ndo.service.ts
+export class NdoServiceTag extends Context.Service<NdoServiceTag, NdoService>()('NdoService') {}
 
-// Usage in a Svelte $effect or onMount
-const exit = await E.runPromiseExit(
-  pipe(
-    E.gen(function* () {
-      const svc = yield* NdoServiceTag;
-      return yield* svc.getLobbyNdoDescriptors();
-    }),
-    E.provide(NdoServiceResolved)
-  )
+const NdoServiceDepsResolved = Layer.mergeAll(
+  ResourceServiceResolved,
+  LobbyServiceResolved,
+  GroupServiceResolved,
+  PersonServiceResolved,
+  HolochainClientServiceLive
+);
+
+export const NdoServiceResolved: Layer.Layer<NdoServiceTag> = NdoServiceLive.pipe(
+  Layer.provide(NdoServiceDepsResolved)
 );
 ```
 
+### Layers are provided once, by stores
 
-
-### Store instantiation (Svelte 5 rune + Effect pattern)
+Only stores call services, and each store provides its layers once at module scope, so a layer is built once and not on every call. A singleton store is built with `E.runSync`:
 
 ```typescript
-// Module-level $state variables (top-level only — Svelte 5 rune constraint)
-let ndos = $state<NdoDescriptor[]>([]);
+// stores/lobby.store.svelte.ts
+const LobbyStoreServicesResolved = Layer.mergeAll(
+  LobbyServiceResolved,
+  NdoServiceResolved,
+  PersonServiceResolved
+);
 
-// Store created synchronously with E.runSync; Effect only provides dependencies
-export const lobbyStore = pipe(
-  createLobbyStore(),         // E.Effect<LobbyStore, never, Services>
+export const lobbyStore: LobbyStore = pipe(
+  createLobbyStore(),
   E.provide(LobbyStoreServicesResolved),
-  E.runSync                   // services are pure/synchronous; no async at creation time
+  E.runSync
 );
 ```
 
+The NDO store resolves its services the same way, once for every instance, then yields them as a plain object:
 
+```typescript
+// stores/ndo.store.svelte.ts
+const services = pipe(
+  E.gen(function* () {
+    return {
+      ndo: yield* NdoServiceTag,
+      resource: yield* ResourceServiceTag,
+      governance: yield* GovernanceServiceTag,
+      person: yield* PersonServiceTag,
+      holochain: yield* HolochainClientServiceTag
+    };
+  }),
+  E.provide(NdoStoreServicesResolved),
+  E.runSync
+);
+```
 
-### Error handling
+Services are pure and synchronous to construct, so `E.runSync` is safe at module load. Module-level `$state` stays at the top level of the store, as Svelte 5 requires.
 
-All zome errors are domain-tagged (`ResourceError`, `PersonError`, etc.) with `context` strings for debugging. Effects that may fail are run with `E.runPromiseExit`, and `Exit.isSuccess(exit)` guards all state mutations.
+### Error handling and v4 renames
+
+All zome errors are domain-tagged (`ResourceError`, `PersonError`, etc.) with `context` strings for debugging. Three v3 names changed:
+
+| Effect 3                | Effect 4                          |
+| ----------------------- | --------------------------------- |
+| `Context.Tag`           | `Context.Service`                 |
+| `E.catchAll`            | `E.catch`                         |
+| `E.either` / `Either`   | `E.result` / `Result`             |
+
+Best-effort steps recover with `E.catch`:
+
+```typescript
+// services/zomes/lobby.service.ts
+const profile = yield* fetchGroupProfile(cellId).pipe(
+  E.catch(() => E.succeed(null))
+);
+```
+
+When several reads must not abort each other, each is captured as a `Result` and inspected afterwards:
+
+```typescript
+// stores/group.store.svelte.ts
+const groupsRes = yield* E.result(lobbyService.getMyGroups());
+// ...
+if (Result.isSuccess(groupsRes)) {
+  group = groupsRes.success.find((g) => g.id === groupId) ?? null;
+}
+```
+
+In v4 `E.tap` accepts only a function that returns an Effect, so a plain side effect is wrapped in `E.sync`:
+
+```typescript
+// stores/lobby.store.svelte.ts
+await runOp(lobbyService.getMyGroups().pipe(E.tap((g) => E.sync(() => { groups = g; }))));
+```
+
+Schemas use v4 checks and `Literals`:
+
+```typescript
+// schemas/ppr.schemas.ts
+const ScoreSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0), Schema.isLessThanOrEqualTo(1));
+```
+
+Effects that may fail are run with `E.runPromiseExit`, and `Exit.isSuccess(exit)` guards all state mutations.
+
+### View-scoped work and cancellation
+
+A store that owns a view forks every Effect through a fiber set, so tearing the view down interrupts all of it (`utils/fiber-set.ts`):
+
+```typescript
+function run<A, Err>(effect: E.Effect<A, Err>): Promise<Exit.Exit<A, Err>> {
+  if (closed) return Promise.reject(new TaskInterrupted());
+  const fiber = E.runFork(effect);
+  fibers.add(fiber);
+  return new Promise((resolve, reject) => {
+    fiber.addObserver((exit) => {
+      fibers.delete(fiber);
+      if (closed || Exit.hasInterrupts(exit)) reject(new TaskInterrupted());
+      else resolve(exit);
+    });
+  });
+}
+
+function close(): void {
+  if (closed) return;
+  closed = true;
+  for (const fiber of fibers) fiber.interruptUnsafe();
+  fibers.clear();
+}
+```
 
 ---
-
-
 
 ## 15. Local Development & Multi-Agent Web Harness
 
@@ -676,3 +841,31 @@ Implementation order follows `ui_design.md § Perspectives ToDos`: switcher and 
 ### 16.6 Community-specific implementations (later)
 
 Community-specific UIs (terminology → workflows → visuals) sit on top of the four base Perspectives; ValueFlows stays the background vocabulary. Architecturally this implies a **dictionary layer**: a per-community mapping from display terms to the base vocabulary, consulted by components instead of hard-coded labels (so new base components should already route user-facing terms through a single `t()`-style lookup). How this relates to the Surface / Surface Attachment (capability slots) is to be specified; see `ui_design.md § Community-Specific Implementations`. Higher-level interoperability concerns are parked (`ui_design.md § Future Reflection`).
+
+---
+
+## 17. Architecture Invariants
+
+Three rules keep the layers in §3 honest. They are enforced by `ui/scripts/check-architecture.ts`, not by convention.
+
+| #  | Invariant                                                                                               |
+| -- | ------------------------------------------------------------------------------------------------------- |
+| I1 | No `.svelte` file under `src/` imports `effect` (or `effect/*`) or anything under `$lib/services`.       |
+| I2 | No file under `src/lib/stores/` imports another `*.store.svelte` module.                                 |
+| I3 | `src/lib/domain/**` imports nothing from `svelte`, `effect`, `$lib/services` or `$lib/stores`.           |
+
+Imports of every form count: static, type-only, side-effect, re-export and dynamic `import()`. `$lib/` and relative specifiers are resolved before the rules apply. Comments are ignored.
+
+**Running it.** `bun run check` in `ui/` runs the script and then `svelte-check`, and `bun run build` runs `check` first, so a violation fails both:
+
+```bash
+cd ui
+bun run check
+# src/lib/components/ndo/ResourcesTab.svelte: I1 imports 'effect' (a .svelte file must not import effect or $lib/services)
+# check-architecture: 1 violation(s)      (exit code 1)
+# check-architecture: I1, I2, I3 hold across 96 files      (exit code 0 when clean)
+```
+
+The script alone is `bun scripts/check-architecture.ts`. Its rule engine, `checkArchitecture(files)`, is a pure function; `scripts/check-architecture.spec.ts` feeds it violating and clean sources so each rule is proven able to fail. Run the specs with the `vitest` server project.
+
+**Where the exceptions went.** Nothing is exempt. The Holochain connection state that the shell needs lives in `stores/connection.store.svelte.ts`, which delegates to the client singleton, so `HolochainProvider`, the root layout and the create forms import a store and no component imports the client service.
