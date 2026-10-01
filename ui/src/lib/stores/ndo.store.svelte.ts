@@ -35,6 +35,9 @@ export { isTaskInterrupted };
  * through context and destroys it on teardown or when the hash changes; `destroy()`
  * interrupts every fiber the store forked, and no result arriving afterwards is written.
  *
+ * Reads are interruptible; writes run uninterruptible, so a teardown never leaves a
+ * multi-step write half done (it only stops the result from being written back).
+ *
  * Calls services directly, never another store. Promise-returning queries resolve with
  * their data (read failures are folded into the result exactly as the components used to
  * fold them) and reject with `TaskInterrupted` only when the store was destroyed.
@@ -211,14 +214,17 @@ export function createNdoStore(hashB64: string): NdoStore {
   }
 
   async function join(): Promise<boolean> {
-    const exit = await tasks.run(services.ndo.joinNdo(hashB64));
+    const exit = await tasks.run(E.uninterruptible(services.ndo.joinNdo(hashB64)));
     return Exit.isSuccess(exit);
   }
 
   async function advanceLifecycle(
     input: UpdateLifecycleStageInput
   ): Promise<{ ok: true } | { ok: false; cause: string }> {
-    const exit = await tasks.run(services.ndo.updateLifecycleStage(input));
+    // Uninterruptible: the zome write commits on the conductor whatever happens to the
+    // fiber, so `destroy()` must not stop the anchor refresh that follows it. The caller
+    // still gets `TaskInterrupted` when the store closed before the Exit arrived.
+    const exit = await tasks.run(E.uninterruptible(services.ndo.updateLifecycleStage(input)));
     if (Exit.isSuccess(exit)) return { ok: true };
     // Effect 4 stringifies a Cause as its wrapper structure; surface the error's message.
     const error = Cause.squash(exit.cause);

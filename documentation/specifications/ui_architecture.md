@@ -325,7 +325,7 @@ Context carries an accessor, `() => NdoStore`, not the store, because `NdoView` 
 | `transitionHistory`, `associatedGroupIds`, `specificationsWithInstances`, `governanceRules`, `myRoles`, `activity`, `personName` | Tab queries that return Promises |
 | `destroy()`                     | Interrupts every fiber the store forked; no result is written afterwards                               |
 
-The store resolves its services once at module scope (`Layer.mergeAll(...)` provided and run with `E.runSync`), so no layer is rebuilt per call, and it calls services directly, never another store. Every Effect is forked through `createFiberSet()` (`utils/fiber-set.ts`), which uses `E.runFork`, `fiber.addObserver` and `fiber.interruptUnsafe()`. A task whose fiber was interrupted, or that finishes after `destroy()`, rejects with `TaskInterrupted`, so a late result never lands in the next view.
+The store resolves its services once at module scope (`Layer.mergeAll(...)` provided and run with `E.runSync`), so no layer is rebuilt per call, and it calls services directly, never another store. Every Effect is forked through `createFiberSet()` (`utils/fiber-set.ts`), which uses `E.runFork`, `fiber.addObserver` and `fiber.interruptUnsafe()`. A task whose fiber was interrupted, or that finishes after `destroy()`, rejects with `TaskInterrupted`, so a late result never lands in the next view. Reads are interruptible; writes (`join`, `advanceLifecycle`) run under `E.uninterruptible`, because interrupting a fiber does not cancel the zome call it is waiting on, only the steps after it (see § 14, View-scoped work and cancellation).
 
 ### `EntityState` (`domain/entity-state.ts`)
 
@@ -690,6 +690,14 @@ function close(): void {
   fibers.clear();
 }
 ```
+
+**Reads are interruptible, writes are not.** Interrupting a fiber stops the program at its next step; it does not cancel a zome call already sent, which the conductor commits anyway. A read cut short loses nothing. A write that is several calls in one program can be cut in half: `updateLifecycleStage` commits the new stage and then refreshes the cached stage on every group anchor, and an interrupt between the two leaves the lobby and group cards on the old stage. So a store wraps every write in `E.uninterruptible` before running it:
+
+```typescript
+const exit = await tasks.run(E.uninterruptible(services.ndo.updateLifecycleStage(input)));
+```
+
+The program finishes all its steps, and the caller still gets `TaskInterrupted` when the store closed before the Exit arrived, so the result is never written into a view that has moved on. `fiber-set.spec.ts` pins this: an uninterruptible two-step write closed mid-flight completes both steps and rejects.
 
 ---
 

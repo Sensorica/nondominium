@@ -82,4 +82,27 @@ describe('fiber-set', () => {
     const errors = await Promise.all(results);
     expect(errors.every(isTaskInterrupted)).toBe(true);
   });
+
+  it('lets an uninterruptible write finish every step after close, and still rejects', async () => {
+    const tasks = createFiberSet();
+    const first = deferred<void>();
+    const steps: string[] = [];
+
+    // Two zome calls in one program, as `updateLifecycleStage` writes the stage and then
+    // refreshes each group anchor. Interrupting between them would leave the anchors stale.
+    const write = E.gen(function* () {
+      yield* E.promise(() => first.promise);
+      steps.push('update_lifecycle_stage');
+      yield* E.promise(() => Promise.resolve());
+      steps.push('refresh_ndo_anchor');
+    });
+
+    const pending = tasks.run(E.uninterruptible(write)).catch((e: unknown) => e);
+    await Promise.resolve();
+    tasks.close();
+    first.resolve();
+
+    expect(isTaskInterrupted(await pending)).toBe(true);
+    expect(steps).toEqual(['update_lifecycle_stage', 'refresh_ndo_anchor']);
+  });
 });
