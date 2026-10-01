@@ -5,6 +5,7 @@
   import type { ActionHash } from '@holochain/client';
   import { NdoServiceTag, NdoServiceResolved } from '$lib/services/zomes/ndo.service';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
+  import { allowedNextStages } from '$lib/domain/lifecycle';
 
   interface Props {
     descriptor: NdoDescriptor;
@@ -14,25 +15,8 @@
 
   let { descriptor, onclose, onadvanced }: Props = $props();
 
-  const transitions: Record<string, LifecycleStage[]> = {
-    Ideation: ['Specification', 'Deprecated', 'EndOfLife'],
-    Specification: ['Development', 'Deprecated', 'EndOfLife'],
-    Development: ['Prototype', 'Deprecated', 'EndOfLife'],
-    Prototype: ['Stable', 'Deprecated', 'EndOfLife'],
-    Stable: ['Distributed', 'Deprecated', 'EndOfLife'],
-    Distributed: ['Active', 'Deprecated', 'EndOfLife'],
-    Active: ['Hibernating', 'Deprecated', 'EndOfLife'],
-    Hibernating: ['Deprecated', 'EndOfLife'],
-    Deprecated: ['EndOfLife']
-  };
-
   const currentStage = descriptor.lifecycle_stage ?? '';
-  const allowed: LifecycleStage[] = (transitions[currentStage] ?? []);
-
-  // Add "return from hibernation" if Hibernating
-  const allOptions: LifecycleStage[] = descriptor.lifecycle_stage === 'Hibernating' && descriptor.hibernation_origin
-    ? ([descriptor.hibernation_origin as LifecycleStage, ...allowed] as LifecycleStage[])
-    : allowed;
+  const allOptions: LifecycleStage[] = allowedNextStages(descriptor);
 
   let selectedStage = $state<LifecycleStage | ''>('');
   let successorSearch = $state('');

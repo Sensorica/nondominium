@@ -1,23 +1,12 @@
 import { Cause, Effect as E, Exit, Layer, pipe } from 'effect';
-import type {
-  GroupDescriptor,
-  LifecycleStage,
-  NdoDescriptor,
-  NdoOutput,
-  Person,
-  PropertyRegime,
-  ResourceNature
-} from '@nondominium/shared-types';
+import type { GroupDescriptor, NdoDescriptor, NdoOutput, Person } from '@nondominium/shared-types';
 import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
 import { PersonServiceTag, PersonServiceResolved } from '../services/zomes/person.service';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
 import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-helpers/core';
+import { applyFilters, type ActiveFilters } from '$lib/domain/ndo-filters';
 
-export interface ActiveFilters {
-  stages: LifecycleStage[];
-  natures: ResourceNature[];
-  regimes: PropertyRegime[];
-}
+export type { ActiveFilters };
 
 const LobbyStoreServicesResolved = Layer.mergeAll(
   LobbyServiceResolved,
@@ -102,18 +91,6 @@ const createLobbyStore = (): E.Effect<
       if (Exit.isFailure(exit)) {
         myPerson = null;
       }
-    }
-
-    function applyFilters(all: NdoDescriptor[], filters: ActiveFilters): NdoDescriptor[] {
-      const { stages, natures, regimes } = filters;
-      const noFilter = stages.length === 0 && natures.length === 0 && regimes.length === 0;
-      if (noFilter) return all;
-      return all.filter((d) => {
-        const stageOk = stages.length === 0 || (d.lifecycle_stage !== null && stages.includes(d.lifecycle_stage as LifecycleStage));
-        const natureOk = natures.length === 0 || (d.resource_nature !== null && natures.includes(d.resource_nature as ResourceNature));
-        const regimeOk = regimes.length === 0 || (d.property_regime !== null && regimes.includes(d.property_regime as PropertyRegime));
-        return stageOk && natureOk && regimeOk;
-      });
     }
 
     function setFilters(partial: Partial<ActiveFilters>): void {
