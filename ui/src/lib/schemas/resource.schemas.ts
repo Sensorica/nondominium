@@ -11,7 +11,7 @@ import { Schema } from 'effect';
  * once the service layer is available for mock injection.
  */
 
-export const OperationalStateSchema = Schema.Literal(
+export const OperationalStateSchema = Schema.Literals([
   'Available',
   'Reserved',
   'InTransit',
@@ -19,10 +19,10 @@ export const OperationalStateSchema = Schema.Literal(
   'InMaintenance',
   'InUse',
   'PendingValidation'
-);
+]);
 export type OperationalState = Schema.Schema.Type<typeof OperationalStateSchema>;
 
-export const PropertyRegimeSchema = Schema.Literal(
+export const PropertyRegimeSchema = Schema.Literals([
   'Private',
   'Commons',
   'Collective',
@@ -30,19 +30,19 @@ export const PropertyRegimeSchema = Schema.Literal(
   'CommonPool',
   'Public',
   'Nondominium'
-);
+]);
 export type PropertyRegime = Schema.Schema.Type<typeof PropertyRegimeSchema>;
 
-export const ResourceNatureSchema = Schema.Literal(
+export const ResourceNatureSchema = Schema.Literals([
   'Physical',
   'Digital',
   'Service',
   'Hybrid',
   'Information'
-);
+]);
 export type ResourceNature = Schema.Schema.Type<typeof ResourceNatureSchema>;
 
-export const LifecycleStageSchema = Schema.Literal(
+export const LifecycleStageSchema = Schema.Literals([
   'Ideation',
   'Specification',
   'Development',
@@ -53,17 +53,17 @@ export const LifecycleStageSchema = Schema.Literal(
   'Hibernating',
   'Deprecated',
   'EndOfLife'
-);
+]);
 export type LifecycleStage = Schema.Schema.Type<typeof LifecycleStageSchema>;
 
 export class ResourceSpecInput extends Schema.Class<ResourceSpecInput>('ResourceSpecInput')({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(200)),
+  name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
   description: Schema.String,
   category: Schema.String,
   image_url: Schema.optional(Schema.String),
   tags: Schema.Array(Schema.String),
   is_active: Schema.Boolean,
-  scope: Schema.Literal('Project', 'Network', 'Public'),
+  scope: Schema.Literals(['Project', 'Network', 'Public']),
   ndo_identity_hash: Schema.Any // ActionHash
 }) { }
 
@@ -74,7 +74,7 @@ export class UIResourceSpec extends Schema.Class<UIResourceSpec>('UIResourceSpec
   image_url: Schema.optional(Schema.String),
   tags: Schema.Array(Schema.String),
   is_active: Schema.Boolean,
-  scope: Schema.optional(Schema.Literal('Project', 'Network', 'Public')),
+  scope: Schema.optional(Schema.Literals(['Project', 'Network', 'Public'])),
   ndo_identity_hash: Schema.optional(Schema.Any),
   original_action_hash: Schema.optional(Schema.Any), // ActionHash
   created_at: Schema.optional(Schema.Number)
@@ -100,22 +100,22 @@ export class UIEconomicResource extends Schema.Class<UIEconomicResource>('UIEcon
   created_at: Schema.optional(Schema.Number)
 }) { }
 
-export const RivalrySchema = Schema.Literal('Rivalrous', 'NonRivalrous');
+export const RivalrySchema = Schema.Literals(['Rivalrous', 'NonRivalrous']);
 export type Rivalry = Schema.Schema.Type<typeof RivalrySchema>;
 
-export const ResourceScopeSchema = Schema.Literal('Project', 'Network', 'Public');
+export const ResourceScopeSchema = Schema.Literals(['Project', 'Network', 'Public']);
 export type ResourceScope = Schema.Schema.Type<typeof ResourceScopeSchema>;
 
-export const AccessibilitySchema = Schema.Literal('Free', 'Credentialed', 'Gated');
-export const TransferTypeSchema = Schema.Literal(
+export const AccessibilitySchema = Schema.Literals(['Free', 'Credentialed', 'Gated']);
+export const TransferTypeSchema = Schema.Literals([
   'Ownership',
   'Custody',
   'UseRights',
   'Benefit'
-);
+]);
 
 /** Externally-tagged RuleData — mirrors Rust `RuleData`. */
-export const RuleDataSchema = Schema.Union(
+export const RuleDataSchema = Schema.Union([
   Schema.Struct({
     AccessRequirement: Schema.Struct({
       accessibility: AccessibilitySchema,
@@ -143,7 +143,7 @@ export const RuleDataSchema = Schema.Union(
       required_role: Schema.optional(Schema.String)
     })
   })
-);
+]);
 
 export class GovernanceRuleInput extends Schema.Class<GovernanceRuleInput>('GovernanceRuleInput')({
   rule_data: RuleDataSchema,
@@ -166,7 +166,7 @@ export class UIGovernanceRule extends Schema.Class<UIGovernanceRule>('UIGovernan
 }) { }
 
 export class NdoIdentityInput extends Schema.Class<NdoIdentityInput>('NdoIdentityInput')({
-  name: Schema.String.pipe(Schema.minLength(1)),
+  name: Schema.String.check(Schema.isMinLength(1)),
   description: Schema.optional(Schema.String),
   property_regime: PropertyRegimeSchema,
   resource_nature: ResourceNatureSchema,

@@ -349,10 +349,10 @@ export default holochainClientService;
 
 // ─── Effect DI Layer ─────────────────────────────────────────────────────────
 
-export class HolochainClientServiceTag extends Context.Tag('HolochainClientService')<
+export class HolochainClientServiceTag extends Context.Service<
   HolochainClientServiceTag,
   HolochainClientService
->() { }
+>()('HolochainClientService') { }
 
 /** Wraps the singleton in a Layer so services can be composed with E.provide. */
 export const HolochainClientServiceLive: Layer.Layer<HolochainClientServiceTag> = Layer.succeed(
