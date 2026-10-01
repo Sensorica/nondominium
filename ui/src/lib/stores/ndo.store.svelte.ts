@@ -211,7 +211,10 @@ export function createNdoStore(hashB64: string): NdoStore {
     input: UpdateLifecycleStageInput
   ): Promise<{ ok: true } | { ok: false; cause: string }> {
     const exit = await tasks.run(services.ndo.updateLifecycleStage(input));
-    return Exit.isSuccess(exit) ? { ok: true } : { ok: false, cause: String(exit.cause) };
+    if (Exit.isSuccess(exit)) return { ok: true };
+    // Effect 4 stringifies a Cause as its wrapper structure; surface the error's message.
+    const error = Cause.squash(exit.cause);
+    return { ok: false, cause: error instanceof Error ? error.message : String(error) };
   }
 
   async function transitionHistory(
