@@ -7,6 +7,10 @@
  * `Stale` is the one deliberate state carrying both data and an error: a background refresh
  * failed, so the last good data stays on screen and the error is recorded beside it. Every
  * other state carries data or an error, never both, and once data is held no event drops it.
+ *
+ * This departs from 4a on purpose: there `Stale` means data past cache expiry, with
+ * `expiredAt` and no error, and no state may hold data and an error together. Here `Stale`
+ * has no expiry and relaxes that property for itself alone (see `ui_architecture.md`).
  */
 
 export type EntityState<A, E> =

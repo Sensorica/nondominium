@@ -354,7 +354,9 @@ export type EntityEvent<A, E> =
 | `FetchFailed`    | `Stale` when data is held (data kept, error recorded), otherwise `Failure`                              |
 | `Seeded`         | From `Idle`: `Success` with `fetchedAt: SEEDED_AT`. From `Loading`: `Refreshing`. From `Failure`: `Stale`. Otherwise unchanged |
 
-Helpers `dataOf`, `errorOf` and `isBusy` read a state. Once data is held no event drops it, and only `Stale` carries data and an error together. Lobby and Group still use `isLoading` / `errorMessage`; converting them is follow-up work.
+Helpers `dataOf`, `errorOf` and `isBusy` read a state. Once data is held no event drops it, and only `Stale` carries data and an error together.
+
+`Stale` here differs from R&O proposal 4a on purpose. In 4a it means data held past cache expiry, carries `expiredAt` and no error, and no event sequence may produce data and an error together. Here it records a failed background refresh: it carries the error and no expiry, and 4a's "never data and error" property is relaxed for `Stale` alone. Code ported between the two codebases must not assume one meaning for the other; if they converge, the error can move to its own field so `Stale` keeps 4a's expiry meaning. Lobby and Group still use `isLoading` / `errorMessage`; converting them is follow-up work.
 
 ---
 
