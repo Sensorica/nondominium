@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { Effect as E, Exit, pipe } from 'effect';
   import type { LifecycleStage, NdoDescriptor } from '@nondominium/shared-types';
   import { decodeHashFromBase64 } from '@holochain/client';
   import type { ActionHash } from '@holochain/client';
-  import { NdoServiceTag, NdoServiceResolved } from '$lib/services/zomes/ndo.service';
+  import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { allowedNextStages } from '$lib/domain/lifecycle';
 
@@ -14,6 +13,8 @@
   }
 
   let { descriptor, onclose, onadvanced }: Props = $props();
+
+  const ndo = getNdoStore();
 
   const currentStage = descriptor.lifecycle_stage ?? '';
   const allOptions: LifecycleStage[] = allowedNextStages(descriptor);
@@ -54,27 +55,26 @@
       ? (decodeHashFromBase64(selectedSuccessorHash) as ActionHash)
       : undefined;
 
-    const exit = await E.runPromiseExit(
-      pipe(
-        E.gen(function* () {
-          const svc = yield* NdoServiceTag;
-          return yield* svc.updateLifecycleStage({
-            original_action_hash: originalHash,
-            new_stage: selectedStage as LifecycleStage,
-            successor_ndo_hash: successorHash,
-            transition_event_hash: undefined
-          });
-        }),
-        E.provide(NdoServiceResolved)
-      )
-    );
+    let result;
+    try {
+      result = await ndo().advanceLifecycle({
+        original_action_hash: originalHash,
+        new_stage: selectedStage as LifecycleStage,
+        successor_ndo_hash: successorHash,
+        transition_event_hash: undefined
+      });
+    } catch (error) {
+      isSubmitting = false;
+      if (isTaskInterrupted(error)) return;
+      throw error;
+    }
 
     isSubmitting = false;
-    if (Exit.isSuccess(exit)) {
+    if (result.ok) {
       onadvanced();
       onclose();
     } else {
-      errorMessage = `Failed to advance stage: ${String(exit.cause)}`;
+      errorMessage = `Failed to advance stage: ${result.cause}`;
     }
   }
 </script>

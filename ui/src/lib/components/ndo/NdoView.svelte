@@ -1,12 +1,15 @@
 <script lang="ts">
-  import type { ActionHash, CellId } from '@holochain/client';
-  import { decodeHashFromBase64 } from '@holochain/client';
-  import { Effect as E, Exit, pipe } from 'effect';
-  import type { NdoDescriptor } from '@nondominium/shared-types';
+  import { untrack } from 'svelte';
   import { appContext } from '$lib/stores/app.context.svelte';
-  import { NdoServiceTag, NdoServiceResolved } from '$lib/services/zomes/ndo.service';
+  import {
+    createNdoStore,
+    isTaskInterrupted,
+    setNdoStore,
+    type NdoMember,
+    type NdoStore
+  } from '$lib/stores/ndo.store.svelte';
+  import { dataOf, errorOf, isBusy, type EntityState } from '$lib/domain/entity-state';
   import MemberList from '$lib/components/group/MemberList.svelte';
-  import { ndoDescriptorCache } from '$lib/stores/ndo-cache';
   import ResourcesTab from './ResourcesTab.svelte';
   import GovernanceTab from './GovernanceTab.svelte';
   import ActivityTab from './ActivityTab.svelte';
@@ -21,141 +24,89 @@
 
   let { specHashB64 }: Props = $props();
 
-  let specActionHash = $state<ActionHash | null>(null);
-  let parseError = $state<string | null>(null);
+  /**
+   * The store of the NDO open in this view, one per `specHashB64`. Recreated when the
+   * prop changes and destroyed with the old hash or on teardown, which interrupts every
+   * fiber it forked. Descendants read it through `getNdoStore()`; they only mount once
+   * `specActionHash` is set, so the store exists by then.
+   */
+  let store = $state.raw<NdoStore | null>(null);
+  setNdoStore(() => store!);
+
+  $effect(() => {
+    const hashB64 = specHashB64;
+    // Untracked: creating the store seeds and reads its own state, which must not
+    // become a dependency of this effect.
+    const next = untrack(() => {
+      const created = createNdoStore(hashB64);
+      if (created.actionHash) {
+        appContext.currentView = 'ndo';
+        appContext.selectedNdoId = created.actionHash;
+      } else {
+        appContext.selectedNdoId = null;
+      }
+      return created;
+    });
+    store = next;
+    return () => next.destroy();
+  });
+
   let tab = $state<'resources' | 'governance' | 'composition' | 'activity'>('resources');
-  let ndoDescriptor = $state<NdoDescriptor | null>(null);
-  let isLoading = $state(false);
-  let loadError = $state<string | null>(null);
   let showForkModal = $state(false);
   let showAssociateModal = $state(false);
   let showJoinPanel = $state(false);
   let joinMessage = $state<string | null>(null);
   let joinError = $state<string | null>(null);
   let joinLoading = $state(false);
-  let ndoMembers = $state<{ id: string; name: string; role?: string }[]>([]);
-  let membersLoading = $state(false);
-  let membersError = $state<string | null>(null);
+
+  const specActionHash = $derived(store?.actionHash ?? null);
+  const parseError = $derived(store?.parseError ?? null);
+  const ndoDescriptor = $derived(store?.ndo ?? null);
+  const isLoading = $derived(store?.isLoading ?? false);
+  const loadError = $derived(store?.loadError ?? null);
   /**
    * The cloned `ndo` cell holding this NDO's Layer 0 identity. Every Layer 1 and
    * Layer 2 call below is addressed to it: the identity those entries reference
    * only exists in that DHT, never in the shared provisioned cell. `null` means
    * a legacy NDO still living in the shared cell, and callers fall back to it.
    */
-  let ndoCellId = $state<CellId | null>(null);
+  const ndoCellId = $derived(store?.cellId ?? null);
 
-  $effect(() => {
-    try {
-      // Use a local variable for the decoded hash to avoid reading the `specActionHash`
-      // $state variable after writing it — that would create a self-referential reactive
-      // dependency and cause an infinite `effect_update_depth_exceeded` loop.
-      const hash = decodeHashFromBase64(decodeURIComponent(specHashB64)) as ActionHash;
-      specActionHash = hash;
-      parseError = null;
-      appContext.currentView = 'ndo';
-      appContext.selectedNdoId = hash;
-    } catch {
-      specActionHash = null;
-      parseError = 'Could not decode resource specification hash from the URL.';
-      appContext.selectedNdoId = null;
-    }
-    // Seed immediately from the in-memory cache (populated by NdoCard click).
-    const cached = ndoDescriptorCache.get(specHashB64);
-    if (cached) ndoDescriptor = cached;
-  });
-
-  $effect(() => {
-    const hash = specActionHash;
-    if (!hash) {
-      ndoCellId = null;
-      return;
-    }
-    void resolveNdoCell(hash);
-  });
-
-  async function resolveNdoCell(hash: ActionHash) {
-    const program = E.gen(function* () {
-      const svc = yield* NdoServiceTag;
-      return yield* svc.resolveCellIdForNdo(hash);
-    });
-    const exit = await E.runPromiseExit(pipe(program, E.provide(NdoServiceResolved)));
-    ndoCellId = Exit.isSuccess(exit) ? exit.value : null;
-  }
-
-  async function loadDescriptor(hash: ActionHash) {
-    // Only show spinner if we don't already have cached data to display.
-    if (!ndoDescriptor) isLoading = true;
-    loadError = null;
-    const exit = await E.runPromiseExit(
-      pipe(
-        E.gen(function* () {
-          const svc = yield* NdoServiceTag;
-          return yield* svc.getNdoDescriptorForSpecActionHash(hash);
-        }),
-        E.provide(NdoServiceResolved)
-      )
-    );
-    isLoading = false;
-    if (Exit.isSuccess(exit)) {
-      ndoDescriptor = exit.value;
-      // Keep cache up to date with the latest on-chain version.
-      ndoDescriptorCache.set(specHashB64, exit.value);
-    } else if (!ndoDescriptor) {
-      // Only show the error banner if we have nothing else to display.
-      loadError = 'Could not refresh NDO details from the chain. Data shown may be cached.';
-    }
-  }
-
-  $effect(() => {
-    if (!specActionHash) return;
-    const hash = specActionHash;
-    void loadDescriptor(hash);
-  });
+  // A failed members read shows an empty list beside its error, as before.
+  const memberRows = (members: EntityState<NdoMember[], string>): NdoMember[] =>
+    errorOf(members) ? [] : (dataOf(members) ?? []);
+  const ndoMembers = $derived(store ? memberRows(store.members) : []);
+  const membersLoading = $derived(store ? isBusy(store.members) : false);
+  const membersError = $derived(store ? errorOf(store.members) : null);
 
   function handleRefresh() {
-    if (specActionHash) void loadDescriptor(specActionHash);
+    store?.refresh();
   }
 
-  async function loadNdoMembers() {
-    membersLoading = true;
-    membersError = null;
-    const exit = await E.runPromiseExit(
-      pipe(
-        E.gen(function* () {
-          const svc = yield* NdoServiceTag;
-          return yield* svc.getNdoMembers(specHashB64);
-        }),
-        E.provide(NdoServiceResolved)
-      )
-    );
-    membersLoading = false;
-    if (Exit.isFailure(exit)) {
-      membersError = 'Could not load members. They may not have reached this node yet.';
-      ndoMembers = [];
-    } else {
-      ndoMembers = exit.value.map((m) => ({ ...m, role: 'Member' }));
-    }
+  function loadNdoMembers() {
+    store?.loadMembers();
   }
 
   async function handleJoinNdo() {
+    const current = store;
+    if (!current) return;
     joinLoading = true;
     joinMessage = null;
     joinError = null;
-    const exit = await E.runPromiseExit(
-      pipe(
-        E.gen(function* () {
-          const svc = yield* NdoServiceTag;
-          return yield* svc.joinNdo(specHashB64);
-        }),
-        E.provide(NdoServiceResolved)
-      )
-    );
+    let joined: boolean;
+    try {
+      joined = await current.join();
+    } catch (error) {
+      joinLoading = false;
+      if (isTaskInterrupted(error)) return;
+      throw error;
+    }
     joinLoading = false;
-    if (Exit.isFailure(exit)) {
+    if (!joined) {
       joinError = 'Could not join this NDO. Please try again.';
     } else {
       joinMessage = 'You have joined this NDO.';
-      void loadNdoMembers();
+      current.loadMembers();
     }
     showJoinPanel = true;
   }

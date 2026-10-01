@@ -1,18 +1,14 @@
 <script lang="ts">
   import type { ActionHash, AgentPubKey, CellId } from '@holochain/client';
   import type {
-    GovernanceRule,
     PersonRole,
     PropertyRegime,
     ResourceNature,
     Rivalry,
     RuleData
   } from '@nondominium/shared-types';
-  import { Effect as E, Exit, pipe } from 'effect';
-  import { PersonServiceTag, PersonServiceResolved } from '$lib/services/zomes/person.service';
-  import { ResourceServiceTag, ResourceServiceResolved } from '$lib/services/zomes/resource.service';
-  import holochainClientService from '$lib/services/holochain.service.svelte';
   import { resourceStore } from '$lib/stores/resource.store.svelte';
+  import { getNdoStore, isTaskInterrupted, type RuleWithSpec } from '$lib/stores/ndo.store.svelte';
   import RuleEditorModal from './RuleEditorModal.svelte';
 
   interface Props {
@@ -33,7 +29,7 @@
     rivalryOverride = null
   }: Props = $props();
 
-  type RuleWithSpec = { rule: GovernanceRule; specName: string; specHash: ActionHash };
+  const ndo = getNdoStore();
 
   let rules = $state<RuleWithSpec[]>([]);
   let roles = $state<PersonRole[]>([]);
@@ -56,62 +52,39 @@
     return {};
   }
 
-  async function loadRules() {
-    const listings = await resourceStore.fetchSpecificationsForNdo(
-      specActionHash,
-      ndoCellId ?? undefined
-    );
-    if (listings.length === 0) {
+  /** Returns false when the NDO store was destroyed before the read finished. */
+  async function loadRules(): Promise<boolean> {
+    let result;
+    try {
+      result = await ndo().governanceRules();
+    } catch (error) {
+      if (isTaskInterrupted(error)) return false;
+      throw error;
+    }
+    if (!result.hasSpecifications) {
       rules = [];
       loadMessage = 'No Layer 1 specifications yet — create one on the Resources tab before adding rules.';
-      return;
+      return true;
     }
-    const collected: RuleWithSpec[] = [];
-    for (const listing of listings) {
-      const program = E.gen(function* () {
-        const r = yield* ResourceServiceTag;
-        return yield* r.getResourceSpecificationWithRules(
-          listing.action_hash,
-          ndoCellId ?? undefined
-        );
-      });
-      const exit = await E.runPromiseExit(pipe(program, E.provide(ResourceServiceResolved)));
-      if (Exit.isSuccess(exit)) {
-        for (const rule of exit.value.governance_rules) {
-          collected.push({
-            rule,
-            specName: listing.specification.name,
-            specHash: listing.action_hash
-          });
-        }
-      }
-    }
-    rules = collected;
-    loadMessage = collected.length === 0 ? 'No governance rules linked to this NDO’s specifications.' : null;
+    rules = result.rules;
+    loadMessage = result.rules.length === 0 ? 'No governance rules linked to this NDO’s specifications.' : null;
+    return true;
   }
 
   $effect(() => {
     void specActionHash;
     void (async () => {
-      await loadRules();
+      if (!(await loadRules())) return;
 
+      let mine;
       try {
-        myAgent = await holochainClientService.getMyAgentPubKey();
-      } catch {
-        myAgent = null;
+        mine = await ndo().myRoles();
+      } catch (error) {
+        if (isTaskInterrupted(error)) return;
+        throw error;
       }
-
-      if (!myAgent) {
-        roles = [];
-        return;
-      }
-
-      const rolesProgram = E.gen(function* () {
-        const p = yield* PersonServiceTag;
-        return yield* p.getPersonRoles(myAgent!);
-      });
-      const rolesExit = await E.runPromiseExit(pipe(rolesProgram, E.provide(PersonServiceResolved)));
-      roles = Exit.isSuccess(rolesExit) ? rolesExit.value : [];
+      myAgent = mine.agent;
+      roles = mine.roles;
     })();
   });
 
