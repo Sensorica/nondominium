@@ -68,7 +68,7 @@ export interface NdoService {
   ) => E.Effect<{ id: string; name: string }[], ResourceError | NdoNotFoundError>;
 }
 
-export class NdoServiceTag extends Context.Tag('NdoService')<NdoServiceTag, NdoService>() {}
+export class NdoServiceTag extends Context.Service<NdoServiceTag, NdoService>()('NdoService') {}
 
 // ─── Descriptor builders ──────────────────────────────────────────────────────
 

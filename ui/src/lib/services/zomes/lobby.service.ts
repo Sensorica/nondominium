@@ -115,7 +115,7 @@ export interface LobbyService {
   getLobbyAgentProfile: (agentPubKey: Uint8Array) => E.Effect<LobbyAgentProfile | null, LobbyError>;
 }
 
-export class LobbyServiceTag extends Context.Tag('LobbyService')<LobbyServiceTag, LobbyService>() {}
+export class LobbyServiceTag extends Context.Service<LobbyServiceTag, LobbyService>()('LobbyService') {}
 
 function encodeInvitePayload(payload: GroupInvitePayload): string {
   return btoa(JSON.stringify(payload));

@@ -140,10 +140,10 @@ export interface ResourceService {
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
 
-export class ResourceServiceTag extends Context.Tag('ResourceService')<
+export class ResourceServiceTag extends Context.Service<
   ResourceServiceTag,
   ResourceService
->() {}
+>()('ResourceService') {}
 
 // ─── Live Layer ───────────────────────────────────────────────────────────────
 
