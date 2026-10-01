@@ -40,7 +40,9 @@
   async function load() {
     let rows;
     try {
-      rows = await ndo().specificationsWithInstances();
+      rows = await ndo().specificationsWithInstances((specs) => {
+        listings = specs;
+      });
     } catch (error) {
       if (isTaskInterrupted(error)) return;
       throw error;

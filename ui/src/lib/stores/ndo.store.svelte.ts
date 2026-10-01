@@ -79,7 +79,10 @@ export interface NdoStore {
   transitionHistory(ndoHash: ActionHash): Promise<NdoTransitionHistoryEvent[] | null>;
   /** null when the read failed. */
   associatedGroupIds(): Promise<string[] | null>;
-  specificationsWithInstances(): Promise<SpecificationWithInstances[]>;
+  /** `onListings` receives the specification listing before the per-spec instance reads run. */
+  specificationsWithInstances(
+    onListings?: (listings: ResourceSpecificationListing[]) => void
+  ): Promise<SpecificationWithInstances[]>;
   governanceRules(): Promise<{ hasSpecifications: boolean; rules: RuleWithSpec[] }>;
   /** `agent` is null when the conductor did not return this agent's key. */
   myRoles(): Promise<{ agent: AgentPubKey | null; roles: PersonRole[] }>;
@@ -111,6 +114,13 @@ const services = pipe(
   E.provide(NdoStoreServicesResolved),
   E.runSync
 );
+
+/**
+ * Last specification listing read per NDO, keyed by `actionHash.toString()`. Module-level so
+ * it outlives the view-scoped store: a failed read falls back to it (or to an empty list)
+ * after the NDO is reopened, as the app-wide `resourceStore.specificationsByNdo` cache did.
+ */
+const lastSpecificationsByNdo = new Map<string, ResourceSpecificationListing[]>();
 
 const DESCRIPTOR_ERROR = 'Could not refresh NDO details from the chain. Data shown may be cached.';
 const MEMBERS_ERROR = 'Could not load members. They may not have reached this node yet.';
@@ -148,20 +158,15 @@ export function createNdoStore(hashB64: string): NdoStore {
     throw Cause.squash(exit.cause);
   }
 
-  /**
-   * Last specification listing read for this NDO. A failed read falls back to it (or to
-   * an empty list), which is what `resourceStore.fetchSpecificationsForNdo` did for the tabs.
-   */
-  let lastSpecifications: ResourceSpecificationListing[] | null = null;
-
   const specificationsFor = (hash: ActionHash, cell: CellId | undefined) =>
     E.gen(function* () {
+      const key = hash.toString();
       const exit = yield* E.exit(services.resource.getSpecificationsForNdo(hash, cell));
       if (Exit.isSuccess(exit)) {
-        lastSpecifications = exit.value;
+        lastSpecificationsByNdo.set(key, exit.value);
         return exit.value;
       }
-      return lastSpecifications ?? [];
+      return lastSpecificationsByNdo.get(key) ?? [];
     });
 
   function refresh(): void {
@@ -190,7 +195,10 @@ export function createNdoStore(hashB64: string): NdoStore {
   }
 
   function loadMembers(): void {
-    members = reduce(members, { _tag: 'FetchStarted' });
+    // A failed read showed an empty list, so a retry starts from nothing rather than
+    // bringing the stale members back while it loads.
+    const from = errorOf(members) === null ? members : idle<NdoMember[], string>();
+    members = reduce(from, { _tag: 'FetchStarted' });
     tasks.run(services.ndo.getNdoMembers(hashB64)).then((exit) => {
       members = Exit.isSuccess(exit)
         ? reduce(members, {
@@ -229,13 +237,16 @@ export function createNdoStore(hashB64: string): NdoStore {
     return Exit.isSuccess(exit) ? exit.value : null;
   }
 
-  function specificationsWithInstances(): Promise<SpecificationWithInstances[]> {
+  function specificationsWithInstances(
+    onListings?: (listings: ResourceSpecificationListing[]) => void
+  ): Promise<SpecificationWithInstances[]> {
     const hash = actionHash;
     if (!hash) return Promise.resolve([]);
     const cell = cellId ?? undefined;
     return query(
       E.gen(function* () {
         const listings = yield* specificationsFor(hash, cell);
+        if (onListings) yield* E.sync(() => onListings(listings));
         const out: SpecificationWithInstances[] = [];
         for (const listing of listings) {
           const exit = yield* E.exit(
