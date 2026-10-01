@@ -27,6 +27,20 @@ describe('importSpecifiers', () => {
     const src = "// import { Effect } from 'effect';\n/* import x from '$lib/services'; */\n<!-- import 'effect' -->";
     expect(importSpecifiers(src)).toEqual([]);
   });
+
+  it('finds a dynamic import written with a backtick literal', () => {
+    expect(importSpecifiers('const m = await import(`effect`);')).toEqual(['effect']);
+  });
+
+  it('does not let a comment marker inside a string hide the imports after it', () => {
+    const src = "const g = '/api/*';\nimport { Effect } from 'effect';\nconst h = '*/';";
+    expect(importSpecifiers(src)).toEqual(['effect']);
+  });
+
+  it('keeps an import that follows an apostrophe in Svelte markup', () => {
+    const src = "<p>Don't panic</p>\n<script lang=\"ts\">\nimport { Effect } from 'effect';\n</script>";
+    expect(importSpecifiers(src)).toEqual(['effect']);
+  });
 });
 
 describe('I1: components do not import effect or services', () => {

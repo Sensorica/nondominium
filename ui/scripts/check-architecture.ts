@@ -34,25 +34,55 @@ const STORES_DIR = 'src/lib/stores';
 const DOMAIN_DIR = 'src/lib/domain';
 
 // Static imports and re-exports (`import x from 'm'`, `import 'm'`, `export * from 'm'`)
-// and dynamic `import('m')`. Type-only imports count: the boundary is the module graph.
+// and dynamic `import('m')`, including a backtick literal with no interpolation.
+// Type-only imports count: the boundary is the module graph.
 const IMPORT_PATTERNS = [
   /\bimport\s+(?:type\s+)?(?:[\w*{}\s,$]+?\s+from\s+)?['"]([^'"]+)['"]/g,
   /\bexport\s+(?:type\s+)?(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s+from\s+['"]([^'"]+)['"]/g,
-  /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+  /\bimport\s*\(\s*(?:['"]([^'"]+)['"]|`([^`$]+)`)\s*\)/g
 ];
 
+/**
+ * Removes `//`, `/* *\/` and `<!-- -->` comments, skipping string literals so a comment
+ * marker inside a string (`'/api/*'`) never swallows the code after it. A quoted string
+ * ends at its newline at the latest, so an apostrophe in Svelte markup cannot run on.
+ */
 function stripComments(source: string): string {
-  return source
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+  let out = '';
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i];
+    if (source.startsWith('<!--', i)) {
+      const end = source.indexOf('-->', i + 4);
+      i = end === -1 ? source.length : end + 3;
+    } else if (source.startsWith('/*', i)) {
+      const end = source.indexOf('*/', i + 2);
+      i = end === -1 ? source.length : end + 2;
+    } else if (source.startsWith('//', i)) {
+      const end = source.indexOf('\n', i);
+      i = end === -1 ? source.length : end;
+    } else if (ch === "'" || ch === '"' || ch === '`') {
+      let j = i + 1;
+      while (j < source.length && source[j] !== ch) {
+        if (source[j] === '\\') j++;
+        else if (ch !== '`' && source[j] === '\n') break;
+        j++;
+      }
+      out += source.slice(i, j + 1);
+      i = j + 1;
+    } else {
+      out += ch;
+      i++;
+    }
+  }
+  return out;
 }
 
 export function importSpecifiers(source: string): string[] {
   const text = stripComments(source);
   const found: string[] = [];
   for (const pattern of IMPORT_PATTERNS) {
-    for (const match of text.matchAll(pattern)) found.push(match[1]);
+    for (const match of text.matchAll(pattern)) found.push(match[1] ?? match[2]);
   }
   return found;
 }
