@@ -1,7 +1,10 @@
 /**
  * UI architecture invariants (design D7, issue #148), run by `bun run check`.
  *
- * I1  No .svelte file under src/ imports `effect`, `effect/*` or anything under $lib/services.
+ * I1  No .svelte file under src/ imports `effect`, `effect/*` or anything under $lib/services,
+ *     directly or through a chain of plain modules (utils, errors, schemas...). A chain
+ *     stops at a store, which is the sanctioned way in, and at another .svelte file,
+ *     which is checked on its own.
  * I2  No file under src/lib/stores/ imports another *.store.svelte module.
  * I3  src/lib/domain/** imports nothing from svelte, effect, $lib/services or $lib/stores.
  *
@@ -21,6 +24,8 @@ export type Violation = {
   readonly path: string;
   readonly specifier: string;
   readonly message: string;
+  /** For a transitive I1 hit: the modules walked after `specifier`, ending at the forbidden import. */
+  readonly via?: readonly string[];
 };
 
 const RULE_TEXT: Record<RuleId, string> = {
@@ -106,10 +111,46 @@ const isPackage = (specifier: string, name: string): boolean =>
 const isStoreModule = (resolved: string): boolean =>
   /\.store\.svelte(?:\.(?:ts|js))?$/.test(posix.basename(resolved));
 
+const RESOLVE_SUFFIXES = ['', '.ts', '.js', '/index.ts', '/index.js'];
+
 export function checkArchitecture(files: readonly SourceFile[]): Violation[] {
   const violations: Violation[] = [];
-  const report = (rule: RuleId, path: string, specifier: string) =>
-    violations.push({ rule, path, specifier, message: RULE_TEXT[rule] });
+  const report = (rule: RuleId, path: string, specifier: string, via?: string[]) =>
+    violations.push({ rule, path, specifier, message: RULE_TEXT[rule], ...(via && { via }) });
+
+  const sources = new Map(files.map((f) => [f.path, f.source]));
+  const fileOf = (resolved: string): string | null => {
+    for (const suffix of RESOLVE_SUFFIXES) {
+      if (sources.has(resolved + suffix)) return resolved + suffix;
+    }
+    return null;
+  };
+  const isForbiddenForComponent = (specifier: string, resolved: string) =>
+    isPackage(specifier, 'effect') || isUnder(resolved, SERVICES_DIR);
+
+  // Path from a plain module to an effect or services import, or null. Memoised; a module
+  // on the current path counts as clean, which is enough to break import cycles.
+  const reach = new Map<string, string[] | null>();
+  const forbiddenChain = (path: string): string[] | null => {
+    if (reach.has(path)) return reach.get(path)!;
+    reach.set(path, null);
+    for (const specifier of importSpecifiers(sources.get(path)!)) {
+      const resolved = resolveSpecifier(path, specifier);
+      if (isForbiddenForComponent(specifier, resolved)) {
+        reach.set(path, [specifier]);
+        return [specifier];
+      }
+      const next = fileOf(resolved);
+      if (!next || isStoreModule(next) || next.endsWith('.svelte')) continue;
+      const tail = forbiddenChain(next);
+      if (tail) {
+        const chain = [next, ...tail];
+        reach.set(path, chain);
+        return chain;
+      }
+    }
+    return null;
+  };
 
   for (const { path, source } of files) {
     const isComponent = isUnder(path, 'src') && path.endsWith('.svelte');
@@ -123,6 +164,13 @@ export function checkArchitecture(files: readonly SourceFile[]): Violation[] {
       const services = isUnder(resolved, SERVICES_DIR);
 
       if (isComponent && (effect || services)) report('I1', path, specifier);
+      else if (isComponent) {
+        const next = fileOf(resolved);
+        if (next && !isStoreModule(next) && !next.endsWith('.svelte')) {
+          const chain = forbiddenChain(next);
+          if (chain) report('I1', path, specifier, [next, ...chain]);
+        }
+      }
       if (isStore && isStoreModule(resolved) && resolved !== path.replace(/\.(?:ts|js)$/, '')) {
         report('I2', path, specifier);
       }
@@ -154,7 +202,8 @@ if (import.meta.main) {
   const files = collectSources(uiRoot, 'src');
   const violations = checkArchitecture(files);
   for (const v of violations) {
-    console.error(`${v.path}: ${v.rule} imports '${v.specifier}' (${v.message})`);
+    const via = v.via ? ` via ${v.via.join(' -> ')}` : '';
+    console.error(`${v.path}: ${v.rule} imports '${v.specifier}'${via} (${v.message})`);
   }
   if (violations.length > 0) {
     console.error(`check-architecture: ${violations.length} violation(s)`);

@@ -72,6 +72,61 @@ describe('I1: components do not import effect or services', () => {
   });
 });
 
+describe('I1 through a chain of plain modules', () => {
+  const component = 'src/lib/components/ndo/Example.svelte';
+
+  it('catches effect reached through a util, naming the chain', () => {
+    const files = [
+      file(component, svelte("import { createFiberSet } from '$lib/utils/fiber-set';")),
+      file('src/lib/utils/fiber-set.ts', "import { Effect as E } from 'effect';")
+    ];
+    expect(checkArchitecture(files)).toEqual([
+      expect.objectContaining({
+        rule: 'I1',
+        path: component,
+        specifier: '$lib/utils/fiber-set',
+        via: ['src/lib/utils/fiber-set.ts', 'effect']
+      })
+    ]);
+  });
+
+  it('follows several hops and relative specifiers to the services', () => {
+    const files = [
+      file(component, svelte("import { a } from '../../utils/a';")),
+      file('src/lib/utils/a.ts', "export { b } from './b';"),
+      file('src/lib/utils/b/index.ts', "import { NdoServiceTag } from '$lib/services/zomes/ndo.service';")
+    ];
+    expect(checkArchitecture(files).map((v) => v.via)).toEqual([
+      ['src/lib/utils/a.ts', 'src/lib/utils/b/index.ts', '$lib/services/zomes/ndo.service']
+    ]);
+  });
+
+  it('stops at a store, the sanctioned way to reach effect', () => {
+    const files = [
+      file(component, svelte("import { getNdoStore } from '$lib/stores/ndo.store.svelte';")),
+      file('src/lib/stores/ndo.store.svelte.ts', "import { Effect } from 'effect';")
+    ];
+    expect(checkArchitecture(files)).toEqual([]);
+  });
+
+  it('stops at another component, which is checked on its own', () => {
+    const files = [
+      file(component, svelte("import Child from './Child.svelte';")),
+      file('src/lib/components/ndo/Child.svelte', svelte("import { Effect } from 'effect';"))
+    ];
+    expect(rulesOf(files)).toEqual(['I1 src/lib/components/ndo/Child.svelte effect']);
+  });
+
+  it('terminates on an import cycle with no forbidden import', () => {
+    const files = [
+      file(component, svelte("import { a } from '$lib/utils/a';")),
+      file('src/lib/utils/a.ts', "import { b } from './b';"),
+      file('src/lib/utils/b.ts', "import { a } from './a';")
+    ];
+    expect(checkArchitecture(files)).toEqual([]);
+  });
+});
+
 describe('I2: stores do not import other stores', () => {
   it.each([
     ["import { resourceStore } from './resource.store.svelte';", './resource.store.svelte'],

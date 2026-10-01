@@ -861,11 +861,13 @@ Three rules keep the layers in §3 honest. They are enforced by `ui/scripts/chec
 
 | #  | Invariant                                                                                               |
 | -- | ------------------------------------------------------------------------------------------------------- |
-| I1 | No `.svelte` file under `src/` imports `effect` (or `effect/*`) or anything under `$lib/services`.       |
+| I1 | No `.svelte` file under `src/` imports `effect` (or `effect/*`) or anything under `$lib/services`, directly or through plain modules. |
 | I2 | No file under `src/lib/stores/` imports another `*.store.svelte` module.                                 |
 | I3 | `src/lib/domain/**` imports nothing from `svelte`, `effect`, `$lib/services` or `$lib/stores`.           |
 
 Imports of every form count: static, type-only, side-effect, re-export and dynamic `import()`. `$lib/` and relative specifiers are resolved before the rules apply. Comments are ignored.
+
+I1 also follows imports transitively. A component importing `$lib/utils/fiber-set`, which imports `effect`, is a violation even though the component never names `effect`. The walk goes through plain modules (`utils/`, `errors/`, `schemas/`, non-store files under `stores/`) and stops at a `*.store.svelte` module, the sanctioned way for a component to reach Effect, and at another `.svelte` file, which is checked on its own. The report names the chain.
 
 **Running it.** `bun run check` in `ui/` runs the script and then `svelte-check`, and `bun run build` runs `check` first, so a violation fails both:
 
@@ -873,8 +875,9 @@ Imports of every form count: static, type-only, side-effect, re-export and dynam
 cd ui
 bun run check
 # src/lib/components/ndo/ResourcesTab.svelte: I1 imports 'effect' (a .svelte file must not import effect or $lib/services)
-# check-architecture: 1 violation(s)      (exit code 1)
-# check-architecture: I1, I2, I3 hold across 96 files      (exit code 0 when clean)
+# src/lib/components/ndo/AssociateNdoModal.svelte: I1 imports '$lib/utils/fiber-set' via src/lib/utils/fiber-set.ts -> effect (a .svelte file must not import effect or $lib/services)
+# check-architecture: 2 violation(s)      (exit code 1)
+# check-architecture: I1, I2, I3 hold across 98 files      (exit code 0 when clean)
 ```
 
 The script alone is `bun scripts/check-architecture.ts`. Its rule engine, `checkArchitecture(files)`, is a pure function; `scripts/check-architecture.spec.ts` feeds it violating and clean sources so each rule is proven able to fail. Run the specs with the `vitest` server project.
