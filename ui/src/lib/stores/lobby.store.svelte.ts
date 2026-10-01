@@ -80,20 +80,22 @@ const createLobbyStore = (): E.Effect<
     }
 
     async function loadGroups(): Promise<void> {
-      await runOp(lobbyService.getMyGroups().pipe(E.tap((g) => { groups = g; })));
+      await runOp(lobbyService.getMyGroups().pipe(E.tap((g) => E.sync(() => { groups = g; }))));
     }
 
     async function loadNdos(): Promise<void> {
-      await runOp(ndoService.getLobbyNdoDescriptors().pipe(E.tap((n) => { ndos = n; })));
+      await runOp(ndoService.getLobbyNdoDescriptors().pipe(E.tap((n) => E.sync(() => { ndos = n; }))));
     }
 
     async function loadMyPerson(): Promise<void> {
       const exit = await E.runPromiseExit(
         withLoadingState(() =>
           personService.getMyPersonProfile().pipe(
-            E.tap((p) => {
-              myPerson = p.person ?? null;
-            })
+            E.tap((p) =>
+              E.sync(() => {
+                myPerson = p.person ?? null;
+              })
+            )
           )
         )(setters)
       );
@@ -126,7 +128,7 @@ const createLobbyStore = (): E.Effect<
       errorMessage = null;
       const exit = await E.runPromiseExit(
         lobbyService.createGroup(name, createdBy).pipe(
-          E.tap((g) => { groups = [...groups, g]; })
+          E.tap((g) => E.sync(() => { groups = [...groups, g]; }))
         )
       );
       if (Exit.isFailure(exit)) {
@@ -141,11 +143,13 @@ const createLobbyStore = (): E.Effect<
       errorMessage = null;
       const exit = await E.runPromiseExit(
         lobbyService.joinGroup(inviteCode).pipe(
-          E.tap((g) => {
-            if (!groups.some((existing) => existing.id === g.id)) {
-              groups = [...groups, g];
-            }
-          })
+          E.tap((g) =>
+            E.sync(() => {
+              if (!groups.some((existing) => existing.id === g.id)) {
+                groups = [...groups, g];
+              }
+            })
+          )
         )
       );
       if (Exit.isFailure(exit)) {
@@ -178,14 +182,14 @@ const createLobbyStore = (): E.Effect<
       try {
         const [groupsExit, ndosExit, personExit] = await Promise.all([
           E.runPromiseExit(
-            lobbyService.getMyGroups().pipe(E.tap((g) => { groups = g; }))
+            lobbyService.getMyGroups().pipe(E.tap((g) => E.sync(() => { groups = g; })))
           ),
           E.runPromiseExit(
-            ndoService.getLobbyNdoDescriptors().pipe(E.tap((n) => { ndos = n; }))
+            ndoService.getLobbyNdoDescriptors().pipe(E.tap((n) => E.sync(() => { ndos = n; })))
           ),
           E.runPromiseExit(
             personService.getMyPersonProfile().pipe(
-              E.tap((p) => { myPerson = p.person ?? null; })
+              E.tap((p) => E.sync(() => { myPerson = p.person ?? null; }))
             )
           )
         ]);
