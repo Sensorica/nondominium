@@ -1,5 +1,5 @@
 import { Cause, Effect as E, Exit, Layer, pipe } from 'effect';
-import type { GroupDescriptor, NdoDescriptor, NdoOutput, Person } from '@nondominium/shared-types';
+import type { GroupDescriptor, LobbyUserProfile, NdoDescriptor, NdoOutput, Person } from '@nondominium/shared-types';
 import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
 import { PersonServiceTag, PersonServiceResolved } from '../services/zomes/person.service';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
@@ -35,6 +35,7 @@ export type LobbyStore = {
     groupId: string,
     profile: NonNullable<GroupDescriptor['memberProfile']>
   ) => Promise<void>;
+  syncLobbyAgentProfile: (profile: LobbyUserProfile) => void;
 };
 
 const createLobbyStore = (): E.Effect<
@@ -153,6 +154,20 @@ const createLobbyStore = (): E.Effect<
       }
     }
 
+    // Fire-and-forget DHT write after the localStorage write (D1 in #106):
+    // localStorage (appContext setter inside UserProfileForm) is authoritative for
+    // Level 1 identity; the Lobby DHT profile is best-effort.
+    function syncLobbyAgentProfile(profile: LobbyUserProfile): void {
+      void E.runPromise(
+        lobbyService.upsertLobbyAgentProfile({
+          handle: profile.nickname,
+          ...(profile.bio && { bio: profile.bio })
+        })
+      ).catch((err) => {
+        console.warn('Lobby DHT profile sync failed (localStorage profile saved):', err);
+      });
+    }
+
     async function loadLobby(): Promise<void> {
       isLoading = true;
       errorMessage = null;
@@ -210,7 +225,8 @@ const createLobbyStore = (): E.Effect<
       createGroup,
       joinGroup,
       generateInviteLink,
-      saveGroupMemberProfile
+      saveGroupMemberProfile,
+      syncLobbyAgentProfile
     };
   });
 
