@@ -112,7 +112,9 @@
   }
 
   $effect(() => {
-    if (showJoinPanel && ndoMembers.length === 0 && !membersLoading && !membersError) {
+    // Load once from Idle. Keying on an empty list re-fired on every successful
+    // empty read, polling the conductor for as long as the panel stayed open.
+    if (showJoinPanel && store?.members._tag === 'Idle') {
       void loadNdoMembers();
     }
   });
