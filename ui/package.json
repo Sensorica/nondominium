@@ -7,7 +7,7 @@
     "start": "vite --clearScreen false --port $UI_PORT",
     "build": "bun run check && vite build --mode production",
     "build:test": "bun run check && vite build --mode test",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check": "bun scripts/check-architecture.ts && svelte-check --tsconfig ./tsconfig.json",
     "package": "bun run build && rimraf dist.zip && cd build && bestzip ../dist.zip *",
     "test": "vitest run",
     "test:e2e": "playwright test",
