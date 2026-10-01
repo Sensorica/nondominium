@@ -1,4 +1,4 @@
-import { Effect as E, Either, Exit, pipe } from 'effect';
+import { Effect as E, Exit, pipe, Result } from 'effect';
 import type { GroupDescriptor, NdoDescriptor, NdoInput } from '@nondominium/shared-types';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
 import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
@@ -45,7 +45,7 @@ function createGroupStore(): GroupStore {
     }
     errorMessage = null;
 
-    // Each fetch is captured as an Either so a transient failure of one part
+    // Each fetch is captured as a Result so a transient failure of one part
     // (e.g. getMembers while the DHT is gossiping) does not look like a
     // successful empty result. On a silent refresh we only overwrite a field
     // when its own fetch genuinely succeeded — otherwise we keep what is on
@@ -64,9 +64,9 @@ function createGroupStore(): GroupStore {
             E.catch(() => E.succeed(null))
           );
 
-          // members default to "not fetched" (Left) when there is no cell yet.
-          let membersRes: Either.Either<{ id: string; name: string; role?: string }[], unknown> =
-            Either.left(undefined);
+          // members default to "not fetched" (Failure) when there is no cell yet.
+          let membersRes: Result.Result<{ id: string; name: string; role?: string }[], unknown> =
+            Result.fail(undefined);
           if (cell) {
             // Self-heal membership only on a full (non-silent) load: if this agent
             // joined via an invite but the join missed (group profile had not
@@ -92,15 +92,15 @@ function createGroupStore(): GroupStore {
       const { groupsRes, ndosRes, hasCell, membersRes } = exit.value;
       let anyFailed = false;
 
-      if (Either.isRight(groupsRes)) {
-        group = groupsRes.right.find((g) => g.id === groupId) ?? null;
+      if (Result.isSuccess(groupsRes)) {
+        group = groupsRes.success.find((g) => g.id === groupId) ?? null;
       } else {
         anyFailed = true;
         if (!silent) group = null;
       }
 
-      if (Either.isRight(ndosRes)) {
-        groupNdos = ndosRes.right;
+      if (Result.isSuccess(ndosRes)) {
+        groupNdos = ndosRes.success;
       } else {
         anyFailed = true;
         if (!silent) groupNdos = [];
@@ -109,8 +109,8 @@ function createGroupStore(): GroupStore {
       // Only treat members as authoritative when a cell existed and the fetch
       // succeeded. A missing cell or a failed fetch must not blank an existing
       // member list during a silent poll.
-      if (hasCell && Either.isRight(membersRes)) {
-        members = membersRes.right;
+      if (hasCell && Result.isSuccess(membersRes)) {
+        members = membersRes.success;
       } else {
         if (hasCell) anyFailed = true;
         if (!silent) members = [];
