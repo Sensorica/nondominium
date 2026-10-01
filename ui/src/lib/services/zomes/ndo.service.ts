@@ -194,10 +194,10 @@ export const NdoServiceLive: Layer.Layer<
       groupId: string
     ): E.Effect<{ groupCellId: CellId; groupHash: ActionHash } | null, ResourceError> =>
       E.gen(function* () {
-        const cell = yield* lobby.getGroupCell(groupId).pipe(E.catchAll(() => E.succeed(null)));
+        const cell = yield* lobby.getGroupCell(groupId).pipe(E.catch(() => E.succeed(null)));
         const groupHashB64 = yield* lobby
           .getGroupHash(groupId)
-          .pipe(E.catchAll(() => E.succeed(null)));
+          .pipe(E.catch(() => E.succeed(null)));
         if (!cell || !groupHashB64) return null;
         return {
           groupCellId: cell.cellId,
@@ -212,7 +212,7 @@ export const NdoServiceLive: Layer.Layer<
         if (!ctx) return [];
         return yield* groupService
           .getNdoAnchors(ctx.groupCellId, ctx.groupHash)
-          .pipe(E.catchAll(() => E.succeed([])));
+          .pipe(E.catch(() => E.succeed([])));
       });
 
     /**
@@ -223,14 +223,14 @@ export const NdoServiceLive: Layer.Layer<
      */
     const scanGroupAnchors = (): E.Effect<GroupAnchors[], ResourceError> =>
       E.gen(function* () {
-        const groups = yield* lobby.getMyGroups().pipe(E.catchAll(() => E.succeed([])));
+        const groups = yield* lobby.getMyGroups().pipe(E.catch(() => E.succeed([])));
         const scan: GroupAnchors[] = [];
         for (const g of groups) {
           const ctx = yield* groupContext(g.id);
           if (!ctx) continue;
           const anchors = yield* groupService
             .getNdoAnchors(ctx.groupCellId, ctx.groupHash)
-            .pipe(E.catchAll(() => E.succeed([] as NdoAnchorEntry[])));
+            .pipe(E.catch(() => E.succeed([] as NdoAnchorEntry[])));
           scan.push({ groupId: g.id, ...ctx, anchors });
         }
         return scan;
@@ -330,7 +330,7 @@ export const NdoServiceLive: Layer.Layer<
 
           // Per-cell path: resolve the ndo cell from the anchor and read the live entry.
           const resolved = yield* resolveNdoCellForIdentity(hashB64).pipe(
-            E.catchAll(() => E.succeed(null))
+            E.catch(() => E.succeed(null))
           );
           if (resolved) {
             const entry = yield* callNdoZome<NondominiumIdentity | null>(
@@ -430,7 +430,7 @@ export const NdoServiceLive: Layer.Layer<
         E.gen(function* () {
           const hashB64 = encodeHashToBase64(input.original_action_hash);
           const resolved = yield* resolveNdoCellForIdentity(hashB64).pipe(
-            E.catchAll(() => E.succeed(null))
+            E.catch(() => E.succeed(null))
           );
           if (resolved) {
             const updatedHash = yield* callNdoZome<ActionHash>(
@@ -454,7 +454,7 @@ export const NdoServiceLive: Layer.Layer<
                   input.original_action_hash,
                   input.new_stage
                 )
-                .pipe(E.catchAll(() => E.void));
+                .pipe(E.catch(() => E.void));
             }
 
             return updatedHash;
@@ -467,7 +467,7 @@ export const NdoServiceLive: Layer.Layer<
         E.gen(function* () {
           const hashB64 = encodeHashToBase64(ndoHash);
           const resolved = yield* resolveNdoCellForIdentity(hashB64).pipe(
-            E.catchAll(() => E.succeed(null))
+            E.catch(() => E.succeed(null))
           );
           if (resolved) {
             // Deliberately NOT caught: `get_ndo_transition_history` exists in
@@ -541,7 +541,7 @@ export const NdoServiceLive: Layer.Layer<
         E.gen(function* () {
           const resolved = yield* resolveNdoCellForIdentity(
             encodeHashToBase64(ndoHash)
-          ).pipe(E.catchAll(() => E.succeed(null)));
+          ).pipe(E.catch(() => E.succeed(null)));
           return resolved ? resolved.cellId : null;
         }),
 
@@ -558,7 +558,7 @@ export const NdoServiceLive: Layer.Layer<
           const alreadyMember = yield* callNdoZome<boolean>(cellId, 'is_ndo_member', [
             myPubKey,
             identityHash
-          ]).pipe(E.catchAll(() => E.succeed(false)));
+          ]).pipe(E.catch(() => E.succeed(false)));
           if (alreadyMember) return;
 
           yield* callNdoZome<unknown>(cellId, 'join_ndo', {
@@ -580,7 +580,7 @@ export const NdoServiceLive: Layer.Layer<
           // so names are resolved separately. An agent with no Person entry yet is normal
           // (REQ-UI-ID-03 defers Person creation); fall back to a truncated pubkey, the
           // same convention the initiator display uses (REQ-UI-NDO-02).
-          const persons = yield* person.getAllPersons().pipe(E.catchAll(() => E.succeed([])));
+          const persons = yield* person.getAllPersons().pipe(E.catch(() => E.succeed([])));
           const nameByKey = new Map(
             persons.map((p) => [encodeHashToBase64(p.agent_pub_key), p.name])
           );

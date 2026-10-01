@@ -57,11 +57,11 @@ function createGroupStore(): GroupStore {
           const ndoService = yield* NdoServiceTag;
           const groupService = yield* GroupServiceTag;
 
-          const groupsRes = yield* E.either(lobbyService.getMyGroups());
-          const ndosRes = yield* E.either(ndoService.getGroupNdoDescriptors(groupId));
+          const groupsRes = yield* E.result(lobbyService.getMyGroups());
+          const ndosRes = yield* E.result(ndoService.getGroupNdoDescriptors(groupId));
 
           const cell = yield* lobbyService.getGroupCell(groupId).pipe(
-            E.catchAll(() => E.succeed(null))
+            E.catch(() => E.succeed(null))
           );
 
           // members default to "not fetched" (Left) when there is no cell yet.
@@ -76,10 +76,10 @@ function createGroupStore(): GroupStore {
             // a profile fetch + is_member check every interval is wasteful.
             if (!silent) {
               yield* lobbyService.ensureMembership(groupId).pipe(
-                E.catchAll(() => E.succeed(false))
+                E.catch(() => E.succeed(false))
               );
             }
-            membersRes = yield* E.either(groupService.getMembers(cell.cellId));
+            membersRes = yield* E.result(groupService.getMembers(cell.cellId));
           }
 
           return { groupsRes, ndosRes, hasCell: cell !== null, membersRes };

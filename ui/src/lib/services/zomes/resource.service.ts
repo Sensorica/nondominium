@@ -341,7 +341,7 @@ export const ResourceServiceLive: Layer.Layer<
           'get_ndo_transition_history',
           ndoHash,
           RESOURCE_CONTEXTS.GET_NDO_TRANSITION_HISTORY
-        ).pipe(E.catchAll(() => E.succeed([]))),
+        ).pipe(E.catch(() => E.succeed([]))),
 
       updateOperationalState: (resourceHash, newOperationalState, cellId) =>
         wz<HoloRecord>(
