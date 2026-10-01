@@ -764,7 +764,7 @@ Because two windows *can* share an origin (the `?agent=` override), all UI-only 
 
 ## 16. Perspectives Architecture (Next, planned)
 
-**Status:** planned — next UI iteration after the MVP. Normative requirements: `documentation/requirements/ui_design.md § Perspectives` and `§ Perspectives ToDos`. Nothing below is implemented yet.
+**Status:** planned — next UI iteration after the MVP. Normative requirements: `documentation/requirements/ui_design.md § Perspectives` and `§ Perspectives ToDos`. Only the navigation reducer of § 16.3 exists (`domain/perspective.ts`); nothing else below is implemented yet.
 
 A **Perspective** is a lens (filters, default tools, layout) over data already reachable through the Lobby → Group → NDO hierarchy. Perspectives are **orthogonal** to that hierarchy: `currentView` (lobby/group/ndo) says *where* the agent is; `currentPerspective` says *how* the data is being looked at.
 
@@ -808,6 +808,7 @@ A dedicated `perspective.store.svelte.ts` (Effect-TS pattern as in § 14) owns `
 - **Switch** (`switchTo`): user picks a Perspective in the switcher; trail is reset to that Perspective's root. Each Perspective remembers its last `viewState`.
 - **Jump** (`jumpTo`): a contextual link carrying an entity (e.g. linked Agent in an NDO expanded view → Agent Perspective; joined project → Work). The current location is **pushed** on `navigationTrail` with its `viewState`.
 - **Back** (`back`): pops the trail and restores route + `viewState`. `NavigationTrail.svelte` renders the stack as a breadcrumb (`Resource: Drill press → Agent: Alice → Groups`).
+- **Reducer**: these three transitions are already implemented as a pure `reduce` over `Switched | Jumped | Back` in `domain/perspective.ts` (types `Perspective`, `EntityRef`, `PerspectiveLocation`, `NavigationState`), with `perspective.spec.ts` covering push on jump, reset on switch, restore on back and back on an empty trail. `perspective.store` and the switcher build on it.
 - **Hints**: `PerspectiveSwitcher.svelte` may show a contextual badge when another Perspective is relevant (e.g. "Discover projects" in Work → Intelligence).
 
 Jump table (authoritative list in `ui_design.md § Cross-Perspective Navigation`): Work → Intelligence; Intelligence → Work (on join); Resource → Agent (linked Agent); Agent → Resource; Agent/Intelligence → Work or Group (on join).
