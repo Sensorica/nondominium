@@ -7,6 +7,8 @@
     Rivalry,
     RuleData
   } from '@nondominium/shared-types';
+  // The '+ New rule' handler still reads listings through resourceStore: it is inline in the
+  // markup, which this refactor leaves untouched (design-system fidelity), so it is not moved.
   import { resourceStore } from '$lib/stores/resource.store.svelte';
   import { getNdoStore, isTaskInterrupted, type RuleWithSpec } from '$lib/stores/ndo.store.svelte';
   import RuleEditorModal from './RuleEditorModal.svelte';
