@@ -19,7 +19,7 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --test resource
 
 use holochain::prelude::*;
-use holochain::sweettest::{SweetCell, SweetConductorBatch};
+use holochain::sweettest::{await_consistency_20_s, SweetCell, SweetConductorBatch};
 use nondominium_shared::types::OperationalState;
 use serde::{Deserialize, Serialize};
 
@@ -547,13 +547,15 @@ async fn resource_spec_accepts_project_scope_on_commons_ndo() {
 // Scope changes reconcile the global discovery anchor (issue #144)
 // ---------------------------------------------------------------------------
 
-/// How many times `spec_hash` is linked from the global `resource_specifications` anchor.
+/// How many times `spec_hash` is linked from the global `resource_specifications`
+/// anchor, as seen by the agent running `cell` on `conductors[conductor]`.
 async fn global_listing_count(
     conductors: &SweetConductorBatch,
+    conductor: usize,
     cell: &SweetCell,
     spec_hash: &ActionHash,
 ) -> usize {
-    let output: GetAllResourceSpecificationsOutput = conductors[0]
+    let output: GetAllResourceSpecificationsOutput = conductors[conductor]
         .call(&cell.zome("zome_resource"), "get_all_resource_specifications", ())
         .await;
     output
@@ -561,6 +563,29 @@ async fn global_listing_count(
         .iter()
         .filter(|hash| *hash == spec_hash)
         .count()
+}
+
+/// Asserts the global listing count for `spec_hash` from both agents, after the
+/// author's ops have propagated, so the anchor change is shown to reach a peer.
+async fn assert_global_listing_count(
+    conductors: &SweetConductorBatch,
+    alice: &SweetCell,
+    bob: &SweetCell,
+    spec_hash: &ActionHash,
+    expected: usize,
+    reason: &str,
+) {
+    await_consistency_20_s([alice, bob]).await.unwrap();
+    assert_eq!(
+        global_listing_count(conductors, 0, alice, spec_hash).await,
+        expected,
+        "author view: {reason}"
+    );
+    assert_eq!(
+        global_listing_count(conductors, 1, bob, spec_hash).await,
+        expected,
+        "peer view: {reason}"
+    );
 }
 
 async fn update_spec_scope(
@@ -594,7 +619,7 @@ async fn update_spec_scope(
 /// further `Public` edit must not list it twice.
 #[tokio::test(flavor = "multi_thread")]
 async fn widening_spec_scope_to_public_adds_global_discovery_link() {
-    let (conductors, alice, _bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents().await;
 
     let ndo = create_ndo_at_stage(&conductors, &alice, "Commons NDO", "Active").await;
 
@@ -607,31 +632,43 @@ async fn widening_spec_scope_to_public_adds_global_discovery_link() {
         .await;
     let original = created.spec_hash;
 
-    assert_eq!(
-        global_listing_count(&conductors, &alice, &original).await,
+    assert_global_listing_count(
+        &conductors,
+        &alice,
+        &bob,
+        &original,
         0,
-        "a Project-scoped spec must not be globally listed"
-    );
+        "a Project-scoped spec must not be globally listed",
+    )
+    .await;
 
     let head = update_spec_scope(&conductors, &alice, &original, &original, &ndo, "Public").await;
-    assert_eq!(
-        global_listing_count(&conductors, &alice, &original).await,
+    assert_global_listing_count(
+        &conductors,
+        &alice,
+        &bob,
+        &original,
         1,
-        "widening to Public must add the spec to global discovery"
-    );
+        "widening to Public must add the spec to global discovery",
+    )
+    .await;
 
     update_spec_scope(&conductors, &alice, &original, &head, &ndo, "Public").await;
-    assert_eq!(
-        global_listing_count(&conductors, &alice, &original).await,
+    assert_global_listing_count(
+        &conductors,
+        &alice,
+        &bob,
+        &original,
         1,
-        "an update that keeps Public scope must not duplicate the global link"
-    );
+        "an update that keeps Public scope must not duplicate the global link",
+    )
+    .await;
 }
 
 /// Narrowing `Public` to `Project` must remove the spec from global discovery.
 #[tokio::test(flavor = "multi_thread")]
 async fn narrowing_spec_scope_to_project_removes_global_discovery_link() {
-    let (conductors, alice, _bob) = setup_two_agents().await;
+    let (conductors, alice, bob) = setup_two_agents().await;
 
     let ndo = create_ndo_at_stage(&conductors, &alice, "Commons NDO", "Active").await;
 
@@ -644,18 +681,26 @@ async fn narrowing_spec_scope_to_project_removes_global_discovery_link() {
         .await;
     let original = created.spec_hash;
 
-    assert_eq!(
-        global_listing_count(&conductors, &alice, &original).await,
+    assert_global_listing_count(
+        &conductors,
+        &alice,
+        &bob,
+        &original,
         1,
-        "a Public-scoped spec must be globally listed"
-    );
+        "a Public-scoped spec must be globally listed",
+    )
+    .await;
 
     update_spec_scope(&conductors, &alice, &original, &original, &ndo, "Project").await;
-    assert_eq!(
-        global_listing_count(&conductors, &alice, &original).await,
+    assert_global_listing_count(
+        &conductors,
+        &alice,
+        &bob,
+        &original,
         0,
-        "narrowing to Project must remove the spec from global discovery"
-    );
+        "narrowing to Project must remove the spec from global discovery",
+    )
+    .await;
 }
 
 /// Ownership-transfer rule on Nondominium is a Hard violation via dry-run query.
