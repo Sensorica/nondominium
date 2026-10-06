@@ -655,6 +655,7 @@ pub struct UpdateResourceSpecificationInput {
 }
 ```
 **Returns**: Updated specification with version tracking
+**Side Effects**: Reconciles the global discovery anchor with the new `scope`: a change to `Project` removes the `AllResourceSpecifications` link, a change away from `Project` adds it if absent (issue #144)
 
 #### `get_all_resource_specifications(()) -> ExternResult<GetAllResourceSpecificationsOutput>`
 **Purpose**: Discover all resource specifications in network

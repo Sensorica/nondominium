@@ -301,6 +301,7 @@ Updates an existing resource specification.
 
 **Authorization**: Only the specification author can update
 **Versioning**: Creates update links for version history
+**Scope reconciliation**: `scope` is mutable, so the update brings the global `resource_specifications` anchor in line with it: widening from `Project` adds the anchor link to the original action hash (never a duplicate), narrowing to `Project` deletes it. Integrity still pins `Nondominium` and `Public` regimes to `Public` scope.
 
 #### `get_latest_resource_specification(original_action_hash: ActionHash) -> ExternResult<ResourceSpecification>`
 

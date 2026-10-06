@@ -9,6 +9,9 @@
 //!
 //! Phase B: Layer 1 activation requires an eligible NDO + typed governance rules.
 //!
+//! Covers `update_resource_specification` scope changes: the global discovery
+//! anchor follows the new scope in both directions (issue #144).
+//!
 //! Prerequisites (runtime — not compile-time):
 //!   bun run build:happ   # builds nondominium.dna
 //!
@@ -103,6 +106,13 @@ struct CreateResourceSpecificationOutput {
 struct GetAllResourceSpecificationsOutput {
     pub specifications: Vec<ResourceSpecification>,
     pub action_hashes: Vec<ActionHash>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct UpdateResourceSpecificationInput {
+    pub original_action_hash: ActionHash,
+    pub previous_action_hash: ActionHash,
+    pub updated_specification: ResourceSpecificationInput,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -531,6 +541,121 @@ async fn resource_spec_accepts_project_scope_on_commons_ndo() {
         .await;
 
     assert_eq!(out.spec.scope, "Project");
+}
+
+// ---------------------------------------------------------------------------
+// Scope changes reconcile the global discovery anchor (issue #144)
+// ---------------------------------------------------------------------------
+
+/// How many times `spec_hash` is linked from the global `resource_specifications` anchor.
+async fn global_listing_count(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    spec_hash: &ActionHash,
+) -> usize {
+    let output: GetAllResourceSpecificationsOutput = conductors[0]
+        .call(&cell.zome("zome_resource"), "get_all_resource_specifications", ())
+        .await;
+    output
+        .action_hashes
+        .iter()
+        .filter(|hash| *hash == spec_hash)
+        .count()
+}
+
+async fn update_spec_scope(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    original: &ActionHash,
+    previous: &ActionHash,
+    ndo: &ActionHash,
+    scope: &str,
+) -> ActionHash {
+    let record: Record = conductors[0]
+        .call(
+            &cell.zome("zome_resource"),
+            "update_resource_specification",
+            UpdateResourceSpecificationInput {
+                original_action_hash: original.clone(),
+                previous_action_hash: previous.clone(),
+                updated_specification: spec_input_with_scope(
+                    "Scoped Spec",
+                    "tools",
+                    ndo.clone(),
+                    scope,
+                ),
+            },
+        )
+        .await;
+    record.action_address().clone()
+}
+
+/// Widening `Project` to `Public` must make the spec globally discoverable, and a
+/// further `Public` edit must not list it twice.
+#[tokio::test(flavor = "multi_thread")]
+async fn widening_spec_scope_to_public_adds_global_discovery_link() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Commons NDO", "Active").await;
+
+    let created: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Scoped Spec", "tools", ndo.clone(), "Project"),
+        )
+        .await;
+    let original = created.spec_hash;
+
+    assert_eq!(
+        global_listing_count(&conductors, &alice, &original).await,
+        0,
+        "a Project-scoped spec must not be globally listed"
+    );
+
+    let head = update_spec_scope(&conductors, &alice, &original, &original, &ndo, "Public").await;
+    assert_eq!(
+        global_listing_count(&conductors, &alice, &original).await,
+        1,
+        "widening to Public must add the spec to global discovery"
+    );
+
+    update_spec_scope(&conductors, &alice, &original, &head, &ndo, "Public").await;
+    assert_eq!(
+        global_listing_count(&conductors, &alice, &original).await,
+        1,
+        "an update that keeps Public scope must not duplicate the global link"
+    );
+}
+
+/// Narrowing `Public` to `Project` must remove the spec from global discovery.
+#[tokio::test(flavor = "multi_thread")]
+async fn narrowing_spec_scope_to_project_removes_global_discovery_link() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Commons NDO", "Active").await;
+
+    let created: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Scoped Spec", "tools", ndo.clone(), "Public"),
+        )
+        .await;
+    let original = created.spec_hash;
+
+    assert_eq!(
+        global_listing_count(&conductors, &alice, &original).await,
+        1,
+        "a Public-scoped spec must be globally listed"
+    );
+
+    update_spec_scope(&conductors, &alice, &original, &original, &ndo, "Project").await;
+    assert_eq!(
+        global_listing_count(&conductors, &alice, &original).await,
+        0,
+        "narrowing to Project must remove the spec from global discovery"
+    );
 }
 
 /// Ownership-transfer rule on Nondominium is a Hard violation via dry-run query.
