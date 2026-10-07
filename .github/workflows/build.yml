@@ -61,15 +61,35 @@ jobs:
   #
   # --test-threads 2: each Sweettest spawns conductors, and 6 threads with 11
   # conductor tests in flight gets the runner OOM-killed (SIGTERM mid-suite).
+  #
+  # The two largest targets are split in halves (#142). At two threads a pair
+  # of conductor tests takes about 2.5 min, so a target's time grows with its
+  # test count: on dev d91fe28 (run 36675002358) nondominium ran 18 tests in
+  # 28.6 min and resource 15 tests in 15.4 min, the slowest jobs by far. The
+  # split lives in the run step below, as name filters on the same [[test]]
+  # target, so no test file has to change.
+  #
+  # timeout-minutes: without it the runner default is 360 min, so a hung
+  # conductor holds a runner for six hours. 45 is about twice the slowest half
+  # measured above; hitting it names itself in the job annotation instead of
+  # reading as a test failure.
   sweettest:
     runs-on: ubuntu-latest
     needs: build
+    timeout-minutes: 45
     strategy:
       # Report every failing target, not just the first — a shared regression
       # usually breaks several, and seeing which ones is the diagnosis.
       fail-fast: false
       matrix:
-        target: [misc, person, governance, resource, nondominium]
+        include:
+          - target: misc
+          - target: person
+          - target: governance
+          - { target: resource, half: a }
+          - { target: resource, half: b }
+          - { target: nondominium, half: a }
+          - { target: nondominium, half: b }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -104,10 +124,28 @@ jobs:
         if: matrix.target == 'misc'
         run: nix develop --command cargo test --package nondominium_shared
 
+      # A split target lists its half `a` once, as libtest name filters (a
+      # substring match, any filter selects). Half `b` skips exactly those
+      # filters, so every test runs in exactly one half, including tests added
+      # later: a new test lands in `b` unless its name matches a filter. To
+      # rebalance, move a filter; never list `b` separately.
       - name: Run Sweettest target
+        env:
+          TARGET: ${{ matrix.target }}
+          HALF: ${{ matrix.half }}
         run: |
+          case "$TARGET" in
+            resource) half_a="resource_spec_" ;;
+            nondominium) half_a="ndo_layer0::ndo_lifecycle ndo_layer0::ndo_transition_history ndo_layer0::ndo_hibernation ndo_layer0::ndo_deprecat ndo_layer0::ndo_invalid" ;;
+            *) half_a="" ;;
+          esac
+          filters=()
+          case "$HALF" in
+            a) for f in $half_a; do filters+=("$f"); done ;;
+            b) for f in $half_a; do filters+=(--skip "$f"); done ;;
+          esac
           nix develop --command cargo test --package nondominium_sweettest \
-            --test ${{ matrix.target }} -- --test-threads 2
+            --test "$TARGET" -- --test-threads 2 "${filters[@]}"
 
   # Browser-level e2e against real conductors (ui/tests/e2e). Gated behind
   # sweettest so backend regressions fail before the slower browser suite runs.
