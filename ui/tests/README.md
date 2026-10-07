@@ -48,6 +48,7 @@ To inspect DHT state interactively alongside a run, set `E2E_PLAYGROUND=1`
   flows). Cross-agent assertions always poll via `expectEventually`, which
   drives the UI's own pull-refresh (focus/visibility triggers) rather than
   reloading.
+- **Retries and serial stories**: CI sets `retries: 2`, but Playwright retries a `describe.serial` group as a whole against the same conductors, so a retry inherits the groups and NDOs the failed attempt created. `core-flows.spec.ts` opts out with `test.describe.configure({ retries: 0 })`; otherwise its empty-lobby precondition fails on every retry and hides the original failure (#142).
 
 ## Conventions
 
