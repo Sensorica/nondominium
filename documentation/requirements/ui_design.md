@@ -198,6 +198,8 @@ Process-centric view of the Agent's **active** engagements. "Work" means engagin
 - **Per-project tools**: kanban board, tasks, planning; commit to work, take a task, log contributions; coordinate with other Agents on the development of the NDO.
 - **Stigmergic signals** across projects: which projects are active or need attention, invitations to contribute, calls for decision-making. These help the Agent choose what to work on today.
 - **Joining**: a project joined from the Intelligence Perspective lands here.
+In the Work perspective, also provide access to the 3 layers of Valueflow layers (knowledge, plan and observation).
+
 
 ```yaml
 work_view:
@@ -207,6 +209,7 @@ work_view:
   priority_order: attention_needed | invitations | activity
   layout: project_workspace
 ```
+
 
 ### 🧰 **Tools (cross-perspective)**
 
