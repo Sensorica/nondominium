@@ -673,6 +673,25 @@ The **Chat** tool (direct contact with an Agent, possibly via the Capability Sur
 
 Implementation order follows `ui_design.md § Perspectives ToDos`: switcher and trail first, then Resource (reusing `NdoBrowser`), Agent, Intelligence, Work.
 
+### 16.5.1 Layer 0 cut (prototyped in the design system, not yet in the app)
+
+For the Layer 0 release the Perspective switcher sits **inside the Group page** (Lobby → Group → Perspective); only Resource is live and every Perspective is group-scoped. The prototype lives in `nondominium-design-system` (`/scenarios/resource-perspective`), with components in `@nondominium/ndo-ui`. The port to this app is a ToDo (`ui_design.md § Port to the nondominium app`).
+
+| Piece | Location (in `packages/ndo-ui/src/`) | Role |
+|---|---|---|
+| Coming-next registry | `domain/coming-next.ts` | Single source of copy for every "Soon" item (perspectives, tabs, access actions, processes, governed transitions, jump points; Unyt stake and Source view copy exist but are not wired yet), plus the `PERSPECTIVES` list and `PerspectiveId` |
+| `ComingNextPopup`, `SoonBadge` | `components/primitives/` | Reusable popup (built on `Modal`; optional live shortcut, e.g. Offer → Create NDO) and badge |
+| `PerspectiveSwitcher`, `Breadcrumb` | `components/patterns/perspectives/` | Tablist of four Perspectives (non-live ones open the popup and keep the current one); breadcrumb `Lobby › Group › Resource › NDO` |
+| `ResourcePerspective` | same | Search, ownership scope, sort, stage / nature / regime filters over `NdoBrowser`; logic in `domain/resource-perspective.ts` (`searchNdos`, `scopeNdos`, `sortNdos`) |
+| `GroupPerspectivesView` | same | Perspective host replacing the Group page body (header, switcher, Resource Perspective, member list) |
+| `ResourceNdoView`, `NdoActionRow` | same | NDO view with Overview + "Soon" tabs, access actions and processes row, join / associate / fork / copy link |
+
+Additive changes to existing components (no breaking changes for current callers): `NdoBrowser` gains `cardAction` and `emptyMessage`; `NdoIdentityPanel` gains `lockedTransition`, `onlockedtransitionclick`, `oninitiatorclick`; `MemberList` gains `onmemberclick`.
+
+State at this cut: `currentPerspective` only (`'resource'` live); `navigationTrail` and `jumpTo` / `back` stay in § 16.2 and arrive with the Agent Perspective. Jump points open the Coming-next popup instead of navigating.
+
+Authorization is unchanged: the lifecycle transition remains initiator-only, enforced in the integrity zome (`zome_resource`); the UI only mirrors it by locking the button for non-initiators.
+
 ### 16.6 Community-specific implementations (later)
 
 Community-specific UIs (terminology → workflows → visuals) sit on top of the four base Perspectives; ValueFlows stays the background vocabulary. Architecturally this implies a **dictionary layer**: a per-community mapping from display terms to the base vocabulary, consulted by components instead of hard-coded labels (so new base components should already route user-facing terms through a single `t()`-style lookup). How this relates to the Surface / Surface Attachment (capability slots) is to be specified; see `ui_design.md § Community-Specific Implementations`. Higher-level interoperability concerns are parked (`ui_design.md § Future Reflection`).

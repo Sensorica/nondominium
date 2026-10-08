@@ -258,6 +258,50 @@ Perspectives are connected by **contextual jumps** carrying the current entity (
 
 Technical mapping: `documentation/specifications/ui_architecture.md § 16`.
 
+### Layer 0 Release Cut: Resource Perspective
+
+> **Status: prototyped in `nondominium-design-system`, not yet ported to the app.** Prototype: `/scenarios/resource-perspective` (components in `packages/ndo-ui/src/components/patterns/perspectives/`, copy registry in `packages/ndo-ui/src/domain/coming-next.ts`).
+
+For the Layer 0 release only the Resource Perspective is live, and only with what Layer 0 can do honestly. Everything else is **visible, labelled "Soon", and explained** instead of hidden.
+
+**Where it sits**: Lobby stays the outermost layer, Groups the second, and the Perspective switcher lives **inside the Group page**. At Layer 0 every Perspective is scoped to the current group. Breadcrumb: `Lobby › <Group> › Resource › <NDO>`.
+
+**Live at Layer 0** (Resource Perspective):
+
+- NDO cards, search, stage / nature / regime filters, sort, and an ownership scope (All · Created by me · Joined by me).
+- Create NDO from the group page, NDO view, Join NDO, Associate with a group, Fork, Copy NDO link (also per card).
+- Lifecycle transition for the initiator (the only mutable Layer 0 field), with transition history.
+- Group features unchanged: copy invite link, member list.
+
+**Visible but "Coming next"** (a "Soon" badge; clicking opens the same popup, built from one registry, and the user stays where they are):
+
+| Area | Items |
+|---|---|
+| Perspectives | Agent, Intelligence, Work (switcher entries) |
+| NDO view tabs | Resources, Governance, Composition, Activity (Overview is the live tab) |
+| Access actions | Use, Borrow, Offer, Transfer, Transfer custody (Offer's popup offers a shortcut to Create NDO) |
+| Service processes | Transport, Store, Repair |
+| Governed transitions | A disabled "Advance stage" for non-initiators, explaining how governed transitions will work |
+| Jump points | Clicking an agent (initiator, group member) explains the future jump to the Agent Perspective and the return path |
+
+The registry also holds copy for the Unyt stake step of Fork and for the Source view; neither is wired to a control yet.
+
+Why the access actions and processes are listed: `VfAction` and the Transport / Repair / Storage roles already model them in the backend (see `resources.md`, `governance.md`); the UI shows them so people see how the NDO will eventually be used.
+
+**Open questions**: popup versus inline explainer per tab; whether Offer should go straight to the creation form; whether Layer 1/2 forms stay reachable behind a dev flag for internal testing.
+
+### Port to the nondominium app (not yet)
+
+> **Decision**: the prototype stays in `nondominium-design-system` until the design is validated. Do **not** port yet; these are the ToDos for when it is.
+
+1. **Perspectives host in the Group page** — replace the `NdoBrowser` block in `GroupView.svelte` with `GroupPerspectivesView` (switcher + Resource Perspective); the Lobby is untouched.
+2. **State** — add `currentPerspective` to `app.context.svelte.ts` (Resource only live; the trail comes with the full Perspectives work).
+3. **NDO view** — tabs (Overview live; the others open the Coming-next popup), access-action and process buttons, Copy NDO link, locked "Advance stage" for non-initiators, agent jump-point popups.
+4. **Shared copy** — adopt the `coming-next` registry and `ComingNextPopup` / `SoonBadge` from `@nondominium/ndo-ui`; no per-component copy.
+5. **Card actions** — per-card "Copy link" and the scope chips (Created by me / Joined by me) need `myAgentKey` and the joined list from the app context.
+6. **Replica re-sync** — after the port, re-copy the app files into `src/lib/replica/` in the design system so `check:fidelity` passes (the replica is a copy and is never improved by hand).
+7. **E2E** — adjust the Playwright specs under `ui/tests/` for create NDO, join, associate, fork, and add cases for the Coming-next popups, scope chips and the locked transition.
+
 ---
 
 ## Post MVP
