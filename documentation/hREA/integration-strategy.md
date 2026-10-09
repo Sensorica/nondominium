@@ -6,9 +6,7 @@ This document outlines the comprehensive integration strategy for incorporating 
 
 **Key Decision**: Use git submodule + cross-DNA calls via the Holochain HDK `call()` function to integrate hREA directly at the Rust/zome level. This bypasses hREA's GraphQL API entirely; integration happens in the backend, not the UI.
 
-**Bound on the GraphQL adapter**: the UI vendors hREA's GraphQL adapter (`vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz`, #153) for read-only queries only, such as showing a resource's ValueFlows history. Every write (Agents, Commitments, EconomicEvents, EconomicResources) still goes through the Nondominium zomes and their cross-DNA calls, for the reasons in [Why Zome-Level Integration](#why-zome-level-integration-not-graphql). A UI mutation through the adapter would skip governance evaluation and PPR issuance, so it is out of bounds.
-
-**hREA Repository**: https://github.com/h-REA/hREA (branch: `main-0.6`)
+**hREA Repository**: https://github.com/h-REA/hREA (release tag `happ-0.5.0-beta.1`, commit `79c8d4fb`, Holochain 0.7; pinned in #154)
 **Architecture**: Single DNA (`hrea`) with separate coordinator + integrity zomes
 
 ---
@@ -579,13 +577,11 @@ The role name `"hrea"` in `happ.yaml` is what gets passed to `CallTargetCell::Ot
 ### Git Submodule Setup
 
 ```bash
-# Add hREA as a submodule (pin to stable main-0.6 branch commit)
-git submodule add -b main-0.6 https://github.com/h-REA/hREA.git vendor/hrea
-cd vendor/hrea
-git checkout fc3b5e78e749e84b8738dc4813bba9037afd17bc
-cd ../..
+# Add hREA as a submodule, pinned to a release tag rather than a branch
+git submodule add https://github.com/h-REA/hREA.git vendor/hrea
+git -C vendor/hrea checkout happ-0.5.0-beta.1   # 79c8d4fb98c4f7f9a8cf3f7dd69690d6d1334d85
 git add vendor/hrea .gitmodules
-git commit -m "add hREA as submodule (main-0.6 branch)"
+git commit -m "chore(deps): pin hREA to happ-0.5.0-beta.1"
 ```
 
 ### Cargo.toml Workspace
@@ -804,7 +800,7 @@ The bridge call overhead (~5-10ms) is acceptable because hREA integration happen
 
 ### Phase 1: Foundation (Person Zome — CURRENT TARGET)
 
-- [x] Set up hREA git submodule (`vendor/hrea`, `main-0.6` branch)
+- [x] Set up hREA git submodule (`vendor/hrea`, first on `main-0.6`, tag `happ-0.5.0-beta.1` since #154)
 - [ ] Configure `happ.yaml` with `nondominium` and `hrea` roles
 - [ ] Build hREA DNA and include in `.webhapp` bundle
 - [ ] Add `hrea_agent_hash: Option<ActionHash>` field to `Person` integrity entry
@@ -845,7 +841,7 @@ The bridge call overhead (~5-10ms) is acceptable because hREA integration happen
 | ----------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------- |
 | hREA `main-0.6` branch API changes                    | Medium     | High   | Pin to a specific commit hash, not a branch pointer             |
 | Cross-DNA call capability issues                      | Medium     | High   | Test cap grants early in Phase 1                                |
-| hREA DNA build incompatibility (HDK version mismatch) | Low        | High   | Confirmed: both use HDK ^0.7.0 / HDI ^0.8.0 on holonix main-0.7 |
+| hREA DNA build incompatibility (HDK version mismatch) | Realized   | High   | The `happ-0.5.0-beta.1` pin uses hdk 0.7.0 / hdi 0.8.0 and does not compile on the Holonix main-0.6 toolchain; it lands together with the Holochain 0.7 move (#130) |
 | Performance degradation from bridge calls             | Low        | Medium | Benchmark early; cache hREA hashes in Nondominium links         |
 | Migration query complexity (dual-read layer)          | Medium     | Low    | Keep migration period short; prioritize hREA-backed data        |
 
@@ -881,4 +877,4 @@ Key outcomes:
 _Document Version: 2.0_
 _Last Updated: 2026-03-02_
 _Status: Implementation Ready_
-_hREA Source: https://github.com/h-REA/hREA (branch: main-0.6, commit: fc3b5e78)_
+_hREA Source: https://github.com/h-REA/hREA (tag: happ-0.5.0-beta.1, commit: 79c8d4fb)_

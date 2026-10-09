@@ -289,7 +289,7 @@ These are Nondominium-native federation primitives. They are not yet a full vers
 
 ### Phase 1: Complete ✅
 
-- hREA git submodule (`vendor/hrea`, Sensorica fork)
+- hREA git submodule (`vendor/hrea`, h-REA/hREA tag `happ-0.5.0-beta.1` since #154; previously the Sensorica fork on `main-0.6`)
 - `happ.yaml` dual-DNA roles configuration
 - hREA DNA compiled and included in `.webhapp` bundle
 - `hrea_agent_hash` field added to `Person` integrity entry
