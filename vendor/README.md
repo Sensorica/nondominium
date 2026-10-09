@@ -1,6 +1,6 @@
 # Vendored packages
 
-`vendor/hrea` is the hREA git submodule the hApp builds its `hrea` DNA from; nothing in this README concerns it. The files beside it are npm packages the UI installs from disk.
+`vendor/hrea` is the hREA git submodule the hApp builds its `hrea` DNA from: `https://github.com/h-REA/hREA.git`, pinned to commit `79c8d4fb98c4f7f9a8cf3f7dd69690d6d1334d85`, the one tagged `happ-0.5.0-beta.1` (#154). It is a Holochain 0.7 DNA (hdk 0.7.0, hdi 0.8.0), so it builds and runs only under a Holochain 0.7 toolchain and conductor. The rest of this README does not concern it. The files beside it are npm packages the UI installs from disk.
 
 ## `@valueflows/vf-graphql-holochain` 0.700.0-rc.0
 
