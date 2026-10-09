@@ -44,7 +44,7 @@ Source: `CLAUDE.md` — Key Development Patterns
 Source: `CLAUDE.md` + `documentation/specifications/specifications.md §7`
 
 - All zome calls wrapped via `wrapZomeCallWithErrorFactory` (Effect-TS)
-- Services are `Context.Tag` / `Layer` values in Effect-TS
+- Services are `Context.Service` / `Layer` values in Effect-TS
 - Svelte 5 runes: `$state`, `$derived`, `$effect`, `$props` — not `$:` reactive
 - UnoCSS for styling; Melt UI next-gen (`melt`) for headless components — not shadcn
 

@@ -88,10 +88,10 @@ export interface GovernanceService {
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
 
-export class GovernanceServiceTag extends Context.Tag('GovernanceService')<
+export class GovernanceServiceTag extends Context.Service<
   GovernanceServiceTag,
   GovernanceService
->() {}
+>()('GovernanceService') {}
 
 // ─── Live Layer ───────────────────────────────────────────────────────────────
 

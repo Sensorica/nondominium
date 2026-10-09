@@ -7,7 +7,7 @@
     "start": "vite --clearScreen false --port $UI_PORT",
     "build": "bun run check && vite build --mode production",
     "build:test": "bun run check && vite build --mode test",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check": "bun scripts/check-architecture.ts && svelte-check --tsconfig ./tsconfig.json",
     "package": "bun run build && rimraf dist.zip && cd build && bestzip ../dist.zip *",
     "test": "vitest run",
     "test:e2e": "playwright test",
@@ -47,11 +47,10 @@
     "vitest-browser-svelte": "^0.1.0"
   },
   "dependencies": {
-    "@effect/platform": "^0.79.0",
     "@holochain/client": "^0.20.0",
     "@msgpack/msgpack": "^3.0.0",
     "@nondominium/shared-types": "workspace:*",
-    "effect": "^3.15.0",
+    "effect": "4.0.0",
     "melt": "^0.44.0"
   }
 }

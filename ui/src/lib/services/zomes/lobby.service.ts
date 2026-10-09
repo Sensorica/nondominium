@@ -115,7 +115,7 @@ export interface LobbyService {
   getLobbyAgentProfile: (agentPubKey: Uint8Array) => E.Effect<LobbyAgentProfile | null, LobbyError>;
 }
 
-export class LobbyServiceTag extends Context.Tag('LobbyService')<LobbyServiceTag, LobbyService>() {}
+export class LobbyServiceTag extends Context.Service<LobbyServiceTag, LobbyService>()('LobbyService') {}
 
 function encodeInvitePayload(payload: GroupInvitePayload): string {
   return btoa(JSON.stringify(payload));
@@ -246,7 +246,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
         E.gen(function* () {
           for (let attempt = 1; attempt <= attempts; attempt += 1) {
             const profile = yield* fetchGroupProfile(cellId).pipe(
-              E.catchAll(() => E.succeed(null))
+              E.catch(() => E.succeed(null))
             );
             if (profile) return profile;
             if (attempt < attempts) yield* E.sleep(`${delayMs} millis`);
@@ -309,7 +309,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
               groupHash,
               'JOIN_GROUP'
             ).pipe(
-              E.catchAll((e) => {
+              E.catch((e) => {
                 console.warn('[lobby] join_group failed (non-fatal):', e);
                 return E.succeed(null as unknown as GroupHolochainRecord);
               })
@@ -344,7 +344,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
             // Brief retry: a GroupProfile may still be gossiping into a freshly
             // joined cell. A couple of quick attempts absorb transient delays.
             const profile = yield* fetchGroupProfileWithRetry(cell.cellId, 3, 200).pipe(
-              E.catchAll(() => E.succeed(null))
+              E.catch(() => E.succeed(null))
             );
             if (profile) {
               descriptors.push(descriptorFromCell(cell, profile));
@@ -390,7 +390,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
             });
             if (!cell) return null;
             const profile = yield* fetchGroupProfile(cell.cellId).pipe(
-              E.catchAll(() => E.succeed(null))
+              E.catch(() => E.succeed(null))
             );
             return profile?.groupHashB64 ?? null;
           }),
@@ -419,7 +419,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
               } satisfies AnnounceGroupInput,
               'ANNOUNCE_GROUP'
             ).pipe(
-              E.catchAll((e) => {
+              E.catch((e) => {
                 console.warn('[lobby] announce_group failed (non-fatal):', e);
                 return E.succeed(undefined);
               })
@@ -446,7 +446,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
                 'is_member',
                 [agentPubKey, groupHash],
                 'IS_MEMBER'
-              ).pipe(E.catchAll(() => E.succeed(false)));
+              ).pipe(E.catch(() => E.succeed(false)));
 
               if (!isMember) {
                 // Best-effort: the clone cell already exists, so surface the group
@@ -458,7 +458,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
                   groupHash,
                   'JOIN_GROUP'
                 ).pipe(
-                  E.catchAll((e) => {
+                  E.catch((e) => {
                     console.warn('[lobby] join_group failed (non-fatal):', e);
                     return E.succeed(null as unknown as GroupHolochainRecord);
                   })
@@ -491,7 +491,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
                 'is_member',
                 [agentPubKeyForJoin, groupHashFromPayload],
                 'IS_MEMBER'
-              ).pipe(E.catchAll(() => E.succeed(false)));
+              ).pipe(E.catch(() => E.succeed(false)));
               if (!alreadyMember) {
                 yield* callGroupZome<GroupHolochainRecord>(
                   cell.cellId,
@@ -499,7 +499,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
                   groupHashFromPayload,
                   'JOIN_GROUP'
                 ).pipe(
-                  E.catchAll((e) => {
+                  E.catch((e) => {
                     console.warn('[lobby] payload-path join_group failed (non-fatal):', e);
                     return E.succeed(null as unknown as GroupHolochainRecord);
                   })
@@ -535,7 +535,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
             // it has usually gossiped; if not, reconciliation simply happens on a
             // later load.
             const profile = yield* fetchGroupProfile(cell.cellId).pipe(
-              E.catchAll(() => E.succeed(null))
+              E.catch(() => E.succeed(null))
             );
             if (!profile) return false;
 
@@ -550,7 +550,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
               'is_member',
               [agentPubKey, groupHash],
               'IS_MEMBER'
-            ).pipe(E.catchAll(() => E.succeed(false)));
+            ).pipe(E.catch(() => E.succeed(false)));
 
             if (isMember) return true;
 
@@ -560,7 +560,7 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
               groupHash,
               'JOIN_GROUP'
             ).pipe(
-              E.catchAll((e) => {
+              E.catch((e) => {
                 console.warn('[lobby] ensureMembership join_group failed (non-fatal):', e);
                 return E.succeed(null as unknown as GroupHolochainRecord);
               })
