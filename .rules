@@ -3,12 +3,12 @@
 This file provides guidance to AI agents when working with code in this repository.
 
 Use as reference the following foundatonal documents:
-* @documentation/TELOS.md
-* @documentation/requirements/requirements.md
-* @documentation/requirements/agent.md
-* @documentation/requirements/resources.md
-* @documentation/requirements/governance.md
-* @documentation/specifications/specifications.md
+* documentation/TELOS.md
+* documentation/requirements/requirements.md
+* documentation/requirements/agent.md
+* documentation/requirements/resources.md
+* documentation/requirements/governance.md
+* documentation/specifications/specifications.md
 
 ## Development Environment Setup
 
