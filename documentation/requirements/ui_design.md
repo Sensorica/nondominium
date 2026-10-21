@@ -260,7 +260,7 @@ Technical mapping: `documentation/specifications/ui_architecture.md § 16`.
 
 ### Layer 0 Release Cut: Resource Perspective
 
-> **Status: prototyped in `nondominium-design-system`, not yet ported to the app.** Prototype: `/scenarios/resource-perspective` (components in `packages/ndo-ui/src/components/patterns/perspectives/`, copy registry in `packages/ndo-ui/src/domain/coming-next.ts`).
+> **Status: prototyped in `nondominium-design-system`, not yet ported to the app.** Prototype: `/prototypes/resource-perspective` (components in `packages/ndo-ui/src/components/patterns/perspectives/`, copy registry in `packages/ndo-ui/src/domain/coming-next.ts`).
 
 For the Layer 0 release only the Resource Perspective is live, and only with what Layer 0 can do honestly. Everything else is **visible, labelled "Soon", and explained** instead of hidden.
 

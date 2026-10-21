@@ -675,7 +675,7 @@ Implementation order follows `ui_design.md § Perspectives ToDos`: switcher and 
 
 ### 16.5.1 Layer 0 cut (prototyped in the design system, not yet in the app)
 
-For the Layer 0 release the Perspective switcher sits **inside the Group page** (Lobby → Group → Perspective); only Resource is live and every Perspective is group-scoped. The prototype lives in `nondominium-design-system` (`/scenarios/resource-perspective`), with components in `@nondominium/ndo-ui`. The port to this app is a ToDo (`ui_design.md § Port to the nondominium app`).
+For the Layer 0 release the Perspective switcher sits **inside the Group page** (Lobby → Group → Perspective); only Resource is live and every Perspective is group-scoped. The prototype lives in `nondominium-design-system` (`/prototypes/resource-perspective`), with components in `@nondominium/ndo-ui`. The port to this app is a ToDo (`ui_design.md § Port to the nondominium app`).
 
 | Piece | Location (in `packages/ndo-ui/src/`) | Role |
 |---|---|---|
