@@ -173,7 +173,7 @@ export interface NdoFormInput {
     | 'CommonPool'
     | 'Public'
     | 'Nondominium';
-  nature?: 'Physical' | 'Digital' | 'Service' | 'Hybrid' | 'Information';
+  nature?: 'Physical' | 'Digital' | 'Hybrid';
   stage?: string;
   description?: string;
 }

@@ -244,7 +244,7 @@ pub struct NondominiumIdentity {
 }
 ```
 
-Shared enums live in `crates/shared/src/types.rs`. `PropertyRegime` has seven variants (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`); `ResourceNature` includes `Physical`, `Digital`, `Service`, `Hybrid`, and `Information`. The UI (`packages/shared-types` and creation/filter controls) exposes all seven `PropertyRegime` options.
+Shared enums live in `crates/shared/src/types.rs`. `PropertyRegime` has seven variants (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`); `ResourceNature` is `Physical`, `Digital`, and `Hybrid`. `Digital` includes software, data, design files, documents, datasets, and methods. A service delivery is a ValueFlows flow, not a nature. The UI (`packages/shared-types` and creation/filter controls) exposes all seven `PropertyRegime` options.
 
 **Key properties:**
 
@@ -1095,13 +1095,13 @@ pub enum PropertyRegime {
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
     Physical,     // Material objects, equipment, spaces
-    Digital,      // Software, data, design files, documents
-    Service,      // Software services, knowledge-as-service assets
+    Digital,      // Software, data, designs, documents, datasets, methods
     Hybrid,       // Digital twin of a physical resource, or physical+digital bundle
-    Information,  // Knowledge assets, datasets, documented methods
 }
-// MVP canonical definition: crates/shared/src/types.rs (5 variants).
-// Post-MVP forward map may add Space, Method, Currency — see documentation/archives/resources.md §6.2.
+// Canonical definition: crates/shared/src/types.rs (3 variants).
+// A service is a flow (`work`, `deliverService`). The kind of a digital resource
+// is a Layer 1 specification profile, not another Layer 0 nature.
+// Post-MVP forward map may add Space and Currency — see documentation/requirements/resources.md §6.2.
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
 pub enum LifecycleStage {
@@ -1600,7 +1600,7 @@ Source-NDO introduces `Source` as a third ontological primitive — neither Agen
 
 **How Source-NDO fits the three-layer model:**
 
-- **Layer 0** (`NondominiumIdentity`): Source-NDOs use `PropertyRegime::Nondominium` or `CommonPool` and `ResourceNature::Physical` or `Information`. The Layer 0 hash is the stable anchor for the source's event ledger. A linked `SourceProfile` extension entry carries condition indicators: `current_stock`, `flux_rate`, `assimilation_capacity`, `regime_state`, `resilience`, `tipping_threshold`, `stewarded_by` (replaces `primaryAccountable`).
+- **Layer 0** (`NondominiumIdentity`): Source-NDOs use `PropertyRegime::Nondominium` or `CommonPool` and `ResourceNature::Physical` or `Digital` (a knowledge commons is Digital). The Layer 0 hash is the stable anchor for the source's event ledger. A linked `SourceProfile` extension entry carries condition indicators: `current_stock`, `flux_rate`, `assimilation_capacity`, `regime_state`, `resilience`, `tipping_threshold`, `stewarded_by` (replaces `primaryAccountable`).
 - **Layer 1** (`SourceSpecification`): Boundary conditions, monitoring framework, ecological value vector, stakeholder map. Activated when governance framework formalisation begins.
 - **Layer 2**: All boundary events (extraction, loading, non-consumptive use, regeneration) recorded as `EconomicEvent` entries against the Source Layer 0 hash. The governance-as-operator loop is cybernetic: events accumulate → stewards interpret conditions → `GovernanceRule` entries are revised → access affordances change → future events are conditioned.
 

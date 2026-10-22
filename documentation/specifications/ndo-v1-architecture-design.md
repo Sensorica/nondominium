@@ -129,7 +129,7 @@ pub enum PropertyRegime {
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
-    Digital,   // Software, data, design files, documents
+    Digital,   // Software, data, design files, documents, datasets, methods
     Physical,  // Material objects, equipment, spaces
     Hybrid,    // Digital twin of a physical resource
 }

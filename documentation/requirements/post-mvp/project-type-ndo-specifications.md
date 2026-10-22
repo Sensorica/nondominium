@@ -27,7 +27,7 @@ This document defines **post-MVP requirements** for how project-type NDOs shall 
 
 ### 2.1 In scope
 
-- Layer 1 **specification packages** for project-type NDOs (`ResourceNature`: `Physical`, `Digital`, `Hybrid`, and optionally `Information` for pure documentation products).
+- Layer 1 **specification packages** for project-type NDOs (`ResourceNature`: `Physical`, `Digital`, `Hybrid`). A documentation product is `Digital`.
 - Progressive completeness requirements matched to `LifecycleStage` (complexity matching).
 - Mapping of OSHWA and Open Know-How artifact types to NDO data structures.
 - Integrity, versioning, composability, and licensing requirements for specification assets.

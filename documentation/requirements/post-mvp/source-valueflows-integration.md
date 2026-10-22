@@ -678,8 +678,8 @@ Non-rival: `extract` copies the design without depleting the Source (`current_st
 
 | NDO                   | `resource_nature` | `source_type`      | Notes                                      |
 | --------------------- | ----------------- | ------------------ | ------------------------------------------ |
-| **OpenCNC**           | `Information`     | `KnowledgeCommons` | `flux_rate: N/A`, `dependency_index: 0.45` |
-| **FabLabBerlin-Fork** | `Information`     | `KnowledgeCommons` | `ProvidedBy → OpenCNC`                     |
+| **OpenCNC**           | `Digital`         | `KnowledgeCommons` | `flux_rate: N/A`, `dependency_index: 0.45` |
+| **FabLabBerlin-Fork** | `Digital`         | `KnowledgeCommons` | `ProvidedBy → OpenCNC`                     |
 
 
 

@@ -25,7 +25,9 @@ Each entry: the decision, the reasoning, what was rejected and why, and current 
 
 **Decision.** `is_rivalrous()` is removed from `PropertyRegime` (or demoted to a documented "default posture" helper, not authoritative). Authoritative rivalry derivation becomes a method on `ResourceNature`, with an explicit `Option<Rivalry>` override field for the cases nature gets wrong.
 
-**Reasoning.** `resources.md` §4.4.3 is explicit that goods-type properties (rivalry, excludability) and property regime are *orthogonal*: "goods types exist independently of property regimes... `ResourceNature` and `Rivalry` describe the intrinsic characteristics of the resource. `PropertyRegime` describes the chosen governance arrangement." The **current code contradicts its own documentation**: `PropertyRegime::is_rivalrous()` classifies `Nondominium` as categorically non-rivalrous. That's wrong for a *physical* Nondominium resource — a community 3D printer under a Nondominium regime is still rivalrous; only one agent can print at a time. `ResourceNature` is a much better predictor: physical/hybrid things are rivalrous by default, digital/information things aren't. `Service` is genuinely ambiguous (a consultation slot is rivalrous; documented advice is not) — hence the override.
+**Reasoning.** `resources.md` §4.4.3 is explicit that goods-type properties (rivalry, excludability) and property regime are *orthogonal*: "goods types exist independently of property regimes... `ResourceNature` and `Rivalry` describe the intrinsic characteristics of the resource. `PropertyRegime` describes the chosen governance arrangement." The **current code contradicts its own documentation**: `PropertyRegime::is_rivalrous()` classifies `Nondominium` as categorically non-rivalrous. That's wrong for a *physical* Nondominium resource — a community 3D printer under a Nondominium regime is still rivalrous; only one agent can print at a time. `ResourceNature` is a much better predictor: physical and hybrid things are rivalrous by default, digital things are not. A particular resource can still differ from that default — hence the override.
+
+**Later reduction.** `Service` and `Information` were removed from `ResourceNature`. The enum is `Physical`, `Digital`, `Hybrid`. A service delivery is a ValueFlows flow (`work`, `deliverService`). Knowledge, datasets, and methods are `Digital`; their kind is a Layer 1 specification profile.
 
 **Rejected alternative.** Keep deriving from `PropertyRegime`, treat the Nondominium-physical case as an acceptable simplification. Rejected because it's not a simplification, it's an actual falsehood the moment a physical Nondominium resource exists, which the roadmap explicitly anticipates (shared physical tools under Nondominium governance are a first-class use case, not an edge case).
 
@@ -40,8 +42,7 @@ impl ResourceNature {
     pub fn default_rivalry(&self) -> Rivalry {
         match self {
             ResourceNature::Physical | ResourceNature::Hybrid => Rivalry::Rivalrous,
-            ResourceNature::Digital | ResourceNature::Information => Rivalry::NonRivalrous,
-            ResourceNature::Service => Rivalry::NonRivalrous, // ambiguous default; override expected
+            ResourceNature::Digital => Rivalry::NonRivalrous,
         }
     }
 }
@@ -178,7 +179,7 @@ pub struct MaintenanceScheduleData { pub interval_days: u32, pub required_role: 
 
 **Decision.** `GovernanceRule` gains `ndo_identity_hash: ActionHash` (direct pointer to Layer 0) plus denormalized copies of `property_regime`, `resource_nature`, and `rivalry_override` — all three chosen *because* they're immutable on `NondominiumIdentity`. `lifecycle_stage` is deliberately **not** denormalized because it's mutable and would drift.
 
-**Reasoning.** This lets `validate_create_governance_rule` run `check_rule_data_permitted` with **zero DHT reads** — pure computation over the entry's own fields. Denormalizing a *mutable* field onto a different permanent entry would create exactly the staleness risk Stage 3 was designed to avoid (the copy silently becomes wrong the moment the source changes and nothing re-syncs it). This is why `ResourceClassification.lifecycle_stage` had to become `Option<LifecycleStage>` (§1.3) rather than required: `check_rule_data_permitted`'s two current checks (ownership-transfer permission, gated-accessibility-vs-Nondominium) only read `property_regime` — they never needed `lifecycle_stage` at all, so forcing this call site to fetch it just to fill a required struct field would reintroduce a DHT read that buys nothing.
+**Reasoning.** This lets `validate_create_governance_rule` run `check_rule_data_permitted` with **zero DHT reads** — pure computation over the entry's own fields. Denormalizing a *mutable* field onto a different permanent entry would create exactly the staleness risk Stage 3 was designed to avoid (the copy silently becomes wrong the moment the source changes and nothing re-syncs it). This is why `ResourceClassification.lifecycle_stage` had to become `Option<LifecycleStage>` (§1.3) rather than required: `check_rule_data_permitted` reads `property_regime` and `effective_rivalry()` (the nature default, or `rivalry_override`). It never reads `lifecycle_stage`, so forcing this call site to fetch it just to fill a required struct field would reintroduce a DHT read that buys nothing. The rivalry clauses are Soft: Pool or CommonPool on a non-rivalrous classification (`subtractable_regime_on_nonrivalrous`), and a quantity-per-period `UsageLimit` on a non-rivalrous classification (`quantity_limit_on_nonrivalrous`). A duration cap is left alone. Integrity still rejects only Hard violations.
 
 **A generalization worth stating explicitly, since it recurred at every later stage:** *denormalize only immutable fields onto a different entry; read mutable ones live, at the point of validation, via* `must_get_valid_record`*.* This rule was re-derived independently for `ResourceSpecification` (§1.7) and for `Commitment`/`EconomicEvent` (§1.8) — it's the load-bearing principle of this whole document's enforcement design, not a one-off Stage 3 detail.
 
@@ -223,6 +224,8 @@ pub fn check_rule_data_permitted(ctx: &ResourceClassification, rule_data: &RuleD
     }
 }
 ```
+
+The live function accumulates into one vector instead of returning from the first matching arm, then appends the two Soft rivalry clauses. The call site below is unchanged: Hard violations reject the entry, and Soft ones pass integrity.
 
 ```rust
 // zome_resource_integrity/src/lib.rs — validate_create_governance_rule, revised
@@ -326,7 +329,7 @@ fn validate_create_resource_spec(spec: &ResourceSpecification, _author: &AgentPu
 ```rust
 pub fn check_transport_applicability(ctx: &ResourceClassification, action: &VfAction) -> Option<ConstraintViolation> {
     let is_move = matches!(action, VfAction::Move);
-    let is_non_physical = matches!(ctx.resource_nature, ResourceNature::Digital | ResourceNature::Information);
+    let is_non_physical = matches!(ctx.resource_nature, ResourceNature::Digital);
     if is_move && is_non_physical {
         return Some(ConstraintViolation {
             rule_id: "no_transport_for_non_physical_nature",
@@ -559,7 +562,7 @@ pub fn check_action_constraints(input: CheckActionConstraintsInput) -> ExternRes
 
 - A rule-editing UI, once one exists, calling `check_rule_data_constraints` with the NDO's known `property_regime`/`resource_nature` plus the drafted `RuleData` as the agent edits it — Hard violations disable submit, Soft violations show as inline warnings.
 - Wherever action proposals are initiated (`propose_commitment`/`log_economic_event` triggers) calling `check_action_constraints` the same way.
-- `NdoCreateModal.svelte` needs no round-trip for the `Service`-nature rivalry ambiguity specifically — that's a static fact derivable from `ResourceNature` alone (`Service` has no confident default), so a client-side lookup/copy hint suffices without a server call.
+- `NdoCreateModal.svelte` can show the nature's default rivalry from `ResourceNature` alone. `rivalry_override` is for the resource that differs from that default.
 
 Debouncing/memoizing these calls client-side is a normal Svelte 5 `$effect` concern, not a protocol design question.
 

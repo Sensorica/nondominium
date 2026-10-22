@@ -29,7 +29,7 @@
     'Public',
     'Nondominium'
   ];
-  const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
+  const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Hybrid'];
 
   let name = $state('');
   let property_regime = $state<PropertyRegime>('Commons');
@@ -61,10 +61,8 @@
 
   const natureTooltips: Record<ResourceNature, string> = {
     Physical: 'A tangible, material resource.',
-    Digital: 'An intangible, bit-based resource (software, data, etc.).',
-    Service: 'A time-based provision of capability or skill.',
-    Hybrid: 'A resource with both physical and digital dimensions.',
-    Information: 'Knowledge, documentation, or structured data.'
+    Digital: 'Software, data, designs, documents, datasets, and methods.',
+    Hybrid: 'A material resource with an essential digital specification.'
   };
 
   async function handleSubmit() {
@@ -157,16 +155,9 @@
           {/each}
         </select>
         <p class="mt-1 text-xs text-gray-500">{natureTooltips[resource_nature]}</p>
-        {#if natureDefaultRivalry}
-          <p class="mt-1 text-xs text-gray-500">
-            Default rivalry for this nature: <span class="font-medium">{natureDefaultRivalry}</span>
-          </p>
-        {:else}
-          <p class="mt-1 text-xs text-amber-600">
-            Service nature has no confident rivalry default — set an override if this is a rivalrous
-            slot (e.g. booking time).
-          </p>
-        {/if}
+        <p class="mt-1 text-xs text-gray-500">
+          Default rivalry for this nature: <span class="font-medium">{natureDefaultRivalry}</span>
+        </p>
       </div>
 
       <!-- Rivalry override -->

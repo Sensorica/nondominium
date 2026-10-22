@@ -48,7 +48,7 @@ State machine transitions are enforced by the integrity zome (see `ndo_prima_mat
 
 **PropertyRegime** (7 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`
 
-**ResourceNature** (5 variants): `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
+**ResourceNature** (3 variants): `Physical`, `Digital`, `Hybrid`. Digital includes software, data, designs, documents, datasets, and methods. A service is a flow, not a nature.
 
 **Mutability** (three conditionally-mutable fields):
 
