@@ -7,12 +7,7 @@
     ResourceSpecificationListing
   } from '@nondominium/shared-types';
   import { operationalStateLabel } from '$lib/utils/operational-state-labels';
-  import { Effect as E, Exit, pipe } from 'effect';
-  import { resourceStore } from '$lib/stores/resource.store.svelte';
-  import {
-    ResourceServiceTag,
-    ResourceServiceResolved
-  } from '$lib/services/zomes/resource.service';
+  import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import SpecificationCreateModal from './SpecificationCreateModal.svelte';
 
   interface Props {
@@ -32,6 +27,8 @@
     propertyRegime = null
   }: Props = $props();
 
+  const ndo = getNdoStore();
+
   let listings = $state<ResourceSpecificationListing[]>([]);
   let instancesBySpec = $state<Map<string, EconomicResourceRow[]>>(new Map());
   let loadError = $state<string | null>(null);
@@ -41,23 +38,18 @@
   const canCreateSpec = $derived(!lifecycleStage || !ineligibleStages.has(lifecycleStage));
 
   async function load() {
-    const specs = await resourceStore.fetchSpecificationsForNdo(
-      specActionHash,
-      ndoCellId ?? undefined
-    );
-    listings = specs;
-    const next = new Map<string, EconomicResourceRow[]>();
-    for (const listing of specs) {
-      const program = E.gen(function* () {
-        const svc = yield* ResourceServiceTag;
-        return yield* svc.getResourcesBySpecification(
-          listing.action_hash,
-          ndoCellId ?? undefined
-        );
+    let rows;
+    try {
+      rows = await ndo().specificationsWithInstances((specs) => {
+        listings = specs;
       });
-      const exit = await E.runPromiseExit(pipe(program, E.provide(ResourceServiceResolved)));
-      next.set(listing.action_hash.toString(), Exit.isSuccess(exit) ? exit.value : []);
+    } catch (error) {
+      if (isTaskInterrupted(error)) return;
+      throw error;
     }
+    listings = rows.map((row) => row.listing);
+    const next = new Map<string, EconomicResourceRow[]>();
+    for (const row of rows) next.set(row.listing.action_hash.toString(), row.instances);
     instancesBySpec = next;
     loadError = null;
   }

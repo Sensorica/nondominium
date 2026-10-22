@@ -1,11 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Effect as E, Exit, pipe } from 'effect';
   import type { NdoDescriptor } from '@nondominium/shared-types';
   import type { ActionHash } from '@holochain/client';
   import { encodeHashToBase64, decodeHashFromBase64 } from '@holochain/client';
   import { appContext } from '$lib/stores/app.context.svelte';
-  import { PersonServiceTag, PersonServiceResolved } from '$lib/services/zomes/person.service';
+  import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import LifecycleTransitionModal from './LifecycleTransitionModal.svelte';
   import TransitionHistoryPanel from './TransitionHistoryPanel.svelte';
   import { effectiveRivalryLabel } from '$lib/utils/rivalry';
@@ -17,6 +16,8 @@
   }
 
   let { descriptor, onrefresh }: Props = $props();
+
+  const ndo = getNdoStore();
 
   let initiatorName = $state<string | null>(null);
   let showTransitionModal = $state(false);
@@ -88,19 +89,14 @@
     }
     const initiatorB64 = descriptor.initiator;
     void (async () => {
-      const exit = await E.runPromiseExit(
-        pipe(
-          E.gen(function* () {
-            const svc = yield* PersonServiceTag;
-            return yield* svc.getAllPersons();
-          }),
-          E.provide(PersonServiceResolved)
-        )
-      );
-      if (Exit.isSuccess(exit)) {
-        const match = exit.value.find((p) => encodeHashToBase64(p.agent_pub_key) === initiatorB64);
-        initiatorName = match?.name ?? null;
+      let read;
+      try {
+        read = await ndo().personName(initiatorB64);
+      } catch (error) {
+        if (isTaskInterrupted(error)) return;
+        throw error;
       }
+      if (read.ok) initiatorName = read.name;
     })();
   });
 </script>

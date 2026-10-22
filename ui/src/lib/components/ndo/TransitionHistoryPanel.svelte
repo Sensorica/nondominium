@@ -1,10 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Effect as E, Exit, pipe } from 'effect';
   import { encodeHashToBase64 } from '@holochain/client';
   import type { ActionHash } from '@holochain/client';
   import type { NdoTransitionHistoryEvent } from '@nondominium/shared-types';
-  import { NdoServiceTag, NdoServiceResolved } from '$lib/services/zomes/ndo.service';
+  import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
 
   interface Props {
     ndoHash: ActionHash;
@@ -12,23 +11,23 @@
 
   let { ndoHash }: Props = $props();
 
+  const ndo = getNdoStore();
+
   let history = $state<NdoTransitionHistoryEvent[]>([]);
   let isLoading = $state(true);
   let loadError = $state<string | null>(null);
 
   onMount(() => {
     void (async () => {
-      const exit = await E.runPromiseExit(
-        pipe(
-          E.gen(function* () {
-            const svc = yield* NdoServiceTag;
-            return yield* svc.getNdoTransitionHistory(ndoHash);
-          }),
-          E.provide(NdoServiceResolved)
-        )
-      );
-      if (Exit.isSuccess(exit)) {
-        history = exit.value;
+      let read: NdoTransitionHistoryEvent[] | null;
+      try {
+        read = await ndo().transitionHistory(ndoHash);
+      } catch (error) {
+        if (isTaskInterrupted(error)) return;
+        throw error;
+      }
+      if (read) {
+        history = read;
       } else {
         // An empty list and a failed read are different facts. Rendering both as
         // "0 transitions" is what hid the missing zome function (F4).
