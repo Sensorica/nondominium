@@ -2,23 +2,19 @@ import type { ResourceNature, Rivalry } from '@nondominium/shared-types';
 
 /**
  * Client-side nature→rivalry hint for UI (no DHT round-trip).
- * Mirrors `ResourceNature::default_rivalry` for Physical/Hybrid/Digital/Information.
- * `Service` is ambiguous — returns `null` so the UI can prompt for an override.
+ * Mirrors `ResourceNature::default_rivalry`.
  */
-export function defaultRivalryFor(nature: ResourceNature): Rivalry | null {
+export function defaultRivalryFor(nature: ResourceNature): Rivalry {
   switch (nature) {
     case 'Physical':
     case 'Hybrid':
       return 'Rivalrous';
     case 'Digital':
-    case 'Information':
       return 'NonRivalrous';
-    case 'Service':
-      return null;
   }
 }
 
-/** Effective rivalry for display: explicit override wins; else nature default (or null for Service). */
+/** Effective rivalry for display: explicit override wins; else the nature default. */
 export function effectiveRivalryLabel(
   nature: ResourceNature | null | undefined,
   rivalryOverride: string | null | undefined

@@ -50,7 +50,7 @@
     'Deprecated',
     'EndOfLife'
   ];
-  const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Service', 'Hybrid', 'Information'];
+  const allNatures: ResourceNature[] = ['Physical', 'Digital', 'Hybrid'];
   const allRegimes: PropertyRegime[] = [
     'Private',
     'Commons',
@@ -77,9 +77,7 @@
   const natureColors: Record<ResourceNature, string> = {
     Physical: 'bg-blue-100 text-blue-700 border-blue-300',
     Digital: 'bg-purple-100 text-purple-700 border-purple-300',
-    Service: 'bg-orange-100 text-orange-700 border-orange-300',
-    Hybrid: 'bg-teal-100 text-teal-700 border-teal-300',
-    Information: 'bg-indigo-100 text-indigo-700 border-indigo-300'
+    Hybrid: 'bg-teal-100 text-teal-700 border-teal-300'
   };
 
   const regimeColors: Record<PropertyRegime, string> = {

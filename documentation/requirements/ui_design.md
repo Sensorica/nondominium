@@ -56,7 +56,7 @@ NDOs can only be created from within a Group. The "Create NDO" button in a Group
 |---|---|---|
 | `name` | text input | required; uniqueness warning shown if name already exists in the lobby |
 | `property_regime` | select | 7 variants: **Private**, **Commons**, **Collective**, **Pool**, **CommonPool**, **Public**, **Nondominium**; tooltip per option |
-| `resource_nature` | select | 5 variants: Physical, Digital, Service, Hybrid, Information; tooltip per option |
+| `resource_nature` | select | 3 variants: Physical, Digital, Hybrid; tooltip per option. Digital includes designs, data, documents, and methods |
 | `lifecycle_stage` | select | **seven** creatable-at-registration stages: Ideation, Specification, Development, Prototype, Stable, Distributed, Active (matches `create_ndo` validation); Hibernating and terminal stages (Deprecated, EndOfLife) are **not** selectable here — only via lifecycle transitions after registration |
 | `description` | textarea | optional |
 
@@ -262,27 +262,27 @@ Technical mapping: `documentation/specifications/ui_architecture.md § 16`.
 
 > **Status: prototyped in `nondominium-design-system`, not yet ported to the app.** Prototype: `/prototypes/resource-perspective` (components in `packages/ndo-ui/src/components/patterns/perspectives/`, copy registry in `packages/ndo-ui/src/domain/coming-next.ts`).
 
-For the Layer 0 release only the Resource Perspective is live, and only with what Layer 0 can do honestly. Everything else is **visible, labelled "Soon", and explained** instead of hidden.
+The prototype host is Lobby → Group → Perspective. **Resource** and **Agent** are live inside the group. Intelligence and Work stay visible, labelled "Soon", and explained instead of hidden. Every Perspective is scoped to the current group. Breadcrumb: `Lobby › <Group> › Resource › <NDO>` or `Lobby › <Group> › Agent › <Name>`.
 
-**Where it sits**: Lobby stays the outermost layer, Groups the second, and the Perspective switcher lives **inside the Group page**. At Layer 0 every Perspective is scoped to the current group. Breadcrumb: `Lobby › <Group> › Resource › <NDO>`.
-
-**Live at Layer 0** (Resource Perspective):
+**Live** (Resource Perspective + Layer 1 + Agent Perspective):
 
 - NDO cards, search, stage / nature / regime filters, sort, and an ownership scope (All · Created by me · Joined by me).
 - Create NDO from the group page, NDO view, Join NDO, Associate with a group, Fork, Copy NDO link (also per card).
 - Lifecycle transition for the initiator (the only mutable Layer 0 field), with transition history.
+- NDO **Resources** tab: create and author-edit Layer 1 resource specifications (session-backed; gated by lifecycle stage).
+- Agent directory (group members, skill chips, groups as agents), agent profile (groups, initiated / joined NDOs, authored specs, derived connections), jumps from initiator / member with a return trail.
 - Group features unchanged: copy invite link, member list.
 
 **Visible but "Coming next"** (a "Soon" badge; clicking opens the same popup, built from one registry, and the user stays where they are):
 
 | Area | Items |
 |---|---|
-| Perspectives | Agent, Intelligence, Work (switcher entries) |
-| NDO view tabs | Resources, Governance, Composition, Activity (Overview is the live tab) |
+| Perspectives | Intelligence, Work (switcher entries) |
+| NDO view tabs | Governance, Composition, Activity (Overview and Resources are live) |
 | Access actions | Use, Borrow, Offer, Transfer, Transfer custody (Offer's popup offers a shortcut to Create NDO) |
 | Service processes | Transport, Store, Repair |
 | Governed transitions | A disabled "Advance stage" for non-initiators, explaining how governed transitions will work |
-| Jump points | Clicking an agent (initiator, group member) explains the future jump to the Agent Perspective and the return path |
+| Agent tools | Reputation summary, ask to collaborate, map, chat |
 
 The registry also holds copy for the Unyt stake step of Fork and for the Source view; neither is wired to a control yet.
 

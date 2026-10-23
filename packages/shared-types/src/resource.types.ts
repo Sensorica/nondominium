@@ -279,12 +279,8 @@ export type PropertyRegime =
   | "Public"
   | "Nondominium";
 
-export type ResourceNature =
-  | "Physical"
-  | "Digital"
-  | "Service"
-  | "Hybrid"
-  | "Information";
+/** Layer 0 nature. Digital includes designs, data, documents, and methods. */
+export type ResourceNature = "Physical" | "Digital" | "Hybrid";
 
 export type Rivalry = "Rivalrous" | "NonRivalrous";
 
