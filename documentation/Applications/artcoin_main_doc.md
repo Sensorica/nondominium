@@ -4,7 +4,7 @@ ArtCoin is a protocol for the circulation and stewardship of physical artworks, 
 
 ## Core Documentation
 
-*   **[ArtCoin Overview (Non-Technical)](../../Artcoin.md)** - A standalone description of the project vision and goals for artists and stakeholders.
+*   **[ArtCoin Overview (Non-Technical)](artcoin_overview.md)** - A standalone description of the project vision and goals for artists and stakeholders.
 *   **[ArtCoin Integration (Technical)](nondominium_artcoin.md)** - Mapping of ArtCoin onto the Nondominium architecture (NDO layers, PPR categories, implementation status).
 *   **[Original Main Doc (External)](https://docs.google.com/document/d/12HMYNECezq2dDXDb4FZ-hY7s6zNp_bJyA_l7Z6i2xLE/edit?tab=t.0)** - Project planning and external links.
 
