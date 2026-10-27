@@ -131,11 +131,11 @@ pub enum PropertyRegime {
 }
 
 pub enum ResourceNature {
-    Physical, Digital, Service, Hybrid, Information,
+    Physical, Digital, Hybrid,
 }
 ```
 
-> **Doc/code consistency:** `PropertyRegime` has **seven** canonical variants in Rust and the UI (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`). See §2.6. `ResourceNature` in code adds `Service` and `Information` beyond the three-variant design in `ndo_prima_materia.md`; forward-map variants `Space`, `Method`, and `Currency` (§6.2) are not yet in code.
+> **Doc/code consistency:** `PropertyRegime` has **seven** canonical variants in Rust and the UI (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`). See §2.6. `ResourceNature` is **three** variants (`Physical`, `Digital`, `Hybrid`). `Digital` includes software, data, designs, documents, datasets, and methods. A service delivery is a ValueFlows flow, not a nature. Forward-map variants `Space` and `Currency` (§6.2) are not yet in code. A method is a Layer 1 profile of a Digital NDO, not a further nature.
 
 **`ResourceSpecification`** (Layer 1 — ✅ activated, PR #132)
 ```rust
@@ -243,7 +243,7 @@ The link types model resource discovery and navigation:
 |---|---|---|
 | ~~`ResourceState` conflates lifecycle and operational dimensions~~ | ~~Cannot model in-transit, in-storage, or in-maintenance instances independently of Layer 0 lifecycle~~ | ✅ **`OperationalState` on `EconomicResource`** (`REQ-NDO-OS-01`); governance-operator transitions deferred (`REQ-NDO-OS-02`–`05`) |
 | ~~No property regime field~~ | ~~Cannot distinguish nondominium from commons from individual stewardship~~ | ✅ **`PropertyRegime` on `NondominiumIdentity`** (see §2.6 — seven variants) |
-| ~~No resource nature field~~ | ~~Cannot distinguish digital from physical from hybrid~~ | ✅ **`ResourceNature` on `NondominiumIdentity`** (5 variants in code; see §2.6) |
+| ~~No resource nature field~~ | ~~Cannot distinguish digital from physical from hybrid~~ | ✅ **`ResourceNature` on `NondominiumIdentity`** (3 variants in code; see §2.6) |
 | ~~`GovernanceRule.rule_data` is untyped JSON string~~ | ~~No schema enforcement, no tooling support, no peer validation of rule semantics~~ | ✅ **Typed `RuleData` enum** (#132) — four variants with typed payloads, classification predicates enforced Hard/Soft; `EconomicAgreement` / `IdentityVerification` rule families remain post-MVP |
 | ~~No lifecycle before `PendingValidation`~~ | ~~Cannot model resources in ideation, design, development stages~~ | ✅ **`LifecycleStage` (10 stages) on Layer 0** with full transition validation |
 | Single custodian only | Cannot model shared tools, collective custody, resource pools | 🔄 Many-to-many flows (post-MVP) |
@@ -312,7 +312,7 @@ Coordinator modules: `hard_link.rs`, `contribution.rs`, `agreement.rs`. Sweettes
 | Topic | Code (ground truth) | Other docs | Recommendation |
 |---|---|---|---|
 | **`PropertyRegime` variant count** | 7 variants in `crates/shared/src/types.rs`, integrity validation, shared-types, and UI | Protocol and UI expose all seven | Keep docs/UI/code in lockstep; Source-NDOs remain restricted to `Nondominium` / `CommonPool` only |
-| **`ResourceNature` variants** | `Physical, Digital, Service, Hybrid, Information` (5) | This doc §6.2 forward map adds `Space, Method, Currency`; `ndo_prima_materia.md` specifies 3 | Treat code's 5 variants as implemented; forward-map additions remain post-MVP |
+| **`ResourceNature` variants** | `Physical, Digital, Hybrid` (3). Digital includes designs, data, documents, and methods | This doc §6.2 forward map adds `Space`, `Currency` | Keep docs and code on these three. Services are flows. Methods are a Layer 1 profile of Digital |
 | **Lifecycle governance** | Initiator-only `update_lifecycle_stage` (MVP) | REQ-NDO-LC-07 role-based authorization | Defer to governance-as-operator integration |
 | **Transition events** | `NdoToTransitionEvent` link optional; `transition_event_hash` often `null` in UI | REQ-NDO-LC-03 automatic EconomicEvent generation | Backend Phase 2.3 |
 
@@ -349,10 +349,8 @@ pub enum PropertyRegime {
 
 pub enum ResourceNature {
     Physical,     // Material objects, equipment, consumables
-    Digital,      // Software, data, design files, documents
-    Service,      // Software services, knowledge assets (extends spec's 3-variant set)
+    Digital,      // Software, data, design files, documents, datasets, methods
     Hybrid,       // Digital twin of a physical resource
-    Information,  // Knowledge assets, data sets (extends spec's 3-variant set)
 }
 ```
 
@@ -715,11 +713,11 @@ For the generic NDO, the implication is: **do not model intangible resources as 
 
 | OVN concept | NDO partial coverage | Gap |
 |---|---|---|
-| Resource nature (physical/digital/media) | `ResourceNature` enum on Layer 0 (`Physical, Digital, Service, Hybrid, Information`) | Missing `Mental` analog (represented by Ideation-stage NDOs); media channel vs. media item distinction absent; forward-map `Space`/`Method`/`Currency` (§6.2) not in code |
+| Resource nature (physical/digital/media) | `ResourceNature` on Layer 0 (`Physical`, `Digital`, `Hybrid`). Digital covers media items, datasets, and methods | Mental resources are Ideation-stage NDOs. Media channel vs. media item is still absent. Forward-map `Space` and `Currency` (§6.2) are not in code |
 | Operational vs lifecycle state | `LifecycleStage` on Layer 0 ✅; `OperationalState` on `EconomicResource` ✅ | Governance-operator operational transitions (`REQ-NDO-OS-02`–`03`) deferred |
 | Governance of access (role-based) | Role-based `enforced_by` in GovernanceRule | Rule types are untyped strings; no first-class accessibility classification |
-| Material/Immaterial behavior | Physical vs. Digital/Information/Service nature | No formal rivalrous/non-rivalrous property |
-| Method as resource | `Digital` or `Information` nature covers some cases | No dedicated `Method` variant or template/recipe entry type |
+| Material/Immaterial behavior | Physical and Hybrid vs. Digital | Rivalry is a separate field (`Rivalry`), with a nature default |
+| Method as resource | A method is a Digital NDO. Its protocol, version, and quality criteria live on the Layer 1 specification | No separate recipe entry type |
 | Property regime: Nondominium vs. Commons vs. Public | Distinct variants in `PropertyRegime` (§6.3) | ✅ Resolved — no-enclosure (`Nondominium`) distinct from community stewardship (`Commons`) and public-body stewardship (`Public`) |
 | Transferability | Custody transfer + PPR non-transferability | No formal `transferability` classification on resources |
 | Reliability | Not modelled at resource level | PPR tracks agent quality, not resource condition/reliability |
@@ -735,7 +733,7 @@ These represent the forward agenda for the generic NDO design:
 | **Resource scope** (Project / Network / Public) | Visibility and governance should differ by scope; not modelled | Add `ResourceScope` enum to `NondominiumIdentity`; drive discovery anchor selection from scope |
 | **Resource source** (OVN / Partner / Purchased) | Provenance matters for attribution and governance | Add `ResourceSource` enum to `NondominiumIdentity` |
 | **Space as resource type** | Physical spaces need scheduling, booking, temporal availability | Add `Space` to `ResourceNature` (§6.2 forward map); **not in code** — design temporal availability governance patterns |
-| **Method / Recipe as resource type** | Process documentation is a resource with its own governance | Add `Method` to `ResourceNature` (§6.2 forward map); **not in code** — link methods to the physical resources they govern |
+| **Method / Recipe as resource type** | Process documentation is a resource with its own governance | A method is a Digital NDO. The protocol, version, and quality criteria are a Layer 1 specification profile |
 | **Currency as resource type** | Currencies (including Unyt Base Units) are resources in the OVN model | Add `Currency` to `ResourceNature` (§6.2 forward map); **not in code** — Unyt Alliance represents a currency resource |
 | **Resource reliability** | A tool's track record (failure rate, repair history) is independent of custodian reputation | Add `reliability_score: Option<f64>` derived from EconomicEvents (repair, incident PPRs); update on each Repair/Maintenance event |
 | **Accessibility classification** | Free / Protected / Restricted as a first-class property | Add `Accessibility` enum; governance defaults derived from this |
@@ -779,19 +777,17 @@ pub struct NondominiumIdentity {
 
 ### 6.2 Extended `ResourceNature`
 
-> **Implementation status:** Code implements `Physical, Digital, Service, Hybrid, Information` (see §2.1). Forward-map variants `Space`, `Method`, and `Currency` below are **not yet in code**.
+> **Implementation status:** Code implements `Physical`, `Digital`, `Hybrid` (see §2.1). `Digital` includes software, data, design files, documents, datasets, and methods. A service delivery is a ValueFlows flow (`work`, `deliverService`), not a nature. Forward-map variants `Space` and `Currency` below are **not yet in code**.
 
 ```rust
 pub enum ResourceNature {
     Physical,   // ✅ Material objects: tools, equipment, consumables
-    Digital,    // ✅ Software, data, design files, documents
-    Service,    // ✅ Software services, knowledge assets (in code, not in original forward map)
+    Digital,    // ✅ Software, data, designs, documents, datasets, methods
     Hybrid,     // ✅ Digital twin of a physical resource
-    Information,// ✅ Knowledge assets, data sets (in code, not in original forward map)
     Space,      // 🔄 Physical or virtual locations with temporal availability
-    Method,     // 🔄 Documented process, recipe, protocol
     Currency,   // 🔄 Symbolic value exchange system (including Unyt Alliance Base Units)
-    // Note: Mental resources are represented by Ideation-stage NDOs, not a separate type
+    // Mental resources are Ideation-stage NDOs, not a separate type.
+    // A method is a Layer 1 profile of a Digital NDO, not a further variant.
 }
 ```
 
@@ -869,12 +865,11 @@ The power of explicit resource classification is that it enables automatic gover
 
 | Nature | Rivalry | Property | Governance defaults |
 |---|---|---|---|
-| Digital | NonRivalrous | Commons | Open access, copy-left attribution, versioning required |
+| Digital | NonRivalrous | Commons | Open access, copy-left attribution, versioning required. A method, dataset, or design uses this row; the kind is a Layer 1 profile |
 | Digital | NonRivalrous | Nondominium | Open access, attribution, no enclosure possible |
 | Physical | Rivalrous | Pool | Credentialed access, custody transfer required, maintenance schedule |
 | Physical | Rivalrous | Nondominium | Permissionless access under rules, peer validation, PPR required |
 | Space | Rivalrous | Pool | Booking/scheduling, temporal access governance |
-| Method | NonRivalrous | Commons | Open access, execution tracking, version-linked |
 | Currency | NonRivalrous | Network | Defined by Unyt Alliance configuration |
 
 These defaults are starting points — communities override them through the GovernanceRule entries on Layer 1. But having well-considered defaults dramatically reduces the governance design burden for community members setting up new resources.

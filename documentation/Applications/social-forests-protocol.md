@@ -54,7 +54,7 @@ The two projects remain **deeply complementary at the infrastructure layer**, ha
 | Dimension | Detail |
 | --- | --- |
 | **Network** | Holochain (agent-centric DHT, no global ledger) |
-| **What can be an NDO** | Any Resource (Physical, Digital, Service, Hybrid, Information) **or** a **Source** (generative ecological / knowledge system) |
+| **What can be an NDO** | Any Resource (`Physical`, `Digital`, `Hybrid`) **or** a **Source** (generative ecological / knowledge system). A knowledge commons is `Digital` |
 | **Identity anchor** | `NondominiumIdentity` (Layer 0) inside a **cloned `ndo` cell per NDO**. Permanent identity is the cell's `DnaHash`, bound to immutable classification fields via DNA properties (ADR-010 / ADR-013). Deletes are always invalid. |
 | **Holarchy** | Lobby DHT (federation entry) → Group cloned cells → NDO cloned cells. Groups discover NDOs via `NdoAnchor`. Cross-NDO composition via `NdoHardLink` (`Component`, `DerivedFrom`, `Supersedes`). |
 | **Economic model** | ValueFlows 1.0 (Agent + Resource, via hREA DNA). **Post-MVP Source profile:** `vf:Source` as a third flow endpoint, plus `extract` / loading / regeneration boundary events. |

@@ -506,7 +506,7 @@ Three independent chip groups with multi-select. The filtering itself is the pur
 | Group          | Options     | Logic           |
 | -------------- | ----------- | --------------- |
 | LifecycleStage | 10 variants | OR within group |
-| ResourceNature | 5 variants  | OR within group |
+| ResourceNature | 3 variants (`Physical`, `Digital`, `Hybrid`) | OR within group |
 | PropertyRegime | 7 variants  | OR within group |
 
 
@@ -848,6 +848,26 @@ The **Chat** tool (direct contact with an Agent, possibly via the Capability Sur
 | `ToolHost` | `tools/ToolHost.svelte` | Mounts registered tools in any Perspective |
 
 Implementation order follows `ui_design.md § Perspectives ToDos`: switcher and trail first, then Resource (reusing `NdoBrowser`), Agent, Intelligence, Work.
+
+### 16.5.1 Layer 0 cut (prototyped in the design system, not yet in the app)
+
+The Perspective switcher sits **inside the Group page** (Lobby → Group → Perspective). **Resource** and **Agent** are live; Intelligence and Work stay Soon. Every Perspective is group-scoped. The prototype lives in `nondominium-design-system` (`/prototypes/resource-perspective`), with components in `@nondominium/ndo-ui`. The port to this app is a ToDo (`ui_design.md § Port to the nondominium app`).
+
+| Piece | Location (in `packages/ndo-ui/src/`) | Role |
+|---|---|---|
+| Coming-next registry | `domain/coming-next.ts` | Single source of copy for every "Soon" item (perspectives, tabs, access actions, processes, governed transitions, jump points, agent tools; Unyt stake and Source view copy exist but are not wired yet), plus the `PERSPECTIVES` list and `PerspectiveId` |
+| `ComingNextPopup`, `SoonBadge` | `components/primitives/` | Reusable popup (built on `Modal`; optional live shortcut, e.g. Offer → Create NDO) and badge |
+| `PerspectiveSwitcher`, `Breadcrumb` | `components/patterns/perspectives/` | Tablist of four Perspectives (non-live ones open the popup and keep the current one); breadcrumb `Lobby › Group › Resource › NDO` or `… › Agent › Name` |
+| `ResourcePerspective` | same | Search, ownership scope, sort, stage / nature / regime filters over `NdoBrowser`; logic in `domain/resource-perspective.ts` |
+| `AgentPerspective`, `AgentProfile` | same | Group-scoped directory and profile; logic in `domain/agent-perspective.ts` |
+| `GroupPerspectivesView` | same | Perspective host (header, switcher, Resource or Agent body, member list on Resource) |
+| `ResourceNdoView`, `NdoActionRow`, `ResourcesPanel` | same | NDO view with Overview + live Resources (Layer 1 specs) + Soon tabs; access actions and processes row |
+
+Additive changes to existing components (no breaking changes for current callers): `NdoBrowser` gains `cardAction` and `emptyMessage`; `NdoIdentityPanel` gains `lockedTransition`, `onlockedtransitionclick`, `oninitiatorclick`; `MemberList` gains `onmemberclick`.
+
+State at this cut: `currentPerspective` is `resource` or `agent`; the prototype session holds a navigation trail for jumps (initiator / member → Agent, NDO / spec links back). Intelligence and Work still open the Coming-next popup.
+
+Authorization is unchanged: the lifecycle transition remains initiator-only, enforced in the integrity zome (`zome_resource`); the UI only mirrors it by locking the button for non-initiators.
 
 ### 16.6 Community-specific implementations (later)
 

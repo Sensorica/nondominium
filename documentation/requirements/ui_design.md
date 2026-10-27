@@ -56,7 +56,7 @@ NDOs can only be created from within a Group. The "Create NDO" button in a Group
 |---|---|---|
 | `name` | text input | required; uniqueness warning shown if name already exists in the lobby |
 | `property_regime` | select | 7 variants: **Private**, **Commons**, **Collective**, **Pool**, **CommonPool**, **Public**, **Nondominium**; tooltip per option |
-| `resource_nature` | select | 5 variants: Physical, Digital, Service, Hybrid, Information; tooltip per option |
+| `resource_nature` | select | 3 variants: Physical, Digital, Hybrid; tooltip per option. Digital includes designs, data, documents, and methods |
 | `lifecycle_stage` | select | **seven** creatable-at-registration stages: Ideation, Specification, Development, Prototype, Stable, Distributed, Active (matches `create_ndo` validation); Hibernating and terminal stages (Deprecated, EndOfLife) are **not** selectable here — only via lifecycle transitions after registration |
 | `description` | textarea | optional |
 
@@ -198,6 +198,8 @@ Process-centric view of the Agent's **active** engagements. "Work" means engagin
 - **Per-project tools**: kanban board, tasks, planning; commit to work, take a task, log contributions; coordinate with other Agents on the development of the NDO.
 - **Stigmergic signals** across projects: which projects are active or need attention, invitations to contribute, calls for decision-making. These help the Agent choose what to work on today.
 - **Joining**: a project joined from the Intelligence Perspective lands here.
+In the Work perspective, also provide access to the 3 layers of Valueflow layers (knowledge, plan and observation).
+
 
 ```yaml
 work_view:
@@ -207,6 +209,7 @@ work_view:
   priority_order: attention_needed | invitations | activity
   layout: project_workspace
 ```
+
 
 ### 🧰 **Tools (cross-perspective)**
 
@@ -254,6 +257,50 @@ Perspectives are connected by **contextual jumps** carrying the current entity (
 - **Per-Perspective data scope**: Resource and Work read the Agent's own groups; Agent and Intelligence need cross-group / Lobby-level discovery beyond the current "own groups only" rule.
 
 Technical mapping: `documentation/specifications/ui_architecture.md § 16`.
+
+### Layer 0 Release Cut: Resource Perspective
+
+> **Status: prototyped in `nondominium-design-system`, not yet ported to the app.** Prototype: `/prototypes/resource-perspective` (components in `packages/ndo-ui/src/components/patterns/perspectives/`, copy registry in `packages/ndo-ui/src/domain/coming-next.ts`).
+
+The prototype host is Lobby → Group → Perspective. **Resource** and **Agent** are live inside the group. Intelligence and Work stay visible, labelled "Soon", and explained instead of hidden. Every Perspective is scoped to the current group. Breadcrumb: `Lobby › <Group> › Resource › <NDO>` or `Lobby › <Group> › Agent › <Name>`.
+
+**Live** (Resource Perspective + Layer 1 + Agent Perspective):
+
+- NDO cards, search, stage / nature / regime filters, sort, and an ownership scope (All · Created by me · Joined by me).
+- Create NDO from the group page, NDO view, Join NDO, Associate with a group, Fork, Copy NDO link (also per card).
+- Lifecycle transition for the initiator (the only mutable Layer 0 field), with transition history.
+- NDO **Resources** tab: create and author-edit Layer 1 resource specifications (session-backed; gated by lifecycle stage).
+- Agent directory (group members, skill chips, groups as agents), agent profile (groups, initiated / joined NDOs, authored specs, derived connections), jumps from initiator / member with a return trail.
+- Group features unchanged: copy invite link, member list.
+
+**Visible but "Coming next"** (a "Soon" badge; clicking opens the same popup, built from one registry, and the user stays where they are):
+
+| Area | Items |
+|---|---|
+| Perspectives | Intelligence, Work (switcher entries) |
+| NDO view tabs | Governance, Composition, Activity (Overview and Resources are live) |
+| Access actions | Use, Borrow, Offer, Transfer, Transfer custody (Offer's popup offers a shortcut to Create NDO) |
+| Service processes | Transport, Store, Repair |
+| Governed transitions | A disabled "Advance stage" for non-initiators, explaining how governed transitions will work |
+| Agent tools | Reputation summary, ask to collaborate, map, chat |
+
+The registry also holds copy for the Unyt stake step of Fork and for the Source view; neither is wired to a control yet.
+
+Why the access actions and processes are listed: `VfAction` and the Transport / Repair / Storage roles already model them in the backend (see `resources.md`, `governance.md`); the UI shows them so people see how the NDO will eventually be used.
+
+**Open questions**: popup versus inline explainer per tab; whether Offer should go straight to the creation form; whether Layer 1/2 forms stay reachable behind a dev flag for internal testing.
+
+### Port to the nondominium app (not yet)
+
+> **Decision**: the prototype stays in `nondominium-design-system` until the design is validated. Do **not** port yet; these are the ToDos for when it is.
+
+1. **Perspectives host in the Group page** — replace the `NdoBrowser` block in `GroupView.svelte` with `GroupPerspectivesView` (switcher + Resource Perspective); the Lobby is untouched.
+2. **State** — add `currentPerspective` to `app.context.svelte.ts` (Resource only live; the trail comes with the full Perspectives work).
+3. **NDO view** — tabs (Overview live; the others open the Coming-next popup), access-action and process buttons, Copy NDO link, locked "Advance stage" for non-initiators, agent jump-point popups.
+4. **Shared copy** — adopt the `coming-next` registry and `ComingNextPopup` / `SoonBadge` from `@nondominium/ndo-ui`; no per-component copy.
+5. **Card actions** — per-card "Copy link" and the scope chips (Created by me / Joined by me) need `myAgentKey` and the joined list from the app context.
+6. **Replica re-sync** — after the port, re-copy the app files into `src/lib/replica/` in the design system so `check:fidelity` passes (the replica is a copy and is never improved by hand).
+7. **E2E** — adjust the Playwright specs under `ui/tests/` for create NDO, join, associate, fork, and add cases for the Coming-next popups, scope chips and the locked transition.
 
 ---
 
