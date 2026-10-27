@@ -37,6 +37,7 @@ On top of this hierarchy, the **next** UI iteration adds a cross-cutting **Persp
 | Async / error handling | Effect-TS 4 (`effect` 4.0.0): `Context.Service`, `Layer`, `E.gen`, `Result`     |
 | Holochain client       | `@holochain/client` ^0.20.0                                                     |
 | Shared types           | `@nondominium/shared-types` (workspace package)                                 |
+| hREA GraphQL adapter   | `@valueflows/vf-graphql-holochain` 0.700.0-rc.0, vendored tarball (`vendor/`)   |
 | Build                  | Vite 7                                                                          |
 | Dev runtime            | Browser (web) — Electron/`hc-spin` superseded by a per-agent Vite harness (§15) |
 

@@ -5,6 +5,7 @@ talks to the Holochain conductor through a typed service + store layer.
 
 - **Stack:** SvelteKit 2 + Svelte 5 (runes) + TypeScript + Vite 7 + UnoCSS + Melt UI next-gen + Effect-TS
 - **Client:** `@holochain/client` ^0.20.0
+- **hREA GraphQL adapter:** `@valueflows/vf-graphql-holochain` 0.700.0-rc.0, installed from the tarball in [`vendor/`](../vendor/README.md) (not yet wired to any screen)
 - **Architecture:** [`documentation/specifications/ui_architecture.md`](../documentation/specifications/ui_architecture.md)
 - **Requirements:** [`documentation/requirements/ui_design.md`](../documentation/requirements/ui_design.md)
 
