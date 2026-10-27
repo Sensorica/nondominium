@@ -229,7 +229,10 @@ function startSandboxes(nAgents, bootstrapUrl, appPorts) {
       bootstrapUrl,
       // Holochain 0.7 removed the WebRTC/tx5 transport; iroh over QUIC is the
       // only peer transport and `hc sandbox` accepts just `mem` or `quic`.
-      'quic'
+      // `quic` now requires a relay URL; kitsune2-bootstrap-srv serves the iroh
+      // relay on the same address as the bootstrap service, so reuse that.
+      'quic',
+      bootstrapUrl
     ];
 
     console.log(`[launch-happ] Running: hc ${createArgs.join(' ')}`);
