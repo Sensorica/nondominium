@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { holochainService } from '$lib/services';
+  // Bound under the old name because the markup below reads it.
+  import { connectionStore as holochainService } from '$lib/stores/connection.store.svelte';
   import { HolochainConnectionError } from '$lib/utils/hc-connect';
   import { onMount } from 'svelte';
 

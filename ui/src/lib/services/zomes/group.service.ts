@@ -64,7 +64,7 @@ export interface GroupService {
   ) => E.Effect<void, GroupError>;
 }
 
-export class GroupServiceTag extends Context.Tag('GroupService')<GroupServiceTag, GroupService>() {}
+export class GroupServiceTag extends Context.Service<GroupServiceTag, GroupService>()('GroupService') {}
 
 export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClientServiceTag> =
   Layer.effect(

@@ -110,7 +110,7 @@ export function withClientConnectionFallback<T, E>(
 ): E.Effect<T, E> {
   return pipe(
     effect,
-    E.catchAll((error) => {
+    E.catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes('not connected') || message.includes('WebSocket')) {
         return E.succeed(fallback);
@@ -133,7 +133,7 @@ export function createSafeOperation<T, E>(
 ): E.Effect<T, never> {
   return pipe(
     effect,
-    E.catchAll(() => E.succeed(fallback))
+    E.catch(() => E.succeed(fallback))
   );
 }
 
