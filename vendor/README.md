@@ -41,4 +41,6 @@ Once hREA attaches the tarball to its release, its asset can be fetched from `ht
 
 **Client coupling.** The adapter depends on `@holochain/client` ^0.21.0, which speaks to a Holochain 0.7 conductor only, while the UI itself still pins ^0.20.0 for the 0.6 conductor. bun therefore installs a second client nested under the adapter. Both line up again when the UI moves to Holochain 0.7 (#134); until then the adapter typechecks and installs but cannot talk to a running 0.6 conductor.
 
+**Usage bound.** The UI uses the adapter for read-only queries; every hREA write goes through the Nondominium zomes (`documentation/hREA/integration-strategy.md`, Key Decision). `graphql` resolves today only because the adapter hoists 15.8.0, so the first UI module that imports `graphql` must declare it in `ui/package.json`.
+
 **Dropping it.** When `npm view @valueflows/vf-graphql-holochain versions` lists a 0.700 release, set the dependency in `ui/package.json` back to that version range, run `bun install`, commit `bun.lock`, and delete the tarball, its `.sha256` and this section.
