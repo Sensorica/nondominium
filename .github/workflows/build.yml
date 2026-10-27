@@ -62,10 +62,12 @@ jobs:
   # --test-threads 2: each Sweettest spawns conductors, and 6 threads with 11
   # conductor tests in flight gets the runner OOM-killed (SIGTERM mid-suite).
   #
-  # The two largest targets are split in halves (#142). At two threads a pair
-  # of conductor tests takes about 2.5 min, so a target's time grows with its
-  # test count: on dev d91fe28 (run 36675002358) nondominium ran 18 tests in
-  # 28.6 min and resource 15 tests in 15.4 min, the slowest jobs by far. The
+  # The largest target, nondominium, is split in halves (#142). At two threads
+  # a pair of conductor tests takes about 2.5 min, so a target's time grows
+  # with its test count: on dev d91fe28 (run 36675002358) nondominium ran 18
+  # tests in 28.6 min. Split, its halves ran 17.0 and 14.8 min (run
+  # 37550976485). resource was split too and measured worse: its halves took
+  # 5.5 and 20.1 min against 13 to 16 min whole, so it stays one target. The
   # split lives in the run step below, as name filters on the same [[test]]
   # target, so no test file has to change.
   #
@@ -86,8 +88,7 @@ jobs:
           - target: misc
           - target: person
           - target: governance
-          - { target: resource, half: a }
-          - { target: resource, half: b }
+          - target: resource
           - { target: nondominium, half: a }
           - { target: nondominium, half: b }
     steps:
@@ -135,7 +136,6 @@ jobs:
           HALF: ${{ matrix.half }}
         run: |
           case "$TARGET" in
-            resource) half_a="resource_spec_" ;;
             nondominium) half_a="ndo_layer0::ndo_lifecycle ndo_layer0::ndo_transition_history ndo_layer0::ndo_hibernation ndo_layer0::ndo_deprecat ndo_layer0::ndo_invalid" ;;
             *) half_a="" ;;
           esac
