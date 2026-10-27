@@ -6,6 +6,8 @@ This document outlines the comprehensive integration strategy for incorporating 
 
 **Key Decision**: Use git submodule + cross-DNA calls via the Holochain HDK `call()` function to integrate hREA directly at the Rust/zome level. This bypasses hREA's GraphQL API entirely; integration happens in the backend, not the UI.
 
+**Bound on the GraphQL adapter**: the UI vendors hREA's GraphQL adapter (`vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz`, #153) for read-only queries only, such as showing a resource's ValueFlows history. Every write (Agents, Commitments, EconomicEvents, EconomicResources) still goes through the Nondominium zomes and their cross-DNA calls, for the reasons in [Why Zome-Level Integration](#why-zome-level-integration-not-graphql). A UI mutation through the adapter would skip governance evaluation and PPR issuance, so it is out of bounds.
+
 **hREA Repository**: https://github.com/h-REA/hREA (branch: `main-0.6`)
 **Architecture**: Single DNA (`hrea`) with separate coordinator + integrity zomes
 
@@ -59,6 +61,8 @@ hREA exposes a GraphQL API intended for UI consumption. For Nondominium, integra
 3. **Performance**: Same-conductor bridge calls (~5-10ms) vs network roundtrips (~100-500ms)
 4. **Atomicity**: Creating a Commitment + generating a PPR claim must happen in the same zome
    call context
+
+The GraphQL path stays open for reads. Querying hREA's ValueFlows graph from the UI carries none of the four risks above, because a read neither fires governance nor issues a PPR. The vendored adapter is therefore used for queries only, never mutations.
 
 ---
 
