@@ -94,3 +94,11 @@ export function errorOf<A, E>(state: EntityState<A, E>): E | null {
 export function isBusy<A, E>(state: EntityState<A, E>): boolean {
   return state._tag === 'Loading' || state._tag === 'Refreshing';
 }
+
+/**
+ * True only before the first fetch. A view that loads on open keys on this, never on the
+ * data: keying on an empty list re-fires after every successful empty read and polls.
+ */
+export function needsFirstLoad<A, E>(state: EntityState<A, E>): boolean {
+  return state._tag === 'Idle';
+}

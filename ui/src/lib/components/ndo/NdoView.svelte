@@ -8,7 +8,7 @@
     type NdoMember,
     type NdoStore
   } from '$lib/stores/ndo.store.svelte';
-  import { dataOf, errorOf, isBusy, type EntityState } from '$lib/domain/entity-state';
+  import { dataOf, errorOf, isBusy, needsFirstLoad, type EntityState } from '$lib/domain/entity-state';
   import MemberList from '$lib/components/group/MemberList.svelte';
   import ResourcesTab from './ResourcesTab.svelte';
   import GovernanceTab from './GovernanceTab.svelte';
@@ -114,7 +114,7 @@
   $effect(() => {
     // Load once from Idle. Keying on an empty list re-fired on every successful
     // empty read, polling the conductor for as long as the panel stayed open.
-    if (showJoinPanel && store?.members._tag === 'Idle') {
+    if (showJoinPanel && store && needsFirstLoad(store.members)) {
       void loadNdoMembers();
     }
   });

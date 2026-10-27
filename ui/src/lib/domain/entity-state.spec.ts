@@ -5,6 +5,7 @@ import {
   errorOf,
   idle,
   isBusy,
+  needsFirstLoad,
   reduce,
   type EntityEvent,
   type EntityState
@@ -128,5 +129,24 @@ describe('entity-state generated sequences', () => {
         held = held || data !== null;
       }
     }
+  });
+});
+
+describe('needsFirstLoad', () => {
+  it('is true only from Idle', () => {
+    expect(needsFirstLoad(idle())).toBe(true);
+    expect(needsFirstLoad(run([started]))).toBe(false);
+    expect(needsFirstLoad(run([started, failed('boom')]))).toBe(false);
+  });
+
+  it('stays false after a successful empty read, so an empty list never re-triggers a load', () => {
+    type L = EntityState<string[], string>;
+    const events: EntityEvent<string[], string>[] = [
+      { _tag: 'FetchStarted' },
+      { _tag: 'FetchSucceeded', data: [], at: 1 }
+    ];
+    const s = events.reduce<L>(reduce, idle());
+    expect(s).toEqual({ _tag: 'Success', data: [], fetchedAt: 1 });
+    expect(needsFirstLoad(s)).toBe(false);
   });
 });
