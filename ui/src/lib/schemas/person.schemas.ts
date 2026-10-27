@@ -11,7 +11,7 @@ import { Schema } from 'effect';
  */
 
 export class PersonInput extends Schema.Class<PersonInput>('PersonInput')({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
+  name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100)),
   avatar_url: Schema.optional(Schema.String),
   bio: Schema.optional(Schema.String)
 }) {}
@@ -29,8 +29,8 @@ export class UIPerson extends Schema.Class<UIPerson>('UIPerson')({
 export class EncryptedProfileInput extends Schema.Class<EncryptedProfileInput>(
   'EncryptedProfileInput'
 )({
-  legal_name: Schema.String.pipe(Schema.minLength(1)),
-  email: Schema.String.pipe(Schema.minLength(3)),
+  legal_name: Schema.String.check(Schema.isMinLength(1)),
+  email: Schema.String.check(Schema.isMinLength(3)),
   phone: Schema.optional(Schema.String),
   address: Schema.optional(Schema.String),
   emergency_contact: Schema.optional(Schema.String),
@@ -55,25 +55,25 @@ export class UIEncryptedProfile extends Schema.Class<UIEncryptedProfile>(
  * Valid `role_name` string values produced by the Rust `RoleType::Display`
  * impl in `zome_person`.
  */
-export const RoleNameSchema = Schema.Literal(
+export const RoleNameSchema = Schema.Literals([
   'Simple Agent',
   'Accountable Agent',
   'Primary Accountable Agent',
   'Transport Agent',
   'Repair Agent',
   'Storage Agent'
-);
+]);
 export type RoleName = Schema.Schema.Type<typeof RoleNameSchema>;
 
 /**
  * Capability level hierarchy: `member < stewardship < coordination < governance`.
  */
-export const CapabilityLevelSchema = Schema.Literal(
+export const CapabilityLevelSchema = Schema.Literals([
   'member',
   'stewardship',
   'coordination',
   'governance'
-);
+]);
 export type CapabilityLevel = Schema.Schema.Type<typeof CapabilityLevelSchema>;
 
 export class PersonRoleInput extends Schema.Class<PersonRoleInput>('PersonRoleInput')({

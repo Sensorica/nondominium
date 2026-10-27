@@ -44,7 +44,7 @@ Source: `CLAUDE.md` — Key Development Patterns
 Source: `CLAUDE.md` + `documentation/specifications/specifications.md §7`
 
 - All zome calls wrapped via `wrapZomeCallWithErrorFactory` (Effect-TS)
-- Services are `Context.Tag` / `Layer` values in Effect-TS
+- Services are `Context.Service` / `Layer` values in Effect-TS
 - Svelte 5 runes: `$state`, `$derived`, `$effect`, `$props` — not `$:` reactive
 - UnoCSS for styling; Melt UI next-gen (`melt`) for headless components — not shadcn
 
@@ -76,6 +76,6 @@ Source: `REVIEW.md` — read before proposing any PR-shaped change
 
 - Edit `documentation/TELOS.md` → updates both Claude Code (via CLAUDE.md `@` reference) and
   Cursor (on next `nix develop`, symlinked or copied)
-- Edit `pai/conventions.md` → updates both Claude Code and Cursor
-- Edit `pai/cursor-rules/*.md` → updates Cursor rules only (on next `nix develop`)
-- Edit `pai/claude/skills/nondominium-domain/` → re-enter `nix develop` to regenerate `.claude/`
+- Edit `pai/shared/conventions.md` → updates both Claude Code and Cursor
+- Edit `pai/shared/rules/*.md` → regenerates the Cursor rules (on next `nix develop`)
+- Edit `pai/shared/skills/nondominium-domain/` → re-enter `nix develop` to regenerate `.claude/`

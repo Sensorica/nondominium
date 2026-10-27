@@ -8,11 +8,7 @@
     VfCommitment,
     VfEconomicEvent
   } from '@nondominium/shared-types';
-  import { Effect as E, Exit, pipe } from 'effect';
-  import { GovernanceServiceTag, GovernanceServiceResolved } from '$lib/services/zomes/governance.service';
-  import { ResourceServiceTag, ResourceServiceResolved } from '$lib/services/zomes/resource.service';
-  import { resourceStore } from '$lib/stores/resource.store.svelte';
-  import { governanceStore } from '$lib/stores/governance.store.svelte';
+  import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import CommitmentCreateForm from './CommitmentCreateForm.svelte';
   import EconomicEventCreateForm from './EconomicEventCreateForm.svelte';
 
@@ -33,6 +29,8 @@
     resourceNature = null,
     rivalryOverride = null
   }: Props = $props();
+
+  const ndo = getNdoStore();
 
   let events = $state<VfEconomicEvent[]>([]);
   let commitments = $state<VfCommitment[]>([]);
@@ -57,62 +55,11 @@
   async function load() {
     loadError = null;
     try {
-      const all = await governanceStore.fetchAllCommitments(ndoCellId ?? undefined);
-      commitments = all;
-
-      const listings = await resourceStore.fetchSpecificationsForNdo(
-        specActionHash,
-        ndoCellId ?? undefined
-      );
-      const merged: VfEconomicEvent[] = [];
-      for (const listing of listings) {
-        const rowsProgram = E.gen(function* () {
-          const r = yield* ResourceServiceTag;
-          return yield* r.getResourcesBySpecification(
-            listing.action_hash,
-            ndoCellId ?? undefined
-          );
-        });
-        const rowsExit = await E.runPromiseExit(
-          pipe(rowsProgram, E.provide(ResourceServiceResolved))
-        );
-        if (Exit.isFailure(rowsExit)) continue;
-        for (const row of rowsExit.value) {
-          const evProgram = E.gen(function* () {
-            const g = yield* GovernanceServiceTag;
-            return yield* g.getEventsByResource(row.actionHash, ndoCellId ?? undefined);
-          });
-          const evExit = await E.runPromiseExit(
-            pipe(evProgram, E.provide(GovernanceServiceResolved))
-          );
-          if (Exit.isSuccess(evExit)) merged.push(...evExit.value);
-        }
-      }
-      // Also include any agent-wide events that carry this ndo hash
-      const allEvProgram = E.gen(function* () {
-        const g = yield* GovernanceServiceTag;
-        return yield* g.getAllEconomicEvents(ndoCellId ?? undefined);
-      });
-      const allEvExit = await E.runPromiseExit(
-        pipe(allEvProgram, E.provide(GovernanceServiceResolved))
-      );
-      if (Exit.isSuccess(allEvExit)) {
-        for (const ev of allEvExit.value) {
-          if (
-            encodeHashToBase64(ev.ndo_identity_hash) === encodeHashToBase64(specActionHash) &&
-            !merged.some(
-              (m) =>
-                m.event_time === ev.event_time &&
-                m.action === ev.action &&
-                m.resource_quantity === ev.resource_quantity
-            )
-          ) {
-            merged.push(ev);
-          }
-        }
-      }
-      events = merged.sort((a, b) => Number(b.event_time) - Number(a.event_time));
-    } catch {
+      const activity = await ndo().activity();
+      commitments = activity.commitments;
+      events = activity.events;
+    } catch (error) {
+      if (isTaskInterrupted(error)) return;
       loadError = 'Failed to load activity for this NDO';
       events = [];
       commitments = [];

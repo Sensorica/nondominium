@@ -1,9 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Effect as E, Exit, pipe } from 'effect';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
-  import { NdoServiceTag, NdoServiceResolved } from '$lib/services/zomes/ndo.service';
+  import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
 
   type Props = {
     ndoHashB64: string;
@@ -12,6 +11,8 @@
   };
 
   let { ndoHashB64, ndoName, onclose }: Props = $props();
+
+  const ndo = getNdoStore();
 
   let selected = $state<Set<string>>(new Set());
   let saved = $state(false);
@@ -23,17 +24,15 @@
   onMount(() => {
     void (async () => {
       await lobbyStore.loadGroups();
-      const exit = await E.runPromiseExit(
-        pipe(
-          E.gen(function* () {
-            const svc = yield* NdoServiceTag;
-            return yield* svc.getAssociatedGroupIds(ndoHashB64);
-          }),
-          E.provide(NdoServiceResolved)
-        )
-      );
-      if (Exit.isSuccess(exit)) {
-        associatedIds = new Set(exit.value);
+      let ids: string[] | null;
+      try {
+        ids = await ndo().associatedGroupIds();
+      } catch (error) {
+        if (isTaskInterrupted(error)) return;
+        throw error;
+      }
+      if (ids) {
+        associatedIds = new Set(ids);
       }
       loadingAssociations = false;
     })();

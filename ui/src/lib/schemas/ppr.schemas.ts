@@ -14,7 +14,7 @@ import { Schema } from 'effect';
  * once the service layer is available for mock injection.
  */
 
-export const ParticipationClaimTypeSchema = Schema.Literal(
+export const ParticipationClaimTypeSchema = Schema.Literals([
   // Genesis
   'ResourceCreation',
   'ResourceValidation',
@@ -36,13 +36,10 @@ export const ParticipationClaimTypeSchema = Schema.Literal(
   // End-of-life
   'EndOfLifeDeclaration',
   'EndOfLifeValidation'
-);
+]);
 export type ParticipationClaimType = Schema.Schema.Type<typeof ParticipationClaimTypeSchema>;
 
-const ScoreSchema = Schema.Number.pipe(
-  Schema.greaterThanOrEqualTo(0),
-  Schema.lessThanOrEqualTo(1)
-);
+const ScoreSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0), Schema.isLessThanOrEqualTo(1));
 
 export class PerformanceMetricsInput extends Schema.Class<PerformanceMetricsInput>(
   'PerformanceMetricsInput'

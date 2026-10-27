@@ -14,7 +14,7 @@ import { Schema } from 'effect';
  * once the service layer is available for mock injection.
  */
 
-export const VfActionSchema = Schema.Literal(
+export const VfActionSchema = Schema.Literals([
   'Transfer',
   'Move',
   'Use',
@@ -31,7 +31,7 @@ export const VfActionSchema = Schema.Literal(
   'InitialTransfer',
   'AccessForUse',
   'TransferCustody'
-);
+]);
 export type VfAction = Schema.Schema.Type<typeof VfActionSchema>;
 
 export class CommitmentInput extends Schema.Class<CommitmentInput>('CommitmentInput')({

@@ -123,6 +123,16 @@ async function specsForNdoOnCell(
 }
 
 test.describe.serial('nondominium core flows', () => {
+  // No retries for this story (#142). Playwright retries a serial group as a
+  // whole, against the same conductors, so a retry starts with the previous
+  // attempt's "E2E Circle" group still in the sidebar and fails the empty-lobby
+  // precondition by construction. That retry failure then replaces the real
+  // one in the report: on CI runs 32914253920, 32916185361 and 32917489986 the
+  // first attempt failed at the lifecycle history panel and both retries
+  // reported only the lobby precondition. One honest failure beats two
+  // misleading ones.
+  test.describe.configure({ retries: 0 });
+
   let context: BrowserContext;
   let page: Page; // agent 1, one continuous story
   let seed: SeedClient;

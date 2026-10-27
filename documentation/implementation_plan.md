@@ -606,14 +606,14 @@ _Optimizing the system for large-scale network operation_
 - **PropertyRegime**: ✅ Seven canonical regimes (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`) in Rust and fully exposed in frontend shared types, schemas, creation controls, filters, and badges. Regime-driven governance enforcement is Phase B (see §12.8).
 - **Stack**: SvelteKit 2 + Svelte 5 runes + TypeScript + UnoCSS + Melt UI next-gen + Effect-TS
 - **Dev runtime**: Browser (web) — `hc-spin`/Electron superseded by `scripts/launch-happ.mjs`, which runs one Vite dev server per agent on consecutive ports (`VITE_DEV_AGENT`-pinned), writes `ui/static/hc-connection.json`, and auto-opens a browser tab per agent (`NO_OPEN=1` to disable). See `ui_architecture.md §15`
-- **Service Layer**: ✅ Complete (PR #97 + MVP UI work) — all three zome services + NDO/Lobby services with Effect-TS `Context.Tag` / `Layer` / `E.gen` pattern
+- **Service Layer**: ✅ Complete (PR #97 + MVP UI work) — all three zome services + NDO/Lobby services with Effect-TS `Context.Service` / `Layer` / `E.gen` pattern
 - **Architecture reference**: `documentation/specifications/ui_architecture.md`
 
 ### Phase 1: Foundation UI ✅ **COMPLETE**
 
 - [x] **SvelteKit + UnoCSS + Melt UI next-gen**: Fully scaffolded (see `vite.config.ts`, `uno.config.ts`)
 - [x] **Effect-TS service layer**: All three zome services + NdoService + LobbyService (PR #97 + MVP UI)
-- [x] **HolochainClientService**: `wrapZomeCallWithErrorFactory` pattern, `Context.Tag` injection
+- [x] **HolochainClientService**: `wrapZomeCallWithErrorFactory` pattern, `Context.Service` injection
 
 ### Phase 2: MVP UI — Lobby → Group → NDO 🔄 **FOUNDATION IMPLEMENTED; GAPS TRACKED**
 

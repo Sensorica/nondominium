@@ -1,10 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { Dialog } from 'melt/builders';
-  import { Effect as E, pipe } from 'effect';
   import type { LobbyUserProfile } from '@nondominium/shared-types';
   import { appContext } from '$lib/stores/app.context.svelte';
-  import { LobbyServiceTag, LobbyServiceResolved } from '$lib/services/zomes/lobby.service';
+  import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import UserProfileForm from './UserProfileForm.svelte';
 
   interface Props {
@@ -46,23 +45,8 @@
   });
 
   function handleSave(profile: LobbyUserProfile) {
-    // Fire-and-forget DHT write after the localStorage write (D1 in #106):
-    // localStorage (appContext setter inside UserProfileForm) is authoritative for
-    // Level 1 identity; the Lobby DHT profile is best-effort.
-    void E.runPromise(
-      pipe(
-        E.gen(function* () {
-          const lobbySvc = yield* LobbyServiceTag;
-          yield* lobbySvc.upsertLobbyAgentProfile({
-            handle: profile.nickname,
-            ...(profile.bio && { bio: profile.bio })
-          });
-        }),
-        E.provide(LobbyServiceResolved)
-      )
-    ).catch((err) => {
-      console.warn('Lobby DHT profile sync failed (localStorage profile saved):', err);
-    });
+    // Best-effort Lobby DHT sync; localStorage stays authoritative (D1 in #106).
+    lobbyStore.syncLobbyAgentProfile(profile);
     onsave?.(profile);
     open = false;
   }

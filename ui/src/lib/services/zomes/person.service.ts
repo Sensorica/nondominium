@@ -43,10 +43,10 @@ export interface PersonService {
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
 
-export class PersonServiceTag extends Context.Tag('PersonService')<
+export class PersonServiceTag extends Context.Service<
   PersonServiceTag,
   PersonService
->() {}
+>()('PersonService') {}
 
 // ─── Live Layer ───────────────────────────────────────────────────────────────
 

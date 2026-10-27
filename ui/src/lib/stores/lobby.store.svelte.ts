@@ -1,23 +1,12 @@
 import { Cause, Effect as E, Exit, Layer, pipe } from 'effect';
-import type {
-  GroupDescriptor,
-  LifecycleStage,
-  NdoDescriptor,
-  NdoOutput,
-  Person,
-  PropertyRegime,
-  ResourceNature
-} from '@nondominium/shared-types';
+import type { GroupDescriptor, LobbyUserProfile, NdoDescriptor, NdoOutput, Person } from '@nondominium/shared-types';
 import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
 import { PersonServiceTag, PersonServiceResolved } from '../services/zomes/person.service';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
 import { withLoadingState, createLoadingStateSetter } from '$lib/utils/store-helpers/core';
+import { applyFilters, type ActiveFilters } from '$lib/domain/ndo-filters';
 
-export interface ActiveFilters {
-  stages: LifecycleStage[];
-  natures: ResourceNature[];
-  regimes: PropertyRegime[];
-}
+export type { ActiveFilters };
 
 const LobbyStoreServicesResolved = Layer.mergeAll(
   LobbyServiceResolved,
@@ -46,6 +35,7 @@ export type LobbyStore = {
     groupId: string,
     profile: NonNullable<GroupDescriptor['memberProfile']>
   ) => Promise<void>;
+  syncLobbyAgentProfile: (profile: LobbyUserProfile) => void;
 };
 
 const createLobbyStore = (): E.Effect<
@@ -80,38 +70,28 @@ const createLobbyStore = (): E.Effect<
     }
 
     async function loadGroups(): Promise<void> {
-      await runOp(lobbyService.getMyGroups().pipe(E.tap((g) => { groups = g; })));
+      await runOp(lobbyService.getMyGroups().pipe(E.tap((g) => E.sync(() => { groups = g; }))));
     }
 
     async function loadNdos(): Promise<void> {
-      await runOp(ndoService.getLobbyNdoDescriptors().pipe(E.tap((n) => { ndos = n; })));
+      await runOp(ndoService.getLobbyNdoDescriptors().pipe(E.tap((n) => E.sync(() => { ndos = n; }))));
     }
 
     async function loadMyPerson(): Promise<void> {
       const exit = await E.runPromiseExit(
         withLoadingState(() =>
           personService.getMyPersonProfile().pipe(
-            E.tap((p) => {
-              myPerson = p.person ?? null;
-            })
+            E.tap((p) =>
+              E.sync(() => {
+                myPerson = p.person ?? null;
+              })
+            )
           )
         )(setters)
       );
       if (Exit.isFailure(exit)) {
         myPerson = null;
       }
-    }
-
-    function applyFilters(all: NdoDescriptor[], filters: ActiveFilters): NdoDescriptor[] {
-      const { stages, natures, regimes } = filters;
-      const noFilter = stages.length === 0 && natures.length === 0 && regimes.length === 0;
-      if (noFilter) return all;
-      return all.filter((d) => {
-        const stageOk = stages.length === 0 || (d.lifecycle_stage !== null && stages.includes(d.lifecycle_stage as LifecycleStage));
-        const natureOk = natures.length === 0 || (d.resource_nature !== null && natures.includes(d.resource_nature as ResourceNature));
-        const regimeOk = regimes.length === 0 || (d.property_regime !== null && regimes.includes(d.property_regime as PropertyRegime));
-        return stageOk && natureOk && regimeOk;
-      });
     }
 
     function setFilters(partial: Partial<ActiveFilters>): void {
@@ -126,7 +106,7 @@ const createLobbyStore = (): E.Effect<
       errorMessage = null;
       const exit = await E.runPromiseExit(
         lobbyService.createGroup(name, createdBy).pipe(
-          E.tap((g) => { groups = [...groups, g]; })
+          E.tap((g) => E.sync(() => { groups = [...groups, g]; }))
         )
       );
       if (Exit.isFailure(exit)) {
@@ -141,11 +121,13 @@ const createLobbyStore = (): E.Effect<
       errorMessage = null;
       const exit = await E.runPromiseExit(
         lobbyService.joinGroup(inviteCode).pipe(
-          E.tap((g) => {
-            if (!groups.some((existing) => existing.id === g.id)) {
-              groups = [...groups, g];
-            }
-          })
+          E.tap((g) =>
+            E.sync(() => {
+              if (!groups.some((existing) => existing.id === g.id)) {
+                groups = [...groups, g];
+              }
+            })
+          )
         )
       );
       if (Exit.isFailure(exit)) {
@@ -172,20 +154,34 @@ const createLobbyStore = (): E.Effect<
       }
     }
 
+    // Fire-and-forget DHT write after the localStorage write (D1 in #106):
+    // localStorage (appContext setter inside UserProfileForm) is authoritative for
+    // Level 1 identity; the Lobby DHT profile is best-effort.
+    function syncLobbyAgentProfile(profile: LobbyUserProfile): void {
+      void E.runPromise(
+        lobbyService.upsertLobbyAgentProfile({
+          handle: profile.nickname,
+          ...(profile.bio && { bio: profile.bio })
+        })
+      ).catch((err) => {
+        console.warn('Lobby DHT profile sync failed (localStorage profile saved):', err);
+      });
+    }
+
     async function loadLobby(): Promise<void> {
       isLoading = true;
       errorMessage = null;
       try {
         const [groupsExit, ndosExit, personExit] = await Promise.all([
           E.runPromiseExit(
-            lobbyService.getMyGroups().pipe(E.tap((g) => { groups = g; }))
+            lobbyService.getMyGroups().pipe(E.tap((g) => E.sync(() => { groups = g; })))
           ),
           E.runPromiseExit(
-            ndoService.getLobbyNdoDescriptors().pipe(E.tap((n) => { ndos = n; }))
+            ndoService.getLobbyNdoDescriptors().pipe(E.tap((n) => E.sync(() => { ndos = n; })))
           ),
           E.runPromiseExit(
             personService.getMyPersonProfile().pipe(
-              E.tap((p) => { myPerson = p.person ?? null; })
+              E.tap((p) => E.sync(() => { myPerson = p.person ?? null; }))
             )
           )
         ]);
@@ -229,7 +225,8 @@ const createLobbyStore = (): E.Effect<
       createGroup,
       joinGroup,
       generateInviteLink,
-      saveGroupMemberProfile
+      saveGroupMemberProfile,
+      syncLobbyAgentProfile
     };
   });
 

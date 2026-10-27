@@ -1476,7 +1476,7 @@ interface GroupMemberProfile {
 
 ### 7.2 Service Layer
 
-Services are Effect-TS `Context.Tag` / `Layer` values. All zome calls are wrapped via `wrapZomeCallWithErrorFactory`:
+Services are Effect-TS `Context.Service` / `Layer` values. All zome calls are wrapped via `wrapZomeCallWithErrorFactory`:
 
 ```typescript
 const wz = <T>(fnName: string, payload: unknown, context: string) =>
@@ -1504,7 +1504,7 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 | Function | Behaviour |
 |----------|-----------|
 | `getMyGroups()` | Enumerate group clone cells from `appInfo` + `get_my_group` per cell |
-| `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` (post-steps best-effort via `E.catchAll`) |
+| `createGroup(name, createdBy)` | `createCloneCell` → `create_group` → `join_group` → `announce_group` (post-steps best-effort via `E.catch`) |
 | `joinGroup(inviteCode)` | Decode invite → `createCloneCell(same seed)` → `fetchGroupProfileWithRetry` (poll `get_my_group` 6× / ~2.4 s) → `is_member` guard → best-effort `join_group` → invite-payload `GroupDescriptor` fallback so the group appears without reload. `TODO(signals)` |
 | `ensureMembership(groupId)` | Idempotent membership self-heal: resolve group hash via `get_my_group` → `is_member` → best-effort `join_group` if missing. Run on every full `loadGroupData` so a joined agent reliably appears in the DHT member list even if the initial join missed the commit |
 | `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |

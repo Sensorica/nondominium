@@ -7,7 +7,7 @@
   import ProfileSetupModal from '$lib/components/lobby/ProfileSetupModal.svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { appContext } from '$lib/stores/app.context.svelte';
-  import holochainClientService from '$lib/services/holochain.service.svelte';
+  import { connectionStore } from '$lib/stores/connection.store.svelte';
 
   let { children } = $props();
 
@@ -16,12 +16,12 @@
 
   // Only run after Holochain connection is established, not on first mount.
   $effect(() => {
-    if (!holochainClientService.isConnected || profileCheckDone) return;
+    if (!connectionStore.isConnected || profileCheckDone) return;
     profileCheckDone = true;
 
     void (async () => {
       try {
-        appContext.myAgentPubKey = await holochainClientService.getMyAgentPubKey();
+        appContext.myAgentPubKey = await connectionStore.getMyAgentPubKey();
       } catch {
         appContext.myAgentPubKey = null;
       }

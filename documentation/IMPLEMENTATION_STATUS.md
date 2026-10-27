@@ -309,7 +309,7 @@ Resource lifecycle, governance/PPR wiring, and production hardening via hREA are
 
 - SvelteKit + UnoCSS + Melt UI next-gen project scaffolded (`vite.config.ts`, `svelte.config.js`, `uno.config.ts`)
 - `HolochainProvider.svelte` — Holochain client connection management
-- Effect-TS service layer (PR #97): all three zome services and stores converted to `Context.Tag` / `Layer` / `E.gen` pattern with `isLoading` + `errorMessage` state
+- Effect-TS service layer (PR #97): all three zome services and stores converted to `Context.Service` / `Layer` / `E.gen` pattern with `isLoading` + `errorMessage` state
 - `wrapZomeCallWithErrorFactory` utility for consistent zome call error handling
 
 ### MVP UI — Lobby → Group → NDO ✅ Implemented
