@@ -9,7 +9,7 @@
     VfAction
   } from '@nondominium/shared-types';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
-  import holochainClientService from '$lib/services/holochain.service.svelte';
+  import { connectionStore } from '$lib/stores/connection.store.svelte';
 
   interface Props {
     ndoActionHash: ActionHash;
@@ -66,7 +66,7 @@
   async function ensureProvider() {
     if (!providerB64) {
       try {
-        const me = await holochainClientService.getMyAgentPubKey();
+        const me = await connectionStore.getMyAgentPubKey();
         providerB64 = encodeHashToBase64(me);
       } catch {
         /* leave empty */
