@@ -16,6 +16,10 @@ the merge to `main` rather than reconstructed after.
 The release is the **peer mesh**: two agents on different machines share a Group and an
 NDO over a live DHT.
 
+### Changed
+
+- **Holochain 0.7** (HDK =0.7.0, HDI =0.8.0, `@holochain/client` ^0.21.0) with the hREA DNA pinned to upstream `happ-0.5.0-beta.1`. Every 0.7 network is a new network: DNA hashes change, and 0.6 data does not carry over.
+
 ### Added
 
 - **Lobby DNA** as the entry point. Groups are announced here for discovery, and NDOs are

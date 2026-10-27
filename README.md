@@ -254,6 +254,8 @@ This section is the canonical version list; other docs link here rather than res
 | Testing | Sweettest (Rust, `holochain = "=0.7.0"`) primary; Playwright for E2E; Tryorama deprecated |
 | Tooling | [bun](https://bun.sh/) workspaces, [Nix](https://nixos.org/) dev shell, [hc](https://github.com/holochain/holochain/tree/develop/crates/hc) CLI |
 
+**Holochain 0.7 is a new network.** DNA hashes change with the HDK/HDI move, so a 0.7 build never joins a 0.6 network and existing 0.6 data does not carry over.
+
 Ecosystem:
 
 - [Holochain](https://holochain.org/): Distributed application framework

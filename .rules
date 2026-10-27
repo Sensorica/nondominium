@@ -140,6 +140,7 @@ Canonical list: `README.md` § Technology Stack. Summary:
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7
 - **UI Stack**: UnoCSS (atomic CSS) + Melt UI next-gen (`melt`) + Effect-TS
 - **Testing**: Sweettest (Rust, `holochain = "=0.7.0" features = ["test_utils"]`) — primary; Tryorama (TypeScript) deprecated
+- **Network**: every Holochain 0.7 network is a new network (DNA hashes change; 0.6 data does not carry over)
 - **Client**: @holochain/client ^0.21.0 (UI)
 
 ### Data Model Foundations
