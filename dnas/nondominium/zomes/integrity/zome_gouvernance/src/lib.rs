@@ -218,10 +218,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
           return validate_create_agreement(a, action);
         }
         EntryTypes::EconomicEvent(event) => {
-          return validate_create_economic_event(&event, &action.author);
+          return validate_create_economic_event(&event, action.author());
         }
         EntryTypes::Commitment(commitment) => {
-          return validate_create_commitment(&commitment, &action.author);
+          return validate_create_commitment(&commitment, action.author());
         }
         _ => {}
       },

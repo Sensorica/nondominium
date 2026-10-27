@@ -361,16 +361,16 @@ fn resolve_ndo_state(
   let mut current = record;
   let mut current_hash = state_hash;
   for _ in 0..MAX_NDO_CHAIN_WALK {
-    match current.action() {
-      Action::Create(_) => return Ok((current_hash, ndi)),
-      Action::Update(update) => {
+    match &current.action().data {
+      ActionData::Create(_) => return Ok((current_hash, ndi)),
+      ActionData::Update(update) => {
         current_hash = update.original_action_address.clone();
         current = must_get_valid_record(current_hash.clone())?;
       }
-      other => {
+      _ => {
         return Err(wasm_error!(WasmErrorInner::Guest(format!(
           "ndo_state_hash resolved to an unexpected action type: {:?}",
-          other.action_type()
+          current.action().action_type()
         ))))
       }
     }
