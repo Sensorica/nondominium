@@ -35,11 +35,10 @@ Source: `documentation/requirements/ndo_prima_materia.md §3`
 ```rust
 pub enum ResourceNature {
     Physical,     // Material objects, equipment
-    Digital,      // Software, data, design files, documents
-    Service,      // Software services, knowledge assets
+    Digital,      // Software, data, designs, documents, datasets, methods
     Hybrid,       // Digital twin of a physical resource
-    Information,  // Knowledge assets, data sets
-    // Post-MVP: Space, Method, Currency
+    // Post-MVP: Space, Currency
+    // A service is a flow. A method is a Layer 1 profile of Digital.
 }
 ```
 

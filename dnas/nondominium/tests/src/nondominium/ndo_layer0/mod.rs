@@ -56,9 +56,7 @@ enum PropertyRegime {
 enum ResourceNature {
     Physical,
     Digital,
-    Service,
     Hybrid,
-    Information,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -670,7 +668,7 @@ async fn ndo_cross_agent_discovery() {
             ndo_input(
                 "Bob NDO",
                 PropertyRegime::Nondominium,
-                ResourceNature::Service,
+                ResourceNature::Hybrid,
                 LifecycleStage::Ideation,
             ),
         )

@@ -118,13 +118,16 @@ impl PropertyRegime {
 
 /// Physical / digital nature of a NondominiumIdentity.
 /// Immutable after creation.
+///
+/// `Digital` covers software, data, design files, documents, datasets, and
+/// methods. A service delivery is a ValueFlows flow (`work`, `deliverService`),
+/// not a nature. The kind of a digital resource (design file, dataset, protocol)
+/// is a Layer 1 specification profile.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
   Physical,
   Digital,
-  Service,
   Hybrid,
-  Information,
 }
 
 /// Whether use by one agent excludes others (goods-type / rivalry axis).
@@ -138,14 +141,11 @@ pub enum Rivalry {
 
 impl ResourceNature {
   /// Authoritative default rivalry for this nature.
-  /// `Service` defaults to NonRivalrous (ambiguous); callers should set
-  /// `rivalry_override` when a service slot is actually rivalrous.
+  /// Callers set `rivalry_override` when a particular resource differs from this default.
   pub fn default_rivalry(&self) -> Rivalry {
     match self {
       ResourceNature::Physical | ResourceNature::Hybrid => Rivalry::Rivalrous,
-      ResourceNature::Digital | ResourceNature::Information | ResourceNature::Service => {
-        Rivalry::NonRivalrous
-      }
+      ResourceNature::Digital => Rivalry::NonRivalrous,
     }
   }
 }

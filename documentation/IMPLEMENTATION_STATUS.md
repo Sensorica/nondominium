@@ -105,7 +105,7 @@ Each local DNA domain follows the integrity/coordinator pattern; the Lobby and G
 - **Entry type**: `NondominiumIdentity` with `name`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `description`, `successor_ndo_hash`, and `hibernation_origin`
 - **LifecycleStage**: 10 stages — Ideation → Specification → Development → Prototype → Stable → Distributed → Active → Hibernating → Deprecated → EndOfLife
 - **PropertyRegime**: 7 canonical variants — `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`
-- **ResourceNature**: 5 variants — `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
+- **ResourceNature**: 3 variants — `Physical`, `Digital`, `Hybrid`. Digital includes designs, data, documents, datasets, and methods. Service deliveries are flows; they are not a nature
 - **Immutability**: identity fields are permanent; `lifecycle_stage` changes through the validated state machine, `successor_ndo_hash` is set once on deprecation, and `hibernation_origin` is set/cleared during suspension/resumption; deletes are always invalid
 - **Authorization**: Only the `initiator` may call `update_lifecycle_stage` (MVP simplification; full role-based authorization per REQ-NDO-LC-07 deferred to governance zome integration)
 - **Discovery links**: `AllNdos` (global `"ndo_identities"` path anchor), `AgentToNdo` (per-initiator), `NdoByLifecycleStage` / `NdoByNature` / `NdoByPropertyRegime` (categorization anchors — PR #84)

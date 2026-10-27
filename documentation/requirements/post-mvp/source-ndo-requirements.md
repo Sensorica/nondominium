@@ -75,7 +75,7 @@ A Source **yields** Resources (a river yields cubic metres of water when abstrac
 In the Nondominium architecture, a Source-NDO is a `NondominiumIdentity` entry with:
 
 - `property_regime: Nondominium` (or `CommonPool` for rivalrous consumable ecological stocks)
-- `resource_nature: Physical` or `Information` (see §2.3)
+- `resource_nature: Physical` or `Digital` (a knowledge commons is Digital; see §2.3)
 - A set of **Source-specific Layer 0 extension attributes** (§4.1)
 - **No** `primaryAccountable` — stewardship relations use `stewardedBy` links to Agent(s) with a stewardship role, never ownership
 - **Governance-as-adaptive-operator** (§5): the governance loop is cybernetic rather than rule-evaluation only
@@ -90,11 +90,11 @@ The Layer 0 identity hash becomes the stable anchor for the source's entire econ
 | **Ecological — hydrological** | Watershed, river, groundwater, wetland                             | `Physical`                | Rivalrous; extraction and pollution compete                  |
 | **Ecological — biological**   | Forest, fishery, soil system, biodiversity                         | `Physical`                | Some rivalrous (fishery); some regenerative                  |
 | **Ecological — atmospheric**  | Atmosphere, climate system                                         | `Physical`                | Assimilation capacity rivalrous                              |
-| **Knowledge commons**         | Open-source design repository, scientific commons, language corpus | `Information`             | Non-rivalrous; yields knowledge resources                    |
-| **Social commons**            | Community, network, trust fabric                                   | `Information`             | Non-rivalrous; yields social capital and governance capacity |
+| **Knowledge commons**         | Open-source design repository, scientific commons, language corpus | `Digital`                 | Non-rivalrous; yields knowledge resources                    |
+| **Social commons**            | Community, network, trust fabric                                   | `Digital`                 | Non-rivalrous. Social capital itself stays off the entry; the NDO is the governed commons |
 
 
-The existing `ResourceNature` enum covers Source types adequately for Layer 0 classification; a separate `SourceType` sub-classification is recommended for Layer 1 (§4.2).
+The existing `ResourceNature` enum covers Source types for Layer 0 classification (`Physical` for ecological sources, `Digital` for knowledge commons). A separate `SourceType` sub-classification is recommended for Layer 1 (§4.2).
 
 ### 2.4 Source hierarchy and coupling
 

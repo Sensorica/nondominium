@@ -319,30 +319,30 @@ test.describe.serial('nondominium core flows', () => {
     // Second NDO with a different nature/stage so filters can discriminate.
     // (Created through the UI on purpose: filtering is the thing under test.)
     await gotoAgent(page, 1, `/group/${encodeURIComponent(groupId)}`);
-    await createNdo(page, { name: 'E2E Method', nature: 'Information', stage: 'Ideation' });
+    await createNdo(page, { name: 'E2E Twin', nature: 'Hybrid', stage: 'Ideation' });
 
     await gotoAgent(page, 1);
     await expectEventually(page, async () => {
-      await expect(page.getByRole('heading', { name: 'E2E Method' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'E2E Twin' })).toBeVisible();
     });
 
     // OR within Nature: Digital → only the widget.
     await page.getByRole('button', { name: 'Digital', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'E2E Widget' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'E2E Method' })).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'E2E Twin' })).toBeHidden();
 
-    // Digital OR Information → both.
-    await page.getByRole('button', { name: 'Information', exact: true }).click();
+    // Digital OR Hybrid → both.
+    await page.getByRole('button', { name: 'Hybrid', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'E2E Widget' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'E2E Method' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Twin' })).toBeVisible();
 
     // AND across dimensions: + Stage=Specification → only the widget.
     await page.getByRole('button', { name: 'Specification', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'E2E Widget' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'E2E Method' })).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'E2E Twin' })).toBeHidden();
 
     await page.getByRole('button', { name: 'Clear filters' }).click();
-    await expect(page.getByRole('heading', { name: 'E2E Method' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Twin' })).toBeVisible();
   });
 
   // ── Phase 2: NDO Layer 1 (specification + typed governance rules) ─────────

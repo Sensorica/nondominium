@@ -381,7 +381,7 @@ Industrial equipment networks with condition monitoring (value dimension → rel
 
 ### 9.4 Digital Resource Commons
 
-Software/service and knowledge sharing. `Digital`/`Information` nature, `Commons`/`Nondominium` regimes; Layer 1 `DigitalAsset` slots + digital integrity manifests carry the information dimension. Non-rivalrous, so "transport" collapses to access/replication rather than custody handoff.
+Software and knowledge sharing. `Digital` nature, `Commons`/`Nondominium` regimes; Layer 1 `DigitalAsset` slots + digital integrity manifests carry the information dimension. Non-rivalrous, so "transport" collapses to access/replication rather than custody handoff.
 
 ### 9.5 Ecological Commons (Source-Originated)
 
