@@ -403,7 +403,8 @@ Pydantic/JSON field names **must match Rust zome field names exactly** (Holochai
 
 **Enum Values (PascalCase strings):**
 
-- `ResourceState`: `"PendingValidation"`, `"Active"`, `"Maintenance"`, `"Retired"`, `"Reserved"`
+- `OperationalState`: `"PendingValidation"`, `"Available"`, `"Reserved"`, `"InTransit"`, `"InStorage"`, `"InMaintenance"`, `"InUse"`
+- `LifecycleStage` (on `NondominiumIdentity`): `"Ideation"`, `"Specification"`, … through `"EndOfLife"`
 - `VfAction`: 16 variants — `"Transfer"`, `"Use"`, `"InitialTransfer"`, `"TransferCustody"`, etc.
 - `ParticipationClaimType`: 16 variants — `"ResourceProvider"`, `"ResourceReceiver"`, `"Custodian"`, etc.
 
@@ -651,7 +652,7 @@ interface SyncMapping {
   platformUser: HolochainAgent;
   platformResource: EconomicResource;
   platformTransaction: Commitment + EconomicEvent[];
-  platformProfile: Person + EncryptedProfile;
+  platformProfile: Person + PrivatePersonData;
 }
 
 // Bidirectional sync rules
@@ -1628,7 +1629,7 @@ volumes:
 
 ### A.10 Tiki-Specific Sequence Diagrams (Original User Story Versions)
 
-These are the original sequence diagrams using the Tiki-specific participants (Sarah/Sensorica, Marco/FabLab) from the [user story](../Applications/user-story/user-story-resource-transaction.md).
+These are the original sequence diagrams using the Tiki-specific participants (Sarah/Sensorica, Marco/FabLab) from the [ERP bridge user story](../Applications/user-story/user-story-ERP-bridge.md).
 
 #### Resource Registration (Sarah/Sensorica)
 

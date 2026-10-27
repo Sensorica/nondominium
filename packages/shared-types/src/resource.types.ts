@@ -1,12 +1,14 @@
-import type { ActionHash, AgentPubKey, EntryHash, Record, Timestamp } from '@holochain/client';
+import type { ActionHash, AgentPubKey, DnaHash, EntryHash, Record, Timestamp } from '@holochain/client';
 
-// Resource State Types
-export type ResourceState =
-  | "PendingValidation"
-  | "Active"
-  | "Maintenance"
-  | "Retired"
-  | "Reserved";
+// Resource operational state types (Layer 2 instance condition)
+export type OperationalState =
+  | "Available"
+  | "Reserved"
+  | "InTransit"
+  | "InStorage"
+  | "InMaintenance"
+  | "InUse"
+  | "PendingValidation";
 
 // Core Resource Types
 export interface ResourceSpecification {
@@ -18,6 +20,8 @@ export interface ResourceSpecification {
   image_url?: string;
   tags?: string[];
   is_active?: boolean;
+  scope?: ResourceScope;
+  ndo_identity_hash?: ActionHash;
 }
 
 export interface EconomicResource {
@@ -25,14 +29,17 @@ export interface EconomicResource {
   unit: string;
   custodian: AgentPubKey;
   current_location?: string;
-  state: ResourceState;
+  operational_state: OperationalState;
 }
 
 // Governance Types
 export interface GovernanceRule {
-  rule_type: string;
-  rule_data: string;
+  rule_data: RuleData;
   enforced_by?: string;
+  ndo_identity_hash: ActionHash;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  rivalry_override?: Rivalry;
 }
 
 export interface GovernanceRules {
@@ -60,7 +67,14 @@ export interface ResourceSpecificationInput {
   category: string;
   image_url?: string;
   tags: string[];
-  governance_rules: GovernanceRuleInput[];
+  scope: ResourceScope;
+  ndo_identity_hash: ActionHash;
+  governance_rules: NestedGovernanceRuleInput[];
+}
+
+export interface NestedGovernanceRuleInput {
+  rule_data: RuleData;
+  enforced_by?: string;
 }
 
 export interface EconomicResourceInput {
@@ -71,9 +85,21 @@ export interface EconomicResourceInput {
 }
 
 export interface GovernanceRuleInput {
-  rule_type: string;
-  rule_data: string;
+  rule_data: RuleData;
   enforced_by?: string;
+  ndo_identity_hash: ActionHash;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  rivalry_override?: Rivalry;
+  /** When set, links the rule to a Layer 1 specification. */
+  specification_hash?: ActionHash;
+}
+
+export interface CheckRuleDataConstraintsInput {
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  rivalry_override?: Rivalry;
+  rule_data: RuleData;
 }
 
 export interface CreateResourceSpecificationOutput {
@@ -111,6 +137,7 @@ export interface NdoDescriptor {
   created_at: number | null;
   successor_ndo_hash: string | null;
   hibernation_origin: string | null;
+  rivalry_override: string | null;
 }
 
 export interface GroupDescriptor {
@@ -155,7 +182,70 @@ export interface NdoInput {
   resource_nature: ResourceNature;
   lifecycle_stage: LifecycleStage;
   description?: string;
+  rivalry_override?: Rivalry;
 }
+
+/**
+ * DNA properties of a cloned `ndo` cell (ADR-010 model A; ADR-013).
+ *
+ * Mirrors `crates/shared/src/types.rs::NdoDnaProperties` field-for-field — the
+ * immutable Layer 0 fields baked into the clone's DNA so the DnaHash is
+ * cryptographically bound to the NDO identity. Deliberately EXCLUDES
+ * `lifecycle_stage` (mutable on the entry; including it would freeze every
+ * transition), `description` (entry-only), and `initiator` — holochain 0.6.0
+ * transports properties as `YamlProperties(serde_yaml::Value)`, which has no
+ * binary variant and cannot carry an `AgentPubKey`. The initiator stays
+ * authoritative on the entry and cached on the NdoAnchor for display.
+ *
+ * Passed to `createCloneCell` as a PLAIN JS OBJECT (the conductor canonicalizes
+ * the modifiers itself; DnaHash determinism is value-level across client and
+ * Rust). `created_at` is microseconds derived from a millisecond wall clock, so
+ * it is NOT a uniqueness guarantee — distinctness comes from the per-NDO
+ * `network_seed`, which is also DnaHash input. It is client-chosen, NOT the
+ * entry's sys_time: peers re-derive the same DnaHash from the anchor's cached
+ * value.
+ *
+ * The field set and order are DnaHash input. Changing either orphans every
+ * existing NDO cell — keep this in lockstep with the Rust definition.
+ */
+export interface NdoDnaProperties {
+  name: string;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  created_at: Timestamp;
+}
+
+/**
+ * Decoded zome_group::NdoAnchor entry — the authoritative group→NDO pointer
+ * with full clone coordinates. `ndo_dna_hash` + `network_seed` + the cached
+ * classification fields let any group member re-derive and verify the ndo clone
+ * cell, so card data renders from this without joining the ndo cell (model A
+ * read path).
+ *
+ * Only `name`, `description`, and `lifecycle_stage` are mutable caches; the rest
+ * are identity coordinates that `zome_group_integrity::validate_ndo_anchor_update`
+ * refuses to let an update rewrite.
+ */
+export interface NdoAnchorEntry {
+  group_hash: ActionHash;
+  name: string;
+  description: string | null;
+  ndo_dna_hash: DnaHash;
+  network_seed: string;
+  identity_action_hash: ActionHash;
+  initiator: AgentPubKey;
+  ndo_created_at: Timestamp;
+  lifecycle_stage: LifecycleStage;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+}
+
+/**
+ * Wire payload for zome_group::create_ndo_anchor (ADR-011). The coordinator
+ * builds the entry straight from these fields, so the payload IS the entry
+ * shape — kept as an alias rather than a second declaration that can drift.
+ */
+export type NdoAnchorInput = NdoAnchorEntry;
 
 export interface UpdateLifecycleStageInput {
   original_action_hash: ActionHash;
@@ -167,24 +257,82 @@ export interface UpdateLifecycleStageInput {
 export interface NdoTransitionHistoryEvent {
   from_stage: string;
   to_stage: string;
-  agent: string;
+  /**
+   * Raw 39-byte key, as the conductor returns it. Declared as a string here
+   * until 2026-08-25, which typechecked `.slice(0, 10)` as a string slice and
+   * let TransitionHistoryPanel render a comma-separated byte list (PR #132, F9).
+   * Encode with `encodeHashToBase64` before displaying or copying.
+   */
+  agent: AgentPubKey;
   timestamp: number;
-  event_hash: string;
+  /** Raw 39-byte hash. Same encoding requirement as `agent`. */
+  event_hash: ActionHash;
 }
 
 /** Layer 0 identity entry (zome_resource `NondominiumIdentity`). */
 export type PropertyRegime =
   | "Private"
   | "Commons"
-  | "Nondominium"
-  | "CommonPool";
+  | "Collective"
+  | "Pool"
+  | "CommonPool"
+  | "Public"
+  | "Nondominium";
 
-export type ResourceNature =
-  | "Physical"
-  | "Digital"
-  | "Service"
-  | "Hybrid"
-  | "Information";
+/** Layer 0 nature. Digital includes designs, data, documents, and methods. */
+export type ResourceNature = "Physical" | "Digital" | "Hybrid";
+
+export type Rivalry = "Rivalrous" | "NonRivalrous";
+
+export type ResourceScope = "Project" | "Network" | "Public";
+
+export type ConstraintSeverity = "Hard" | "Soft";
+
+export interface ConstraintViolation {
+  rule_id: string;
+  message: string;
+  severity: ConstraintSeverity;
+}
+
+export type Accessibility = "Free" | "Credentialed" | "Gated";
+
+export type TransferType = "Ownership" | "Custody" | "UseRights" | "Benefit";
+
+export type GovernanceRuleType =
+  | "AccessRequirement"
+  | "UsageLimit"
+  | "TransferCondition"
+  | "MaintenanceSchedule";
+
+export interface AccessRequirementData {
+  accessibility: Accessibility;
+  required_role?: string;
+  min_affiliation?: string;
+}
+
+export interface UsageLimitData {
+  max_duration_hours?: number;
+  max_quantity_per_period?: number;
+  period_days?: number;
+}
+
+export interface TransferConditionData {
+  transfer_type: TransferType;
+  requires_validation: boolean;
+  validator_role?: string;
+}
+
+export interface MaintenanceScheduleData {
+  interval_days: number;
+  required_role?: string;
+}
+
+/** Tagged RuleData — mirrors Rust `RuleData` enum (externally tagged by default). */
+export type RuleData =
+  | { AccessRequirement: AccessRequirementData }
+  | { UsageLimit: UsageLimitData }
+  | { TransferCondition: TransferConditionData }
+  | { MaintenanceSchedule: MaintenanceScheduleData };
 
 export type LifecycleStage =
   | "Ideation"
@@ -219,6 +367,7 @@ export interface NondominiumIdentity {
   lifecycle_stage: LifecycleStage;
   created_at: Timestamp;
   description?: string;
+  rivalry_override?: Rivalry;
   successor_ndo_hash?: ActionHash;
   hibernation_origin?: LifecycleStage;
 }
@@ -253,6 +402,11 @@ export interface TransferCustodyInput {
 export interface TransferCustodyOutput {
   updated_resource_hash: ActionHash;
   updated_resource: EconomicResource;
+}
+
+export interface UpdateOperationalStateInput {
+  resource_hash: ActionHash;
+  new_operational_state: OperationalState;
 }
 
 // Zome Function Types

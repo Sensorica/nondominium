@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 hdi = { workspace = true }
+holochain_serialized_bytes = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 # hdk is only needed by coordinator zomes — integrity zomes and test crates use the

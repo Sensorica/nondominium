@@ -150,9 +150,14 @@ async function connectViaAdminAndApp(
     // "source chain head has moved", so we serialize and retry on contention.
     // Cloned cells (group cells) are authorized too: on reload their in-memory
     // signing credentials are gone, so zome calls would otherwise fail.
+    // Disabled clones are skipped: authorizing one errors (CellDisabled), and a
+    // disabled clone isn't used until re-enabled (ensureCloneCell), which
+    // authorizes signing at that point.
     for (const cells of Object.values(appInfo.cell_info)) {
       for (const cellInfo of cells) {
-        if (cellInfo.type === 'provisioned' || cellInfo.type === 'cloned') {
+        if (cellInfo.type === 'provisioned') {
+          await authorizeWithRetry(adminWs, cellInfo.value.cell_id);
+        } else if (cellInfo.type === 'cloned' && cellInfo.value.enabled !== false) {
           await authorizeWithRetry(adminWs, cellInfo.value.cell_id);
         }
       }

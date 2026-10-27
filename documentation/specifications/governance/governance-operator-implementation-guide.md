@@ -103,7 +103,7 @@ pub fn request_resource_transition(
         true => {
             // 3a. Apply approved state changes
             if let Some(new_state) = governance_result.new_resource_state.clone() {
-                update_resource_state(new_state)?;
+                update_operational_state(new_state)?;
             }
 
             // 3b. Record economic event
@@ -157,18 +157,19 @@ fn get_action_hash(resource: &EconomicResource) -> ExternResult<ActionHash> {
     todo!("Implement action hash retrieval")
 }
 
-// Validate that action is compatible with current resource state
+// Validate that action is compatible with current operational state
+// (LifecycleStage on NondominiumIdentity is validated separately — REQ-NDO-OS-02 deferred)
 fn validate_action_state_compatibility(
     action: &VfAction,
-    current_state: &ResourceState,
+    current_operational_state: &OperationalState,
 ) -> ExternResult<()> {
-    match (current_state, action) {
-        (ResourceState::Retired, _) => {
+    match (current_operational_state, action) {
+        (OperationalState::PendingValidation, VfAction::Use) => {
             return Err(ResourceError::InvalidInput(
-                "Cannot perform actions on retired resource".to_string()
+                "Cannot use resource pending validation".to_string()
             ).into());
         }
-        (ResourceState::Reserved, VfAction::Use) => {
+        (OperationalState::Reserved, VfAction::Use) => {
             return Err(ResourceError::InvalidInput(
                 "Cannot use reserved resource".to_string()
             ).into());
@@ -1023,19 +1024,19 @@ mod governance_tests {
             created_by: AgentPubKey::random(),
             created_at: sys_time().unwrap(),
             current_location: Some("Workshop".to_string()),
-            state: ResourceState::Active,
+            operational_state: OperationalState::Available,
         };
 
         // Valid transition
         assert!(validate_action_state_compatibility(
             &VfAction::Transfer,
-            &resource.state
+            &resource.operational_state
         ).is_ok());
 
         // Invalid transition
         assert!(validate_action_state_compatibility(
             &VfAction::Use,
-            &ResourceState::Reserved
+            &OperationalState::Reserved
         ).is_err());
     }
 }

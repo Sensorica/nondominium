@@ -1,6 +1,9 @@
 # Nondominium Project Documentation Index
 
-**Updated**: 2026-05-04
+**Updated**: 2026-08-13
+
+> Annotated guide to the documentation set. For the topic-grouped hub see
+> [README.md](README.md); for a flat table of contents see [SUMMARY.md](SUMMARY.md).
 
 ---
 
@@ -23,8 +26,9 @@
 ### Prerequisites & Setup
 
 ```bash
-nix develop              # Enter reproducible environment (REQUIRED)
-bun install              # Install dependencies
+git submodule update --init --recursive  # Initialize the hREA submodule (REQUIRED)
+nix develop                              # Enter reproducible environment (REQUIRED)
+bun install                              # Install dependencies
 ```
 
 **Key Documentation:**
@@ -41,16 +45,20 @@ bun run start            # Start 2-agent development network with UIs
 AGENTS=3 bun run network # Custom agent network
 
 # Testing — Sweettest (Rust, primary)
-bun run build:happ
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test person
-CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest -- --nocapture
+bun run sweettest        # build:happ + all nondominium Sweettest tests
+bun run sweettest:only   # skip the build step
+
+# Testing — E2E (Playwright + real conductors)
+bun run e2e
+bun run e2e:ui
 
 # Build
 bun run build:zomes     # Compile Rust zomes to WASM
-bun run build:happ      # Package DNA into .happ bundle
+bun run build:happ      # Build zomes + hREA, pack all DNAs into the .happ bundle
 bun run package         # Create final .webhapp distribution
 ```
+
+Canonical command reference for every suite: [TEST_COMMANDS.md](TEST_COMMANDS.md).
 
 > **Note**: Tryorama (TypeScript) tests in `tests/` are **deprecated**. All new tests use Sweettest (Rust). See `tests/DEPRECATED.md`.
 
@@ -63,9 +71,9 @@ bun run package         # Create final .webhapp distribution
 nondominium implements a **Governance-as-Operator** architecture that separates data management from business logic enforcement:
 
 - **Framework**: Holochain HDK ^0.7.0 / HDI ^0.8.0 (Rust + WASM)
-- **Frontend**: Svelte 5.0 + TypeScript + Vite 6.2.5
+- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) deprecated
-- **Client**: @holochain/client 0.21.0
+- **Client**: @holochain/client ^0.21.0
 - **Package Management**: Bun for dependency management and build orchestration
 
 ### Zome Structure
@@ -131,6 +139,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | Document | Description | Status |
 | --- | --- | --- |
 | **[Technical Specifications](specifications/specifications.md)** | Detailed data structures, zome functions, cross-zome interfaces | ✅ Complete |
+| **[ADR-010…013 — Per-NDO cells](specifications/adr/ADR-010-013-per-ndo-cells.md)** | One cloned cell per NDO, group `NdoAnchor` discovery, DnaHash bound to Layer 0 via DNA properties | ✅ Active |
 | **[Architecture Overview](zomes/architecture_overview.md)** | Comprehensive system architecture & cross-zome integration | ✅ Complete |
 | **[Governance Operator Architecture](specifications/governance/governance-operator-architecture.md)** | Technical architecture for modular governance design | ✅ Complete |
 | **[Governance Implementation Guide](specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples | ✅ Complete |
@@ -170,10 +179,10 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 | Document | Description |
 | --- | --- |
-| **[Artcoin Integration](Applications/nondominium_artcoin.md)** | Artcoin application integration |
-| **[User Story — Artcoin](Applications/user-story/user-story-artcoin.md)** | Complete Artcoin user journey |
-| **[User Story — Art Distribution](Applications/user-story/user-story-art-distribution.md)** | Art distribution scenario |
-| **[User Story — Art Production](Applications/user-story/user-story-art-production.md)** | Art production scenario |
+| **[Artcoin Integration](Applications/nondominium_artcoin.md)** | Artcoin mapped onto the NDO model (property regimes, roles, custody, PPRs) + implementation status |
+| **[User Story — Artcoin](Applications/user-story/user-story-artcoin.md)** | Art circulation & discovery via venues and individual art lovers |
+| **[User Story — Art Distribution](Applications/user-story/user-story-art-distribution.md)** | Multi-venue exhibition tour: custody chain, transport & storage |
+| **[User Story — Art Production](Applications/user-story/user-story-art-production.md)** | Collaborative art production with shared studio resources (REA edge) |
 | **[User Story — ERP Bridge](Applications/user-story/user-story-ERP-bridge.md)** | ERP bridge integration scenario |
 | **[User Story — Food Basket](Applications/user-story/user-story-food-basket.md)** | Food basket sharing scenario |
 | **[User Story — Material Peer Production](Applications/user-story/user-story-material-peer-production.md)** | Material peer production scenario |
@@ -228,10 +237,10 @@ Full reference: **[API Reference](API_REFERENCE.md)**
 - `create_economic_resource()` - Create resource instances with initial state
 - `get_economic_resource()` - Retrieve resource current state and history
 - `get_economic_resource_with_state()` - Retrieve resource with full state transitions
-- `update_economic_resource_state()` - Update resource state (requires governance approval)
+- `update_operational_state()` - Update `EconomicResource.operational_state`
 - `get_my_resources()` - Discover resources where calling agent is custodian
 - `get_resources_by_specification()` - Find resources conforming to specification
-- `get_resources_by_state()` - Query resources by current state
+- `get_resources_by_operational_state()` - Query resources by operational state
 
 **Cross-Zome State Transitions**
 
@@ -317,7 +326,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest 
 
 - Use `warn!` macro in Rust zome functions to log debugging information visible in test output
 - Use `#[ignore]` on tests not yet ready for execution
-- DHT sync between agents: `await_consistency_20_s(&[&cell_a, &cell_b]).await.unwrap()`
+- DHT sync between agents: `await_consistency_20_s([&cell_a, &cell_b]).await.unwrap()` (pass the array by value, not `&[...]`)
 
 ---
 

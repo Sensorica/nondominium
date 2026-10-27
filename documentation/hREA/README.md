@@ -9,6 +9,7 @@ This folder contains documentation related to hREA, the Holochain implementation
 | [Integration Strategy](./integration-strategy.md) | How Nondominium integrates hREA as its ValueFlows backend engine: architecture, cross-DNA call patterns, migration plan |
 | [Strategic Roadmap](./strategic-roadmap.md) | Phase 1+2 maintainership proposal: VF 1.0 gap closure, stub validation implementation, JSON-LD interoperability API |
 | [ValueFlows 1.0 Compliance Analysis](./valueflows-1.0-compliance.md) | Field-by-field audit of hREA `main-0.6` against VF 1.0 (~65% compliance), with P0/P1/P2 gap prioritization |
+| [v0.2 Release Plan](./v0.2-release-plan.md) | Nondominium v0.2 scope: two-phase migration onto hREA (native VF substitution, then extension modules), preconditions, and success criteria |
 
 ## Context
 

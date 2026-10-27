@@ -7,11 +7,15 @@
     nixpkgs.follows    = "holonix/nixpkgs";
     flake-parts.follows = "holonix/flake-parts";
 
-    # Agent skills — plain source trees (not flakes).
+    # Agent skills — consumed as plain source trees (flake = false), even where
+    # upstream ships its own flake.
     # Pin: set url to "github:owner/repo/vX.Y.Z"
     # Update to latest: nix flake update holochain-agent-skill
+    # The upstream repo was renamed to holochain-agent-skills (plural) at
+    # v1.0.0-rc.1. The input attribute stays singular so the update command above
+    # and the references in CONTRIBUTING.md / pai/README.md keep working.
     holochain-agent-skill = {
-      url   = "github:Soushi888/holochain-agent-skill";
+      url   = "github:Soushi888/holochain-agent-skills/v1.0.0-rc.1";
       flake = false;
     };
   };
@@ -49,6 +53,12 @@
           # Materialize .claude/ from pai/claude/
           mkdir -p .claude/skills
           rsync -a --delete ${./pai/claude}/ .claude/
+          # Nix store paths are read-only, and `rsync -a` preserves that mode on
+          # the copy. Without this the NEXT write into .claude/ fails — the skills
+          # hook below cannot mkdir .claude/skills/holochain, which is the
+          # "Permission denied (13)" rsync error seen on every CI run and in every
+          # local nix shell. Same treatment .cursor/ already gets.
+          chmod -R u+w .claude 2>/dev/null || true
           chmod u+x .claude/hooks/*.hook.ts 2>/dev/null || true
 
           # Materialize Cursor rules from pai/
@@ -59,7 +69,10 @@
           # Materialize agent skills into .claude/, .cursor/, and .agents/
           mkdir -p .cursor/skills .agents/skills
           ${agentSkillsHook [
-            { src = inputs.holochain-agent-skill;                        name = "holochain"; }
+            # Since v1.0.0-rc.1 the skill lives under skills/<name>/ rather than at
+            # the repo root, so the whole workshop (book.toml, docs/, .github/)
+            # no longer lands inside the installed skill.
+            { src = "${inputs.holochain-agent-skill}/skills/holochain";        name = "holochain"; }
             { src = "${./pai/claude}/skills/nondominium-domain"; name = "nondominium-domain"; }
             { src = "${./pai/claude}/skills/complexity-oriented-programming"; name = "complexity-oriented-programming"; }
           ]}

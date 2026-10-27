@@ -1,6 +1,7 @@
 import type { AppInfo, CellId, ClonedCell, DnaHash, CellInfo } from '@holochain/client';
 import { CellType, encodeHashToBase64 } from '@holochain/client';
 import { decode } from '@msgpack/msgpack';
+import type { NdoAnchorEntry } from '@nondominium/shared-types';
 
 export interface GroupCellInfo {
   networkSeed: string;
@@ -54,6 +55,30 @@ export function decodeGroupEntry(record: GroupHolochainRecord): DecodedGroupEntr
   }
   // Defensive: some call sites may already hand us a decoded object.
   return raw as DecodedGroupEntry;
+}
+
+/**
+ * Decodes a zome_group NdoAnchor Record into its entry fields. Returns null if
+ * the record has no present entry or is missing the clone-coordinate fields
+ * (ndo_dna_hash / identity_action_hash / network_seed) — malformed anchors are
+ * skipped silently, matching the eventual-consistency tolerance of the read path.
+ */
+export function decodeNdoAnchorRecord(record: GroupHolochainRecord): NdoAnchorEntry | null {
+  const raw = record.entry?.Present?.entry as unknown;
+  if (raw == null) return null;
+  let obj: unknown;
+  if (raw instanceof Uint8Array) {
+    try {
+      obj = decode(raw);
+    } catch {
+      return null;
+    }
+  } else {
+    obj = raw;
+  }
+  const anchor = obj as Partial<NdoAnchorEntry> | null;
+  if (!anchor?.ndo_dna_hash || !anchor.identity_action_hash || !anchor.network_seed) return null;
+  return anchor as NdoAnchorEntry;
 }
 
 export function generateNetworkSeed(): string {

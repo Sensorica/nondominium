@@ -485,16 +485,16 @@ an actual deployed DNA (discoverable by peers who attempt to connect).
 |-------|--------|-------|
 | **Lobby DNA** | ✅ PR #103, revised #107 | `dnas/lobby/` — `LobbyAgentProfile` + `GroupAnnouncement` (group registry); `lobby` role in `happ.yaml` with `network_seed: "nondominium-lobby-v1"`; Sweettest (`lobby_sweettest`, 5 tests) |
 | **Group DNA** | ✅ PR #107 | `dnas/group/` — `GroupProfile`, `GroupMembership`, `WorkLog`, `SoftLink`; `group` role (`deferred: true`, `clone_limit: 64`); Sweettest (`group_sweettest`, 13 tests) |
-| **DHT-backed group UI** | ✅ PR #111 | `createCloneCell` group provisioning, invite links, DHT member list, SoftLink NDO association; multi-agent web harness (`scripts/launch-happ.mjs`) |
+| **DHT-backed group UI** | ✅ PR #111 | `createCloneCell` group provisioning, invite links, DHT member list, NDO association (SoftLink at the time, `NdoAnchor` since PR #128); multi-agent web harness (`scripts/launch-happ.mjs`) |
+| **NDO-per-cell UI cutover** | ✅ Issue #110 / PR #128 | `createNdo` provisions an NDO cell + `NdoAnchor` instead of a shared-DHT entry + SoftLink; lobby and group NDO grids render from anchors; a peer derives and joins the cell from anchor coordinates |
 | **NDO federation extensions** | ✅ PR #103 | `NdoHardLink`, `Contribution`, `Agreement` in `zome_gouvernance`; coordinator APIs + partial Sweettest |
 | **NDO Layer 0** | ✅ PR #80 | `NondominiumIdentity` on the shared nondominium DHT |
-| **NDO DNA + NdoAnchor** | 🔄 Issue #112 | `ndo` role (`deferred: true`, `clone_limit: 512`) bundling existing resource + governance WASMs; `NdoAnchor` in `zome_group` with clone coordinates; one NDO = one cloned cell |
+| **NDO DNA + NdoAnchor** | ✅ Issue #112 / PR #128 | `ndo` role (`deferred: true`, `clone_limit: 512`) bundling existing resource + governance WASMs; `NdoAnchor` in `zome_group` with clone coordinates; one NDO = one cloned cell, `DnaHash` bound to Layer 0 via DNA properties (ADR-013) |
 
 ### 10.2 In progress or not started
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| **NDO-per-cell UI cutover** | 🔄 Issue #110 (amended) | `NdoCreateModal` provisions an NDO cell + `NdoAnchor` instead of a shared-DHT entry + SoftLink; group NDO grid renders from anchors |
 | **Lobby profile UI sync** | 🔄 Issue #106 / PR #114 | Profile bar + fire-and-forget `upsert_lobby_agent_profile` |
 | **Moss WeApplet** | ❌ | `ui/src/we-applet.ts` contract specified in architecture doc; not in repo |
 | **Facet discovery (nature / regime)** | ❌ | REQ-LOBBY-07 nature and property-regime path anchors not in Lobby DNA (NDO announcements removed; facets now group-scoped via anchors) |

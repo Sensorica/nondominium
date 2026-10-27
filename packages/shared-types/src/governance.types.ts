@@ -1,4 +1,12 @@
 import type { ActionHash, AgentPubKey, EntryHash, Timestamp } from '@holochain/client';
+import type {
+  ConstraintViolation,
+  PropertyRegime,
+  ResourceNature,
+  Rivalry
+} from './resource.types.js';
+
+export type { ConstraintViolation };
 
 // Core Governance Types
 export interface Commitment {
@@ -49,6 +57,62 @@ export interface VfEconomicEvent {
   resource_quantity: number;
   event_time: Timestamp;
   note?: string | null;
+  ndo_identity_hash: ActionHash;
+}
+
+/** Input for `propose_commitment` in `zome_gouvernance`. */
+export interface ProposeCommitmentInput {
+  action: VfAction;
+  resource_hash?: ActionHash | null;
+  resource_spec_hash?: ActionHash | null;
+  provider: AgentPubKey;
+  due_date: Timestamp;
+  note?: string | null;
+  ndo_identity_hash: ActionHash;
+}
+
+export interface ProposeCommitmentOutput {
+  commitment_hash: ActionHash;
+  commitment: VfCommitment;
+}
+
+/** ValueFlows Commitment entry as stored in `zome_gouvernance`. */
+export interface VfCommitment {
+  action: VfAction;
+  provider: AgentPubKey;
+  receiver: AgentPubKey;
+  resource_inventoried_as?: ActionHash | null;
+  resource_conforms_to?: ActionHash | null;
+  input_of?: ActionHash | null;
+  due_date: Timestamp;
+  note?: string | null;
+  committed_at: Timestamp;
+  ndo_identity_hash: ActionHash;
+}
+
+/** Input for `log_economic_event` in `zome_gouvernance`. */
+export interface LogEconomicEventInput {
+  action: VfAction;
+  provider: AgentPubKey;
+  receiver: AgentPubKey;
+  resource_inventoried_as: ActionHash;
+  resource_quantity: number;
+  note?: string | null;
+  commitment_hash?: ActionHash | null;
+  generate_pprs?: boolean | null;
+  ndo_identity_hash: ActionHash;
+}
+
+export interface LogEconomicEventOutput {
+  event_hash: ActionHash;
+  event: VfEconomicEvent;
+}
+
+export interface CheckActionConstraintsInput {
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  rivalry_override?: Rivalry;
+  action: VfAction;
 }
 
 // Zome Function Types

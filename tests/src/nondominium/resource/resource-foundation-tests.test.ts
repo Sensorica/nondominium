@@ -160,8 +160,8 @@ test("Economic Resource Foundation: Create and manage economic resources", async
     }
 
     // Verify resource state is correct
-    if (resource.state !== RESOURCE_STATES.PENDING) {
-      throw new Error(`Expected state ${RESOURCE_STATES.PENDING}, got ${resource.state}`);
+    if (resource.operational_state !== RESOURCE_STATES.PENDING) {
+      throw new Error(`Expected state ${RESOURCE_STATES.PENDING}, got ${resource.operational_state}`);
     }
 
     // Verify custodian is set correctly
@@ -170,7 +170,7 @@ test("Economic Resource Foundation: Create and manage economic resources", async
       throw new Error("Custodian not set correctly");
     }
 
-    console.log(`✅ Economic resource created successfully in state: ${resource.state}`);
+    console.log(`✅ Economic resource created successfully in state: ${resource.operational_state}`);
 
     // Test retrieval of all resources
     await dhtSync([lynn, bob], lynn.cells[0].cell_id[0]);

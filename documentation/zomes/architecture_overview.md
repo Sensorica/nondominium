@@ -754,8 +754,7 @@ pub struct EconomicResource {
     pub unit: String,                   // Standard measurement unit
     pub custodian: AgentPubKey,         // Primary Accountable Agent
     pub current_location: Option<String>, // Resource location tracking
-    // TODO: split into LifecycleStage (NondominiumIdentity Layer 0) + OperationalState (EconomicResource Layer 2)
-    pub state: ResourceState,           // Currently conflated; pending split per ndo_prima_materia.md Section 5
+    pub operational_state: OperationalState, // Process condition (Layer 2 instance); lifecycle on NondominiumIdentity
     pub governance_rules: Vec<GovernanceRule>, // Embedded governance
     pub validation_status: String,      // Peer validation status
     pub process_history: Vec<ActionHash>, // Economic Process audit trail

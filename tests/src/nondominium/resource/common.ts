@@ -18,7 +18,7 @@ import {
   GetAllEconomicResourcesOutput,
   GetAllGovernanceRulesOutput,
   GetResourceSpecWithRulesOutput,
-  ResourceState,
+  OperationalState,
   TransferCustodyInput,
   TransferCustodyOutput,
 } from "@nondominium/shared-types";
@@ -185,16 +185,19 @@ export async function transferCustody(
   });
 }
 
-export async function updateResourceState(
+export async function updateOperationalState(
   cell: CallableCell,
-  input: { resource_hash: ActionHash; new_state: ResourceState },
+  input: { resource_hash: ActionHash; new_operational_state: OperationalState },
 ): Promise<HolochainRecord> {
   return cell.callZome({
     zome_name: "zome_resource",
-    fn_name: "update_resource_state",
+    fn_name: "update_operational_state",
     payload: input,
   });
 }
+
+/** @deprecated Use updateOperationalState */
+export const updateResourceState = updateOperationalState;
 
 export async function getAgentEconomicResources(
   cell: CallableCell,
@@ -463,14 +466,23 @@ export async function setupGovernanceRules(
   };
 }
 
-// Resource state constants for testing
-export const RESOURCE_STATES: Record<string, ResourceState> = {
+// Operational state constants for testing (Layer 2 EconomicResource)
+export const OPERATIONAL_STATES: Record<string, OperationalState> = {
   PENDING: "PendingValidation",
-  ACTIVE: "Active",
-  MAINTENANCE: "Maintenance",
-  RETIRED: "Retired",
+  AVAILABLE: "Available",
+  IN_MAINTENANCE: "InMaintenance",
+  IN_USE: "InUse",
   RESERVED: "Reserved",
 };
+
+/** @deprecated Use OPERATIONAL_STATES */
+export const RESOURCE_STATES = {
+  PENDING: OPERATIONAL_STATES.PENDING,
+  ACTIVE: OPERATIONAL_STATES.AVAILABLE,
+  MAINTENANCE: OPERATIONAL_STATES.IN_MAINTENANCE,
+  RETIRED: OPERATIONAL_STATES.AVAILABLE,
+  RESERVED: OPERATIONAL_STATES.RESERVED,
+} as const;
 
 export const TEST_CATEGORIES = {
   TOOLS: "tools",

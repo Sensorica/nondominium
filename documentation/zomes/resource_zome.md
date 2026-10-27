@@ -11,6 +11,8 @@ The Resource zome implements the core resource management infrastructure for the
 > - `CapabilitySlot` — Layer 0 identity hash to capability targets (stigmergic attachment surface)
 >
 > **Unyt (post-MVP):** endorsed economic terms use typed **`EconomicAgreement`** `GovernanceRule` data (`ndo_prima_materia.md` §6.6, REQ-NDO-CS-09–CS-11; `documentation/requirements/post-mvp/unyt-integration.md`).
+>
+> **Source-NDO (post-MVP):** `NondominiumIdentity` may represent generative ecological systems (watersheds, rivers, fisheries) as **Source-NDOs** — a typed NDO specialization that uses `PropertyRegime::Nondominium` or `CommonPool`, adds a linked `SourceProfile` entry (condition indicators, `stewarded_by`, `regime_state`, etc.), and extends the governance-as-operator pattern with an adaptive cybernetic loop. Source-NDOs require the `vf:Source` ValueFlows extension for flow endpoints (see `documentation/requirements/post-mvp/source-ndo-requirements.md` and `documentation/hREA/valueflows-1.0-compliance.md §P3-1`). No breaking changes to existing `NondominiumIdentity` fields are required; `SourceProfile` is a separate linked entry.
 
 ## Core Data Structures
 
@@ -44,9 +46,9 @@ pub struct NondominiumIdentity {
 
 State machine transitions are enforced by the integrity zome (see `ndo_prima_materia.md §5.3`). `Hibernating` is a memory-preserving pause — it resumes to the exact stage that was paused, not necessarily `Active`. `Deprecated` and `EndOfLife` are terminal (REQ-NDO-LC-04). Any non-terminal stage may enter `Hibernating`, `Deprecated`, or `EndOfLife`.
 
-**PropertyRegime** (6 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`
+**PropertyRegime** (7 variants): `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`
 
-**ResourceNature** (5 variants): `Physical`, `Digital`, `Service`, `Hybrid`, `Information`
+**ResourceNature** (3 variants): `Physical`, `Digital`, `Hybrid`. Digital includes software, data, designs, documents, datasets, and methods. A service is a flow, not a nature.
 
 **Mutability** (three conditionally-mutable fields):
 
@@ -64,36 +66,41 @@ All other fields are permanently immutable after creation. Delete is always `Inv
 
 **Lifecycle links**: `NdoToSuccessor` (deprecated NDO → successor NDO, REQ-NDO-LC-06), `NdoToTransitionEvent` (NDO → triggering `EconomicEvent`, REQ-NDO-L0-05)
 
-### NDO membership (planned — MVP UI stub)
+### NDO membership
 
-> **Status**: UI flow exists in `NdoView.svelte`; coordinator functions are **not yet implemented** in `zome_resource`. Distinct from **Group `SoftLink`** association (curated NDO list per group).
+> **Status**: **Implemented.** Coordinator functions live in `zome_resource/src/ndo_membership.rs`; UI flow in `NdoView.svelte`. Distinct from **Group `SoftLink`** association (curated NDO list per group).
 
-When implemented, NDO membership lets an agent join an NDO as a participant/contributor independent of group membership.
+NDO membership lets an agent declare participation in an NDO independently of group membership.
 
-**Planned coordinator API** (`zome_resource`):
+**It is not an access grant.** Under the per-NDO-cell model (ADR-010 model A) an agent must already hold the cloned NDO cell to read the NDO at all, so cell possession is what confers access. `NdoMembership` makes participation *listable*; no code may treat its absence as a read denial.
+
+**Coordinator API** (`zome_resource`):
 
 | Function | Input | Output | Notes |
 |---|---|---|---|
-| `join_ndo` | `ndo_identity_hash: ActionHash` | `Record` (`NdoMembership`) | Agent signs membership; creates discovery links |
-| `get_ndo_members` | `ndo_identity_hash: ActionHash` | `Vec<Record>` | Public member list for UI |
+| `join_ndo` | `JoinNdoInput { ndo_identity_hash, role }` | `Record` (`NdoMembership`) | Idempotent: a second join returns `AlreadyMember`. Verifies the identity exists in this cell. |
+| `get_ndo_members` | `ndo_identity_hash: ActionHash` | `Vec<AgentPubKey>` | Members read from link **authors**, never a per-link `get` (see below) |
+| `is_ndo_member` | `(AgentPubKey, ActionHash)` | `bool` | "Is this agent taking part", never "may this agent read" |
 
-**Planned integrity entries**:
+**Integrity entry**:
 
 ```rust
 pub struct NdoMembership {
-    pub ndo_hash: ActionHash,
-    pub agent: AgentPubKey,
-    pub joined_at: Timestamp,
+    pub ndo_identity_hash: ActionHash,
     pub role: Option<String>, // e.g. "contributor", "observer" — community-defined
 }
 ```
 
-**Planned links**:
+The joining agent and join time are **not** stored in the entry: they come from the action header (`record.action().author()` / `.timestamp()`), matching the `GroupMembership` convention in the group DNA.
 
-- `NdoToMembers` — NDO identity hash → membership entry hashes (discovery)
-- `AgentToNdoMemberships` — agent pubkey → membership entry hashes (agent-centric query)
+**Links**:
 
-**UI contract** (`ndo.service.ts`): `joinNdo(hashB64)` and `getNdoMembers(hashB64)` return `NdoNotImplementedError` until the zome functions above land.
+- `NdoToMembers` — NDO identity hash → `NdoMembership` (discovery)
+- `MemberToNdos` — member pubkey → NDO identity hash (duplicate-join guard, resolved from local state)
+
+**Why members come from link authors**: `get_ndo_members` reads each `NdoToMembers` link's `author` rather than fetching the linked record. A per-link `get` can fail when another member's record has not yet gossiped to this shard, silently dropping that member so only the local agent appears. That exact bug was found and fixed in `zome_group`; do not reintroduce it.
+
+**Not in scope**: `leave_ndo` (no UI affordance yet), and `Person` entry creation on join (REQ-UI-ID-03 names joining an NDO as a Level 3 trigger, but that is a separate change to the identity model).
 
 **TODO (post-MVP)**: `get_ndo_transition_history(ndo_hash) -> Vec<NdoTransitionHistoryEvent>` for lifecycle audit panel (`TransitionHistoryPanel.svelte`).
 
@@ -101,21 +108,21 @@ pub struct NdoMembership {
 
 ```rust
 pub struct ResourceSpecification {
-    pub name: String,                     // Resource specification name
-    pub description: String,              // Detailed description
-    pub category: String,                 // Category for efficient queries
-    pub image_url: Option<String>,        // Optional resource image
-    pub tags: Vec<String>,               // Flexible discovery tags
-    pub governance_rules: Vec<ActionHash>, // Embedded governance
-    pub created_by: AgentPubKey,         // Creator agent
-    pub created_at: Timestamp,           // Creation timestamp
-    pub is_active: bool,                 // Active/inactive filter
+    pub name: String,              // Resource specification name
+    pub description: String,       // Detailed description
+    pub category: String,          // Category for efficient queries
+    pub image_url: Option<String>, // Optional resource image
+    pub tags: Vec<String>,         // Flexible discovery tags
+    pub is_active: bool,           // Active/inactive filter
+    pub scope: ResourceScope,      // Project | Network | Public (mutable)
+    pub ndo_identity_hash: ActionHash, // Immutable Layer 0 pointer (original create_ndo hash)
+    pub ndo_state_hash: ActionHash,    // The NDO action the author observed at activation
 }
 ```
 
+**Layer 1 activation**: creating a spec writes an `NdoToSpecification` link from `ndo_identity_hash` and is gated to lifecycle stages `Specification` through `Active` (#132). `governance_rules`, `created_by`, and `created_at` are not fields on this entry: rules are separate `GovernanceRule` entries reached through `SpecificationToGovernanceRule`, and authorship comes from the action.
 **ValueFlows**: Compliant with resource specification standards
-**Governance**: Embedded rules for access and usage control
-**Discovery**: Category and tag-based efficient queries
+**Discovery**: Category and tag-based efficient queries; `Project`-scoped specs skip the global anchor
 
 ### EconomicResource Entry
 
@@ -133,79 +140,66 @@ pub struct EconomicResource {
     pub created_by: AgentPubKey,   // Resource creator
     pub created_at: Timestamp,     // Creation timestamp
     pub current_location: Option<String>, // Physical/virtual location
-    // TODO: split into two fields:
-    //   pub lifecycle_stage: LifecycleStage,    // lives on NondominiumIdentity (Layer 0)
-    //   pub operational_state: OperationalState, // lives on EconomicResource (Layer 2)
-    pub state: ResourceState,      // Current resource state (pending split — see ndo_prima_materia.md Section 5)
+    pub operational_state: OperationalState, // Layer 2 process condition (REQ-NDO-OS-01 ✅)
 }
 ```
 
 **ValueFlows**: Compliant economic resource implementation
 **Custody**: Clear custodianship with Primary Accountable Agent pattern
-**State Management**: Comprehensive resource lifecycle tracking
+**State Management**: Operational condition on instance; lifecycle maturity on `NondominiumIdentity`
 
-### ResourceState Enum (pending replacement)
-
-> **TODO**: Split `ResourceState` into two orthogonal enums per `ndo_prima_materia.md` Section 5 and `REQ-NDO-OS-01` through `REQ-NDO-OS-06`.
+### OperationalState Enum
 
 ```rust
-// CURRENT (conflated — to be replaced):
-pub enum ResourceState {
-    PendingValidation,  // → OperationalState::PendingValidation
-    Active,            // → LifecycleStage::Active + OperationalState::Available
-    Maintenance,       // → OperationalState::InMaintenance (LifecycleStage unchanged)
-    Retired,          // → LifecycleStage::Deprecated or EndOfLife
-    Reserved,         // → OperationalState::Reserved (LifecycleStage unchanged)
-}
-
-// IMPLEMENTED — LifecycleStage (on NondominiumIdentity, Layer 0, REQ-NDO-LC-01–07):
-pub enum LifecycleStage {
-    Ideation,      // spark of an idea, Layer 0 anchor only
-    Specification, // design/requirements being written
-    Development,   // active construction / prototyping
-    Prototype,     // proof-of-concept, not yet production-ready
-    Stable,        // production-ready, design is replicable
-    Distributed,   // being actively fabricated/used across the network
-    Active,        // in normal use
-    Hibernating,   // dormant but recoverable (reversible)
-    Deprecated,    // superseded; successor NDO required
-    EndOfLife,     // permanently concluded; Layer 0 tombstone
-}
-
-// TARGET — OperationalState (on EconomicResource, Layer 2):
 pub enum OperationalState {
-    PendingValidation, Available, Reserved,
-    InTransit, InStorage, InMaintenance, InUse,
+    Available,
+    Reserved,
+    InTransit,
+    InStorage,
+    InMaintenance,
+    InUse,
+    PendingValidation, // default for newly created instances
 }
 ```
 
 **Key principle**: Transport, storage, and maintenance are *processes* that act on a resource at *any* lifecycle stage. A `Development` resource can be `InTransit` between R&D labs. An `Active` resource can be `InMaintenance`. These are operational conditions, not lifecycle milestones.
 
-**Lifecycle**: `LifecycleStage` tracks maturity/evolution (advances rarely, almost irreversibly)
-**Operational**: `OperationalState` tracks active processes (cycles frequently, reset to `Available` when process ends)
-**Transitions**: All state changes governed by the governance zome; each transition references a valid `EconomicEvent`
+### LifecycleStage vs OperationalState
+
+**Lifecycle** (`LifecycleStage` on `NondominiumIdentity`): maturity/evolution (advances rarely, almost irreversibly). Faceted discovery via `NdoByLifecycleStage`.
+
+**Operational** (`OperationalState` on `EconomicResource`): active process condition (cycles frequently; typically resets to `Available` when a process ends). Faceted discovery via `ResourcesByOperationalState`.
+
+**Governance transitions** (REQ-NDO-OS-02/03): deferred — interim writes use `update_operational_state` in `zome_resource`; future governance-zome ownership will require valid `EconomicEvent` references.
 
 ### GovernanceRule Entry
 
 ```rust
 pub struct GovernanceRule {
-    pub rule_type: String,           // Rule category (access, usage, transfer)
-    pub rule_data: String,          // JSON-encoded rule parameters
-    pub enforced_by: Option<String>, // Role required for enforcement
-    pub created_by: AgentPubKey,    // Rule creator
-    pub created_at: Timestamp,      // Creation timestamp
+    pub rule_data: RuleData,           // Tagged payload; replaces the rule_type/rule_data strings
+    pub enforced_by: Option<String>,   // Role required for enforcement
+    pub ndo_identity_hash: ActionHash, // Layer 0 pointer for constraint evaluation
+    pub property_regime: PropertyRegime, // Denormalized from Layer 0 (zero-DHT-read validation)
+    pub resource_nature: ResourceNature,
+    pub rivalry_override: Option<Rivalry>,
     // TODO (post-MVP, governance.md §4.8): add `expires_at: Option<Timestamp>` for temporal
     // governance. Rules with an expiry become inactive after the deadline without requiring a
     // manual update. Enables sunset clauses and time-limited access grants.
-    // TODO (post-MVP): add `EconomicAgreement` to typed `GovernanceRuleType` for Unyt Smart
-    // Agreement integration. See ndo_prima_materia.md §6.6, REQ-NDO-CS-07–CS-11, and
-    // documentation/specifications/governance/governance.md (EconomicAgreement TODO).
+    // TODO (post-MVP): add `EconomicAgreement` and `IdentityVerification` variants to `RuleData`
+    // for Unyt and Flowsta integration. See ndo_prima_materia.md §6.6-6.7, REQ-NDO-CS-07–CS-15.
+}
+
+pub enum RuleData {
+    AccessRequirement(AccessRequirementData),
+    UsageLimit(UsageLimitData),
+    TransferCondition(TransferConditionData),
+    MaintenanceSchedule(MaintenanceScheduleData),
 }
 ```
 
-**Flexibility**: JSON-encoded parameters for complex rule logic
+**Typing**: `GovernanceRuleType` is derived from the `RuleData` discriminant, never stored. `created_by` / `created_at` are not fields: authorship and time come from the action.
+**Constraints**: each rule is checked against its NDO's classification by `check_rule_data_permitted` in [`crates/shared/src/constraints.rs`](../../crates/shared/src/constraints.rs). `Hard` violations are rejected by the integrity zome; `Soft` violations surface as advisory warnings.
 **Enforcement**: Role-based rule enforcement delegation
-**Governance**: Community-driven rule creation and management
 
 ## API Functions
 
@@ -455,28 +449,25 @@ pub struct TransferCustodyInput {
 - Creates economic event (TransferCustody)
 - Triggers validation workflow if required
 
-#### `update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Record>`
+#### `update_operational_state(input: UpdateOperationalStateInput) -> ExternResult<Record>`
 
-> **TODO**: Replace with two separate functions per `REQ-NDO-OS-01`:
-> - `update_lifecycle_stage(input: UpdateLifecycleStageInput)` — transitions on `NondominiumIdentity`; requires an `EconomicEvent` hash as proof of triggering action
-> - `update_operational_state(input: UpdateOperationalStateInput)` — transitions on `EconomicResource`; called by governance zome when processes begin/end
-
-Updates the state of an economic resource.
+Updates the operational state of an `EconomicResource` instance (REQ-NDO-OS-01). Lifecycle maturity transitions use `update_lifecycle_stage` on `NondominiumIdentity` (Layer 0).
 
 **Input**:
 
 ```rust
-// CURRENT (pending split):
-pub struct UpdateResourceStateInput {
+pub struct UpdateOperationalStateInput {
     pub resource_hash: ActionHash,
-    pub new_state: ResourceState,  // TODO: split into lifecycle_stage / operational_state
-    pub reason: Option<String>,
+    pub new_operational_state: OperationalState,
 }
 ```
 
-**Authorization**: Governance zome only (via governance-as-operator pattern)
-**Validation**: All transitions require a corresponding `EconomicEvent` reference
-**Integration**: Creates economic events for PPR generation
+**Authorization**: Current agent (interim resource-zome writer; governance-zome ownership deferred per REQ-NDO-OS-02)
+**Side effects**: Moves the `ResourcesByOperationalState` anchor link when the state changes
+
+#### `get_resources_by_operational_state(state: OperationalState) -> ExternResult<Vec<Record>>`
+
+Discovery via `ResourcesByOperationalState` anchor (`ndo.opstate.{state}`). Parallels `get_ndos_by_lifecycle_stage`.
 
 ### Governance Rule Management
 
@@ -488,9 +479,16 @@ Creates a new governance rule.
 
 ```rust
 pub struct GovernanceRuleInput {
-    pub rule_type: String,
-    pub rule_data: String,
+    pub rule_data: RuleData,
     pub enforced_by: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub rivalry_override: Option<Rivalry>,
+    /// When set, also create `SpecificationToGovernanceRule` so the rule appears
+    /// in `get_resource_specification_with_rules`. Omitting it creates an orphan
+    /// rule that no read path surfaces.
+    pub specification_hash: Option<ActionHash>,
 }
 ```
 
@@ -706,7 +704,7 @@ for rule in rules {
 - **Resource Analytics**: Usage statistics and availability optimization
 - **Automated Governance**: AI-assisted rule creation and enforcement
 
-> **TODO (post-MVP — PropertyRegime-driven governance defaults, resources.md §6.6)**:
+> **TODO (post-MVP — PropertyRegime-driven governance defaults, resources.md §6.6 / implementation_plan §12.1.1 Phase B)**:
 > Implement a `GovernanceDefaultsEngine` that derives default governance rule templates from
 > `PropertyRegime + ResourceNature` classification. For example, a `Nondominium` physical
 > resource gets default rules for custody rotation, maintenance obligations, and access-for-use;

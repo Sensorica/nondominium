@@ -2,6 +2,58 @@ use crate::ResourceError;
 use hdk::prelude::*;
 use zome_resource_integrity::*;
 
+fn operational_state_path(state: &OperationalState) -> ExternResult<EntryHash> {
+  Path::from(format!("ndo.opstate.{:?}", state)).path_entry_hash()
+}
+
+/// Walk the EconomicResource update chain to the root (create) action hash.
+fn root_economic_resource_action_hash(mut hash: ActionHash) -> ExternResult<ActionHash> {
+  loop {
+    let record = must_get_valid_record(hash.clone())?;
+    match record.action() {
+      Action::Update(update) => {
+        hash = update.original_action_address.clone();
+      }
+      _ => return Ok(hash),
+    }
+  }
+}
+
+fn move_operational_state_link(
+  original_action_hash: &ActionHash,
+  old_state: &OperationalState,
+  new_state: &OperationalState,
+) -> ExternResult<()> {
+  if old_state == new_state {
+    return Ok(());
+  }
+
+  let old_links = get_links(
+    LinkQuery::try_new(
+      operational_state_path(old_state)?,
+      LinkTypes::ResourcesByOperationalState,
+    )?,
+    GetStrategy::default(),
+  )?;
+  for link in old_links {
+    if let Some(target_hash) = link.target.into_action_hash() {
+      if target_hash == *original_action_hash {
+        delete_link(link.create_link_hash, GetOptions::default())?;
+        break;
+      }
+    }
+  }
+
+  create_link(
+    operational_state_path(new_state)?,
+    original_action_hash.clone(),
+    LinkTypes::ResourcesByOperationalState,
+    (),
+  )?;
+
+  Ok(())
+}
+
 // Cross-zome call structure for governance validation
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ValidateNewResourceInput {
@@ -50,7 +102,7 @@ pub fn create_economic_resource(
     unit: input.unit,
     custodian: agent_info.agent_initial_pubkey.clone(),
     current_location: input.current_location,
-    state: ResourceState::PendingValidation, // New resources start in pending validation state
+    operational_state: OperationalState::PendingValidation,
   };
 
   let resource_hash = create_entry(&EntryTypes::EconomicResource(resource.clone()))?;
@@ -61,6 +113,13 @@ pub fn create_economic_resource(
     path.path_entry_hash()?,
     resource_hash.clone(),
     LinkTypes::AllEconomicResources,
+    (),
+  )?;
+
+  create_link(
+    operational_state_path(&OperationalState::PendingValidation)?,
+    resource_hash.clone(),
+    LinkTypes::ResourcesByOperationalState,
     (),
   )?;
 
@@ -197,7 +256,7 @@ pub fn update_economic_resource(input: UpdateEconomicResourceInput) -> ExternRes
     unit: input.updated_resource.unit,
     custodian: original_resource.custodian, // Keep the same custodian
     current_location: input.updated_resource.current_location,
-    state: original_resource.state, // Keep the same state unless explicitly changed
+    operational_state: original_resource.operational_state,
   };
 
   let updated_resource_hash = update_entry(input.previous_action_hash, &updated_resource)?;
@@ -439,13 +498,13 @@ pub fn transfer_custody(input: TransferCustodyInput) -> ExternResult<TransferCus
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateResourceStateInput {
+pub struct UpdateOperationalStateInput {
   pub resource_hash: ActionHash,
-  pub new_state: ResourceState,
+  pub new_operational_state: OperationalState,
 }
 
 #[hdk_extern]
-pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Record> {
+pub fn update_operational_state(input: UpdateOperationalStateInput) -> ExternResult<Record> {
   let agent_info = agent_info()?;
 
   // Get the current resource
@@ -466,8 +525,11 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
     return Err(ResourceError::NotCustodian.into());
   }
 
-  // Update the state
-  resource.state = input.new_state;
+  let old_state = resource.operational_state.clone();
+  let original_action_hash = root_economic_resource_action_hash(input.resource_hash.clone())?;
+
+  // Update the operational state
+  resource.operational_state = input.new_operational_state.clone();
 
   // Create updated resource entry
   let updated_resource_hash = update_entry(
@@ -475,20 +537,23 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
     &EntryTypes::EconomicResource(resource.clone()),
   )?;
 
+  move_operational_state_link(
+    &original_action_hash,
+    &old_state,
+    &input.new_operational_state,
+  )?;
+
   // Create update link from original to new version
-  // For the first update, the resource_hash is both the original and previous
   create_link(
-    input.resource_hash.clone(), // original action hash
+    original_action_hash,
     updated_resource_hash.clone(),
     LinkTypes::EconomicResourceUpdates,
     (),
   )?;
 
   // TEMPORARY FIX: Also update the AllEconomicResources link to point to the new version
-  // This is a workaround until the get_latest update chain logic is fixed
   let path = Path::from("economic_resources");
 
-  // Remove the old link
   let existing_links = get_links(
     LinkQuery::try_new(path.path_entry_hash()?, LinkTypes::AllEconomicResources)?,
     GetStrategy::default(),
@@ -502,7 +567,6 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
     }
   }
 
-  // Create new link pointing to updated version
   create_link(
     path.path_entry_hash()?,
     updated_resource_hash.clone(),
@@ -515,4 +579,26 @@ pub fn update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Re
   )?;
 
   Ok(record)
+}
+
+#[hdk_extern]
+pub fn get_resources_by_operational_state(state: OperationalState) -> ExternResult<Vec<Record>> {
+  let links = get_links(
+    LinkQuery::try_new(
+      operational_state_path(&state)?,
+      LinkTypes::ResourcesByOperationalState,
+    )?,
+    GetStrategy::default(),
+  )?;
+
+  let mut records = Vec::new();
+  for link in links {
+    if let Some(original_hash) = link.target.into_action_hash() {
+      if let Ok(Some(record)) = get_latest_economic_resource_record(original_hash) {
+        records.push(record);
+      }
+    }
+  }
+
+  Ok(records)
 }

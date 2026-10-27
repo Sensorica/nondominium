@@ -33,10 +33,12 @@ This separation enables independent evolution of data structures and governance 
 
 ### 3.2 Cross-Zome Interface
 
+> **Implementation status (2026-08-29, post-#132).** `GovernanceTransitionRequest`, `TransitionContext`, and `GovernanceTransitionResult` are defined in `crates/shared/src/io/governance.rs`, and `evaluate_state_transition` is live in `zome_gouvernance/src/transition.rs`. `request_resource_transition` does **not** exist: the resource zome does not yet call into this path, so evaluation runs **parallel and advisory** alongside `propose_commitment` / `log_economic_event` rather than as the mandatory funnel. Treat the request side of this document as the design target, not current behaviour. Status: `documentation/IMPLEMENTATION_STATUS.md` § Governance-as-Operator Architecture.
+
 The primary interface between zomes follows the governance operator pattern:
 
 ```rust
-// Resource zome requests state transition
+// Resource zome requests state transition (design target — not yet in code)
 #[hdk_extern]
 pub fn request_resource_transition(
     request: GovernanceTransitionRequest,
@@ -98,19 +100,28 @@ A template for a class of resources.
 - **Fields**:
   - `name: String`
   - `description: String`
+  - `category: String`
   - `image_url: Option<String>`
-  - `governance_rules: Vec<GovernanceRule>`: Embedded rules for resource access and management. Fulfills `REQ-GOV-06`.
+  - `tags: Vec<String>`
+  - `is_active: bool`
+  - `scope: ResourceScope`: `Project` | `Network` | `Public` — discovery visibility (mutable)
+  - `ndo_identity_hash: ActionHash`: immutable pointer to the Layer 0 `NondominiumIdentity` this spec activates
+  - `ndo_state_hash: ActionHash`: the NDO action the author observed at activation, resolved backward by validation
 - **Links**:
-  - `AllResourceSpecifications -> ResourceSpecification`: Anchor for discovery.
+  - `AllResourceSpecifications -> ResourceSpecification`: Anchor for discovery (`Project` scope skips it).
+  - `NdoToSpecification`: Layer 0 identity -> this spec. Creating it **is** Layer 1 activation (`REQ-NDO-L1-01`).
+  - `SpecificationToGovernanceRule -> GovernanceRule`: rules are separate entries, not an embedded vector.
 
 #### 3.2.2. `GovernanceRule`
 
 A rule embedded within a ResourceSpecification that defines how resources can be accessed and managed.
 
 - **Fields**:
-  - `rule_type: String`: e.g., "access_requirement", "usage_limit", "transfer_conditions"
-  - `rule_data: String`: JSON-encoded rule parameters
-  - `enforced_by: Option<AgentRole>`: Role required to enforce this rule
+  - `rule_data: RuleData`: tagged enum — `AccessRequirement` | `UsageLimit` | `TransferCondition` | `MaintenanceSchedule`, each with a typed payload. `GovernanceRuleType` is derived from the discriminant, never stored.
+  - `enforced_by: Option<String>`: Role required to enforce this rule
+  - `ndo_identity_hash: ActionHash`: Layer 0 pointer, required for constraint evaluation
+  - `property_regime: PropertyRegime`, `resource_nature: ResourceNature`: denormalized from Layer 0 so validation needs no DHT read
+  - `rivalry_override: Option<Rivalry>`: overrides the rivalry implied by the regime
 
 #### 3.2.3. `EconomicResource`
 
@@ -411,15 +422,17 @@ pub struct GovernanceTransitionResult {
     /// Whether the transition was approved
     pub success: bool,
     /// Updated resource state (if approved)
-    pub new_resource_state: Option<EconomicResource>,
-    /// Generated economic event for audit trail
-    pub economic_event: Option<EconomicEvent>,
-    /// Validation receipts from governance evaluation
-    pub validation_receipts: Vec<ValidationReceipt>,
+    pub new_resource_state: Option<EconomicResourceView>,
+    /// Reserved for when event generation is wired; currently always None on this path.
+    pub economic_event_hash: Option<ActionHash>,
     /// Detailed reasons for rejection (if applicable)
     pub rejection_reasons: Option<Vec<String>>,
     /// Required next steps or additional validation needed
     pub next_steps: Option<Vec<String>>,
+    /// Soft constraint violations — non-blocking advisory feedback
+    pub advisory_warnings: Option<Vec<String>>,
+    /// Soft violations in structured form, for UI dry-run parity
+    pub soft_violations: Option<Vec<ConstraintViolation>>,
 }
 ```
 
@@ -441,7 +454,7 @@ pub struct GovernanceTransitionResult {
 
 ### 4.2. `zome_resource` Functions
 
-- `create_resource_spec(name: String, description: String, governance_rules: Vec<GovernanceRule>) -> Record`: Creates a new resource specification with embedded governance rules. Fulfills `REQ-GOV-06`.
+- `create_resource_specification(input: ResourceSpecificationInput) -> CreateResourceSpecificationOutput`: Activates Layer 1 — creates the spec, its nested typed `GovernanceRule` entries, and the `NdoToSpecification` link. Fulfills `REQ-GOV-06` and `REQ-NDO-L1-01`.
   - **Capability**: `restricted_access` (Only Accountable Agents can define new resource types)
 - `create_economic_resource(spec_hash: ActionHash, quantity: f64, unit: String) -> Record`: Creates a new Economic Resource. This is the first step for a Simple Agent (`REQ-USER-S-05`). Automatically triggers validation process (`REQ-GOV-02`).
   - **Capability**: `general_access`
@@ -1363,6 +1376,16 @@ interface NdoDescriptor {
   entry_hash: EntryHash;
 }
 
+// Canonical PropertyRegime — mirrors crates/shared/src/types.rs (7 variants)
+type PropertyRegime =
+  | 'Private'      // Full rights bundle; individual ownership
+  | 'Commons'      // Non-rivalrous shared; licensing/attribution governance
+  | 'Collective'   // Cooperative/collective ownership
+  | 'Pool'         // Rivalrous shareables; custody/scheduling/maintenance
+  | 'CommonPool'   // Rivalrous consumable; quota/depletion rules
+  | 'Public'       // Public/governmental stewardship; open-access; non-alienable by public body
+  | 'Nondominium'; // Uncapturable by design; no alienation permitted
+
 // NDO creation payload (mirrors Rust NondominiumIdentityInput)
 interface NdoInput {
   name: string;
@@ -1370,6 +1393,38 @@ interface NdoInput {
   resource_nature: ResourceNature;
   lifecycle_stage: LifecycleStage;
   description?: string;
+}
+
+// DNA properties of a cloned `ndo` cell (ADR-010 model A; ADR-013 binding).
+// Mirrors crates/shared/src/types.rs::NdoDnaProperties field-for-field. The field
+// set AND order are DnaHash input — changing either orphans every existing NDO
+// cell. Excludes `initiator` (holochain 0.6.0 carries clone properties as
+// YamlProperties, which has no binary variant for an AgentPubKey), and excludes
+// the mutable `lifecycle_stage` / entry-only `description`.
+interface NdoDnaProperties {
+  name: string;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
+  created_at: Timestamp;    // micros from a ms clock — NOT a uniqueness source
+}
+
+// The group→NDO pointer (ADR-011): an entry on the group clone cell carrying the
+// coordinates a peer needs to re-derive, verify, and join the NDO cell. Also the
+// create payload (`NdoAnchorInput` is an alias). Only name/description/
+// lifecycle_stage are mutable caches — zome_group_integrity rejects an update
+// that rewrites any other field.
+interface NdoAnchorEntry {
+  group_hash: ActionHash;
+  name: string;
+  description: string | null;
+  ndo_dna_hash: DnaHash;            // THE permanent NDO identity
+  network_seed: string;             // needed to clone/join the cell
+  identity_action_hash: ActionHash; // Layer 0 genesis entry inside the ndo cell
+  initiator: AgentPubKey;
+  ndo_created_at: Timestamp;
+  lifecycle_stage: LifecycleStage;
+  property_regime: PropertyRegime;
+  resource_nature: ResourceNature;
 }
 
 // Lifecycle transition payload
@@ -1455,16 +1510,21 @@ const wz = <T>(fnName: string, payload: unknown, context: string) =>
 | `generateInviteLink(groupId)` | `{ network_seed, group_dna_hash, group_name }` → `?group=<base64>` URL |
 | `saveGroupMemberProfile(groupId, profile)` | `localStorage[ndo_group_profiles_v1]` (Level 2 identity — only remaining localStorage state) |
 
-**`ndo.service.ts`** — higher-level aggregation (NDO–Group association is DHT-backed via `SoftLink` entries on the group clone cell):
+**`ndo.service.ts`** — higher-level aggregation over the **per-NDO-cell model** (ADR-010 model A). Each NDO is its own cloned `ndo` cell whose `DnaHash` is bound to the NDO identity through DNA properties; the group→NDO pointer is an **`NdoAnchor`** entry on the group clone cell carrying the full clone coordinates (`ndo_dna_hash`, `network_seed`, `identity_action_hash`) plus cached card fields. Anchors are the only pointer these read paths follow — `SoftLink` is no longer used for NDO association.
+
+Every "where is this NDO anchored" question is answered from a single `scanGroupAnchors()` pass over the agent's group cells.
 
 | Function | Behaviour |
 |----------|-----------|
-| `getLobbyNdoDescriptors()` | Union of `SoftLink` targets across all the agent's group clone cells → resolve each via `resource.getNdo` |
-| `createNdo(input, groupId)` | `resource.createNdo` → `create_soft_link(group_cell, group_hash, ndo_hash)` on the group clone cell (best-effort) |
-| `getGroupNdoDescriptors(groupId)` | `get_soft_links` on the group cell → resolve each target via `resource.getNdo` |
-| `getAssociatedGroupIds(ndoHashB64)` | Scan SoftLinks across the agent's groups |
-| `getNdoTransitionHistory(hash)` | Calls `resource.getNdoTransitionHistory`; returns `[]` gracefully on 404 |
-| `joinNdo` / `getNdoMembers` | Stub (`NdoNotImplementedError`) until `zome_resource` implements NDO membership |
+| `getLobbyNdoDescriptors()` | One anchor scan across the agent's group clone cells → render cards from the cached anchor fields (no ndo cell is joined) |
+| `createNdo(input, groupId)` | `createNdoCloneCell(networkSeed, properties)` → `create_ndo` **inside the new ndo cell** → `create_ndo_anchor` on the group cell. The anchor write is **not** best-effort: it is the only discovery path, so a failure fails the create rather than orphaning the cell |
+| `getNdoDescriptorForSpecActionHash(hash)` | Resolve the ndo cell from the anchor (`ensureNdoCloneCell` provisions it for a peer who never joined) → live `get_ndo`; falls back to the legacy shared `nondominium` cell for pre-migration NDOs |
+| `updateLifecycleStage(input)` | `update_lifecycle_stage` on the ndo cell → `refresh_ndo_anchor_lifecycle_stage` on each group that anchors it (best-effort cache convergence); legacy shared-cell fallback retained |
+| `getGroupNdoDescriptors(groupId)` | `get_ndo_anchors` on that group's cell → cards from cached anchor fields |
+| `getAssociatedGroupIds(ndoHashB64)` | Groups whose anchors carry this NDO identity, from the one scan |
+| `associateNdoWithGroup(ndoHashB64, groupId)` | Copies an existing anchor's clone coordinates into a second group as a new `NdoAnchor` (no-op if already anchored there) |
+| `getNdoTransitionHistory(hash)` | `get_ndo_transition_history` on the resolved ndo cell; legacy shared-cell fallback |
+| `joinNdo` / `getNdoMembers` | Resolves the ndo cell from anchor coordinates, then `join_ndo` / `get_ndo_members` on `zome_resource`. `joinNdo` is idempotent (`is_ndo_member` guard); member names resolve via `zome_person` with a truncated-pubkey fallback |
 
 ### 7.3 Error Context Registry
 
@@ -1509,7 +1569,7 @@ Filter logic: OR within each dimension, AND across dimensions. Empty set = show 
 | State | Source |
 |-------|--------|
 | `group` | `LobbyService.getMyGroups()` (group clone cells) |
-| `groupNdos` | `NdoService.getGroupNdoDescriptors(groupId)` via `SoftLink`s on the group cell |
+| `groupNdos` | `NdoService.getGroupNdoDescriptors(groupId)` via `NdoAnchor`s on the group cell |
 | `members` | `GroupService.getMembers(cellId)` (DHT) |
 
 `loadGroupData(groupId, { silent? })` switches the store's active group context. A full (non-silent) load runs `LobbyService.ensureMembership(groupId)` (membership self-heal) before fetching NDOs + members; a **silent** load (used by the reactivity layer) skips the reconcile, leaves `isLoading` untouched, and keeps existing data on transient failure. `refreshCurrentGroup()` is a silent re-fetch of the open group. `createNdo(input)` creates on DHT then reloads.

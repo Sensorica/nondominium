@@ -1,7 +1,7 @@
 # Nondominium API Reference
 
-**Generated**: 2025-12-17
-**Version**: 3.0 (Updated with Current Implementation)
+**Generated**: 2025-12-17 · **Resource / governance input structs re-synced against source 2026-08-29 (post-#132)**
+**Version**: 3.1 (Updated with Current Implementation)
 **Scope**: Complete function documentation for all zomes based on actual codebase
 
 ---
@@ -543,6 +543,7 @@ pub struct NdoInput {
 }
 ```
 **Returns**: `NdoOutput { action_hash, entry }` — `action_hash` is the permanent Layer 0 identity
+**PropertyRegime**: seven canonical variants — `Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`
 **Side Effects**: Creates `AllNdos`, `AgentToNdo`, `NdoByLifecycleStage`, `NdoByNature`, and `NdoByPropertyRegime` links
 **Error Cases**: Empty name, terminal initial stage (`Hibernating`, `Deprecated`, `EndOfLife`)
 
@@ -599,29 +600,32 @@ pub struct UpdateLifecycleStageInput {
 
 ### Resource Specification Management
 
-#### `create_resource_specification(input: ResourceSpecificationInput) -> ExternResult<Record>`
-**Purpose**: Define new resource type with properties and governance rules
-**Authorization**: Any agent can create resource specifications
+#### `create_resource_specification(input: ResourceSpecificationInput) -> ExternResult<CreateResourceSpecificationOutput>`
+**Purpose**: Activate NDO Layer 1 — define the resource's form and its typed governance rules
+**Authorization**: Any agent; the target NDO must be at lifecycle stage `Specification` through `Active`
 **Input**:
 ```rust
 pub struct ResourceSpecificationInput {
     pub name: String,
     pub description: String,
-    pub resource_class: String,
-    pub default_unit: String,
-    pub custom_properties: HashMap<String, PropertyValue>,
-    pub behavior: Option<String>,
-    pub conforming: bool,
-    pub image: Option<String>,
-    pub category: Option<String>,
+    pub category: String,
+    pub image_url: Option<String>,
     pub tags: Vec<String>,
-    pub governance_rules: Vec<ActionHash>,
+    pub scope: ResourceScope,          // Project | Network | Public
+    pub ndo_identity_hash: ActionHash, // Layer 0 NDO this spec activates
+    pub governance_rules: Vec<NestedGovernanceRuleInput>,
+}
+
+pub struct NestedGovernanceRuleInput {
+    pub rule_data: RuleData,
+    pub enforced_by: Option<String>,
 }
 ```
-**Returns**: Created `ResourceSpecification` entry
+**Returns**: `CreateResourceSpecificationOutput { spec_hash, spec, governance_rule_hashes }`
 **Side Effects**:
-- Creates specification entry with discovery anchors
-- Links to governance rules for compliance
+- Creates the specification entry with discovery anchors (`Project` scope skips the global anchor)
+- Creates the `NdoToSpecification` link — this is Layer 1 activation
+- Creates each nested `GovernanceRule` and links it via `SpecificationToGovernanceRule`, so rules are never orphaned
 - Creates category and tag-based discovery links
 
 #### `get_latest_resource_specification(original_action_hash: ActionHash) -> ExternResult<ResourceSpecification>`
@@ -763,42 +767,42 @@ pub struct UpdateEconomicResourceInput {
 **Authorization**: Public access
 **Returns**: Resources where agent has accountability or custody
 
-#### `update_resource_state(input: UpdateResourceStateInput) -> ExternResult<Record>`
-**Purpose**: Update resource state with validation
-**Authorization**: Primary accountable agent or authorized role
+#### `update_operational_state(input: UpdateOperationalStateInput) -> ExternResult<Record>`
+**Purpose**: Update `EconomicResource.operational_state` (REQ-NDO-OS-01)
+**Authorization**: Current agent (interim; governance-zome ownership deferred per REQ-NDO-OS-02)
 **Input**:
 ```rust
-pub struct UpdateResourceStateInput {
+pub struct UpdateOperationalStateInput {
     pub resource_hash: ActionHash,
-    pub new_state: String,
-    pub stage: Option<String>,
-    pub location: Option<String>,
-    pub note: Option<String>,
+    pub new_operational_state: OperationalState,
 }
 ```
-**Returns**: State update record with economic event
-**Validation**: State transitions validated against specification rules
+**Returns**: Updated `EconomicResource` record; moves `ResourcesByOperationalState` anchor link
+
+#### `get_resources_by_operational_state(state: OperationalState) -> ExternResult<Vec<Record>>`
+**Purpose**: Faceted discovery of economic resources by operational state (REQ-NDO-OS-06)
+**Authorization**: Public read
+**Returns**: Records linked from `ndo.opstate.{state}` anchor
 
 ---
 
 ### Governance Rules Management
 
 #### `create_governance_rule(input: GovernanceRuleInput) -> ExternResult<Record>`
-**Purpose**: Create governance rule for resource or process compliance
-**Authorization**: Governance role required
+**Purpose**: Create a typed governance rule bound to an NDO's classification
+**Authorization**: Any agent; `check_rule_data_permitted` rejects rules the NDO's `PropertyRegime` / `ResourceNature` forbid
 **Input**:
 ```rust
 pub struct GovernanceRuleInput {
-    pub name: String,
-    pub description: String,
-    pub rule_type: String,
-    pub resource_specification: Option<ActionHash>,
-    pub economic_process: Option<String>,
-    pub condition_expression: String,
-    pub action_required: String,
-    pub validation_method: String,
-    pub active: bool,
-    pub priority: u32,
+    pub rule_data: RuleData,           // AccessRequirement | UsageLimit | TransferCondition | MaintenanceSchedule
+    pub enforced_by: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+    pub property_regime: PropertyRegime,
+    pub resource_nature: ResourceNature,
+    pub rivalry_override: Option<Rivalry>,
+    /// Set this to link the rule to a spec. Omitting it creates an orphan rule
+    /// that `get_resource_specification_with_rules` cannot surface.
+    pub specification_hash: Option<ActionHash>,
 }
 ```
 **Returns**: Created `GovernanceRule` entry
@@ -1397,12 +1401,33 @@ Returns Records for `WorkLog` entries authored by the calling agent (via `AgentT
 
 ### Soft Links
 
+> **Note**: SoftLinks are no longer the Group → NDO pointer — see NDO Anchors below. They remain available for planning-level links.
+
 #### `create_soft_link(input: SoftLinkInput) -> ExternResult<Record>`
 **Input**: `{ group_hash: ActionHash, target_ndo_hash: ActionHash, description: Option<String> }`
-Creates a `SoftLink` entry — the Group → NDO relationship in the `Lobby → Groups → NDOs` hierarchy. No PPRs generated (ADR-GROUP-04). Creator = action author.
+Creates a `SoftLink` entry — a planning-level Group → NDO relationship. No PPRs generated (ADR-GROUP-04). Creator = action author.
 
 #### `get_soft_links(group_hash: ActionHash) -> ExternResult<Vec<Record>>`
 Returns Records for all `SoftLink` entries in the group. Creator = `record.action().author()`.
+
+### NDO Anchors
+
+The authoritative Group → NDO pointer in the `Lobby → Groups → NDOs` hierarchy (ADR-011). Each NDO is its own cloned `ndo` cell (ADR-010); the anchor carries the coordinates needed to re-derive, verify, and join that cell, plus cached fields so browsing never joins it. Rationale: `documentation/specifications/adr/ADR-010-013-per-ndo-cells.md`.
+
+#### `create_ndo_anchor(input: NdoAnchorInput) -> ExternResult<Record>`
+**Input**: `{ group_hash: ActionHash, name: String, description: Option<String>, ndo_dna_hash: DnaHash, network_seed: String, identity_action_hash: ActionHash, initiator: AgentPubKey, ndo_created_at: Timestamp, lifecycle_stage: LifecycleStage, property_regime: PropertyRegime, resource_nature: ResourceNature }`
+Creates an `NdoAnchor` and links it from the group (`GroupToNdoAnchors`). Anchor author and timestamp come from the action header. The same NDO may be anchored in several groups.
+
+#### `get_ndo_anchors(group_hash: ActionHash) -> ExternResult<Vec<Record>>`
+Returns the latest Record for every anchor in the group, resolving the `NdoAnchorUpdates` chain so cached descriptor fields reflect the most recent sync.
+
+#### `update_ndo_anchor(input: UpdateNdoAnchorInput) -> ExternResult<Record>`
+**Input**: `{ original_action_hash: ActionHash, previous_action_hash: ActionHash, updated_name: String, updated_description: Option<String>, updated_lifecycle_stage: LifecycleStage }`
+Refreshes an anchor's cached descriptor. Identity coordinates are copied from the original entry, and integrity **rejects** any update that changes them (`validate_ndo_anchor_update`), so an update can never repoint a group at a different NDO cell.
+
+#### `refresh_ndo_anchor_lifecycle_stage(input: RefreshAnchorLifecycleInput) -> ExternResult<Option<Record>>`
+**Input**: `{ group_hash: ActionHash, identity_action_hash: ActionHash, updated_lifecycle_stage: LifecycleStage }`
+Re-syncs one anchor's cached `lifecycle_stage` after an NDO lifecycle transition, resolving the anchor **by NDO identity** rather than by action hash — the client knows the NDO, while the original-vs-latest anchor action hashes belong to the group's link graph. Returns `Ok(None)` when no anchor in this group points at that NDO (a no-op, not an error).
 
 ---
 

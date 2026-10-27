@@ -336,6 +336,11 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
           const profiles = loadGroupProfiles();
           const descriptors: GroupDescriptor[] = [];
           for (const cell of cells) {
+            // A disabled clone is not an active group entry (e.g. a test guard
+            // clone, or a group the agent archived). Exclude it from the sidebar
+            // so it doesn't pollute the lobby list; ensureCloneCell re-enables a
+            // disabled group on direct access (invite link / known group hash).
+            if (!cell.enabled) continue;
             // Brief retry: a GroupProfile may still be gossiping into a freshly
             // joined cell. A couple of quick attempts absorb transient delays.
             const profile = yield* fetchGroupProfileWithRetry(cell.cellId, 3, 200).pipe(

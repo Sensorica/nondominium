@@ -2,11 +2,20 @@
 
 ## Scenario: Artist Coordinating Multi-Venue Exhibition Tour Through Distributed Gallery Network
 
-**Context**: An artist organizes a traveling exhibition across multiple galleries and alternative venues, coordinating logistics, artwork transport, and installation through the Artcoin distribution network built on Nondominium.
+**Context**: An artist organizes a traveling exhibition across multiple galleries, alternative venues, and individual patrons, coordinating logistics, artwork transport, and installation through the Artcoin distribution network built on Nondominium.
 
+See also *artcoin_main_doc.md*, *user-story-artcoin.md* and *nondominium_artcoin.md*.
 
-See also *artcoin_main_doc.md*, *user-story-artcoin.md* and *Nondominium_Artcoin.md*. 
-
+> **How to read this story.** Each artwork in the tour is a **Nondominium Object (NDO)** —
+> a permanent `NondominiumIdentity` (Layer 0) whose custody moves between galleries,
+> transporters, storers, and patrons via `transfer_custody`. Each hand-off changes the
+> instance's `OperationalState` (`InTransit`, `InStorage`, `InUse`) and generates
+> bilateral **Private Participation Receipts (PPRs)**. Reputation labels shown in the
+> diagrams (e.g. "TouringExcellence") are Artcoin-domain summaries **derived from** the
+> real PPR categories (`CustodyTransfer`, `TransportFulfillmentCompleted`,
+> `ValidationActivity`, `RuleCompliance`, …). For which capabilities are code-complete
+> versus planned (e.g. structured Economic Processes, payment settlement), see
+> *nondominium_artcoin.md §5*.
 
 ---
 
@@ -45,12 +54,12 @@ sequenceDiagram
     participant Gov as Governance Zome
 
     David->>Artcoin: Submit exhibition tour proposal
-    David->>ND: create_person_with_role(TouringArtist)
-    ND->>Res: Create artist profile with exhibition history
+    David->>ND: create_person(David) [Accountable Agent]
+    ND->>Res: Create artist Person profile with exhibition history
 
     David->>ND: create_resource_specification(PhotographyExhibition)
-    ND->>Res: Store exhibition requirements and artistic vision
-    ND->>Gov: Link conservation standards and insurance requirements
+    ND->>Res: Store exhibition spec (Layer 1) + create_ndo per piece (Layer 0)
+    ND->>Gov: Attach GovernanceRule (conservation standards, insurance)
 
     David->>Artcoin: Define tour schedule and venue requirements
     Artcoin->>ND: propose_exhibition_tour_workflow()
@@ -84,12 +93,12 @@ sequenceDiagram
     Res-->>ND: Return technical and curatorial requirements
 
     Sophie->>ND: derive_reputation_summary(David)
-    ND->>PPR: Calculate artist reputation and exhibition history
+    ND->>PPR: Aggregate David's disclosed PPRs and exhibition history
     PPR-->>ND: Return profile (4 PPRs, 4.7/5 artistic merit, 1 previous tour)
 
-    Sophie->>ND: validate_venue_capability(ContemporaryGallery)
+    Sophie->>ND: validate_new_resource(exhibition pieces)
     ND->>Gov: Verify venue specifications and exhibition standards
-    Gov-->>Artcoin: Gallery capability validated
+    Gov-->>Artcoin: Gallery capability validated (ValidationReceipt)
 
     Sophie->>Artcoin: Submit venue participation proposal
     Artcoin->>ND: propose_commitment(ExhibitionHosting)
@@ -158,6 +167,15 @@ stateDiagram-v2
    - Temperature and humidity monitoring throughout transport
    - GPS tracking and security protocols
    - Insurance coverage for entire tour duration
+
+> **Custody chain note.** Every leg of the tour is a custody transfer. Transporters
+> hold the validated `Transport` role and storers the `Storage` role (`REQ-GOV-04`);
+> between venues, pieces move to `OperationalState::InTransit` and, during scheduling
+> gaps, `OperationalState::InStorage`. Each hand-off emits `CustodyTransfer` /
+> `CustodyAcceptance` PPRs plus `TransportFulfillmentCompleted` /
+> `StorageFulfillmentCompleted` service PPRs — building the reputation of the support
+> agents alongside the artist. A final "venue" may equally be an **individual patron**
+> who adopts a piece at the end of the tour.
 
 ### **Phase 4: Multi-Venue Exhibition Tour (Months 3-8)**
 
@@ -245,12 +263,12 @@ sequenceDiagram
     ND->>Gov: Verify conservation standards and artistic outcomes
     Gov-->>Artcoin: Tour excellence confirmation
 
-    David->>ND: validate_specialized_role(TouringArtist)
-    ND->>Gov: Issue touring artist excellence PPR
-    Gov->>PPR: record_exhibition_tour_achievement()
+    David->>ND: claim_commitment(tour completion)
+    ND->>Gov: Record fulfilling EconomicEvent for the tour
+    Gov->>PPR: issue_participation_receipts() [RuleCompliance, ValidationActivity]
 
-    All Venues->>ND: claim_hosting_completion()
-    ND->>PPR: issue_exhibition_network_receipts()
+    All Venues->>ND: claim_commitment(hosting completion)
+    ND->>PPR: issue_participation_receipts() [CustodyTransfer / CustodyAcceptance per venue]
 ```
 
 **Tour Completion and Assessment**:

@@ -30,7 +30,7 @@ Nondominium runs as a **dual-DNA hApp** — `hrea` DNA + `ndo` DNA, both registe
 | Commitment, Agreement, Plan     | GovernanceRule, CapabilitySlot         |
 | ResourceSpecification (VF core) | PrivateParticipationClaim (PPR)        |
 | Process, Intent (post-v1.0)     | ValidationReceipt, ResourceValidation  |
-| ReaAgent, ReaUnit               | EncryptedProfile, Person               |
+| ReaAgent, ReaUnit               | PrivatePersonData, Person               |
 | All VF 1.0 types                | All NDO governance/identity extensions |
 
 NDO zomes interact with hREA via:
@@ -123,12 +123,13 @@ pub enum PropertyRegime {
     Collective,    // Cooperative/collective ownership
     Pool,          // Rivalrous shared; custody/scheduling/maintenance
     CommonPool,    // Rivalrous consumable; quota/depletion rules
+    Public,        // Public/governmental stewardship; open-access; non-alienable by public body
     Nondominium,   // Uncapturable; contribution-based access; no alienation
 }
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
-    Digital,   // Software, data, design files, documents
+    Digital,   // Software, data, design files, documents, datasets, methods
     Physical,  // Material objects, equipment, spaces
     Hybrid,    // Digital twin of a physical resource
 }
@@ -245,7 +246,7 @@ pub struct EconomicResource {
     pub conforms_to: ActionHash,           // → ResourceSpecification (required, embedded)
     pub current_location: Option<String>,
     // NDO-specific:
-    pub state: OperationalState,           // Was: ResourceState (now typed correctly)
+    pub operational_state: OperationalState, // Process condition on instance (REQ-NDO-OS-01)
     pub tracking_identifier: Option<String>, // Serial number, QR code, etc.
 }
 

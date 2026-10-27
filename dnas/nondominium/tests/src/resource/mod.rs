@@ -4,6 +4,11 @@
 //! `action_hashes` field is returned in parallel with `specifications` and
 //! that both vectors have the same length and order.
 //!
+//! Covers `OperationalState` on `EconomicResource`: default on create,
+//! `update_operational_state`, and `get_resources_by_operational_state`.
+//!
+//! Phase B: Layer 1 activation requires an eligible NDO + typed governance rules.
+//!
 //! Prerequisites (runtime — not compile-time):
 //!   bun run build:happ   # builds nondominium.dna
 //!
@@ -11,6 +16,8 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --test resource
 
 use holochain::prelude::*;
+use holochain::sweettest::{SweetCell, SweetConductorBatch};
+use nondominium_shared::types::OperationalState;
 use serde::{Deserialize, Serialize};
 
 use nondominium_sweettest::common::*;
@@ -21,10 +28,44 @@ use nondominium_sweettest::common::*;
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Serialize, Deserialize)]
-struct GovernanceRuleInput {
-    pub rule_type: String,
-    pub rule_data: String,
+struct NdoInput {
+    pub name: String,
+    pub property_regime: String,
+    pub resource_nature: String,
+    pub lifecycle_stage: String,
+    pub description: Option<String>,
+    pub rivalry_override: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NdoOutput {
+    pub action_hash: ActionHash,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NestedGovernanceRuleInput {
+    pub rule_data: RuleDataMirror,
     pub enforced_by: Option<String>,
+}
+
+/// Externally-tagged RuleData mirror (serde default for Rust enums).
+#[derive(Debug, Serialize, Deserialize)]
+enum RuleDataMirror {
+    AccessRequirement {
+        accessibility: String,
+        required_role: Option<String>,
+        min_affiliation: Option<String>,
+    },
+    UsageLimit {
+        max_duration_hours: Option<f64>,
+        max_quantity_per_period: Option<f64>,
+        period_days: Option<u32>,
+    },
+    TransferCondition {
+        transfer_type: String,
+        requires_validation: bool,
+        validator_role: Option<String>,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,7 +75,9 @@ struct ResourceSpecificationInput {
     pub category: String,
     pub image_url: Option<String>,
     pub tags: Vec<String>,
-    pub governance_rules: Vec<GovernanceRuleInput>,
+    pub scope: String,
+    pub ndo_identity_hash: ActionHash,
+    pub governance_rules: Vec<NestedGovernanceRuleInput>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,6 +88,8 @@ struct ResourceSpecification {
     pub image_url: Option<String>,
     pub tags: Vec<String>,
     pub is_active: bool,
+    pub scope: String,
+    pub ndo_identity_hash: ActionHash,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -60,6 +105,130 @@ struct GetAllResourceSpecificationsOutput {
     pub action_hashes: Vec<ActionHash>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct EconomicResourceInput {
+    pub spec_hash: ActionHash,
+    pub quantity: f64,
+    pub unit: String,
+    pub current_location: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct EconomicResource {
+    pub quantity: f64,
+    pub unit: String,
+    pub custodian: AgentPubKey,
+    pub current_location: Option<String>,
+    pub operational_state: OperationalState,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CreateEconomicResourceOutput {
+    pub resource_hash: ActionHash,
+    pub resource: EconomicResource,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct UpdateOperationalStateInput {
+    pub resource_hash: ActionHash,
+    pub new_operational_state: OperationalState,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct GovernanceRuleInput {
+    pub rule_data: RuleDataMirror,
+    pub enforced_by: Option<String>,
+    pub ndo_identity_hash: ActionHash,
+    pub property_regime: String,
+    pub resource_nature: String,
+    pub rivalry_override: Option<String>,
+    pub specification_hash: Option<ActionHash>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CheckRuleDataConstraintsInput {
+    pub property_regime: String,
+    pub resource_nature: String,
+    pub rivalry_override: Option<String>,
+    pub rule_data: RuleDataMirror,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ConstraintViolation {
+    pub rule_id: String,
+    pub message: String,
+    pub severity: String,
+}
+
+async fn create_ndo_at_stage(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    name: &str,
+    stage: &str,
+) -> ActionHash {
+    create_ndo_with_regime(conductors, cell, name, stage, "Commons").await
+}
+
+/// Same as `create_ndo_at_stage` but lets the caller pick the property regime, which the
+/// scope-coherence tests need: the gate keys off Layer 0's regime, not off the spec.
+async fn create_ndo_with_regime(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    name: &str,
+    stage: &str,
+    regime: &str,
+) -> ActionHash {
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &cell.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: name.to_string(),
+                property_regime: regime.to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: stage.to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+    ndo.action_hash
+}
+
+fn spec_input(name: &str, category: &str, ndo: ActionHash) -> ResourceSpecificationInput {
+    spec_input_with_scope(name, category, ndo, "Public")
+}
+
+fn spec_input_with_scope(
+    name: &str,
+    category: &str,
+    ndo: ActionHash,
+    scope: &str,
+) -> ResourceSpecificationInput {
+    ResourceSpecificationInput {
+        name: name.to_string(),
+        description: format!("Description for {name}"),
+        category: category.to_string(),
+        image_url: None,
+        tags: vec![category.to_string()],
+        scope: scope.to_string(),
+        ndo_identity_hash: ndo,
+        governance_rules: vec![],
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for Present App entry extraction (economic resource tests)
+// ---------------------------------------------------------------------------
+
+fn extract_economic_resource(record: &Record) -> EconomicResource {
+    match record.entry().as_option() {
+        Some(Entry::App(app_bytes)) => holochain_serialized_bytes::decode(app_bytes.bytes())
+            .expect("decode EconomicResource"),
+        _ => panic!("expected Present App entry"),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -70,39 +239,33 @@ struct GetAllResourceSpecificationsOutput {
 async fn get_all_resource_specifications_returns_parallel_hashes() {
     let (conductors, alice, _bob) = setup_two_agents().await;
 
-    let spec1 = ResourceSpecificationInput {
-        name: "Shared Bicycle".to_string(),
-        description: "A community pedal-powered vehicle".to_string(),
-        category: "Transportation".to_string(),
-        image_url: None,
-        tags: vec!["transport".to_string()],
-        governance_rules: vec![],
-    };
+    let ndo1 = create_ndo_at_stage(&conductors, &alice, "NDO for Bicycle", "Specification").await;
+    let ndo2 = create_ndo_at_stage(&conductors, &alice, "NDO for Helmet", "Specification").await;
 
-    let spec2 = ResourceSpecificationInput {
-        name: "Safety Helmet".to_string(),
-        description: "Protective headgear for cyclists".to_string(),
-        category: "Safety".to_string(),
-        image_url: None,
-        tags: vec!["safety".to_string()],
-        governance_rules: vec![],
-    };
-
-    // Create both specs — discard the output, we only care about get_all below
     let _: CreateResourceSpecificationOutput = conductors[0]
-        .call(&alice.zome("zome_resource"), "create_resource_specification", spec1)
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Shared Bicycle", "Transportation", ndo1),
+        )
         .await;
 
     let _: CreateResourceSpecificationOutput = conductors[0]
-        .call(&alice.zome("zome_resource"), "create_resource_specification", spec2)
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Safety Helmet", "Safety", ndo2),
+        )
         .await;
 
-    // Fetch all specs
     let output: GetAllResourceSpecificationsOutput = conductors[0]
-        .call(&alice.zome("zome_resource"), "get_all_resource_specifications", ())
+        .call(
+            &alice.zome("zome_resource"),
+            "get_all_resource_specifications",
+            (),
+        )
         .await;
 
-    // Both vectors must be non-empty and equal in length
     assert!(
         output.specifications.len() >= 2,
         "expected at least 2 specifications, got {}",
@@ -114,18 +277,14 @@ async fn get_all_resource_specifications_returns_parallel_hashes() {
         "specifications and action_hashes must have the same length"
     );
 
-    // Verify both created specs appear by name
-    let names: Vec<&str> = output.specifications.iter().map(|s| s.name.as_str()).collect();
-    assert!(
-        names.contains(&"Shared Bicycle"),
-        "expected 'Shared Bicycle' in specifications"
-    );
-    assert!(
-        names.contains(&"Safety Helmet"),
-        "expected 'Safety Helmet' in specifications"
-    );
+    let names: Vec<&str> = output
+        .specifications
+        .iter()
+        .map(|s| s.name.as_str())
+        .collect();
+    assert!(names.contains(&"Shared Bicycle"));
+    assert!(names.contains(&"Safety Helmet"));
 
-    // Every action hash must be 39 bytes (Holochain ActionHash length)
     for (i, hash) in output.action_hashes.iter().enumerate() {
         assert_eq!(
             hash.get_raw_39().len(),
@@ -134,4 +293,586 @@ async fn get_all_resource_specifications_returns_parallel_hashes() {
             i
         );
     }
+}
+
+/// New economic resources default to `PendingValidation`; custodian can update
+/// operational state and query by operational state anchor.
+#[tokio::test(flavor = "multi_thread")]
+async fn economic_resource_operational_state_lifecycle() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "NDO for Drill", "Active").await;
+
+    let spec_out: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Operational Drill", "tools", ndo),
+        )
+        .await;
+
+    let resource_out: CreateEconomicResourceOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_economic_resource",
+            EconomicResourceInput {
+                spec_hash: spec_out.spec_hash,
+                quantity: 1.0,
+                unit: "each".to_string(),
+                current_location: Some("workshop".to_string()),
+            },
+        )
+        .await;
+
+    assert_eq!(
+        resource_out.resource.operational_state,
+        OperationalState::PendingValidation
+    );
+
+    let updated_record: Record = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "update_operational_state",
+            UpdateOperationalStateInput {
+                resource_hash: resource_out.resource_hash.clone(),
+                new_operational_state: OperationalState::Available,
+            },
+        )
+        .await;
+
+    let record: Option<Record> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_latest_economic_resource_record",
+            resource_out.resource_hash,
+        )
+        .await;
+    let record = record.expect("updated resource record");
+    let resource = extract_economic_resource(&record);
+    assert_eq!(resource.operational_state, OperationalState::Available);
+    assert_eq!(updated_record.action_address().get_raw_39().len(), 39);
+
+    let by_state: Vec<Record> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_resources_by_operational_state",
+            OperationalState::Available,
+        )
+        .await;
+    assert!(
+        !by_state.is_empty(),
+        "expected at least one Available resource"
+    );
+}
+
+/// `get_specifications_for_ndo` returns only specs linked via `NdoToSpecification`.
+#[tokio::test(flavor = "multi_thread")]
+async fn get_specifications_for_ndo_returns_linked_specs_only() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo_a = create_ndo_at_stage(&conductors, &alice, "NDO A for specs", "Specification").await;
+    let ndo_b = create_ndo_at_stage(&conductors, &alice, "NDO B empty", "Specification").await;
+
+    let created: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Spec for NDO A", "tools", ndo_a.clone()),
+        )
+        .await;
+
+    let for_a: GetAllResourceSpecificationsOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            ndo_a,
+        )
+        .await;
+
+    assert_eq!(for_a.specifications.len(), 1);
+    assert_eq!(for_a.action_hashes.len(), 1);
+    assert_eq!(for_a.specifications[0].name, "Spec for NDO A");
+    assert_eq!(for_a.action_hashes[0], created.spec_hash);
+
+    let for_b: GetAllResourceSpecificationsOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            ndo_b,
+        )
+        .await;
+
+    assert!(
+        for_b.specifications.is_empty(),
+        "unrelated NDO must return no specs"
+    );
+    assert!(for_b.action_hashes.is_empty());
+}
+
+/// Layer 1 creation is rejected while the NDO is still in Ideation.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_rejected_at_ideation_stage() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Ideation NDO", "Ideation").await;
+
+    let result = conductors[0]
+        .call_fallible::<_, CreateResourceSpecificationOutput>(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Should Fail Spec", "tools", ndo),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "creating a ResourceSpecification on an Ideation NDO must fail"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Scope coherence with the Layer 0 property regime (REQ-RES-03)
+// ---------------------------------------------------------------------------
+
+/// A Nondominium NDO is uncapturable by design, but a Project-scoped spec is omitted from
+/// the global discovery anchor: the resource stays unownable while becoming invisible
+/// outside the narrowing group. Integrity must reject that, not merely warn about it.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_rejects_project_scope_on_nondominium_ndo() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_with_regime(
+        &conductors,
+        &alice,
+        "Uncapturable NDO",
+        "Active",
+        "Nondominium",
+    )
+    .await;
+
+    let result = conductors[0]
+        .call_fallible::<_, CreateResourceSpecificationOutput>(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Enclosed Spec", "tools", ndo, "Project"),
+        )
+        .await;
+
+    let err = result.expect_err("a Project-scoped spec on a Nondominium NDO must be rejected");
+    assert!(
+        format!("{err:?}").contains("open_regime_requires_public_scope"),
+        "rejection must name the scope-coherence rule, got: {err:?}"
+    );
+}
+
+/// Network is narrower than Public at the discovery layer, so it encloses too.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_rejects_network_scope_on_public_regime_ndo() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo =
+        create_ndo_with_regime(&conductors, &alice, "Public Steward NDO", "Active", "Public").await;
+
+    let result = conductors[0]
+        .call_fallible::<_, CreateResourceSpecificationOutput>(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Network Scoped Spec", "tools", ndo, "Network"),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a Network-scoped spec on a Public-regime NDO must be rejected"
+    );
+}
+
+/// The positive half: Public scope is accepted on an open regime, so the gate blocks
+/// enclosure rather than blocking Layer 1 activation.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_accepts_public_scope_on_nondominium_ndo() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_with_regime(
+        &conductors,
+        &alice,
+        "Uncapturable NDO Public Spec",
+        "Active",
+        "Nondominium",
+    )
+    .await;
+
+    let out: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Open Spec", "tools", ndo.clone(), "Public"),
+        )
+        .await;
+
+    assert_eq!(out.spec.scope, "Public");
+    assert_eq!(out.spec.ndo_identity_hash, ndo);
+}
+
+/// Regime and scope are orthogonal outside the open-access regimes: a Commons NDO may
+/// legitimately keep a spec scoped to one project, and the gate must not touch it.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_accepts_project_scope_on_commons_ndo() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Commons NDO", "Active").await;
+
+    let out: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_with_scope("Project Spec", "tools", ndo, "Project"),
+        )
+        .await;
+
+    assert_eq!(out.spec.scope, "Project");
+}
+
+/// Ownership-transfer rule on Nondominium is a Hard violation via dry-run query.
+#[tokio::test(flavor = "multi_thread")]
+async fn check_rule_data_constraints_blocks_nondominium_ownership_transfer() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let violations: Vec<ConstraintViolation> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "check_rule_data_constraints",
+            CheckRuleDataConstraintsInput {
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                rule_data: RuleDataMirror::AccessRequirement {
+                    // Use TransferCondition via a second call below
+                    accessibility: "Free".to_string(),
+                    required_role: None,
+                    min_affiliation: None,
+                },
+            },
+        )
+        .await;
+    // Free access on Nondominium → no violations
+    assert!(violations.is_empty());
+
+    #[derive(Debug, Serialize, Deserialize)]
+    enum TransferRuleData {
+        TransferCondition {
+            transfer_type: String,
+            requires_validation: bool,
+            validator_role: Option<String>,
+        },
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct CheckTransferInput {
+        pub property_regime: String,
+        pub resource_nature: String,
+        pub rivalry_override: Option<String>,
+        pub rule_data: TransferRuleData,
+    }
+
+    let hard: Vec<ConstraintViolation> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "check_rule_data_constraints",
+            CheckTransferInput {
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                rule_data: TransferRuleData::TransferCondition {
+                    transfer_type: "Ownership".to_string(),
+                    requires_validation: false,
+                    validator_role: None,
+                },
+            },
+        )
+        .await;
+
+    assert!(
+        hard.iter().any(|v| v.severity == "Hard"
+            && v.rule_id == "ownership_transfer_not_permitted_by_regime"),
+        "expected Hard ownership_transfer violation, got {:?}",
+        hard
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Layer 0 → Layer 1 trust boundary
+//
+// `check_rule_data_constraints` above proves the *predicate* works, but it
+// takes the classification as a parameter — it says nothing about whether the
+// integrity zome binds a rule's denormalized classification to the NDO it
+// claims to describe. These tests cover that binding, which is what makes the
+// Nondominium guarantees enforceable rather than self-declared.
+// ---------------------------------------------------------------------------
+
+/// A rule whose denormalized `property_regime` contradicts its Layer 0 NDO is
+/// rejected. Without this, every classification-driven constraint is advisory:
+/// the writer picks the classification the validator will judge them against.
+#[tokio::test(flavor = "multi_thread")]
+async fn governance_rule_rejects_classification_drift_from_layer0() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(
+        &conductors,
+        &alice,
+        "Nondominium NDO for drift test",
+        "Active",
+    )
+    .await;
+
+    // create_ndo_at_stage pins property_regime to Commons; declare Private.
+    let result = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::UsageLimit {
+                    max_duration_hours: Some(4.0),
+                    max_quantity_per_period: None,
+                    period_days: None,
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo,
+                property_regime: "Private".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a GovernanceRule declaring Private against a Commons NDO must be rejected; \
+         otherwise the denormalized classification is attacker-controlled"
+    );
+}
+
+/// A rule whose denormalized `resource_nature` contradicts its Layer 0 NDO is
+/// rejected. Nature drives rivalry defaults, so it is load-bearing too.
+#[tokio::test(flavor = "multi_thread")]
+async fn governance_rule_rejects_nature_drift_from_layer0() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    // create_ndo_at_stage pins resource_nature to Physical.
+    let ndo = create_ndo_at_stage(&conductors, &alice, "NDO for nature drift", "Active").await;
+
+    let result = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::UsageLimit {
+                    max_duration_hours: Some(1.0),
+                    max_quantity_per_period: None,
+                    period_days: None,
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo,
+                property_regime: "Commons".to_string(),
+                resource_nature: "Digital".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a GovernanceRule declaring Digital against a Physical NDO must be rejected"
+    );
+}
+
+/// The capture-resistance gate holds against a misdeclared classification.
+///
+/// This is the attack the drift binding exists to stop: an ownership-transfer
+/// rule on a Nondominium NDO, smuggled past `check_rule_data_permitted` by
+/// declaring `Private` on the rule entry. REQ-RES-03.
+#[tokio::test(flavor = "multi_thread")]
+async fn nondominium_ownership_transfer_not_bypassable_by_misdeclared_regime() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Uncapturable NDO".to_string(),
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+
+    let honest = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::TransferCondition {
+                    transfer_type: "Ownership".to_string(),
+                    requires_validation: false,
+                    validator_role: None,
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo.action_hash.clone(),
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+
+    assert!(
+        honest.is_err(),
+        "ownership-transfer rule on a Nondominium NDO must be rejected (REQ-RES-03)"
+    );
+
+    let smuggled = conductors[0]
+        .call_fallible::<_, Record>(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::TransferCondition {
+                    transfer_type: "Ownership".to_string(),
+                    requires_validation: false,
+                    validator_role: None,
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo.action_hash,
+                // The bypass: claim a regime that permits ownership transfer.
+                property_regime: "Private".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+
+    assert!(
+        smuggled.is_err(),
+        "ownership-transfer rule on a Nondominium NDO must stay rejected even when \
+         the rule entry declares Private — capture resistance cannot be self-declared"
+    );
+}
+
+/// An honest rule on a matching NDO still succeeds. Guards the drift binding
+/// against being over-tight and breaking the happy path.
+#[tokio::test(flavor = "multi_thread")]
+async fn governance_rule_accepts_classification_matching_layer0() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "NDO for honest rule", "Active").await;
+
+    let _: Record = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_governance_rule",
+            GovernanceRuleInput {
+                rule_data: RuleDataMirror::UsageLimit {
+                    max_duration_hours: Some(8.0),
+                    max_quantity_per_period: None,
+                    period_days: Some(7),
+                },
+                enforced_by: None,
+                ndo_identity_hash: ndo,
+                // Matches create_ndo_at_stage: Commons / Physical.
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                rivalry_override: None,
+                specification_hash: None,
+            },
+        )
+        .await;
+}
+
+// ---------------------------------------------------------------------------
+// Layer 1 lifecycle gate — reads the NDO's *observed* state, not its genesis
+//
+// `lifecycle_stage` is mutable, so gating on the genesis record rejects the
+// ordinary "create at Ideation, advance, then activate" flow and accepts an NDO
+// that has since been deprecated. These tests pin the live behaviour.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+struct UpdateLifecycleStageInput {
+    pub original_action_hash: ActionHash,
+    pub new_stage: String,
+    pub successor_ndo_hash: Option<ActionHash>,
+    pub transition_event_hash: Option<ActionHash>,
+}
+
+async fn advance_stage(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    ndo: &ActionHash,
+    new_stage: &str,
+    successor: Option<ActionHash>,
+) {
+    let _: ActionHash = conductors[0]
+        .call(
+            &cell.zome("zome_resource"),
+            "update_lifecycle_stage",
+            UpdateLifecycleStageInput {
+                original_action_hash: ndo.clone(),
+                new_stage: new_stage.to_string(),
+                successor_ndo_hash: successor,
+                transition_event_hash: None,
+            },
+        )
+        .await;
+}
+
+/// The natural flow: an NDO starts at Ideation, advances, and only then grows a
+/// Layer 1 specification. Gating on the genesis record would reject this even
+/// though the NDO is eligible right now.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_allowed_after_advancing_out_of_ideation() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Advancing NDO", "Ideation").await;
+    advance_stage(&conductors, &alice, &ndo, "Specification", None).await;
+
+    let _: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Spec after advancing", "tools", ndo),
+        )
+        .await;
+}
+
+/// The mirror case: an NDO that has since been deprecated must not grow new
+/// Layer 1 specs, even though it was created at an eligible stage.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_rejected_after_deprecation() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let successor =
+        create_ndo_at_stage(&conductors, &alice, "Successor NDO", "Active").await;
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Doomed NDO", "Active").await;
+    advance_stage(&conductors, &alice, &ndo, "Deprecated", Some(successor)).await;
+
+    let result = conductors[0]
+        .call_fallible::<_, CreateResourceSpecificationOutput>(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input("Spec on deprecated NDO", "tools", ndo),
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "activating Layer 1 on a Deprecated NDO must fail; gating on the genesis \
+         record would wrongly allow it because the NDO was created at Active"
+    );
 }

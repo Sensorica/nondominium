@@ -51,7 +51,11 @@ export const RESOURCE_CONTEXTS = {
   GET_NDOS_BY_LIFECYCLE_STAGE: 'Failed to get NDOs by lifecycle stage',
   GET_NDOS_BY_NATURE: 'Failed to get NDOs by nature',
   GET_NDOS_BY_PROPERTY_REGIME: 'Failed to get NDOs by property regime',
-  GET_NDO_TRANSITION_HISTORY: 'Failed to get NDO transition history'
+  GET_NDO_TRANSITION_HISTORY: 'Failed to get NDO transition history',
+  UPDATE_OPERATIONAL_STATE: 'Failed to update economic resource operational state',
+  GET_RESOURCES_BY_OPERATIONAL_STATE: 'Failed to get resources by operational state',
+  GET_SPECIFICATIONS_FOR_NDO: 'Failed to get resource specifications for NDO',
+  CHECK_RULE_DATA_CONSTRAINTS: 'Failed to check rule data constraints'
 } as const;
 
 export const GOVERNANCE_CONTEXTS = {
@@ -80,6 +84,7 @@ export const GOVERNANCE_CONTEXTS = {
   GET_VALIDATION_HISTORY: 'Failed to get validation history',
   EVALUATE_STATE_TRANSITION: 'Failed to evaluate state transition',
   VALIDATE_GOVERNANCE_RULES: 'Failed to validate governance rules',
+  CHECK_ACTION_CONSTRAINTS: 'Failed to check action constraints',
   LOG_INITIAL_TRANSFER: 'Failed to log initial transfer',
   CREATE_DISPUTE: 'Failed to create dispute',
   VOTE_ON_DISPUTE: 'Failed to vote on dispute'

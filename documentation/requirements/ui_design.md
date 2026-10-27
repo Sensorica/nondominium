@@ -6,7 +6,7 @@ This section describes the minimalistic UI for MVP Layer 0 — NDO Identity (sta
 
 ![Lobby → Groups → NDOs three-level hierarchy — DNA architecture, identity progression, and navigation flow](../assets/diagrams/lobby-groups-ndos-hierarchy.png)
 
-*Lobby discovers **Groups** (via `GroupAnnouncement` in the shared Lobby DHT) — not NDOs. Groups discover NDOs via `SoftLink` entries in each Group's own cloned-cell DHT. The Lobby's NdoBrowser shows only NDOs from the agent's own groups, not a global public registry. NDOs can only be created from within a Group. Identity: localStorage nickname → per-group profile → Person DHT entry on first NDO action.*
+*Lobby discovers **Groups** (via `GroupAnnouncement` in the shared Lobby DHT) — not NDOs. Groups discover NDOs via `NdoAnchor` entries in each Group's own cloned-cell DHT, and each NDO is itself a cloned `ndo` cell (ADR-010 model A). The Lobby's NdoBrowser shows only NDOs from the agent's own groups, not a global public registry. NDOs can only be created from within a Group. Identity: localStorage nickname → per-group profile → Person DHT entry on first NDO action.*
 
 ---
 
@@ -27,7 +27,7 @@ The Lobby is a permissionless digital environment that anyone can join. It is th
 
 ### Groups
 
-Groups are organizational contexts for NDOs. A user can create a solo Group or join an existing one. Groups are **DNA-backed**: each group is a cloned Group DNA cell (`clone_cell`, `zome_group`) with its own isolated DHT, announced for discovery via the Lobby DNA. Only the **Level 2 presentation choice** (`GroupMemberProfile` — anonymous vs. selected fields) remains in `localStorage`; membership and NDO associations live on the DHT (SoftLinks).
+Groups are organizational contexts for NDOs. A user can create a solo Group or join an existing one. Groups are **DNA-backed**: each group is a cloned Group DNA cell (`clone_cell`, `zome_group`) with its own isolated DHT, announced for discovery via the Lobby DNA. Only the **Level 2 presentation choice** (`GroupMemberProfile` — anonymous vs. selected fields) remains in `localStorage`; membership and NDO associations live on the DHT (`GroupMembership` and `NdoAnchor` entries).
 
 **Implemented:**
 - **Group panel** (`/group/:id`): shows group name, list of NDO cards, member list, and a "Create NDO" button
@@ -55,12 +55,12 @@ NDOs can only be created from within a Group. The "Create NDO" button in a Group
 | Field | Control | Notes |
 |---|---|---|
 | `name` | text input | required; uniqueness warning shown if name already exists in the lobby |
-| `property_regime` | select | 4 variants: **Private**, **Commons**, **Nondominium**, **CommonPool**; tooltip per option |
-| `resource_nature` | select | 5 variants: Physical, Digital, Service, Hybrid, Information; tooltip per option |
+| `property_regime` | select | 7 variants: **Private**, **Commons**, **Collective**, **Pool**, **CommonPool**, **Public**, **Nondominium**; tooltip per option |
+| `resource_nature` | select | 3 variants: Physical, Digital, Hybrid; tooltip per option. Digital includes designs, data, documents, and methods |
 | `lifecycle_stage` | select | **seven** creatable-at-registration stages: Ideation, Specification, Development, Prototype, Stable, Distributed, Active (matches `create_ndo` validation); Hibernating and terminal stages (Deprecated, EndOfLife) are **not** selectable here — only via lifecycle transitions after registration |
 | `description` | textarea | optional |
 
-> Note: the original spec listed 6 property-regime variants (including Collective and Pool) and 4 initial lifecycle stages (including Prototype). Both have been revised — see the Rust `PropertyRegime` enum and `LifecycleStage` for current canonical values.
+> Note: PropertyRegime is protocol-canonical at **seven** variants (including Collective, Pool, and Public). The UI creation form, filters, and badges expose all seven. See the Rust `PropertyRegime` enum in `crates/shared/src/types.rs` and `LifecycleStage` for current canonical values.
 
 ---
 
@@ -85,7 +85,7 @@ Clicking an NDO card navigates to `/ndo/:hash`.
 
 **Implemented:**
 - "Browse NDOs" in sidebar → root page showing all unique NDOs from all groups the user has created or joined
-- Filter chips by Lifecycle Stage, Resource Nature, and Property Regime (4 variants)
+- Filter chips by Lifecycle Stage, Resource Nature, and Property Regime (7 variants)
 - NDO cards with name, badges, description excerpt, and truncated hash
 - "No NDOs yet" state when the user has no groups or no NDOs
 
@@ -105,7 +105,7 @@ At the Lobby level the User can be anyone. At this level the User creates a Lobb
 
 ### MVP ToDos
 
-> **Status (2026-06)**: All eight MVP ToDos below are implemented. Groups are **DNA-backed** via cloned Group cells (`clone_cell`, `zome_group`); NDO lists use **SoftLink** entries on the group DHT. Join NDO is **UI + API contract only** (backend stub).
+> **Status (2026-06)**: All eight MVP ToDos below are implemented. Groups are **DNA-backed** via cloned Group cells (`clone_cell`, `zome_group`); NDO lists use **`NdoAnchor`** entries on the group DHT (per-NDO cells, ADR-010/011 — see `documentation/specifications/adr/ADR-010-013-per-ndo-cells.md`). Join NDO is **UI + API contract only** (backend stub).
 
 1. ~~**Multi-member groups — invite link**~~ ✅ `generateInviteLink` encodes `{network_seed, group_dna_hash, group_name}`; Sidebar and GroupView expose copy-invite; `joinGroup` provisions clone cell and calls `join_group`.
 
@@ -119,14 +119,193 @@ At the Lobby level the User can be anyone. At this level the User creates a Lobb
 
 6. ~~**Update `agent.md`**~~ ✅ Three-tier identity model documented (§2.0); Level 2 profiles remain localStorage; groups are DHT-backed.
 
-7. ~~**NDO–Group association DHT propagation**~~ ✅ `create_soft_link` on group cell; lobby/group NDO lists resolve from SoftLinks.
+7. ~~**NDO–Group association DHT propagation**~~ ✅ `create_ndo_anchor` on the group cell; lobby/group NDO lists resolve from `NdoAnchor`s. *(Originally shipped as `create_soft_link`; superseded by anchors when NDOs moved to their own cells.)*
 
 8. ~~**Join NDO**~~ ✅ UI flow in `NdoView.svelte`; API contract in `documentation/zomes/resource_zome.md § NDO membership (planned)`; `joinNdo`/`getNdoMembers` stub in `ndo.service.ts`.
 
 
 
+## Perspectives (Next)
+
+A **Perspective** is a lens on the DHT data. Each Perspective answers one question, *"what is the Agent doing?"*, and is built around one **base primitive**. Navigation means "swimming in the ocean" of that primitive, then **adding layers progressively** (e.g. from a resource: which communities use it → which are local → who uses it → which organization owns it). The Agent is always in exactly one Perspective and can jump between them (see [Cross-Perspective Navigation](#cross-perspective-navigation)). There are four Perspectives:
+
+| Perspective | Question it answers | Base primitive |
+|---|---|---|
+| 📦 **Resource** | What can I use, borrow, offer or manage? | Resource (NDO) |
+| 👥 **Agent** | Who can I connect or collaborate with? | Agent (incl. Groups) |
+| 🧭 **Intelligence** | Where should I allocate my time and resources strategically? | Projects and organizations, incl. those outside the Agent's current sphere |
+| 🛠️ **Work** | What do I engage in today, and with whom? | Process / work item, in the context of a resource, project or group |
+
+### 📦 **Resource Perspective**
+
+Resource-centric view of the DHT.
+
+- **Use cases**: find a resource to use or borrow; offer a resource (by creating a new NDO); manage resources the Agent owns, custodies or maintains.
+- **Progressive layers**: communities using the resource → which are local (map tool) → who uses it → which organization owns it.
+- **Sources**: included to the extent a Resource is linked to a Source (e.g. a gallon of water from a river). A **Source view** presents the Source as a shared surface (a "digital twin" of, say, a river) to which data is attached (scientific studies, flow, planned withdrawals), so that all parties see the same information and rules of use can emerge from it. See `post-mvp/source-ndo-requirements.md`.
+- **Expanded resource view**: shows linked Agents and their capacity (e.g. Custodian, Repair agent). Clicking one jumps to the Agent Perspective.
+
+```yaml
+resource_view:
+  focus_filter: resource_type | nature | regime | lifecycle_stage
+  group_by: category | status | source
+  layers: [communities, local_map, users, owner_org]
+  layout: cluster_hierarchy
+```
+
+### 👥 **Agent Perspective**
+
+Agent-centric view of the DHT. Groups are a type of Agent and appear in results.
+
+- **Use cases**: find Agents by skills; invite Agents to collaborate on a project; discover Groups and decide to join them.
+- **Profile**: communities, projects, skills and reputation in one view.
+- **Navigation**: hop from link to link through the relationship graph (collaborations, shared groups, roles on resources).
+- **Tools**: map (e.g. world distribution of a skill); chat to contact an Agent directly (possibly through the Capability Surface).
+
+```yaml
+agent_view:
+  focus_filter: skills | collaboration_potential | group_membership
+  relationship_mapping: trust_network
+  layout: network_graph
+```
+
+### 🧭 **Intelligence Perspective** _(formerly Role Perspective)_
+
+Strategic decision-support view. Helps the Agent decide where to allocate time and resources. Unlike the Work Perspective, it gathers information from **outside** the Agent's current sphere of activity, and doubles as a personal dashboard.
+
+- **Personalised filtering**: by the Agent's role, skills, reputation (PPR) and past interactions.
+- **Navigable contexts**: Groups, project-type NDOs and other collaboration contexts, including ones the Agent has not joined.
+- **AI assistant (MCP)**: an agent that knows the Agent's profile, exposed through an MCP server, suggests fitting projects (e.g. already-funded projects if income is needed; high-potential, no-revenue projects if the Agent wants to give 5–10% of their time to them).
+- **Stage-aware assessment**: expected benefit and impact are weighed by project stage (early, in development, near completion), mapped from `lifecycle_stage`.
+- **Project-declared benefits**: assessments rely on the benefits a project publishes itself. These are declared in the **project-type NDO specification** (`post-mvp/project-type-ndo-specifications.md`), which therefore needs a benefits field.
+- **Time-allocation simulation**: e.g. "10% on high-impact projects, 10% on social impact, the rest on revenue-generating ones" → the assistant shows matching opportunities. Other simulations (benefit-redistribution algorithms) and the map are also invocable.
+- **Direct actions**: subscribe to a community, become a member, attach to a project.
+
+```yaml
+intelligence_view:
+  focus_filter: role_fit | skills_match | reputation | past_interactions
+  scope: outside_current_activity
+  assistant: mcp_agent
+  tools: [allocation_simulation, redistribution_simulation, map, chat]
+  layout: ranked_opportunities
+```
+
+### 🛠️ **Work Perspective** _(new)_
+
+Process-centric view of the Agent's **active** engagements. "Work" means engaging in processes, in the context of a resource, project or group ("what can I do in this group today?").
+
+- **Project list**: all project-type NDOs the Agent has subscribed to or contributed to. Selecting one opens its collaboration tools. Group- and resource-level contexts are also available.
+- **Per-project tools**: kanban board, tasks, planning; commit to work, take a task, log contributions; coordinate with other Agents on the development of the NDO.
+- **Stigmergic signals** across projects: which projects are active or need attention, invitations to contribute, calls for decision-making. These help the Agent choose what to work on today.
+- **Joining**: a project joined from the Intelligence Perspective lands here.
+In the Work perspective, also provide access to the 3 layers of Valueflow layers (knowledge, plan and observation).
+
+
+```yaml
+work_view:
+  focus_filter: subscribed | contributed
+  contexts: [project, group, resource]
+  panels: [project_list, kanban, planning, contributions, signals]
+  priority_order: attention_needed | invitations | activity
+  layout: project_workspace
+```
+
+
+### 🧰 **Tools (cross-perspective)**
+
+Tools are not Perspectives; they can be invoked from any Perspective and applied to that Perspective's data.
+
+- **Geographic map**: maps Resources, Agents, Groups or Projects, depending on where it is opened.
+- **Chat**: direct contact with an Agent, available in several Perspectives.
+- **Others**: simulations, kanban (Work), filters and search.
+
+### Cross-Perspective Navigation
+
+Perspectives are connected by **contextual jumps** carrying the current entity (resource, agent, project, group) along.
+
+| From | Trigger | To |
+|---|---|---|
+| Work | "Discover new projects" action | Intelligence |
+| Intelligence | Join a discovered project | Work (project opens in context) |
+| Resource | Click a linked Agent (Custodian, Repair agent, ...) in the expanded resource view | Agent (that Agent's profile and connections) |
+| Agent | Click a resource linked to the Agent | Resource |
+| Agent / Intelligence | Join a discovered Group | Work or Group panel |
+
+**Return path**: every jump pushes an entry on a **navigation trail** (breadcrumb across Perspectives, e.g. `Resource: Drill press → Agent: Alice → Groups`). A persistent "Back to <origin>" control and the breadcrumb let the Agent resume the original exploration, with its filters and scroll position preserved.
+
+**Perspective switcher**: always visible; besides switching manually, the UI offers contextual hints (a button or badge) when another Perspective is relevant to the current task.
+
+### Perspectives ToDos
+
+> **Status: imminent work** (next after the MVP ToDos above). Start with the navigation skeleton, then fill each Perspective incrementally; Perspectives that depend on missing backend data ship first as thin, filtered views over existing Lobby / Group / NDO data.
+
+1. **Perspective switcher** — persistent shell control (Resource · Agent · Intelligence · Work) and one route per Perspective; the current Browse NDOs page becomes the seed of the Resource Perspective.
+2. **Navigation trail** — cross-Perspective history stack with breadcrumb and "Back to <origin>"; restores filters and scroll of the origin view.
+3. **Contextual jumps** — implement the jump table above (linked Agent → Agent Perspective, Work ↔ Intelligence, joined project → Work), plus contextual "you may want Perspective X" hints.
+4. **Resource Perspective** — extend NDO expanded view with linked Agents and their capacity (Custodian, Repair agent, ...); offer/create NDO entry point; progressive layers; Sources as linked context (Source view later).
+5. **Agent Perspective** — Agent profile view (pseudonymous, per the identity model), connected Agents and graph hopping, skills search, Group discovery via Lobby announcements.
+6. **Intelligence Perspective** — first version: ranked discovery of Groups and project-type NDOs outside the Agent's current sphere, filtered by role / skills / reputation / past interactions, with stage-aware assessment and direct actions (subscribe, join, attach); tool slot for simulations; MCP assistant follows.
+7. **Work Perspective** — project list (subscribed or contributed), per-project workspace (kanban, tasks, commit / take task / log contribution), stigmergic attention signals; group and resource contexts.
+8. **Tools registry** — perspective-agnostic tool host; Geographic map as the first tool, chat next, invocable from any Perspective.
+
+**Dependencies / open points**
+
+- **Project-type NDO**: how a project is identified (e.g. a `resource_nature` / NDO type marker) must be decided before Work and Intelligence can filter on it.
+- **Project-declared benefits**: stored in the project-type NDO specification; the specification document must add this field before Intelligence can assess benefits.
+- **Skills, reputation, past interactions**: depend on Person data and PPR zome functions still in progress; use placeholders until then.
+- **Stigmergic signals and invitations**: need push reactivity (Holochain remote signals, `TODO(signals)`); pull-based polling as interim.
+- **Per-Perspective data scope**: Resource and Work read the Agent's own groups; Agent and Intelligence need cross-group / Lobby-level discovery beyond the current "own groups only" rule.
+
+Technical mapping: `documentation/specifications/ui_architecture.md § 16`.
+
+### Layer 0 Release Cut: Resource Perspective
+
+> **Status: prototyped in `nondominium-design-system`, not yet ported to the app.** Prototype: `/prototypes/resource-perspective` (components in `packages/ndo-ui/src/components/patterns/perspectives/`, copy registry in `packages/ndo-ui/src/domain/coming-next.ts`).
+
+The prototype host is Lobby → Group → Perspective. **Resource** and **Agent** are live inside the group. Intelligence and Work stay visible, labelled "Soon", and explained instead of hidden. Every Perspective is scoped to the current group. Breadcrumb: `Lobby › <Group> › Resource › <NDO>` or `Lobby › <Group> › Agent › <Name>`.
+
+**Live** (Resource Perspective + Layer 1 + Agent Perspective):
+
+- NDO cards, search, stage / nature / regime filters, sort, and an ownership scope (All · Created by me · Joined by me).
+- Create NDO from the group page, NDO view, Join NDO, Associate with a group, Fork, Copy NDO link (also per card).
+- Lifecycle transition for the initiator (the only mutable Layer 0 field), with transition history.
+- NDO **Resources** tab: create and author-edit Layer 1 resource specifications (session-backed; gated by lifecycle stage).
+- Agent directory (group members, skill chips, groups as agents), agent profile (groups, initiated / joined NDOs, authored specs, derived connections), jumps from initiator / member with a return trail.
+- Group features unchanged: copy invite link, member list.
+
+**Visible but "Coming next"** (a "Soon" badge; clicking opens the same popup, built from one registry, and the user stays where they are):
+
+| Area | Items |
+|---|---|
+| Perspectives | Intelligence, Work (switcher entries) |
+| NDO view tabs | Governance, Composition, Activity (Overview and Resources are live) |
+| Access actions | Use, Borrow, Offer, Transfer, Transfer custody (Offer's popup offers a shortcut to Create NDO) |
+| Service processes | Transport, Store, Repair |
+| Governed transitions | A disabled "Advance stage" for non-initiators, explaining how governed transitions will work |
+| Agent tools | Reputation summary, ask to collaborate, map, chat |
+
+The registry also holds copy for the Unyt stake step of Fork and for the Source view; neither is wired to a control yet.
+
+Why the access actions and processes are listed: `VfAction` and the Transport / Repair / Storage roles already model them in the backend (see `resources.md`, `governance.md`); the UI shows them so people see how the NDO will eventually be used.
+
+**Open questions**: popup versus inline explainer per tab; whether Offer should go straight to the creation form; whether Layer 1/2 forms stay reachable behind a dev flag for internal testing.
+
+### Port to the nondominium app (not yet)
+
+> **Decision**: the prototype stays in `nondominium-design-system` until the design is validated. Do **not** port yet; these are the ToDos for when it is.
+
+1. **Perspectives host in the Group page** — replace the `NdoBrowser` block in `GroupView.svelte` with `GroupPerspectivesView` (switcher + Resource Perspective); the Lobby is untouched.
+2. **State** — add `currentPerspective` to `app.context.svelte.ts` (Resource only live; the trail comes with the full Perspectives work).
+3. **NDO view** — tabs (Overview live; the others open the Coming-next popup), access-action and process buttons, Copy NDO link, locked "Advance stage" for non-initiators, agent jump-point popups.
+4. **Shared copy** — adopt the `coming-next` registry and `ComingNextPopup` / `SoonBadge` from `@nondominium/ndo-ui`; no per-component copy.
+5. **Card actions** — per-card "Copy link" and the scope chips (Created by me / Joined by me) need `myAgentKey` and the joined list from the app context.
+6. **Replica re-sync** — after the port, re-copy the app files into `src/lib/replica/` in the design system so `check:fidelity` passes (the replica is a copy and is never improved by hand).
+7. **E2E** — adjust the Playwright specs under `ui/tests/` for create NDO, join, associate, fork, and add cases for the Coming-next popups, scope chips and the locked transition.
+
+---
+
 ## Post MVP
-This section is about UI improvements after a functional MVP.
+This section is about UI improvements after a functional MVP. The visual language below (layers, entities, proximity) is applied on top of the [Perspectives](#perspectives-next) defined above.
 
 ### Core Design Philosophy
 
@@ -163,56 +342,6 @@ This section is about UI improvements after a functional MVP.
 - **Opacity**: 0.4-0.7, 2-4px blur
 - **Content**: Overview of entire resource network
 - **Interaction**: Hover preview, click to refocus meso layer
-
-### Perspective Types
-
-#### 👷 **Role Perspective**
-
-Agent sees resources relevant to their role/capabilities
-
-```yaml
-maintainer_role:
-  focus_filter: needs_maintenance = true
-  priority_order: urgency_level
-  color_scheme: earth_tones
-  layout: spatial_proximity
-```
-
-#### 📦 **Resource Perspective**
-
-Focus on specific resource types or categories
-
-```yaml
-resource_view:
-  focus_filter: resource_type = selected
-  group_by: category | location | status
-  color_scheme: resource_type_colors
-  layout: cluster_hierarchy
-```
-
-#### 👥 **Agent Perspective**
-
-Social/collaborative view of other agents
-
-```yaml
-social_view:
-  focus_filter: collaboration_potential
-  relationship_mapping: trust_network
-  color_scheme: relationship_strength
-  layout: network_graph
-```
-
-#### 📍 **Geographic Perspective**
-
-Location-based resource organization
-
-```yaml
-geographic_view:
-  focus_filter: spatial_proximity
-  center_point: agent_location
-  radius: role_responsibility_area
-  layout: concentric_circles
-```
 
 ### Visual Design System
 
@@ -394,3 +523,21 @@ const meso_composition = {
 - **Performance**: Virtualized rendering for large entity sets
 - **Caching**: Intelligent prefetching based on proximity scores
 - **State Management**: Maintain layer states and user preferences
+
+### Community-Specific Implementations
+
+Above the base Perspectives, a group or network can use Nondominium for its own purposes (e.g. water stewardship, where Source becomes central; an artists' network). The universal ValueFlows vocabulary stays underneath as the background engine, but the UI adapts to each community's culture, because a single universal language alienates users. Adaptation happens in this order:
+
+1. **Terminology**: a per-community **dictionary** of how processes and resources are named (with translation to the ValueFlows base).
+2. **Workflows**: how processes chain together (artists and engineers do not sequence work the same way).
+3. **Visuals**: look and feel.
+
+This builds on the modular interface already formalized by the Surface / Surface Attachment (capability slots); the link between those slots and community-specific implementations remains to be specified.
+
+### Future Reflection: Higher-Level Interoperability _(parked)_
+
+Not part of the current UI scope. Open questions for later:
+
+- **Context-aware events**: the same gesture can be economic in one context and relational in another (e.g. care work at a hospital vs. at home). How can a UI and its events know their context, keeping a clear but permeable boundary between contexts? AD4M's perspectives and languages are a candidate substrate.
+- **Other ontologies alongside Nondominium**: e.g. a family-oriented layer (FamilyDAO, genogram-based) as a separate project that may exchange data with the economic layer.
+- **Limits of contribution tracking** in relational settings (families, eco-villages, housemates): too much economic logic can damage relationships.

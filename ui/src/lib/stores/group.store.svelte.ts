@@ -167,35 +167,15 @@ function createGroupStore(): GroupStore {
   }
 
   async function associateNdoWithGroup(ndoHashB64: string, targetGroupId: string): Promise<void> {
+    // Writes an NdoAnchor in the target group, copying the NDO's clone
+    // coordinates from an existing anchor. Under model A the anchor is the only
+    // pointer the lobby and group read paths follow, so a SoftLink here would
+    // report success and leave the NDO invisible in the target group.
     const exit = await E.runPromiseExit(
       pipe(
         E.gen(function* () {
-          const lobbyService = yield* LobbyServiceTag;
           const ndoService = yield* NdoServiceTag;
-          const groupService = yield* GroupServiceTag;
-
-          const cell = yield* lobbyService.getGroupCell(targetGroupId);
-          if (!cell) {
-            return yield* E.fail(new Error('Group cell not found'));
-          }
-
-          // Prefer the cached descriptor's groupHash, but fall back to a live
-          // resolve when it is missing — a group joined via the invite-payload
-          // fallback path carries no groupHash until its profile gossips in.
-          const groups = yield* lobbyService.getMyGroups();
-          const g = groups.find((x) => x.id === targetGroupId);
-          const groupHash =
-            g?.groupHash ?? (yield* lobbyService.getGroupHash(targetGroupId));
-          if (!groupHash) {
-            return yield* E.fail(new Error('Group profile hash not available'));
-          }
-
-          yield* groupService.createSoftLink(
-            cell.cellId,
-            groupHash,
-            ndoHashB64,
-            'Associated from NDO view'
-          );
+          yield* ndoService.associateNdoWithGroup(ndoHashB64, targetGroupId);
         }),
         E.provide(GroupStoreServicesResolved)
       )

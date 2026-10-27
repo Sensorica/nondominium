@@ -4,7 +4,7 @@
 **Created**: 2026-03-10  
 **Last updated**: 2026-06-16  
 **Authors**: Nondominium project  
-**Relates to**: `post-mvp/many-to-many-flows.md`, `post-mvp/ndo-versioning.md`, `post-mvp/digital-resource-integrity.md`, `post-mvp/unyt-integration.md`, `post-mvp/flowsta-integration.md`, `lobby-dna.md`, `post-mvp/project-type-ndo-specifications.md`  
+**Relates to**: `post-mvp/many-to-many-flows.md`, `post-mvp/ndo-versioning.md`, `post-mvp/digital-resource-integrity.md`, `post-mvp/unyt-integration.md`, `post-mvp/flowsta-integration.md`, `lobby-dna.md`, `post-mvp/project-type-ndo-specifications.md`, `post-mvp/source-ndo-requirements.md`  
 **Implementation reference**: `documentation/IMPLEMENTATION_STATUS.md` (NDO Layer 0 ✅ PR #80; NDO DNA extensions ✅ PR #103; Layers 1 & 2 ❌)
 
 ---
@@ -44,9 +44,9 @@ That model is well-grounded in the ValueFlows standard and works well for resour
 
 **Still outstanding** (this document remains the normative target for these gaps):
 
-- **Layers 1 & 2 not activated:** `ResourceSpecification`, `EconomicResource`, and process entries are not yet linked to Layer 0 via `NDOToSpecification` or `NDOToProcess`. Legacy resource specs can still exist without an NDO parent; specification assets are not yet attached via `DigitalAsset` capability slots (REQ-NDO-L1-06).
+- **Layer 2 not activated:** process entries are not yet linked to Layer 0 via `NDOToProcess`. Layer 1 is activated (#132): `create_resource_specification` writes an `NdoToSpecification` link and the spec carries its Layer 0 pointers, so a spec can no longer be created without an NDO parent. Specification assets are still not attached via `DigitalAsset` capability slots (REQ-NDO-L1-06).
 - **Specification richness:** Structured project-type know-how bundles ([`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md)) are post-MVP requirements only — the MVP `ResourceSpecification` entry remains a thin summary (name, description, category, tags).
-- **`ResourceState` conflation:** On `EconomicResource`, the `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`) still mixes lifecycle maturity with transient operational conditions. The split into `LifecycleStage` (on identity) + `OperationalState` (on instance) defined in Section 5 is not yet implemented in code (REQ-NDO-OS-01).
+- **`ResourceState` conflation:** ~~On `EconomicResource`~~ **Resolved (data layer):** `EconomicResource.operational_state` uses `OperationalState`; lifecycle maturity lives on `NondominiumIdentity.lifecycle_stage`. Governance-zome transition ownership (REQ-NDO-OS-02/03) remains deferred.
 - **Governance-as-operator for lifecycle:** MVP allows only the NDO `initiator` to call `update_lifecycle_stage`. Governance-validated transitions, role authorization per Section 5.3, and automatic `EconomicEvent` generation on each transition (REQ-NDO-LC-02, REQ-NDO-LC-03) remain deferred.
 
 The three-layer prima materia model closes the original gap **progressively**: Layer 0 addresses identity and lifecycle *becoming*; Layers 1 (form) and 2 (process) will complete the model when linked and enriched as specified in Sections 4 and 9.
@@ -244,7 +244,7 @@ pub struct NondominiumIdentity {
 }
 ```
 
-Shared enums live in `crates/shared/src/types.rs`. `PropertyRegime` has six variants (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Nondominium`); `ResourceNature` includes `Physical`, `Digital`, `Service`, `Hybrid`, and `Information`. The UI `packages/shared-types` currently exposes four `PropertyRegime` options — reconciliation with the Rust enum is deferred.
+Shared enums live in `crates/shared/src/types.rs`. `PropertyRegime` has seven variants (`Private`, `Commons`, `Collective`, `Pool`, `CommonPool`, `Public`, `Nondominium`); `ResourceNature` is `Physical`, `Digital`, and `Hybrid`. `Digital` includes software, data, design files, documents, datasets, and methods. A service delivery is a ValueFlows flow, not a nature. The UI (`packages/shared-types` and creation/filter controls) exposes all seven `PropertyRegime` options.
 
 **Key properties:**
 
@@ -365,9 +365,9 @@ graph TD
 
 ## 5. Resource State Model: Two Orthogonal Dimensions
 
-> **Implementation snapshot (MVP):** `LifecycleStage` **is implemented** on `NondominiumIdentity` (10 stages, integrity-validated transitions, initiator-only authorization in the coordinator). `OperationalState` **is not yet implemented** — `EconomicResource` still uses the conflated `ResourceState` enum (`PendingValidation`, `Active`, `Maintenance`, `Retired`, `Reserved`). The split described below remains the **target architecture**.
+> **Implementation snapshot (MVP):** `LifecycleStage` **is implemented** on `NondominiumIdentity` (10 stages, integrity-validated transitions, initiator-only authorization in the coordinator). `OperationalState` **is implemented** on `EconomicResource` (7 states, custodian-initiated updates via `update_operational_state`, faceted discovery via `ResourcesByOperationalState`). Governance-zome ownership of operational transitions (REQ-NDO-OS-02/03) remains deferred.
 
-The current `ResourceState` enum conflates two independent dimensions of a resource's state. The NDO requires their explicit separation:
+The legacy `ResourceState` enum conflated two independent dimensions. The NDO requires their explicit separation:
 
 - **`LifecycleStage`** — the maturity or evolutionary phase of the resource as an artefact. Advances rarely and (mostly) irreversibly, driven by significant events (design completion, peer validation, fabrication, end-of-life declaration). Lives on the `NondominiumIdentity` (Layer 0).
 - **`OperationalState`** — what process is currently acting on a specific resource instance. Cycles frequently as processes begin and end. Managed by the governance zome. Lives on the `EconomicResource` instance (Layer 2).
@@ -489,7 +489,7 @@ stateDiagram-v2
 
 ### 5.4 OperationalState Enum
 
-> **Status:** ❌ **Not implemented.** `EconomicResource.state` still uses `ResourceState`. See REQ-NDO-OS-01 through REQ-NDO-OS-06 and the TODO in `zome_resource` `LinkTypes::ResourcesByState`.
+> **Status:** ✅ **Implemented (data layer).** `EconomicResource.operational_state` uses `OperationalState`. `ResourcesByOperationalState` replaces legacy `ResourcesByState`. Lifecycle faceting remains on `NdoByLifecycleStage` (Layer 0). Governance-zome transition rules (REQ-NDO-OS-02/03) remain deferred.
 
 Lives on `EconomicResource` (Layer 2). Describes *what process is currently acting on a specific resource instance*. Set and cleared by the governance zome when processes begin and end.
 
@@ -943,11 +943,11 @@ let ndo_hash = create_entry(&EntryTypes::NondominiumIdentity(identity))?;
 
 ### Pattern 2: Complexity-Matched Layer Activation
 
-> **Status:** 🔄 **Post-MVP** — `NDOToSpecification` and `NDOToProcess` link types not yet in code.
+> **Status:** 🔄 **Partial** — `NdoToSpecification` (Layer 1) is in code as of #132; `NDOToProcess` (Layer 2) is not.
 
 **Intent:** Activate only the structural complexity that the current coordination environment demands. Do not pay coordination costs in advance of need.
 
-**Structure:** Layer activation via link creation. Layer 1 activates when `NDOToSpecification` link is created. Layer 2 activates when `NDOToProcess` link is created. Both can be created retroactively, at any lifecycle stage.
+**Structure:** Layer activation via link creation. Layer 1 activates when the `NdoToSpecification` link is created. Layer 2 activates when the `NDOToProcess` link is created. Both can be created retroactively, at any lifecycle stage the target layer's gate permits: Layer 1 accepts `Specification` through `Active` (Section 5.2), and the Layer 2 gate is not yet enforced.
 
 **Rationale:** Benkler's information opportunity cost analysis: overhead that exceeds the value of the coordination it enables is pure waste. A tool being lent between friends does not need a full ValueFlows process. A community hardware standard being developed across fifty fabrication networks does. The NDO model allows the system's complexity to grow with the resource's social complexity, not ahead of it.
 
@@ -1087,20 +1087,21 @@ pub enum PropertyRegime {
     Collective,     // Cooperative/collective ownership
     Pool,           // Pool of shareables: rivalrous shared resources; custody/scheduling/maintenance
     CommonPool,     // Rivalrous consumable resource; governance via quota/depletion rules
+    Public,         // Public/governmental stewardship; open-access; non-alienable by the public body
     Nondominium,    // Uncapturable by design; contribution-based access; no alienation permitted
 }
-// Canonical definition: documentation/archives/resources.md Section 6.3
+// Canonical definition: crates/shared/src/types.rs / documentation/requirements/resources.md §6.3
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
     Physical,     // Material objects, equipment, spaces
-    Digital,      // Software, data, design files, documents
-    Service,      // Software services, knowledge-as-service assets
+    Digital,      // Software, data, designs, documents, datasets, methods
     Hybrid,       // Digital twin of a physical resource, or physical+digital bundle
-    Information,  // Knowledge assets, datasets, documented methods
 }
-// MVP canonical definition: crates/shared/src/types.rs (5 variants).
-// Post-MVP forward map may add Space, Method, Currency — see documentation/archives/resources.md §6.2.
+// Canonical definition: crates/shared/src/types.rs (3 variants).
+// A service is a flow (`work`, `deliverService`). The kind of a digital resource
+// is a Layer 1 specification profile, not another Layer 0 nature.
+// Post-MVP forward map may add Space and Currency — see documentation/requirements/resources.md §6.2.
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
 pub enum LifecycleStage {
@@ -1165,20 +1166,22 @@ NdoByNature,          // Path "ndo.nature.{Nature:?}" → NondominiumIdentity
 NdoByPropertyRegime,  // Path "ndo.regime.{Regime:?}" → NondominiumIdentity
 NdoToSuccessor,       // deprecated NDO → successor NondominiumIdentity (REQ-NDO-LC-06)
 NdoToTransitionEvent, // NDO → EconomicEvent (link only; cross-zome event validation deferred)
+
+// Layer 1 activation and operational state (MVP — PR #132)
+NdoToSpecification,          // NondominiumIdentity → ResourceSpecification (Layer 1 activation)
+ResourcesByOperationalState, // Path "resources.operational.{State:?}" → EconomicResource
 ```
 
-Legacy resource links (`SpecificationToResource`, `ResourcesByState`, etc.) remain for pre-NDO `ResourceSpecification` / `EconomicResource` flows.
+Legacy resource links (`SpecificationToResource`, `ResourcesByLocation`, etc.) remain for pre-NDO `ResourceSpecification` / `EconomicResource` flows. `ResourcesByState` was replaced by `ResourcesByOperationalState` in #132.
 
 **Planned additions (post-MVP — not yet in `LinkTypes` enum):**
 
 ```rust
-NDOToSpecification,     // NondominiumIdentity → ResourceSpecification (Layer 1 activation)
 NDOToProcess,           // NondominiumIdentity → Process (Layer 2 activation)
 NDOToComponent,         // NondominiumIdentity → NondominiumIdentity (holonic composition)
 CapabilitySlot,         // NondominiumIdentity → capability target (typed by tag)
 NDOLifecycleHistory,    // NondominiumIdentity → LifecycleEvent (audit trail alternative/complement to NdoToTransitionEvent)
-ResourcesByLifecycleStage,   // split from ResourcesByState (REQ-NDO-OS-06)
-ResourcesByOperationalState, // split from ResourcesByState (REQ-NDO-OS-06)
+ResourcesByLifecycleStage,   // NDO-facing complement to ResourcesByOperationalState (REQ-NDO-OS-06)
 ```
 
 **Implemented in `zome_gouvernance` (federation — PR #103):** `NdoToHardLinks`, `HardLinkByType` (for `NdoHardLink` entries). See §11.7.
@@ -1282,9 +1285,9 @@ Normative requirements below remain valid as design targets. Status reflects the
 | Track | Status | Notes |
 |---|---|---|
 | Layer 0 (`NondominiumIdentity`, discovery, lifecycle validation) | ✅ MVP (#80) | Initiator-only transitions; optional `NdoToTransitionEvent` |
-| Layer 1 activation (`NDOToSpecification`) | ❌ Post-MVP | Legacy `ResourceSpecification` exists unlinked |
+| Layer 1 activation (`NdoToSpecification`) | ✅ MVP (#132) | Created on every `create_resource_specification`; spec carries `ndo_identity_hash` + `ndo_state_hash` and a lifecycle gate |
 | Layer 2 activation (`NDOToProcess`) | ❌ Post-MVP | Governance events exist unlinked to NDO identity |
-| `OperationalState` split | ❌ Post-MVP | `ResourceState` still conflated on `EconomicResource` |
+| `OperationalState` split | ✅ Data layer | `operational_state` on `EconomicResource`; `ResourcesByOperationalState`; governance-operator transitions deferred |
 | Governance-as-operator lifecycle (REQ-NDO-LC-02/03/07) | 🔄 Partial | Integrity validation only; no role-gated governance zome path |
 | `CapabilitySlot` surface (`zome_resource`) | ❌ Post-MVP | Unyt / Flowsta slot types specified, not coded |
 | Federation (`NdoHardLink`, `Contribution`, `Agreement`) | ✅ MVP (#103) | `zome_gouvernance`; distinct from CapabilitySlot |
@@ -1305,10 +1308,10 @@ Legend: ✅ implemented · 🔄 partial · ❌ not started
 
 ### 9.2 Layer 1 — Specification Requirements
 
-> **Status:** ❌ Post-MVP (requirements normative; `NDOToSpecification` not in code). Project-type know-how bundles: [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md).
+> **Status:** 🔄 Partial (MVP, #132) — activation, the Layer 0 pointer pair, and the lifecycle gate are in code; asset attachment (REQ-NDO-L1-06) and role-gated activation remain post-MVP. Project-type know-how bundles: [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md).
 
-- **REQ-NDO-L1-01** ❌: Layer 1 shall be activated by creating an `NDOToSpecification` link from the NDO identity hash to a `ResourceSpecification` entry. No modification of the `NondominiumIdentity` entry is required for activation.
-- **REQ-NDO-L1-02**: Layer 1 may be activated at any lifecycle stage at or after `Ideation`. Retroactive activation (for NDOs that began at `Ideation` without a spec) shall be fully supported.
+- **REQ-NDO-L1-01** ✅: Layer 1 shall be activated by creating an `NdoToSpecification` link from the NDO identity hash to a `ResourceSpecification` entry. No modification of the `NondominiumIdentity` entry is required for activation. The specification additionally carries `ndo_identity_hash` (the immutable Layer 0 pointer) and `ndo_state_hash` (the NDO action the author observed), because integrity validation cannot resolve "the latest state" by walking an update chain forward.
+- **REQ-NDO-L1-02** ✅: Layer 1 may be activated at any lifecycle stage from `Specification` through `Active`, matching the activation table in Section 5.2. `Ideation` is excluded (an idea has no form to specify yet), and `Hibernating`, `Deprecated`, and `EndOfLife` are excluded as suspended or terminal. Retroactive activation is fully supported for any NDO that has reached `Specification`.
 - **REQ-NDO-L1-03**: Multiple `ResourceSpecification` entries may be linked to one NDO identity, representing version evolution. The most recent link shall be considered the canonical Layer 1 specification.
 - **REQ-NDO-L1-04**: When Layer 1 enters dormant state (hibernation or end of life), the specification shall be marked `is_active: false`. The `NDOToSpecification` link shall remain readable.
 - **REQ-NDO-L1-05**: `GovernanceRule` entries shall continue to be linked to `ResourceSpecification` entries as currently implemented. They are considered Layer 1 assets.
@@ -1329,7 +1332,7 @@ Legend: ✅ implemented · 🔄 partial · ❌ not started
 
 #### LifecycleStage Requirements
 
-- **REQ-NDO-LC-01** ✅: The system shall implement the `LifecycleStage` enum as defined in Section 5.1 on the `NondominiumIdentity` entry. The legacy `ResourceState` enum on `EconomicResource` remains until REQ-NDO-OS-01 lands (see Section 10.3 migration map).
+- **REQ-NDO-LC-01** ✅: The system shall implement the `LifecycleStage` enum as defined in Section 5.1 on the `NondominiumIdentity` entry. The legacy `ResourceState` enum on `EconomicResource` has been replaced by `OperationalState` (REQ-NDO-OS-01).
 - **REQ-NDO-LC-02** 🔄: Lifecycle stage transitions shall be validated by the governance zome acting as state transition operator, consistent with `REQ-ARCH-07` (governance-as-operator). MVP: integrity zome validation + initiator-only coordinator.
 - **REQ-NDO-LC-03** 🔄: Each lifecycle transition shall generate a corresponding `EconomicEvent` with the triggering `VfAction`, creating an auditable lifecycle history. MVP: optional `transition_event_hash` link; automatic event generation deferred.
 - **REQ-NDO-LC-04** ✅: The `Hibernating` stage shall be clearly distinguished from `Deprecated` and `EndOfLife`. A hibernating resource may be reactivated; deprecated and end-of-life resources may not be reactivated.
@@ -1339,16 +1342,16 @@ Legend: ✅ implemented · 🔄 partial · ❌ not started
 
 #### OperationalState Requirements
 
-> **Status:** ❌ All REQ-NDO-OS-* not started.
+> **Status:** ✅ REQ-NDO-OS-01 and REQ-NDO-OS-06 implemented (data layer). REQ-NDO-OS-02 through REQ-NDO-OS-05 (governance-operator enforcement) remain deferred.
 
-- **REQ-NDO-OS-01** ❌: The system shall implement the `OperationalState` enum as defined in Section 5.4 on the `EconomicResource` entry, replacing the process-related dimension of the current `ResourceState` enum.
+- **REQ-NDO-OS-01** ✅: The system shall implement the `OperationalState` enum as defined in Section 5.4 on the `EconomicResource` entry, replacing the process-related dimension of the legacy `ResourceState` enum.
 - **REQ-NDO-OS-02**: `OperationalState` transitions shall be managed exclusively by the governance zome. The resource zome stores the field; only the governance zome may initiate valid transitions.
 - **REQ-NDO-OS-03**: Each `OperationalState` transition shall correspond to an open or completed `EconomicEvent`. The governance zome shall reject state transitions for which no corresponding event exists.
 - **REQ-NDO-OS-04**: `OperationalState` and `LifecycleStage` are orthogonal. An `OperationalState` transition shall never cause a `LifecycleStage` transition, and vice versa.
 - **REQ-NDO-OS-05**: The `InTransit`, `InStorage`, and `InMaintenance` states may occur at any `LifecycleStage` at or after `Development`. The system shall not restrict these states to any specific lifecycle stage.
-- **REQ-NDO-OS-06**: The `ResourcesByState` link type shall be split into `ResourcesByLifecycleStage` and `ResourcesByOperationalState` to enable independent faceted queries on each dimension.
+- **REQ-NDO-OS-06** ✅: The legacy `ResourcesByState` link type is replaced by `ResourcesByOperationalState` for EconomicResource faceted queries. Lifecycle faceting remains on `NdoByLifecycleStage` (Layer 0).
 
-> **TODO (code)**: Split the current `ResourceState` enum in `zome_resource` integrity into `LifecycleStage` (on `NondominiumIdentity`) and `OperationalState` (on `EconomicResource`). Update `EconomicResource` struct, governance zome state transition logic, `ResourcesByState` link type, and all coordinator functions. See Section 10.3 for the migration map.
+> **Note (code)**: Governance zome state transition logic for operational states (REQ-NDO-OS-02/03) remains a follow-up. See Section 10.3 for the legacy migration map.
 
 ### 9.5 Capability Surface Requirements
 
@@ -1374,7 +1377,7 @@ Legend: ✅ implemented · 🔄 partial · ❌ not started
 
 - **REQ-NDO-MIG-01**: All new resources created after the introduction of the NDO model shall begin with a `NondominiumIdentity` creation as their first action.
 - **REQ-NDO-MIG-02**: Existing `ResourceSpecification` entries created before the NDO model shall be retroactively anchored to a new `NondominiumIdentity` entry. This operation shall be additive (no existing entries are modified or deleted).
-- **REQ-NDO-MIG-03**: The `ResourceState` enum shall be deprecated and replaced by `LifecycleStage`. Existing records using `ResourceState` values shall be mapped using the migration table in Section 10.2 without data loss.
+- **REQ-NDO-MIG-03** ✅: The legacy `ResourceState` enum is replaced by `OperationalState` on `EconomicResource` and `LifecycleStage` on `NondominiumIdentity`. Retroactive anchoring of legacy records (Phase 2) still uses the migration table in Section 10.3.
 - **REQ-NDO-MIG-04**: Existing `EconomicResource` entries shall not require migration. They shall be linked to the new NDO model via Layer 2 process links when the NDO is retroactively created.
 - **REQ-NDO-MIG-05**: The migration shall be implemented as a one-time migration coordinator function, not as a permanent API change, to avoid polluting the steady-state code with migration logic.
 
@@ -1408,9 +1411,8 @@ ResourceSpecification  (zome_resource)
   ↓ SpecificationToResource
 EconomicResource       (zome_resource)
   - custodian: AgentPubKey
-  - state: ResourceState  { PendingValidation, Active, Maintenance, Retired, Reserved }
-    ↑ TODO: split into OperationalState on EconomicResource (REQ-NDO-OS-06);
-            LifecycleStage now lives on NondominiumIdentity (Track A)
+  - operational_state: OperationalState  { PendingValidation, Available, Reserved, InTransit, InStorage, InMaintenance, InUse }
+    ↑ LifecycleStage lives on NondominiumIdentity (Track A); governance-zome transition rules (REQ-NDO-OS-02/03) deferred
 
 GovernanceRule         (zome_resource)
   (linked from ResourceSpecification via SpecificationToGovernanceRule)
@@ -1460,7 +1462,7 @@ graph LR
 |---|---|---|---|
 | `ResourceSpecification` | Layer 1 (`ResourceSpecification`) | No structural change | Gains `NDOToSpecification` link from Layer 0 |
 | `EconomicResource` | Layer 2 artifact (resource instance) | No structural change | Linked via Process, not directly to NDO |
-| `ResourceState` enum | `LifecycleStage` + `OperationalState` enums | Split replacement | See migration map below — each variant maps to one of the two new enums |
+| Legacy `ResourceState` enum | `LifecycleStage` + `OperationalState` enums | ✅ Split complete (data layer) | See migration map below — governance-operator enforcement deferred (REQ-NDO-OS-02/03) |
 | `GovernanceRule` | Layer 1 asset | No structural change | Still linked from `ResourceSpecification` |
 | `EconomicEvent` | Layer 2 component | No structural change | Now linked through Process entry |
 | `Commitment` / `Claim` | Layer 2 components | No structural change | Now linked through Process entry |
@@ -1472,9 +1474,9 @@ graph LR
 | *(none)* | `LifecycleStage` transitions | **New** | Governed by zome_gouvernance (maturity dimension) |
 | *(none)* | `OperationalState` transitions | **New** | Governed by zome_gouvernance (process dimension) |
 
-### 10.3 ResourceState Migration Map
+### 10.3 Legacy ResourceState Migration Map
 
-The current `ResourceState` enum is split across the two new orthogonal dimensions. Each existing variant maps to a `(LifecycleStage, OperationalState)` pair:
+Historical `ResourceState` values (pre-split) map to the two orthogonal dimensions. Each legacy variant maps to a `(LifecycleStage, OperationalState)` pair:
 
 | Current `ResourceState` | → `LifecycleStage` | → `OperationalState` | Migration notes |
 |---|---|---|---|
@@ -1493,18 +1495,18 @@ The migration is **strictly additive** — no existing entries are modified or d
 **Phase 1 — Forward compatibility** *(partially complete)*:
 - ✅ New NDOs created via `create_ndo` begin with `NondominiumIdentity` (Group-scoped UI)
 - ❌ `NDOToSpecification` and `NDOToProcess` link types not yet added
-- ✅ `LifecycleStage` on `NondominiumIdentity`; ❌ `OperationalState` split not yet done
-- ❌ `ResourcesByState` not yet split into lifecycle vs operational facets
+- ✅ `LifecycleStage` on `NondominiumIdentity`; ✅ `OperationalState` on `EconomicResource` (REQ-NDO-OS-01)
+- ✅ `ResourcesByOperationalState` replaces legacy `ResourcesByState` (REQ-NDO-OS-06)
 
 **Phase 2 — Retroactive anchoring (migration coordinator):**
 - For each existing `ResourceSpecification` entry, create a `NondominiumIdentity` entry and the corresponding `NDOToSpecification` link
 - The `NondominiumIdentity` is created by the original author of the `ResourceSpecification` (or by a designated migration agent)
-- Map the existing `ResourceState` to `(LifecycleStage, OperationalState)` pairs using the migration table in Section 10.3
+- Map legacy pre-split state values to `(LifecycleStage, OperationalState)` pairs using the migration table in Section 10.3
 - Link existing `EconomicResource` instances to the new NDO via a retroactive Process entry
 
 **Phase 3 — Cleanup (optional, post-migration):**
-- Deprecate the `ResourceState` enum in code (keep for deserialization compatibility of existing DHT entries)
-- Update the UI to show `LifecycleStage` and `OperationalState` vocabulary separately
+- ✅ `ResourceState` removed from code; `OperationalState` on `EconomicResource` (no production DHT back-compat shim)
+- Update the UI to show `LifecycleStage` and `OperationalState` vocabulary separately (partial — NDO lifecycle UI done; economic-resource operational badges in ResourcesTab)
 - Activate capability slots for resources that have associated external assets
 
 **What is not required:**
@@ -1589,6 +1591,28 @@ The Lobby layer connects to the NDO three-layer model at specific points:
 **Deployment modes**: The Lobby DNA is designed for dual deployment — standalone hApp (Lobby DNA + Group DNA + NDO DNA, all managed by one conductor) and Moss/Weave Tool applet (Moss handles agent invites and identity at the surface; Nondominium owns the NDO layer). The NDO DNA is identical in both modes.
 
 See `lobby-dna.md` for normative requirements (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) and `specifications/post-mvp/lobby-architecture.md` for full schema, coordinator APIs, pipelines, UI, Moss contract, and 7 ADRs.
+
+### 11.8 Source-NDO Integration
+
+> **Status:** 🔄 **Post-MVP — designed.** No Rust implementation yet. Normative requirements in [`source-ndo-requirements.md`](post-mvp/source-ndo-requirements.md). Academic justification in [`source-ndo-paper.md`](post-mvp/source-ndo-paper.md).
+
+Source-NDO introduces `Source` as a third ontological primitive — neither Agent nor Resource — to represent generative ecological systems (watersheds, rivers, forests, fisheries) and knowledge commons that yield resources, receive ecological effects, and condition future possibilities without being ownable or intentional.
+
+**How Source-NDO fits the three-layer model:**
+
+- **Layer 0** (`NondominiumIdentity`): Source-NDOs use `PropertyRegime::Nondominium` or `CommonPool` and `ResourceNature::Physical` or `Digital` (a knowledge commons is Digital). The Layer 0 hash is the stable anchor for the source's event ledger. A linked `SourceProfile` extension entry carries condition indicators: `current_stock`, `flux_rate`, `assimilation_capacity`, `regime_state`, `resilience`, `tipping_threshold`, `stewarded_by` (replaces `primaryAccountable`).
+- **Layer 1** (`SourceSpecification`): Boundary conditions, monitoring framework, ecological value vector, stakeholder map. Activated when governance framework formalisation begins.
+- **Layer 2**: All boundary events (extraction, loading, non-consumptive use, regeneration) recorded as `EconomicEvent` entries against the Source Layer 0 hash. The governance-as-operator loop is cybernetic: events accumulate → stewards interpret conditions → `GovernanceRule` entries are revised → access affordances change → future events are conditioned.
+
+**ValueFlows extension required:** `vf:Source` as a typed flow endpoint role, distinct from `vf:Agent` and `vf:EconomicResource`, allowing `provider` and `receiver` fields in `EconomicEvent` to reference Source-NDOs directly. This is the single extension needed; all other ValueFlows semantics apply unchanged. See [`valueflows-1.0-compliance.md`](../hREA/valueflows-1.0-compliance.md) for the compliance note.
+
+**Key architectural invariants:**
+- Source-NDOs use the same governance-as-operator pattern. The difference is that governance rules must be *adaptable* (Source condition changes trigger rule revision) rather than fixed at creation. This extends the governance zome with an adaptive governance loop.
+- `PropertyRegime::Nondominium` and `CommonPool` are the only valid regimes; governance SHALL reject GovernanceRule entries that attempt to assert ownership of a Source-NDO.
+- No `primaryAccountable` — the `stewardedBy: Vec<AgentPubKey>` relation carries obligations (monitoring, ledger maintenance, governance rule revision), not property rights.
+- Source-to-Source links (`yields`, `conditions`, `providedBy`) are native DHT link types, enabling representation of source hierarchies (watershed → river) and ecological coupling (forest conditions river flow).
+
+**COP alignment:** Source-NDO is a direct application of the black-box principle (Ashby 1956; Snowden & Boone 2007): complex ecological systems cannot be fully modelled; governance must be enacted on observable periphery (boundary events), not on claimed interior knowledge. The `complex_interior: true` flag on `SourceProfile` makes this epistemological stance machine-readable.
 
 ---
 

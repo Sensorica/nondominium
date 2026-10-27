@@ -92,6 +92,12 @@ pub enum ResourceError {
   #[error("Not the custodian of this resource")]
   NotCustodian,
 
+  #[error("NDO identity not found: {0}")]
+  NdoNotFound(String),
+
+  #[error("Already a member of this NDO")]
+  AlreadyMember,
+
   #[error("Serialization error: {0}")]
   SerializationError(String),
 

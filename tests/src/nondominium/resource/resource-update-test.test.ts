@@ -58,10 +58,10 @@ test("basic resource state update", async () => {
       console.log(
         `✅ Created economic resource: ${testResource.resource_hash}`,
       );
-      console.log(`Initial state: ${testResource.resource.state}`);
+      console.log(`Initial state: ${testResource.resource.operational_state}`);
 
       // Verify initial state is PendingValidation
-      assert.equal(testResource.resource.state, RESOURCE_STATES.PENDING);
+      assert.equal(testResource.resource.operational_state, RESOURCE_STATES.PENDING);
       assert.equal(
         testResource.resource.custodian.toString(),
         lynn.agentPubKey.toString(),
@@ -73,7 +73,7 @@ test("basic resource state update", async () => {
       console.log("Step 3: Lynn activates the resource");
       const activationResult = await updateResourceState(lynn.cells[0], {
         resource_hash: testResource.resource_hash,
-        new_state: RESOURCE_STATES.ACTIVE,
+        new_operational_state: RESOURCE_STATES.ACTIVE,
       });
 
       console.log(`✅ Resource activation call completed`);

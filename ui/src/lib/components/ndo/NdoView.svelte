@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ActionHash } from '@holochain/client';
+  import type { ActionHash, CellId } from '@holochain/client';
   import { decodeHashFromBase64 } from '@holochain/client';
   import { Effect as E, Exit, pipe } from 'effect';
   import type { NdoDescriptor } from '@nondominium/shared-types';
@@ -31,10 +31,18 @@
   let showAssociateModal = $state(false);
   let showJoinPanel = $state(false);
   let joinMessage = $state<string | null>(null);
+  let joinError = $state<string | null>(null);
   let joinLoading = $state(false);
   let ndoMembers = $state<{ id: string; name: string; role?: string }[]>([]);
   let membersLoading = $state(false);
-  let membersStubMessage = $state<string | null>(null);
+  let membersError = $state<string | null>(null);
+  /**
+   * The cloned `ndo` cell holding this NDO's Layer 0 identity. Every Layer 1 and
+   * Layer 2 call below is addressed to it: the identity those entries reference
+   * only exists in that DHT, never in the shared provisioned cell. `null` means
+   * a legacy NDO still living in the shared cell, and callers fall back to it.
+   */
+  let ndoCellId = $state<CellId | null>(null);
 
   $effect(() => {
     try {
@@ -55,6 +63,24 @@
     const cached = ndoDescriptorCache.get(specHashB64);
     if (cached) ndoDescriptor = cached;
   });
+
+  $effect(() => {
+    const hash = specActionHash;
+    if (!hash) {
+      ndoCellId = null;
+      return;
+    }
+    void resolveNdoCell(hash);
+  });
+
+  async function resolveNdoCell(hash: ActionHash) {
+    const program = E.gen(function* () {
+      const svc = yield* NdoServiceTag;
+      return yield* svc.resolveCellIdForNdo(hash);
+    });
+    const exit = await E.runPromiseExit(pipe(program, E.provide(NdoServiceResolved)));
+    ndoCellId = Exit.isSuccess(exit) ? exit.value : null;
+  }
 
   async function loadDescriptor(hash: ActionHash) {
     // Only show spinner if we don't already have cached data to display.
@@ -92,7 +118,7 @@
 
   async function loadNdoMembers() {
     membersLoading = true;
-    membersStubMessage = null;
+    membersError = null;
     const exit = await E.runPromiseExit(
       pipe(
         E.gen(function* () {
@@ -104,8 +130,7 @@
     );
     membersLoading = false;
     if (Exit.isFailure(exit)) {
-      membersStubMessage =
-        'NDO member listing is not yet implemented on the DHT. See documentation/zomes/resource_zome.md § NDO membership (planned).';
+      membersError = 'Could not load members. They may not have reached this node yet.';
       ndoMembers = [];
     } else {
       ndoMembers = exit.value.map((m) => ({ ...m, role: 'Member' }));
@@ -115,6 +140,7 @@
   async function handleJoinNdo() {
     joinLoading = true;
     joinMessage = null;
+    joinError = null;
     const exit = await E.runPromiseExit(
       pipe(
         E.gen(function* () {
@@ -126,8 +152,7 @@
     );
     joinLoading = false;
     if (Exit.isFailure(exit)) {
-      joinMessage =
-        'NDO membership is not yet implemented on the DHT. See documentation/zomes/resource_zome.md § NDO membership (planned).';
+      joinError = 'Could not join this NDO. Please try again.';
     } else {
       joinMessage = 'You have joined this NDO.';
       void loadNdoMembers();
@@ -136,7 +161,7 @@
   }
 
   $effect(() => {
-    if (showJoinPanel && ndoMembers.length === 0 && !membersLoading && !membersStubMessage) {
+    if (showJoinPanel && ndoMembers.length === 0 && !membersLoading && !membersError) {
       void loadNdoMembers();
     }
   });
@@ -200,7 +225,7 @@
           {joinLoading ? 'Joining…' : 'Join NDO'}
         </button>
 
-        <!-- Associate with group: writes SoftLink on group DHT -->
+        <!-- Associate with group: writes an NdoAnchor (clone coordinates) on the target group DHT -->
         <button
           type="button"
           onclick={() => {
@@ -276,7 +301,7 @@
         </div>
         <div>
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Lifecycle stage</p>
-          <p class="mt-1 text-sm font-medium text-gray-800">
+          <p data-testid="ndo-lifecycle-stage" class="mt-1 text-sm font-medium text-gray-800">
             {ndoDescriptor.lifecycle_stage ?? '—'}
           </p>
         </div>
@@ -306,24 +331,21 @@
           onclick={handleJoinNdo}
           class="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {joinLoading ? 'Requesting…' : 'Request to join'}
+          {joinLoading ? 'Joining…' : 'Join this NDO'}
         </button>
       </div>
       {#if joinMessage}
-        <p
-          class="mt-2 text-xs {joinMessage.includes('not yet implemented')
-            ? 'text-amber-700'
-            : 'text-gray-600'}"
-        >
-          {joinMessage}
-        </p>
+        <p class="mt-2 text-xs text-gray-600">{joinMessage}</p>
+      {/if}
+      {#if joinError}
+        <p class="mt-2 text-xs text-amber-700">{joinError}</p>
       {/if}
       <div class="mt-4">
         <MemberList members={ndoMembers} />
         {#if membersLoading}
           <p class="mt-2 text-xs text-gray-400 italic">Loading members…</p>
-        {:else if membersStubMessage}
-          <p class="mt-2 text-xs text-amber-700">{membersStubMessage}</p>
+        {:else if membersError}
+          <p class="mt-2 text-xs text-amber-700">{membersError}</p>
         {/if}
       </div>
     </div>
@@ -333,13 +355,30 @@
 
   <div class="p-6">
     {#if tab === 'resources'}
-      <ResourcesTab {specActionHash} />
+      <ResourcesTab
+        {specActionHash}
+        {ndoCellId}
+        lifecycleStage={ndoDescriptor?.lifecycle_stage ?? null}
+        propertyRegime={ndoDescriptor?.property_regime ?? null}
+      />
     {:else if tab === 'governance'}
-      <GovernanceTab {specActionHash} />
+      <GovernanceTab
+        {specActionHash}
+        {ndoCellId}
+        propertyRegime={ndoDescriptor?.property_regime ?? null}
+        resourceNature={ndoDescriptor?.resource_nature ?? null}
+        rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
+      />
     {:else if tab === 'composition'}
       <CompositionTab />
     {:else}
-      <ActivityTab {specActionHash} />
+      <ActivityTab
+        {specActionHash}
+        {ndoCellId}
+        propertyRegime={ndoDescriptor?.property_regime ?? null}
+        resourceNature={ndoDescriptor?.resource_nature ?? null}
+        rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
+      />
     {/if}
   </div>
 {/if}

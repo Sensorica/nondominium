@@ -4,6 +4,27 @@
 
 **Context**: A distributed network of makerspaces collaborates to produce custom scientific equipment for research institutions. **This scenario clearly demonstrates the limitations of Nondominium's resource sharing economics and the critical need for extension (ex. full REA integration with Network Resource Planning (NRP) for complete peer production network management).**
 
+> **How to read this story (grounding note).** Components, designs, and the finished
+> sensors are **NDOs**: a permanent Layer 0 `NondominiumIdentity`, a Layer 1
+> `ResourceSpecification` carrying quality/IP `GovernanceRule`s (a design shared under
+> the `Commons` property regime), and Layer 2 `EconomicResource` instances that move
+> between makerspaces via `transfer_custody` (with `OperationalState` cycling
+> `Available → Reserved → InTransit → InUse`). Custody handoffs and validations issue
+> bilateral **PPRs** from the 16-category set — `ResourceCreation` / `ResourceValidation`
+> for contributions, `CustodyTransfer` / `CustodyAcceptance` for component movement,
+> `ValidationActivity` and `RuleCompliance` for cross-site QA. Narrative labels like
+> `ProductDesign`, `MultiSiteProduction`, and `QualityExcellence` are shorthand for
+> these real `ParticipationClaimType` values.
+>
+> This story is deliberately written to expose where the **MVP stops**: multi-site
+> production planning, workflow sequencing, cost accounting, and network-wide
+> optimization are **not** Nondominium primitives. They belong to a full REA / NRP
+> layer (referred to here as **TrueCommon**, i.e. hREA-based Network Resource
+> Planning). Cross-NDO composition is partially served today by `NdoHardLink`
+> (`Component` / `DerivedFrom` / `Supersedes`) and `Contribution` / `Agreement`
+> entries in `zome_gouvernance`; the rest is post-MVP. Steps against `ND` are the
+> ValueFlows/governance zome calls; steps that name planning/workflow/accounting
+> functions are TrueCommon/host-platform concerns, not existing zome externs.
 
 ---
 
@@ -102,16 +123,17 @@ sequenceDiagram
     participant Gov as Governance Zome
 
     Sarah->>Platform: Submit production project
-    Sarah->>ND: create_person_with_role(ResearchLead)
+    Sarah->>ND: create_person(Sarah) + assign_person_role(where applicable)
     ND->>Res: Create project lead profile
 
-    Sarah->>ND: create_resource_specification(EnvironmentalSensor)
-    ND->>Res: Store technical specifications
+    Sarah->>ND: create_resource_specification(EnvironmentalSensor) + attach GovernanceRule
+    ND->>Res: Store technical specifications (Commons regime, IP protection)
     ND->>Gov: Link quality standards and IP protection
 
     Sarah->>Platform: Define production workflow
-    Platform->>ND: propose_production_workflow()
-    ND->>Gov: Create multi-stage production commitment
+    Platform->>Platform: propose_production_workflow() (TrueCommon/NRP — post-MVP)
+    Note over Platform: Multi-stage workflow sequencing is not a Nondominium zome extern
+    Sarah->>ND: create_ndo(SensorDesign) as the shared design NDO
 ```
 
 **Production Planning Process**:
@@ -121,7 +143,7 @@ sequenceDiagram
    - Quality standards (ISO 9001 compliance)
    - Timeline (8 weeks total production)
    - Budget allocation ($45,000 total)
-2. **IP Protection**: Embedded governance rules protect research aainst IP enclosure (commons)
+2. **IP Protection**: Embedded governance rules protect research against IP enclosure (Commons property regime)
 3. **Workflow Design**: Multi-stage production process with validation gates
 4. **Capability Matching**: Platform identifies makerspaces with required equipment and expertise
 
@@ -136,21 +158,21 @@ sequenceDiagram
     participant PPR as PPR System
 
     Alex->>Platform: Browse production opportunities
-    Platform->>ND: get_production_requirements()
-    ND->>Res: Query sensor production specs
+    Platform->>ND: get_ndo() + get_resource_specification_with_rules()
+    ND->>Res: Query sensor design specs
     Res-->>ND: Return technical requirements
 
     Alex->>ND: derive_reputation_summary(Sarah)
     ND->>PPR: Calculate research lead reputation
     PPR-->>ND: Return profile (5 PPRs, 4.9/5 project success)
 
-    Alex->>ND: validate_production_capability(CNCFabrication)
+    Alex->>ND: validate_specialized_role(Repair/Transport as needed)
     ND->>Gov: Verify equipment and certification
     Gov-->>Platform: Capability validated
 
     Alex->>Platform: Submit production bid
-    Platform->>ND: propose_commitment(ProductionService)
-    ND->>Gov: Create production agreement
+    Platform->>ND: propose_commitment(Work/Modify)
+    ND->>Gov: Create production commitment (+ create_agreement for benefit split)
 ```
 
 **Capability Validation Process**:
@@ -220,21 +242,21 @@ sequenceDiagram
     participant ND as Nondominium
     participant PPR as PPR System
 
-    Alex->>ND: initiate_quality_validation()
-    ND->>Gov: Execute multi-site quality checks
+    Alex->>ND: validate_new_resource() per site
+    ND->>Gov: Execute multi-site quality checks (ValidationReceipts)
     Gov-->>ND: Quality validation results
 
     Sarah->>Platform: Review production quality report
-    Platform->>ND: validate_production_standards()
+    Platform->>ND: check_validation_status()
     ND->>Gov: Verify ISO compliance
     Gov-->>Platform: Certification confirmed
 
-    Sarah->>ND: validate_specialized_role(ResearchValidation)
-    ND->>Gov: Issue research validation PPR
-    Gov->>PPR: record_quality_achievement()
+    Sarah->>ND: validate_new_resource() (research acceptance)
+    ND->>Gov: Record ValidationReceipt for finished sensors
+    Gov->>PPR: issue_participation_receipts(ResourceValidation)
 
-    Alex->>ND: claim_production_completion()
-    ND->>PPR: issue_production_receipts()
+    Alex->>ND: claim_commitment()
+    ND->>PPR: issue_participation_receipts(ResourceCreation, CustodyTransfer)
 ```
 
 **Quality Assurance Process**:
@@ -312,9 +334,9 @@ graph LR
     end
 
     subgraph "After Production"
-        Sarah_After["Sarah: Research Innovation Leader<br/>8 PPRs - 5.0/5 rating<br/>plus 1 ProductDesign<br/>plus 1 ResearchCoordination"]
-        Alex_After["Alex: Advanced Manufacturing Expert<br/>12 PPRs - 4.9/5 rating<br/>plus 2 MultiSiteProduction<br/>plus 1 QualityExcellence"]
-        Network_After["Production Network: Enhanced<br/>Avg 4.9/5 rating<br/>plus 1 NetworkCollaboration"]
+        Sarah_After["Sarah: Research Innovation Leader<br/>8 PPRs - 5.0/5 rating<br/>plus 1 ResourceCreation<br/>plus 1 ResourceValidation"]
+        Alex_After["Alex: Advanced Manufacturing Expert<br/>12 PPRs - 4.9/5 rating<br/>plus 2 CustodyTransfer<br/>plus 1 ValidationActivity"]
+        Network_After["Production Network: Enhanced<br/>Avg 4.9/5 rating<br/>plus 1 RuleCompliance"]
     end
 
     Sarah_Before --> Phase1

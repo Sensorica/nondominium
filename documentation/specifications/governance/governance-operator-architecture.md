@@ -6,6 +6,8 @@
 
 *zome_resource stores entries only — no business logic. zome_gouvernance evaluates rules, approves or rejects transitions, and generates audit trail events. The clean boundary enables independent evolution and swappable governance schemes.*
 
+> **Implementation status (2026-08-29, post-#132).** `GovernanceTransitionRequest`, `TransitionContext`, and `GovernanceTransitionResult` are defined in `crates/shared/src/io/governance.rs`, and `evaluate_state_transition` is live in `zome_gouvernance/src/transition.rs`. `request_resource_transition` does **not** exist: the resource zome does not yet call into this path, so evaluation runs **parallel and advisory** alongside `propose_commitment` / `log_economic_event` rather than as the mandatory funnel. Treat the request side of this document as the design target, not current behaviour. Status: `documentation/IMPLEMENTATION_STATUS.md` § Governance-as-Operator Architecture.
+
 The governance-as-operator architecture establishes a clear separation between data management and business logic enforcement in the nondominium system. This design enables independent evolution of resource data structures and governance rules, providing a foundation for modular, maintainable, and extensible decentralized resource management.
 
 ### 1.1 Core Principles
@@ -226,7 +228,7 @@ impl ResourceManager {
         // 3. Apply state change if approved
         if governance_result.success {
             if let Some(new_state) = governance_result.new_resource_state {
-                self.update_resource_state(new_state)?;
+                self.update_operational_state(new_state)?;
             }
 
             if let Some(event) = governance_result.economic_event {
@@ -301,7 +303,7 @@ pub fn request_resource_transition(
 
     // 3. Handle result and update local state
     if result.success {
-        update_resource_state(result.new_resource_state)?;
+        update_operational_state(result.new_resource_state)?;
         create_economic_event(result.economic_event)?;
     }
 

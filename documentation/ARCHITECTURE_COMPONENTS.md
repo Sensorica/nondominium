@@ -29,7 +29,7 @@ The core supports **four structured Economic Processes** (Use, Transport, Storag
 graph TB
     subgraph "Frontend Layer"
         UI["Svelte 5.0 + TypeScript"]
-        Client["holochain-client 0.21.0"]
+        Client["holochain-client ^0.21.0"]
     end
 
     subgraph "Holochain Runtime"
@@ -98,8 +98,8 @@ sequenceDiagram
 ┌─────────────────────────────────────────────────────────────┐
 │                    FRONTEND LAYER                           │
 ├─────────────────────────────────────────────────────────────┤
-│ Svelte 5.0 + TypeScript + Vite 6.2.5                        │
-│ @holochain/client 0.21.0                                    │
+│ Svelte 5.0 + TypeScript + Vite 7                            │
+│ @holochain/client ^0.21.0                                   │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -133,7 +133,7 @@ graph TB
     subgraph "zome_person"
         subgraph "Agent Identity"
             Person[Person Entry<br/>Public Profile]
-            EncProfile[EncryptedProfile<br/>Private Data]
+            EncProfile[PrivatePersonData<br/>Private Data]
             Discovery[Discovery Anchors<br/>Agent Directory]
         end
 
@@ -171,7 +171,7 @@ graph TB
 ├─────────────────────────────────────────────────────────────┤
 │ 1.1 AGENT IDENTITY                                          │
 │ ├── Person Entry (public profile)                           │
-│ ├── EncryptedProfile Entry (private data)                   │
+│ ├── PrivatePersonData Entry (private data)                   │
 │ └── Discovery Anchors (findable agent directory)            │
 │                                                             │
 │ 1.2 CAPABILITY SYSTEM                                       │
@@ -233,7 +233,7 @@ graph TB
 
         subgraph "Economic Resource"
             EconRes[EconomicResource<br/>Resource Instance]
-            ResState[LifecycleStage + OperationalState<br/>State Tracking (TODO: split ResourceState)]
+            ResState[LifecycleStage on NDO + OperationalState on EconomicResource]
             ResHistory[ResourceHistory<br/>Audit Trail]
             ResCustody[ResourceCustody<br/>Custody Tracking]
         end
@@ -282,7 +282,6 @@ graph TB
 │ 2.2 ECONOMIC RESOURCE                                       │
 │ ├── EconomicResource Entry (resource instance)              │
 │ ├── LifecycleStage (on NondominiumIdentity) + OperationalState (on EconomicResource) │
-│ │   TODO: split current ResourceState into these two enums  │
 │ ├── ResourceHistory Entry (audit trail)                     │
 │ └── ResourceCustody Entry (custody tracking)                │
 │                                                             │

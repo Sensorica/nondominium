@@ -1,6 +1,15 @@
-# Nondominium Test Suite
+# Nondominium Test Suite (Tryorama) — DEPRECATED
 
-Comprehensive testing framework for the nondominium Holochain application, organized following domain-driven patterns for maximum maintainability and coverage.
+> **⚠️ This suite is deprecated and unmaintained.** It is kept as historical reference only.
+> Do not add tests here.
+>
+> - **Active suite:** Sweettest (Rust) in `dnas/*/tests/` — see [`DEPRECATED.md`](DEPRECATED.md) for migration status
+> - **Commands for every suite:** [`documentation/TEST_COMMANDS.md`](../documentation/TEST_COMMANDS.md)
+> - **E2E (Playwright):** [`ui/tests/README.md`](../ui/tests/README.md)
+
+Everything below describes the legacy Tryorama (TypeScript + Vitest) suite as it stood when
+it was frozen. It reflects the single-DNA, 3-zome shape of the project at that time; the hApp
+is now multi-DNA (see [`README.md`](../README.md#architecture)).
 
 ## 🏗️ **Test Architecture Overview**
 

@@ -50,3 +50,4 @@ ISA.md
 .worktrees/
 
 .codegraph
+.local/

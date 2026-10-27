@@ -16,6 +16,10 @@ holochain                  = { workspace = true }
 tokio                      = { workspace = true }
 serde                      = { workspace = true }
 holochain_serialized_bytes = { workspace = true }
+# The NDO DNA properties are DnaHash input: the tests must derive the SAME hash
+# the zomes and the client do, so they use the shared definition rather than a
+# hand-kept mirror (a mirror already drifted once — the `initiator` field).
+nondominium_shared         = { workspace = true }
 
 [[test]]
 name = "group"

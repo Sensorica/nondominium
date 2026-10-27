@@ -21,7 +21,10 @@
   {:else}
     <ul class="space-y-2">
       {#each members as m (m.id)}
-        <li class="flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2 text-sm">
+        <li
+          data-testid="member-row"
+          class="flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2 text-sm"
+        >
           <span class="font-medium text-gray-800">{m.name}</span>
           {#if m.role}
             <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{m.role}</span>

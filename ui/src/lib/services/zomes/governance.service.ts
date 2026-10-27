@@ -1,10 +1,21 @@
 import { Context, Effect as E, Layer } from 'effect';
-import type { ActionHash, AgentPubKey, Timestamp } from '@holochain/client';
+import type { ActionHash, AgentPubKey, CellId, Timestamp } from '@holochain/client';
 import { HolochainClientServiceTag, HolochainClientServiceLive } from '../holochain.service.svelte';
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import { GovernanceError } from '$lib/errors/governance.errors';
 import { GOVERNANCE_CONTEXTS } from '$lib/errors/error-contexts';
-import type { Commitment, EconomicEvent, VfEconomicEvent } from '@nondominium/shared-types';
+import type {
+  Commitment,
+  EconomicEvent,
+  VfEconomicEvent,
+  ProposeCommitmentInput,
+  ProposeCommitmentOutput,
+  LogEconomicEventInput,
+  LogEconomicEventOutput,
+  CheckActionConstraintsInput,
+  ConstraintViolation,
+  VfCommitment
+} from '@nondominium/shared-types';
 
 // ─── Service interface ────────────────────────────────────────────────────────
 
@@ -12,11 +23,22 @@ export interface GovernanceService {
   createCommitment: (
     commitment: Omit<Commitment, 'created_at'>
   ) => E.Effect<ActionHash, GovernanceError>;
+  /** Phase B: ValueFlows `propose_commitment` with `ndo_identity_hash`. */
+  proposeCommitment: (
+    input: ProposeCommitmentInput,
+    cellId?: CellId
+  ) => E.Effect<ProposeCommitmentOutput, GovernanceError>;
   getCommitment: (hash: ActionHash) => E.Effect<Commitment, GovernanceError>;
+  getAllCommitments: (cellId?: CellId) => E.Effect<VfCommitment[], GovernanceError>;
   fulfillCommitment: (hash: ActionHash) => E.Effect<ActionHash, GovernanceError>;
   createEconomicEvent: (
     event: Omit<EconomicEvent, 'occurred_at'>
   ) => E.Effect<ActionHash, GovernanceError>;
+  /** Phase B: ValueFlows `log_economic_event` with `ndo_identity_hash`. */
+  logEconomicEvent: (
+    input: LogEconomicEventInput,
+    cellId?: CellId
+  ) => E.Effect<LogEconomicEventOutput, GovernanceError>;
   getEconomicEvent: (hash: ActionHash) => E.Effect<EconomicEvent, GovernanceError>;
   getEventsByAgent: (agent: AgentPubKey) => E.Effect<EconomicEvent[], GovernanceError>;
   getCommitmentsByProvider: (provider: AgentPubKey) => E.Effect<Commitment[], GovernanceError>;
@@ -42,6 +64,10 @@ export interface GovernanceService {
     operation: string,
     agent: AgentPubKey
   ) => E.Effect<boolean, GovernanceError>;
+  checkActionConstraints: (
+    input: CheckActionConstraintsInput,
+    cellId?: CellId
+  ) => E.Effect<ConstraintViolation[], GovernanceError>;
   createDispute: (
     commitment: ActionHash,
     complainant: AgentPubKey,
@@ -53,8 +79,11 @@ export interface GovernanceService {
     agent: AgentPubKey
   ) => E.Effect<ActionHash, GovernanceError>;
   /** ValueFlows economic events linked from an `EconomicResource` action hash (`get_events_for_resource`). */
-  getEventsByResource: (resourceHash: ActionHash) => E.Effect<VfEconomicEvent[], GovernanceError>;
-  getAllEconomicEvents: () => E.Effect<VfEconomicEvent[], GovernanceError>;
+  getEventsByResource: (
+    resourceHash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<VfEconomicEvent[], GovernanceError>;
+  getAllEconomicEvents: (cellId?: CellId) => E.Effect<VfEconomicEvent[], GovernanceError>;
 }
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
@@ -78,7 +107,8 @@ export const GovernanceServiceLive: Layer.Layer<
     const wz = <T>(
       fnName: string,
       payload: unknown,
-      context: string
+      context: string,
+      cellId?: CellId
     ): E.Effect<T, GovernanceError> =>
       wrapZomeCallWithErrorFactory<T, GovernanceError>(
         holochainClient,
@@ -86,21 +116,47 @@ export const GovernanceServiceLive: Layer.Layer<
         fnName,
         payload,
         context,
-        GovernanceError.fromError
+        GovernanceError.fromError,
+        undefined,
+        cellId
       );
 
     return {
       createCommitment: (commitment) =>
         wz<ActionHash>('create_commitment', commitment, GOVERNANCE_CONTEXTS.CREATE_COMMITMENT),
 
+      proposeCommitment: (input, cellId) =>
+        wz<ProposeCommitmentOutput>(
+          'propose_commitment',
+          input,
+          GOVERNANCE_CONTEXTS.CREATE_COMMITMENT,
+          cellId
+        ),
+
       getCommitment: (hash) =>
         wz<Commitment>('get_commitment', hash, GOVERNANCE_CONTEXTS.GET_COMMITMENT),
+
+      getAllCommitments: (cellId) =>
+        wz<VfCommitment[]>(
+          'get_all_commitments',
+          null,
+          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS,
+          cellId
+        ),
 
       fulfillCommitment: (hash) =>
         wz<ActionHash>('fulfill_commitment', hash, GOVERNANCE_CONTEXTS.FULFILL_COMMITMENT),
 
       createEconomicEvent: (event) =>
         wz<ActionHash>('create_economic_event', event, GOVERNANCE_CONTEXTS.CREATE_ECONOMIC_EVENT),
+
+      logEconomicEvent: (input, cellId) =>
+        wz<LogEconomicEventOutput>(
+          'log_economic_event',
+          input,
+          GOVERNANCE_CONTEXTS.CREATE_ECONOMIC_EVENT,
+          cellId
+        ),
 
       getEconomicEvent: (hash) =>
         wz<EconomicEvent>('get_economic_event', hash, GOVERNANCE_CONTEXTS.GET_ECONOMIC_EVENT),
@@ -171,6 +227,14 @@ export const GovernanceServiceLive: Layer.Layer<
           GOVERNANCE_CONTEXTS.VALIDATE_GOVERNANCE_RULES
         ),
 
+      checkActionConstraints: (input, cellId) =>
+        wz<ConstraintViolation[]>(
+          'check_action_constraints',
+          input,
+          GOVERNANCE_CONTEXTS.CHECK_ACTION_CONSTRAINTS,
+          cellId
+        ),
+
       createDispute: (commitment, complainant, description) =>
         wz<ActionHash>(
           'create_dispute',
@@ -185,15 +249,21 @@ export const GovernanceServiceLive: Layer.Layer<
           GOVERNANCE_CONTEXTS.VOTE_ON_DISPUTE
         ),
 
-      getEventsByResource: (resourceHash) =>
+      getEventsByResource: (resourceHash, cellId) =>
         wz<VfEconomicEvent[]>(
           'get_events_for_resource',
           resourceHash,
-          GOVERNANCE_CONTEXTS.GET_EVENTS_FOR_RESOURCE
+          GOVERNANCE_CONTEXTS.GET_EVENTS_FOR_RESOURCE,
+          cellId
         ),
 
-      getAllEconomicEvents: () =>
-        wz<VfEconomicEvent[]>('get_all_economic_events', null, GOVERNANCE_CONTEXTS.GET_ALL_ECONOMIC_EVENTS)
+      getAllEconomicEvents: (cellId) =>
+        wz<VfEconomicEvent[]>(
+          'get_all_economic_events',
+          null,
+          GOVERNANCE_CONTEXTS.GET_ALL_ECONOMIC_EVENTS,
+          cellId
+        )
     } satisfies GovernanceService;
   })
 );

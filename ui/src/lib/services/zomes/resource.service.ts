@@ -1,5 +1,5 @@
 import { Context, Effect as E, Layer } from 'effect';
-import type { ActionHash, AgentPubKey, EntryHash } from '@holochain/client';
+import type { ActionHash, AgentPubKey, CellId, EntryHash } from '@holochain/client';
 import {
   HolochainClientServiceTag,
   HolochainClientServiceLive
@@ -12,6 +12,8 @@ import type {
   EconomicResource,
   GetAllResourceSpecificationsOutput,
   ResourceSpecificationListing,
+  ResourceSpecificationInput,
+  CreateResourceSpecificationOutput,
   GetResourceSpecWithRulesOutput,
   GetAllNdosOutput,
   NdoInput,
@@ -21,7 +23,11 @@ import type {
   NdoTransitionHistoryEvent,
   LifecycleStage,
   ResourceNature,
-  PropertyRegime
+  PropertyRegime,
+  OperationalState,
+  GovernanceRuleInput,
+  CheckRuleDataConstraintsInput,
+  ConstraintViolation
 } from '@nondominium/shared-types';
 import type { Record as HoloRecord } from '@holochain/client';
 import {
@@ -29,23 +35,61 @@ import {
   type EconomicResourceRow
 } from '$lib/utils/holochain-records';
 
+function listingsFromOutput(
+  out: GetAllResourceSpecificationsOutput,
+  context: string
+): E.Effect<ResourceSpecificationListing[], ResourceError> {
+  const { specifications, action_hashes } = out;
+  if (!action_hashes || action_hashes.length !== specifications.length) {
+    return E.fail(
+      ResourceError.create(
+        `${context}: action_hashes missing or length mismatch`,
+        context
+      )
+    );
+  }
+  const listings: ResourceSpecificationListing[] = specifications.map(
+    (specification: ResourceSpecification, i: number) => ({
+      action_hash: action_hashes[i],
+      specification
+    })
+  );
+  return E.succeed(listings);
+}
+
 // ─── Service interface ────────────────────────────────────────────────────────
 
 export interface ResourceService {
   createResourceSpecification: (
-    spec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-  ) => E.Effect<ActionHash, ResourceError>;
-  getResourceSpecification: (hash: ActionHash) => E.Effect<ResourceSpecification, ResourceError>;
+    spec: ResourceSpecificationInput,
+    cellId?: CellId
+  ) => E.Effect<CreateResourceSpecificationOutput, ResourceError>;
+  getResourceSpecification: (
+    hash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<ResourceSpecification, ResourceError>;
   getAllResourceSpecifications: () => E.Effect<ResourceSpecificationListing[], ResourceError>;
+  getSpecificationsForNdo: (
+    ndoHash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<ResourceSpecificationListing[], ResourceError>;
   getResourceSpecificationWithRules: (
-    specHash: ActionHash
+    specHash: ActionHash,
+    cellId?: CellId
   ) => E.Effect<GetResourceSpecWithRulesOutput, ResourceError>;
-  getResourcesBySpecification: (specHash: ActionHash) => E.Effect<EconomicResourceRow[], ResourceError>;
+  getResourcesBySpecification: (
+    specHash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<EconomicResourceRow[], ResourceError>;
   getAllNdos: () => E.Effect<GetAllNdosOutput, ResourceError>;
   createEconomicResource: (
-    resource: Omit<EconomicResource, 'created_at'>
+    resource: Omit<EconomicResource, 'created_at'>,
+    cellId?: CellId
   ) => E.Effect<ActionHash, ResourceError>;
-  getEconomicResource: (hash: ActionHash) => E.Effect<EconomicResource, ResourceError>;
+  getEconomicResource: (
+    hash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<EconomicResource, ResourceError>;
   getResourcesByCustodian: (
     custodian: AgentPubKey
   ) => E.Effect<EconomicResource[], ResourceError>;
@@ -55,7 +99,8 @@ export interface ResourceService {
   ) => E.Effect<ActionHash, ResourceError>;
   transferResourceCustody: (
     resourceHash: ActionHash,
-    newCustodian: AgentPubKey
+    newCustodian: AgentPubKey,
+    cellId?: CellId
   ) => E.Effect<ActionHash, ResourceError>;
   updateResourceQuantity: (
     resourceHash: ActionHash,
@@ -75,6 +120,22 @@ export interface ResourceService {
   getNdosByNature: (nature: ResourceNature) => E.Effect<GetAllNdosOutput, ResourceError>;
   getNdosByPropertyRegime: (regime: PropertyRegime) => E.Effect<GetAllNdosOutput, ResourceError>;
   getNdoTransitionHistory: (ndoHash: ActionHash) => E.Effect<NdoTransitionHistoryEvent[], ResourceError>;
+  updateOperationalState: (
+    resourceHash: ActionHash,
+    newOperationalState: OperationalState,
+    cellId?: CellId
+  ) => E.Effect<HoloRecord, ResourceError>;
+  getResourcesByOperationalState: (
+    state: OperationalState
+  ) => E.Effect<EconomicResourceRow[], ResourceError>;
+  createGovernanceRule: (
+    input: GovernanceRuleInput,
+    cellId?: CellId
+  ) => E.Effect<HoloRecord, ResourceError>;
+  checkRuleDataConstraints: (
+    input: CheckRuleDataConstraintsInput,
+    cellId?: CellId
+  ) => E.Effect<ConstraintViolation[], ResourceError>;
 }
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
@@ -98,7 +159,8 @@ export const ResourceServiceLive: Layer.Layer<
     const wz = <T>(
       fnName: string,
       payload: unknown,
-      context: string
+      context: string,
+      cellId?: CellId
     ): E.Effect<T, ResourceError> =>
       wrapZomeCallWithErrorFactory<T, ResourceError>(
         holochainClient,
@@ -106,22 +168,26 @@ export const ResourceServiceLive: Layer.Layer<
         fnName,
         payload,
         context,
-        ResourceError.fromError
+        ResourceError.fromError,
+        undefined,
+        cellId
       );
 
     return {
-      createResourceSpecification: (spec) =>
-        wz<ActionHash>(
+      createResourceSpecification: (spec, cellId) =>
+        wz<CreateResourceSpecificationOutput>(
           'create_resource_specification',
           spec,
-          RESOURCE_CONTEXTS.CREATE_RESOURCE_SPECIFICATION
+          RESOURCE_CONTEXTS.CREATE_RESOURCE_SPECIFICATION,
+          cellId
         ),
 
-      getResourceSpecification: (hash) =>
+      getResourceSpecification: (hash, cellId) =>
         wz<ResourceSpecification>(
           'get_resource_specification',
           hash,
-          RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION
+          RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION,
+          cellId
         ),
 
       getAllResourceSpecifications: () =>
@@ -130,55 +196,54 @@ export const ResourceServiceLive: Layer.Layer<
           null,
           RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
         ).pipe(
-          E.flatMap((out) => {
-            const { specifications, action_hashes } = out;
-            if (!action_hashes || action_hashes.length !== specifications.length) {
-              return E.fail(
-                ResourceError.create(
-                  'get_all_resource_specifications: action_hashes missing or length mismatch',
-                  RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS
-                )
-              );
-            }
-            const listings: ResourceSpecificationListing[] = specifications.map(
-              (specification: ResourceSpecification, i: number) => ({
-                action_hash: action_hashes[i],
-                specification
-              })
-            );
-            return E.succeed(listings);
-          })
+          E.flatMap((out) =>
+            listingsFromOutput(out, RESOURCE_CONTEXTS.GET_ALL_RESOURCE_SPECIFICATIONS)
+          )
         ),
 
-      getResourceSpecificationWithRules: (specHash) =>
+      getSpecificationsForNdo: (ndoHash, cellId) =>
+        wz<GetAllResourceSpecificationsOutput>(
+          'get_specifications_for_ndo',
+          ndoHash,
+          RESOURCE_CONTEXTS.GET_SPECIFICATIONS_FOR_NDO,
+          cellId
+        ).pipe(
+          E.flatMap((out) => listingsFromOutput(out, RESOURCE_CONTEXTS.GET_SPECIFICATIONS_FOR_NDO))
+        ),
+
+      getResourceSpecificationWithRules: (specHash, cellId) =>
         wz<GetResourceSpecWithRulesOutput>(
           'get_resource_specification_with_rules',
           specHash,
-          RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION_WITH_RULES
+          RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION_WITH_RULES,
+          cellId
         ),
 
-      getResourcesBySpecification: (specHash) =>
+      getResourcesBySpecification: (specHash, cellId) =>
         wz<HoloRecord[]>(
           'get_resources_by_specification',
           specHash,
-          RESOURCE_CONTEXTS.GET_RESOURCES_BY_SPECIFICATION
+          RESOURCE_CONTEXTS.GET_RESOURCES_BY_SPECIFICATION,
+          cellId
         ).pipe(E.map(economicResourceRowsFromRecords)),
 
       getAllNdos: () =>
         wz<GetAllNdosOutput>('get_all_ndos', null, RESOURCE_CONTEXTS.GET_ALL_NDOS),
 
-      createEconomicResource: (resource) =>
+      createEconomicResource: (resource, cellId) =>
         wz<ActionHash>(
           'create_economic_resource',
           resource,
-          RESOURCE_CONTEXTS.CREATE_ECONOMIC_RESOURCE
+          RESOURCE_CONTEXTS.CREATE_ECONOMIC_RESOURCE,
+          cellId
         ),
 
-      getEconomicResource: (hash) =>
+      getEconomicResource: (hash, cellId) =>
         wz<EconomicResource>(
           'get_economic_resource',
           hash,
-          RESOURCE_CONTEXTS.GET_ECONOMIC_RESOURCE
+          RESOURCE_CONTEXTS.GET_ECONOMIC_RESOURCE,
+          cellId
         ),
 
       getResourcesByCustodian: (custodian) =>
@@ -195,11 +260,12 @@ export const ResourceServiceLive: Layer.Layer<
           RESOURCE_CONTEXTS.UPDATE_RESOURCE_SPECIFICATION
         ),
 
-      transferResourceCustody: (resourceHash, newCustodian) =>
+      transferResourceCustody: (resourceHash, newCustodian, cellId) =>
         wz<ActionHash>(
           'transfer_resource_custody',
           { resource_hash: resourceHash, new_custodian: newCustodian },
-          RESOURCE_CONTEXTS.TRANSFER_RESOURCE_CUSTODY
+          RESOURCE_CONTEXTS.TRANSFER_RESOURCE_CUSTODY,
+          cellId
         ),
 
       updateResourceQuantity: (resourceHash, newQuantity) =>
@@ -275,7 +341,38 @@ export const ResourceServiceLive: Layer.Layer<
           'get_ndo_transition_history',
           ndoHash,
           RESOURCE_CONTEXTS.GET_NDO_TRANSITION_HISTORY
-        ).pipe(E.catchAll(() => E.succeed([])))
+        ).pipe(E.catchAll(() => E.succeed([]))),
+
+      updateOperationalState: (resourceHash, newOperationalState, cellId) =>
+        wz<HoloRecord>(
+          'update_operational_state',
+          { resource_hash: resourceHash, new_operational_state: newOperationalState },
+          RESOURCE_CONTEXTS.UPDATE_OPERATIONAL_STATE,
+          cellId
+        ),
+
+      getResourcesByOperationalState: (state) =>
+        wz<HoloRecord[]>(
+          'get_resources_by_operational_state',
+          state,
+          RESOURCE_CONTEXTS.GET_RESOURCES_BY_OPERATIONAL_STATE
+        ).pipe(E.map(economicResourceRowsFromRecords)),
+
+      createGovernanceRule: (input, cellId) =>
+        wz<HoloRecord>(
+          'create_governance_rule',
+          input,
+          RESOURCE_CONTEXTS.CREATE_GOVERNANCE_RULE,
+          cellId
+        ),
+
+      checkRuleDataConstraints: (input, cellId) =>
+        wz<ConstraintViolation[]>(
+          'check_rule_data_constraints',
+          input,
+          RESOURCE_CONTEXTS.CHECK_RULE_DATA_CONSTRAINTS,
+          cellId
+        )
     } satisfies ResourceService;
   })
 );

@@ -31,13 +31,11 @@ However, the NRP-CAS prototype demonstrated stability and security limitations t
 
 ### Evolution to Web 3 and Architecture Refinement
 
-The year 2025 marked a significant milestone with the initiation of TrueCommons, a Web 3 implementation designed to modernize the NRP-CAS concept. TrueCommons leverages Holochain as its underlying infrastructure and incorporates [hREA](https://hrea.io/), the Holochain-native implementation of the Valueflows ontology. The ambitious vision for TrueCommons encompassed a comprehensive implementation of Valueflows to support complete peer production processes.
+The year 2025 marked a significant milestone with the initiation of Nondominium, a Holochain implementation designed to modernize the NRP-CAS concept. Nondominium leverages Holochain as its underlying infrastructure and plans to incorporate [hREA](https://hrea.io/), the Holochain-native implementation of the Valueflows ontology. The ambitious vision for Nondominium encompassed a comprehensive implementation of Valueflows to support complete peer production processes.
 
 During the development process, a critical architectural insight emerged: the need to isolate the resource transfer mechanism as a distinct, reusable component. This recognition led to a strategic separation of concerns between two complementary systems.
 
-**Nondominium** serves as the resource transfer and flow engine, designed as an organization-agnostic system that embeds governance rules directly within resource definitions. This approach enables resources to carry their own governance parameters, ensuring that transfer protocols remain consistent regardless of organizational context.
-
-**TrueCommons** builds upon the Nondominium foundation to provide a complete peer production system. It incorporates additional capabilities including contribution accounting, benefit redistribution algorithms, and project management functionalities.
+First, **Nondominium** serves as the resource transfer and flow engine, designed as an organization-agnostic system that embeds governance rules directly within resource definitions. This approach enables resources to carry their own governance parameters, ensuring that transfer protocols remain consistent regardless of organizational context.builds upon the Nondominium foundation to provide a complete peer production system. Second, it incorporates additional capabilities including contribution accounting, benefit redistribution algorithms, and project management functionalities.
 
 ## Current Development Scope
 
@@ -70,6 +68,8 @@ The **Resource zome** operates as a pure data model responsible for resource spe
 The **Governance zome** functions as a state transition operator, evaluating governance rules and policies, validating agent permissions and roles, authorizing or rejecting state transitions, and generating economic events for audit trails. Its logic is implemented as pure functions that evaluate state transitions without side effects, enabling comprehensive unit testing and governance scheme swappability.
 
 **Cross-Zome Communication Protocol:**
+
+> **Status note (2026-09-22):** `request_resource_transition()` does not exist in the codebase. `evaluate_state_transition()` is implemented in `zome_gouvernance/src/transition.rs` and runs as a parallel, advisory path rather than the mandatory funnel described below. Current state: [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md); open design question: [#145](https://github.com/Sensorica/nondominium/issues/145).
 
 Communication between zomes follows a Request-Evaluate-Apply pattern implemented through the `GovernanceTransitionRequest` and `GovernanceTransitionResult` structures. When a resource state change is requested:
 
@@ -112,6 +112,8 @@ A robust 4-layer testing strategy encompasses Foundation tests (basic zome funct
 The governance-as-operator architecture implementation is substantially complete, with core cross-zome communication protocols operational and state transition logic functional.
 
 **Cross-Zome Interface (85% Complete)**
+
+> **Status note (2026-09-22):** the `request_resource_transition()` claims in this section and under Backend Technical Debt are superseded; see the note under Cross-Zome Communication Protocol above.
 
 The `GovernanceTransitionRequest` and `GovernanceTransitionResult` structures are defined and in use, providing the foundation for cross-zome communication. The Resource zome `request_resource_transition()` function is implemented and functional, while the Governance zome `evaluate_state_transition()` function is operational with permission checking and rule evaluation. Economic event generation for approved transitions is integrated with the PPR reputation system.
 

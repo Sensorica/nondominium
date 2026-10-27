@@ -14,6 +14,8 @@ pub struct ProposeCommitmentInput {
   pub provider: AgentPubKey,
   pub due_date: Timestamp,
   pub note: Option<String>,
+  /// Layer 0 identity for action-constraint evaluation.
+  pub ndo_identity_hash: ActionHash,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,7 +29,8 @@ pub fn propose_commitment(input: ProposeCommitmentInput) -> ExternResult<Propose
   let agent_info = agent_info()?;
   let now = sys_time()?;
 
-  // TODO: In Phase 2, check that the calling agent has restricted_access capability
+  // Hard action constraints are enforced by integrity validation.
+  // Soft warnings: use evaluate_state_transition / check_action_constraints (parallel path).
 
   let commitment = Commitment {
     action: input.action,
@@ -39,6 +42,7 @@ pub fn propose_commitment(input: ProposeCommitmentInput) -> ExternResult<Propose
     due_date: input.due_date,
     note: input.note,
     committed_at: now,
+    ndo_identity_hash: input.ndo_identity_hash,
   };
 
   let commitment_hash = create_entry(&EntryTypes::Commitment(commitment.clone()))?;
@@ -76,8 +80,8 @@ pub fn get_all_commitments(_: ()) -> ExternResult<Vec<Commitment>> {
   for link in links {
     if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
       if let Some(record) = get(any_dht_hash, GetOptions::default())? {
-        if let Ok(Some(EntryTypes::Commitment(commitment))) =
-          record.entry().to_app_option::<EntryTypes>().map_err(|_| {
+        if let Ok(Some(commitment)) =
+          record.entry().to_app_option::<Commitment>().map_err(|_| {
             wasm_error!(WasmErrorInner::Guest(
               "Failed to deserialize commitment".into()
             ))
@@ -128,8 +132,8 @@ pub fn claim_commitment(input: ClaimCommitmentInput) -> ExternResult<ClaimCommit
     GovernanceError::CommitmentNotFound(input.commitment_hash.to_string()),
   )?;
 
-  let _commitment = match commitment_record.entry().to_app_option::<EntryTypes>() {
-    Ok(Some(EntryTypes::Commitment(commitment))) => commitment,
+  let _commitment = match commitment_record.entry().to_app_option::<Commitment>() {
+    Ok(Some(commitment)) => commitment,
     _ => {
       return Err(
         GovernanceError::SerializationError("Invalid commitment entry".to_string()).into(),
@@ -179,9 +183,9 @@ pub fn get_all_claims(_: ()) -> ExternResult<Vec<Claim>> {
   for link in links {
     if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
       if let Some(record) = get(any_dht_hash, GetOptions::default())? {
-        if let Ok(Some(EntryTypes::Claim(claim))) = record
+        if let Ok(Some(claim)) = record
           .entry()
-          .to_app_option::<EntryTypes>()
+          .to_app_option::<Claim>()
           .map_err(|_| wasm_error!(WasmErrorInner::Guest("Failed to deserialize claim".into())))
         {
           claims.push(claim);
@@ -204,9 +208,9 @@ pub fn get_claims_for_commitment(commitment_hash: ActionHash) -> ExternResult<Ve
   for link in links {
     if let Ok(any_dht_hash) = AnyDhtHash::try_from(link.target.clone()) {
       if let Some(record) = get(any_dht_hash, GetOptions::default())? {
-        if let Ok(Some(EntryTypes::Claim(claim))) = record
+        if let Ok(Some(claim)) = record
           .entry()
-          .to_app_option::<EntryTypes>()
+          .to_app_option::<Claim>()
           .map_err(|_| wasm_error!(WasmErrorInner::Guest("Failed to deserialize claim".into())))
         {
           claims.push(claim);

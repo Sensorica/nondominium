@@ -1,10 +1,26 @@
 # User Story: Resource Sharing / Mutualization
 
-## Scenario: Two Organizations Sharing Equipment via an open soruce ERP
+## Scenario: Two Organizations Sharing Equipment via an open source ERP
 
 **Context**: Sensorica (a maker space) and FabLab (a fabrication lab) want to share a CNC machine through their traditional open source ERP platform integration with Nondominium. **This scenario represents Nondominium's core strength - bilateral resource sharing between organizations - with potential enhancement for broader equipment network optimization.**
 
 See also *erp_holochain_bridge.md*
+
+> **How to read this story (grounding note).** The CNC machine is an **NDO**: a permanent
+> Layer 0 `NondominiumIdentity`, a Layer 1 `ResourceSpecification` with access
+> `GovernanceRule`s (certified operators, insurance), and a Layer 2 `EconomicResource`
+> instance whose `custodian` moves Sarah → Marco → Sarah and whose `OperationalState`
+> cycles `Available → Reserved → InTransit → InUse` (lifecycle maturity stays on Layer 0).
+> Custody handoffs use `transfer_custody`, which records a `TransferCustody` economic event
+> and issues bilateral **PPRs** from the 16-category set: `CustodyTransfer` /
+> `CustodyAcceptance` for the handoff, `TransportCommitmentAccepted` /
+> `TransportFulfillmentCompleted` for Marco's transport service, and `GoodFaithTransfer`
+> for the trust-based lend. Narrative labels like `UseService`, `ServiceValidation`,
+> and `CommitmentFulfillment` are shorthand for these real `ParticipationClaimType`
+> values. The ERP, mobile app, and REST API are the **Web2 host platform** (the
+> Node.js bridge); steps against `ND` are the ValueFlows/governance zome calls.
+> Organizational-agent delegation (org owns, employee holds custody) is **post-MVP**
+> (see `specifications.md §6`); the MVP treats each participant as an individual agent.
 
 ---
 
@@ -77,7 +93,7 @@ graph TB
 
 - **Role**: Accountable Agent with Transport & Repair specializations
 - **Goal**: Access CNC machine for prototype production
-- **Reputation**: Strong performance in TransportService and RepairService
+- **Reputation**: Strong performance in TransportFulfillmentCompleted and MaintenanceFulfillmentCompleted
 
 ### **The Resource**
 
@@ -107,7 +123,7 @@ sequenceDiagram
     ERP-->>Marco: Display CNC machine details
 
     Marco->>ERP: Review governance rules
-    ERP->>ND: get_governance_rule_profile()
+    ERP->>ND: get_resource_specification_with_rules()
     ND->>Gov: Return rules (certification, insurance)
     Marco->>ERP: Submit AccessForUse commitment
     ERP->>ND: propose_commitment()
@@ -156,12 +172,13 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Active: CNC Machine Available
-    Active --> Reserved: Sarah prepares for transport
-    Reserved --> ReadyForTransport: Documentation complete
+    [*] --> Available: CNC Machine Available
+    Available --> Reserved: Sarah prepares for transport
+    Reserved --> InTransit: Documentation complete, handoff begins
 
     note right of Reserved
-        Resource state update: Active → Reserved
+        OperationalState: Available → Reserved → InTransit
+        (LifecycleStage stays Active on Layer 0)
         Transport protocols linked
         Insurance certificate uploaded
     end note
@@ -169,7 +186,7 @@ stateDiagram-v2
 
 **Sarah's Preparation**:
 
-1. **Resource State Update**: Changes CNC from `Active` to `Reserved`
+1. **Resource State Update**: Changes CNC `OperationalState` from `Available` to `Reserved` (Layer 0 `LifecycleStage` stays `Active`)
 2. **Transport Documentation**: Creates transport checklist and safety protocols
 3. **Insurance Coordination**: Uploads facility insurance certificate
 
@@ -185,15 +202,15 @@ sequenceDiagram
     participant PPR as PPR System
 
     Marco->>ERP: Arrive for transport
-    ERP->>ND: initiate_transport_process()
-    ND->>Gov: Validate Marco's Transport role
+    ERP->>ND: update_operational_state(InTransit)
+    ND->>Gov: Validate Marco's Transport role (validate_specialized_role)
     Sarah->>ERP: Scan QR code on CNC machine
     Marco->>ERP: Scan QR code confirmation
     ERP->>ND: transfer_custody()
     ND->>Res: Update custodian: Sarah → Marco
-    ND->>Gov: log_economic_event(TransferCustody)
+    Note over ND,Gov: transfer_custody logs the TransferCustody economic event
     Gov->>PPR: issue_participation_receipts()
-    PPR-->>ND: Generate PPRs for both agents
+    PPR-->>ND: Generate bilateral PPRs for both agents
     ND-->>ERP: Update transport status
 ```
 
@@ -215,10 +232,10 @@ graph LR
         D --> E[Quality Monitoring]
     end
 
-    subgraph "PPR Categories"
-        F[UseService]
-        G[ServiceValidation]
-        H[CommitmentFulfillment]
+    subgraph "PPR Categories (16-category set)"
+        F[RuleCompliance]
+        G[ValidationActivity]
+        H[TransportFulfillmentCompleted]
     end
 
     D --> F
@@ -246,7 +263,7 @@ sequenceDiagram
     Marco->>ERP: Complete maintenance checklist
     ERP->>ND: claim_commitment()
     Marco->>ERP: Initiate return transport
-    ERP->>ND: initiate_transport_process()
+    ERP->>ND: update_operational_state(InTransit)
     Sarah->>ERP: Scan return QR code
     ERP->>ND: transfer_custody()
     ND->>Res: Update custodian: Marco → Sarah
@@ -298,7 +315,7 @@ graph LR
 
     subgraph "After Transaction"
         Sarah_After[Sarah: 4.9/5<br/>15 PPRs<br/>+1 CustodyTransfer<br/>+1 GoodFaithTransfer]
-        Marco_After[Marco: 4.8/5<br/>11 PPRs<br/>+1 CustodyAcceptance<br/>+1 TransportService]
+        Marco_After[Marco: 4.8/5<br/>11 PPRs<br/>+1 CustodyAcceptance<br/>+1 TransportFulfillmentCompleted]
     end
 
     Sarah_Before --> Phase1
@@ -316,7 +333,7 @@ graph LR
 **Marco's PPR Updates**:
 
 - +1 CustodyAcceptance (incoming)
-- +1 TransportService completion
+- +1 TransportFulfillmentCompleted
 - Performance: 4.9/5 overall satisfaction
 
 ### **Network Effects**
