@@ -25,8 +25,11 @@ export interface GroupHolochainRecord {
     hashed: {
       hash: Uint8Array;
       content: {
-        author: Uint8Array;
-        timestamp: number;
+        // Holochain 0.7: header fields live under `content.header`, action fields under `content.data`.
+        header: {
+          author: Uint8Array;
+          timestamp: number;
+        };
       };
     };
   };

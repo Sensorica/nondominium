@@ -251,7 +251,7 @@ async fn ndo_cell_genesis_identity_round_trip() {
         )
         .await;
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -337,7 +337,7 @@ async fn ndo_anchor_round_trip() {
     let created_entry: NdoAnchorEntry = decode_record_entry(&created);
     assert_eq!(created_entry.name, "Community 3D Printer");
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -392,7 +392,7 @@ async fn ndo_anchor_round_trip_public_regime() {
     let created_entry: NdoAnchorEntry = decode_record_entry(&created);
     assert_eq!(created_entry.property_regime, PropertyRegime::Public);
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -451,7 +451,7 @@ async fn ndo_anchor_update_refreshes_cache() {
         )
         .await;
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -594,7 +594,7 @@ async fn refresh_ndo_anchor_lifecycle_stage_updates_cache() {
         )
         .await;
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -685,10 +685,7 @@ async fn second_agent_joins_ndo_via_anchor_coordinates() {
     let ndo_dna = ndo_dna_with_coordinates(seed.clone(), properties_bytes(&props)).await;
     let ndo_dna_hash = ndo_dna.dna_hash().clone();
 
-    let alice_ndo_app = conductors
-        .iter_mut()
-        .next()
-        .unwrap()
+    let alice_ndo_app = conductors[0]
         .setup_app("ndo-alice", &[ndo_dna])
         .await
         .expect("alice failed to install the NDO cell");
@@ -726,7 +723,7 @@ async fn second_agent_joins_ndo_via_anchor_coordinates() {
         )
         .await;
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -755,17 +752,14 @@ async fn second_agent_joins_ndo_via_anchor_coordinates() {
         "pinning check failed: derived DnaHash does not match the anchored identity"
     );
 
-    let bob_ndo_app = conductors
-        .iter_mut()
-        .nth(1)
-        .unwrap()
+    let bob_ndo_app = conductors[1]
         .setup_app("ndo-bob", &[bob_ndo_dna])
         .await
         .expect("bob failed to join the NDO cell from anchor coordinates");
     let (bob_ndo_cell,) = bob_ndo_app.into_tuple();
 
     conductors.exchange_peer_info().await;
-    await_consistency_20_s([&alice_ndo_cell, &bob_ndo_cell])
+    await_consistency_s(20, [&alice_ndo_cell, &bob_ndo_cell])
         .await
         .unwrap();
 

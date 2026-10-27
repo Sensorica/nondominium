@@ -246,7 +246,7 @@ async fn ndo_membership_two_agents_converge() {
         )
         .await;
 
-    await_consistency_20_s([&alice, &bob]).await.unwrap();
+    await_consistency_s(20, [&alice, &bob]).await.unwrap();
 
     let _: Record = conductors[1]
         .call(
@@ -256,7 +256,7 @@ async fn ndo_membership_two_agents_converge() {
         )
         .await;
 
-    await_consistency_20_s([&alice, &bob]).await.unwrap();
+    await_consistency_s(20, [&alice, &bob]).await.unwrap();
 
     // Both agents must see both members. This is the claim that would fail if
     // get_ndo_members did a per-link `get` instead of reading the link author:

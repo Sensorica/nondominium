@@ -321,7 +321,7 @@ pub fn validate_agent_joining(
 #[allow(clippy::collapsible_match, clippy::single_match)]
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
-  if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
+  if let FlatOp::CreateEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_entry {
       OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
         match app_entry {
@@ -354,23 +354,19 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
       _ => (),
     }
   }
-  if let FlatOp::StoreRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
+  if let FlatOp::CreateRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_record {
-      OpRecord::DeleteEntry {
-        original_action_hash,
-        ..
-      } => {
-        let original_record = must_get_valid_record(original_action_hash)?;
-        let original_action = original_record.action().clone();
-        let original_action = match original_action {
-          Action::Create(create) => EntryCreationAction::Create(create),
-          Action::Update(update) => EntryCreationAction::Update(update),
-          _ => {
-            return Ok(ValidateCallbackResult::Invalid(
-              "Original action for a delete must be a Create or Update action".to_string(),
-            ));
-          }
-        };
+      OpRecord::DeleteEntry { action } => {
+        let original_record = must_get_valid_record(action.deletes_address.clone())?;
+        let original_action: TypedAction<EntryCreationData> =
+          match original_record.action().clone().try_into() {
+            Ok(a) => a,
+            Err(_) => {
+              return Ok(ValidateCallbackResult::Invalid(
+                "Original action for a delete must be a Create or Update action".to_string(),
+              ));
+            }
+          };
         let app_entry_type = match original_action.entry_type() {
           EntryType::App(app_entry_type) => app_entry_type,
           _ => {

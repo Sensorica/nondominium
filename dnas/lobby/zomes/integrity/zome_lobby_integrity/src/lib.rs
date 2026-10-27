@@ -62,7 +62,7 @@ pub fn validate_agent_joining(
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   // StoreEntry: validate create/update entry content
-  if let FlatOp::StoreEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
+  if let FlatOp::CreateEntry(store_entry) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_entry {
       OpEntry::CreateEntry { app_entry, action } => match app_entry {
         EntryTypes::LobbyAgentProfile(profile) => {
@@ -96,21 +96,20 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
   }
 
   // StoreRecord: validate deletes and update immutability constraints
-  if let FlatOp::StoreRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
+  if let FlatOp::CreateRecord(store_record) = op.flattened::<EntryTypes, LinkTypes>()? {
     match store_record {
       OpRecord::DeleteEntry { .. } => {
         return Ok(ValidateCallbackResult::Invalid(
           "LobbyAgentProfile and GroupAnnouncement entries cannot be deleted".to_string(),
         ));
       }
-      OpRecord::UpdateEntry { original_action_hash, app_entry, action, .. } => {
-        let original_record = must_get_valid_record(original_action_hash)?;
-        let original_action = original_record.action().clone();
-        let creation_action = match original_action {
-          Action::Create(c) => EntryCreationAction::Create(c),
-          Action::Update(u) => EntryCreationAction::Update(u),
-          _ => return Ok(ValidateCallbackResult::Valid),
-        };
+      OpRecord::UpdateEntry { app_entry, action, .. } => {
+        let original_record = must_get_valid_record(action.original_action_address.clone())?;
+        let creation_action: TypedAction<EntryCreationData> =
+          match original_record.action().clone().try_into() {
+            Ok(a) => a,
+            Err(_) => return Ok(ValidateCallbackResult::Valid),
+          };
         let app_entry_type = match creation_action.entry_type() {
           EntryType::App(t) => t,
           _ => return Ok(ValidateCallbackResult::Valid),
@@ -126,7 +125,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         )?;
         match (app_entry, original_app_entry) {
           (EntryTypes::LobbyAgentProfile(updated), Some(EntryTypes::LobbyAgentProfile(original))) => {
-            if action.author != original.lobby_pubkey {
+            if *action.author() != original.lobby_pubkey {
               return Ok(ValidateCallbackResult::Invalid(
                 "only the profile owner can update their profile".to_string(),
               ));
@@ -152,7 +151,7 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
 
 fn validate_create_lobby_agent_profile(
   profile: LobbyAgentProfile,
-  action: Create,
+  action: TypedAction<CreateData>,
 ) -> ExternResult<ValidateCallbackResult> {
   if profile.handle.trim().is_empty() {
     return Ok(ValidateCallbackResult::Invalid("handle cannot be empty".to_string()));
@@ -160,7 +159,7 @@ fn validate_create_lobby_agent_profile(
   if profile.handle.len() > 64 {
     return Ok(ValidateCallbackResult::Invalid("handle must be ≤ 64 characters".to_string()));
   }
-  if profile.lobby_pubkey != action.author {
+  if profile.lobby_pubkey != *action.author() {
     return Ok(ValidateCallbackResult::Invalid(
       "lobby_pubkey must equal action.author".to_string(),
     ));
@@ -182,12 +181,12 @@ fn validate_create_lobby_agent_profile(
 
 fn validate_create_group_announcement(
   ann: GroupAnnouncement,
-  action: Create,
+  action: TypedAction<CreateData>,
 ) -> ExternResult<ValidateCallbackResult> {
   if ann.group_name.trim().is_empty() {
     return Ok(ValidateCallbackResult::Invalid("group_name cannot be empty".to_string()));
   }
-  if ann.registered_by != action.author {
+  if ann.registered_by != *action.author() {
     return Ok(ValidateCallbackResult::Invalid(
       "registered_by must equal action.author".to_string(),
     ));

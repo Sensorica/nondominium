@@ -101,8 +101,9 @@ nix develop                              # Enter reproducible environment (REQUI
 bun install                              # Install all dependencies
 ```
 
-The `hrea` role is vendored as a git submodule at `vendor/hrea`; `bun run build:happ` builds
-and packs it, so the build fails without this step.
+The `hrea` role is vendored as a git submodule at `vendor/hrea`, pinned to the h-REA/hREA release
+tag `happ-0.5.0-beta.1` (Holochain 0.7); `bun run build:happ` builds and packs it, so the build
+fails without this step.
 
 **⚠️ Run all commands from within the nix shell, otherwise they won't work.**
 
@@ -246,12 +247,14 @@ This section is the canonical version list; other docs link here rather than res
 
 | Layer | Choice |
 |---|---|
-| Backend | Rust, Holochain HDK ^0.6.0 / HDI ^0.7.0, WASM target |
+| Backend | Rust, Holochain HDK ^0.7.0 / HDI ^0.8.0, WASM target |
 | Frontend | SvelteKit 2 + Svelte 5 (runes) + TypeScript + Vite 7 |
 | UI | UnoCSS + Melt UI next-gen (`melt`) + Effect-TS |
-| Client | [@holochain/client](https://www.npmjs.com/package/@holochain/client) ^0.20.0 (UI), ^0.19.1 (root tooling) |
-| Testing | Sweettest (Rust, `holochain = "=0.6.0"`) primary; Playwright for E2E; Tryorama deprecated |
+| Client | [@holochain/client](https://www.npmjs.com/package/@holochain/client) ^0.21.0 (UI) |
+| Testing | Sweettest (Rust, `holochain = "=0.7.0"`) primary; Playwright for E2E; Tryorama deprecated |
 | Tooling | [bun](https://bun.sh/) workspaces, [Nix](https://nixos.org/) dev shell, [hc](https://github.com/holochain/holochain/tree/develop/crates/hc) CLI |
+
+**Holochain 0.7 is a new network.** DNA hashes change with the HDK/HDI move, so a 0.7 build never joins a 0.6 network and existing 0.6 data does not carry over.
 
 Ecosystem:
 

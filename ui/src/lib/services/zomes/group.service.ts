@@ -144,7 +144,7 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
                 records.map((r, i) => {
                   const log = decodeGroupEntry(r);
                   return {
-                    id: String(r.signed_action?.hashed?.content?.timestamp ?? i),
+                    id: String(r.signed_action?.hashed?.content?.header?.timestamp ?? i),
                     title: log?.description ?? '(work log)'
                   };
                 })
@@ -166,7 +166,7 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
                   const sl = decodeGroupEntry(r) as (SoftLink & { description?: string }) | null;
                   const target = softLinkTargetHashB64(r) ?? '';
                   return {
-                    id: String(r.signed_action?.hashed?.content?.timestamp ?? i),
+                    id: String(r.signed_action?.hashed?.content?.header?.timestamp ?? i),
                     label: sl?.description ?? 'Soft link',
                     targetNdoHashB64: target
                   };

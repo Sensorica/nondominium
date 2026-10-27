@@ -12,10 +12,10 @@ This document tracks what is **actually implemented and verified** in the curren
 
 Canonical list: [README.md § Technology Stack](../README.md#technology-stack). Summary:
 
-- **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), compiled to WASM
+- **Backend**: Rust (Holochain HDK ^0.7.0 / HDI ^0.8.0), compiled to WASM
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7 + UnoCSS + Melt UI next-gen + Effect-TS
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) is deprecated
-- **Client**: @holochain/client ^0.20.0 (UI); ^0.19.1 (root dev tooling)
+- **Client**: @holochain/client ^0.21.0 (UI)
 
 ### Multi-DNA hApp Architecture
 
@@ -289,7 +289,7 @@ These are Nondominium-native federation primitives. They are not yet a full vers
 
 ### Phase 1: Complete ✅
 
-- hREA git submodule (`vendor/hrea`, Sensorica fork)
+- hREA git submodule (`vendor/hrea`, h-REA/hREA tag `happ-0.5.0-beta.1` since #154; previously the Sensorica fork on `main-0.6`)
 - `happ.yaml` dual-DNA roles configuration
 - hREA DNA compiled and included in `.webhapp` bundle
 - `hrea_agent_hash` field added to `Person` integrity entry
