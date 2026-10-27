@@ -76,6 +76,6 @@ Source: `REVIEW.md` — read before proposing any PR-shaped change
 
 - Edit `documentation/TELOS.md` → updates both Claude Code (via CLAUDE.md `@` reference) and
   Cursor (on next `nix develop`, symlinked or copied)
-- Edit `pai/conventions.md` → updates both Claude Code and Cursor
+- Edit `pai/shared/conventions.md` → updates both Claude Code and Cursor
 - Edit `pai/shared/rules/*.md` → regenerates the Cursor rules (on next `nix develop`)
 - Edit `pai/shared/skills/nondominium-domain/` → re-enter `nix develop` to regenerate `.claude/`

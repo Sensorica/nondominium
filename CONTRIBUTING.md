@@ -186,10 +186,10 @@ Two workflows run:
 
 | Workflow | Jobs | Blocking |
 |---|---|---|
-| `build.yml` | `build` (nix, `bun install`, `build:happ`) → `sweettest` (5 sharded targets) → `e2e` (Playwright) | Yes — the stages are chained, so a failure anywhere stops the rest |
+| `build.yml` | `build` (nix, `bun install`, `build:happ`) → `sweettest` (sharded targets) → `e2e` (Playwright) | Yes — the stages are chained, so a failure anywhere stops the rest |
 | `lint.yml` | `rustfmt` status report | No — advisory while the formatting backlog is cleared |
 
-The chaining is the reason a review must wait for the whole pipeline rather than the first green check: `e2e` does not even start until all five `sweettest` shards pass.
+The chaining is the reason a review must wait for the whole pipeline rather than the first green check: `e2e` does not even start until every `sweettest` shard passes.
 
 `lint.yml` is advisory on purpose. Most Rust files in the workspace are not rustfmt-clean, and a blocking gate would fail every PR until someone reformats the workspace, which cannot happen safely while several branches are open. It reports the count on each PR so the debt is visible. Making it blocking is a one-line change once a dedicated formatting PR has landed.
 

@@ -23,4 +23,4 @@ gh pr checks <N>
 Two rules from the skill are worth restating because they are the ones most often skipped under time pressure:
 
 - **Read the diff before the description.** A review written from the PR body is a summary, not a review.
-- **Never post a verdict while CI is still running.** Our stages are chained (`build`, then five sharded `sweettest` targets, then `e2e`), so early green says nothing about the end. If the pipeline has not settled, the verdict is `BLOCKED`.
+- **Never post a verdict while CI is still running.** Our stages are chained (`build`, then the sharded `sweettest` targets, then `e2e`), so early green says nothing about the end. If the pipeline has not settled, the verdict is `BLOCKED`.

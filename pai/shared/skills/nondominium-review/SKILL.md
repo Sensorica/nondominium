@@ -67,7 +67,7 @@ If the branch resolved a merge conflict, review the resolution as its own findin
 
 ### Step 5 — Wait for the whole CI pipeline
 
-**Do not post an approval while any check is still running.** The pipeline is staged: `build`, then five sharded `sweettest` targets, then `e2e`. Later jobs are gated behind earlier ones, so a run that looks green early may still fail at the last stage.
+**Do not post an approval while any check is still running.** The pipeline is staged: `build`, then the sharded `sweettest` targets, then `e2e`. Later jobs are gated behind earlier ones, so a run that looks green early may still fail at the last stage.
 
 ```bash
 gh pr checks <N> --watch

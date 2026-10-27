@@ -155,7 +155,7 @@ Use kebab-case directory names. Cursor silently ignores a skill whose name is no
 | Source | Example | Belongs here when |
 |---|---|---|
 | **In-repo** (`pai/shared/skills/<name>/`) | `nondominium-domain`, `nondominium-review` | The knowledge is about *this* codebase. It versions with the code, so a PR that changes behaviour can change the skill in the same diff. |
-| **External flake input** | `holochain` (`github:Soushi888/holochain-agent-skill`) | The knowledge is useful beyond this repo. One upstream, pinned per-project by `flake.lock`, updated deliberately. |
+| **External flake input** | `holochain` (`github:Soushi888/holochain-agent-skills/v1.0.0-rc.1`, the skill under `skills/holochain`) | The knowledge is useful beyond this repo. One upstream, pinned per-project by `flake.lock`, updated deliberately. |
 
 The external path is how a skill shared across several projects reaches this one without being copied into it. A copy has no upstream, so it drifts silently and nobody can tell which version is current; a pinned input has exactly one authority and a lock file recording which revision this repo is on.
 
