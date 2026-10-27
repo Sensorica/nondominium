@@ -17,9 +17,10 @@ metadata:
 
 # Nondominium Domain Skill
 
-> **Routing-only skill for Claude Code.** Full documentation is injected at session start
-> via `LoadProjectDocs.hook.ts`. Use the table below to navigate to the right section.
-> For Cursor (no hook), equivalent compact reference lives in `pai/cursor-rules/10-domain-enums.md`.
+> **Routing-only skill.** It does not carry domain knowledge, it points at where the knowledge
+> lives. Claude Code resolves the `@` mentions in `.rules` and loads those documents; Cursor
+> receives the same content as always-applied `.mdc` rules generated from `pai/shared/`. Either
+> way, use the tables below to navigate to the right section rather than searching.
 
 ## Documentation Sources
 
@@ -53,6 +54,6 @@ metadata:
 
 ## When NOT to Use This Skill
 - General Holochain HDK questions → `holochain-agent-skill`
-- Svelte 5 / UnoCSS / Effect-TS patterns → `AGENTS.md` + `pai/cursor-rules/40-svelte-ui.md`
+- Svelte 5 / UnoCSS / Effect-TS patterns → `AGENTS.md` + `pai/shared/rules/40-svelte-ui.md`
 - Nix dev environment → `holochain-agent-skill`
 - hREA integration → `holochain-agent-skill` + `documentation/hREA/`
