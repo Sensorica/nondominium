@@ -2,6 +2,10 @@
 
 Infrastructure for organization-agnostic, uncapturable, self-governed resources — built on Holochain and ValueFlows.
 
+This page is the hub. Two alternate views of the same corpus:
+[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) (annotated guide, with commands and per-area
+status) and [SUMMARY.md](SUMMARY.md) (flat linear table of contents).
+
 ## Getting Started
 
 - [TELOS](TELOS.md) - Project vision, mission, and philosophy
@@ -29,7 +33,13 @@ Infrastructure for organization-agnostic, uncapturable, self-governed resources 
 
 - [Technical Specifications](specifications/specifications.md) - Zome entries, functions, cross-zome API
 - [Governance Operator Architecture](specifications/governance/governance-operator-architecture.md) - State transition pattern
+- [Governance Implementation Guide](specifications/governance/governance-operator-implementation-guide.md) - Implementation with code examples
+- [Cross-Zome API](specifications/governance/cross-zome-api.md) - Zome-to-zome call contracts
+- [Governance Model](specifications/governance/governance.md) - Legacy governance model and decision processes
 - [Private Participation Receipt](specifications/governance/private-participation-receipt.md) - PPR system design
+- [PPR Security Implementation](specifications/governance/PPR_Security_Implementation.md) - PPR security model
+- [ValueFlows Action Usage](specifications/VfAction_Usage.md) - VF action patterns with governance examples
+- [Protocol Bridge Specifications](specifications/protocol-bridge-specifications.md) - Bun bridge for platform integration (Tiki, Odoo)
 - [UI Architecture](specifications/ui_architecture.md) - Svelte 5 service and store layer
 - [API Reference](API_REFERENCE.md) - Complete zome function reference
 
@@ -38,11 +48,22 @@ Infrastructure for organization-agnostic, uncapturable, self-governed resources 
 - [Implementation Plan](implementation_plan.md) - Phased delivery roadmap
 - [Development Report](development-report.md) - Progress log
 - [Testing Infrastructure](Testing_Infrastructure.md) - Sweettest suite guide
-- [Test Commands](TEST_COMMANDS.md) - Quick command reference
+- [Test Commands](TEST_COMMANDS.md) - Canonical command reference for every suite
+- [E2E Test Suite](../ui/tests/README.md) - Playwright against real conductors
+- [UI README](../ui/README.md) - Frontend dev harness and layout
 
 ## Applications
 
 - [Artcoin](Applications/artcoin_main_doc.md) - Open-source art economy use case
+- [Nondominium × Artcoin](Applications/nondominium_artcoin.md) - Artcoin integration detail
 - [Distributed Journalism](Applications/distributed_journalism.md)
 - [ERP Holochain Bridge](Applications/erp_holochain_bridge.md)
 - [HealthNet](Applications/healthnet.md)
+- [User Stories](Applications/user-story/) - Complete user journey scenarios
+
+## Post-MVP
+
+- [Unyt Integration](requirements/post-mvp/unyt-integration.md) - Economic settlement layer
+- [Flowsta Integration](requirements/post-mvp/flowsta-integration.md) - Cross-app identity and DID
+- [Resource Transport Flow Protocol](requirements/post-mvp/resource-transport-flow-protocol.md)
+- [Full post-MVP set](requirements/post-mvp/) - Versioning, many-to-many flows, digital integrity, DSL

@@ -9,7 +9,7 @@
 
 ## Table of Contents
 
-1. [Framing: The Generic NDO and Nondominium as Instantiation](#1-framing)
+1. [Framing: The Generic NDO and Nondominium as Instantiation](#1-framing-the-generic-ndo-and-nondominium-as-instantiation)
 2. [The Economic Closure Problem](#2-the-economic-closure-problem)
 3. [The NDO Economic Loop](#3-the-ndo-economic-loop)
 4. [Unyt as Economic Operator](#4-unyt-as-economic-operator)

@@ -70,16 +70,17 @@
     "holochain-agent-skill": {
       "flake": false,
       "locked": {
-        "lastModified": 1775526113,
-        "narHash": "sha256-9A3qw0LG3IxA8KpunF1Ef+aRPjXFRwDifvIl3yrsEIo=",
+        "lastModified": 1788506911,
+        "narHash": "sha256-i3g6ZJbX/IRE6ZztDsBqcA74GPUxKX/LyMwAFiIcSCM=",
         "owner": "Soushi888",
-        "repo": "holochain-agent-skill",
-        "rev": "ab02c4f11edef175e438664adc4536e5da12cbc2",
+        "repo": "holochain-agent-skills",
+        "rev": "28b00fc0ef7f5a25d04e2acdcb0c97e2f8ffb54a",
         "type": "github"
       },
       "original": {
         "owner": "Soushi888",
-        "repo": "holochain-agent-skill",
+        "ref": "v1.0.0-rc.1",
+        "repo": "holochain-agent-skills",
         "type": "github"
       }
     },

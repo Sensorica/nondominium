@@ -30,7 +30,7 @@ Nondominium runs as a **dual-DNA hApp** — `hrea` DNA + `ndo` DNA, both registe
 | Commitment, Agreement, Plan     | GovernanceRule, CapabilitySlot         |
 | ResourceSpecification (VF core) | PrivateParticipationClaim (PPR)        |
 | Process, Intent (post-v1.0)     | ValidationReceipt, ResourceValidation  |
-| ReaAgent, ReaUnit               | EncryptedProfile, Person               |
+| ReaAgent, ReaUnit               | PrivatePersonData, Person               |
 | All VF 1.0 types                | All NDO governance/identity extensions |
 
 NDO zomes interact with hREA via:
@@ -129,7 +129,7 @@ pub enum PropertyRegime {
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ResourceNature {
-    Digital,   // Software, data, design files, documents
+    Digital,   // Software, data, design files, documents, datasets, methods
     Physical,  // Material objects, equipment, spaces
     Hybrid,    // Digital twin of a physical resource
 }

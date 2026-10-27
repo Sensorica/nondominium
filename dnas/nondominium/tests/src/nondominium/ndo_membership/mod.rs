@@ -54,9 +54,7 @@ enum PropertyRegime {
 enum ResourceNature {
     Physical,
     Digital,
-    Service,
     Hybrid,
-    Information,
 }
 
 /// Mirrors `zome_resource_coordinator::NdoInput`.

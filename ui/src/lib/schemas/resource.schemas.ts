@@ -33,13 +33,7 @@ export const PropertyRegimeSchema = Schema.Literal(
 );
 export type PropertyRegime = Schema.Schema.Type<typeof PropertyRegimeSchema>;
 
-export const ResourceNatureSchema = Schema.Literal(
-  'Physical',
-  'Digital',
-  'Service',
-  'Hybrid',
-  'Information'
-);
+export const ResourceNatureSchema = Schema.Literal('Physical', 'Digital', 'Hybrid');
 export type ResourceNature = Schema.Schema.Type<typeof ResourceNatureSchema>;
 
 export const LifecycleStageSchema = Schema.Literal(
