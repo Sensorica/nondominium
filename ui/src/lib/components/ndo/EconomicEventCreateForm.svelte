@@ -10,7 +10,7 @@
     VfCommitment
   } from '@nondominium/shared-types';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
-  import holochainClientService from '$lib/services/holochain.service.svelte';
+  import { connectionStore } from '$lib/stores/connection.store.svelte';
 
   interface Props {
     ndoActionHash: ActionHash;
@@ -77,7 +77,7 @@
 
   async function seedAgents() {
     try {
-      const me = await holochainClientService.getMyAgentPubKey();
+      const me = await connectionStore.getMyAgentPubKey();
       const b64 = encodeHashToBase64(me);
       if (!providerB64) providerB64 = b64;
       if (!receiverB64) receiverB64 = b64;

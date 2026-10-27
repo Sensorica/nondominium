@@ -303,6 +303,8 @@ pub fn update_resource_specification(
     governance_rule_hashes.push(rule_hash);
   }
 
+  let listed_globally = input.updated_specification.scope != ResourceScope::Project;
+
   let updated_spec = ResourceSpecification {
     name: input.updated_specification.name,
     description: input.updated_specification.description,
@@ -320,11 +322,15 @@ pub fn update_resource_specification(
   let updated_spec_hash = update_entry(input.previous_action_hash, &updated_spec)?;
 
   create_link(
-    input.original_action_hash,
+    input.original_action_hash.clone(),
     updated_spec_hash.clone(),
     LinkTypes::ResourceSpecificationUpdates,
     (),
   )?;
+
+  // `scope` is mutable and decides global discoverability, so an update has to
+  // bring the anchor in line with the new scope (issue #144).
+  reconcile_global_discovery_link(&input.original_action_hash, listed_globally)?;
 
   // Link new governance rules to the specification
   for rule_hash in &governance_rule_hashes {
@@ -342,6 +348,45 @@ pub fn update_resource_specification(
     ))?;
 
   Ok(record)
+}
+
+/// Makes the `resource_specifications` anchor agree with a spec's scope: exactly
+/// one `AllResourceSpecifications` link to `original_action_hash` when the spec
+/// should be listed, none when it is `Project`-scoped (§1.7.2).
+///
+/// It reads the anchor rather than comparing old and new scope, so it is
+/// idempotent and also repairs specs whose scope was changed before this ran.
+/// The anchor always targets the original create hash, as on create.
+fn reconcile_global_discovery_link(
+  original_action_hash: &ActionHash,
+  listed_globally: bool,
+) -> ExternResult<()> {
+  let anchor = Path::from("resource_specifications").path_entry_hash()?;
+  let links = get_links(
+    LinkQuery::try_new(anchor.clone(), LinkTypes::AllResourceSpecifications)?,
+    GetStrategy::default(),
+  )?;
+  let existing: Vec<Link> = links
+    .into_iter()
+    .filter(|link| link.target.clone().into_action_hash().as_ref() == Some(original_action_hash))
+    .collect();
+
+  if listed_globally {
+    if existing.is_empty() {
+      create_link(
+        anchor,
+        original_action_hash.clone(),
+        LinkTypes::AllResourceSpecifications,
+        (),
+      )?;
+    }
+  } else {
+    for link in existing {
+      delete_link(link.create_link_hash, GetOptions::default())?;
+    }
+  }
+
+  Ok(())
 }
 
 #[derive(Serialize, Deserialize, Debug)]
