@@ -392,7 +392,7 @@ async fn ndo_anchor_round_trip_public_regime() {
     let created_entry: NdoAnchorEntry = decode_record_entry(&created);
     assert_eq!(created_entry.property_regime, PropertyRegime::Public);
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -594,7 +594,7 @@ async fn refresh_ndo_anchor_lifecycle_stage_updates_cache() {
         )
         .await;
 
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 

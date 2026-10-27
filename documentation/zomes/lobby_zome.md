@@ -186,7 +186,7 @@ Tests live in `dnas/lobby/tests/src/lobby/mod.rs` (`package: lobby_sweettest`).
 |---|---|
 | `upsert_lobby_agent_profile` | Create + update profile, verify via `get_lobby_agent_profile` |
 | `announce_group_single_agent` | Single-agent group announcement + read via `get_all_group_announcements` |
-| `announce_group_cross_conductor` | Cross-conductor DHT consistency via `await_consistency_20_s` |
+| `announce_group_cross_conductor` | Cross-conductor DHT consistency via `await_consistency_s(20, ..)` |
 | `get_my_group_announcements_returns_own` | Agent-centric lookup returns only own announcements |
 | `get_my_groups_returns_real_group` | `get_my_groups` returns a real `GroupDescriptorStub` with `is_solo: false` |
 

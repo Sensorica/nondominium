@@ -220,7 +220,7 @@ dnas/nondominium/tests/src/
 
 Full command reference: `documentation/TEST_COMMANDS.md`.
 
-**DHT sync** between agents: `await_consistency_20_s([&cell_a, &cell_b]).await.unwrap()` (holochain 0.7.0 requires a timeout arg; use the `_20_s` wrapper). Pass the array **by value**, not `&[...]`: the bound is `IntoIterator<Item = &SweetCell>`, so a slice reference yields `&&SweetCell` and fails to compile.
+**DHT sync** between agents: `await_consistency_s(20, [&cell_a, &cell_b]).await.unwrap()` (holochain 0.7.0 takes the timeout in seconds as the first argument; the `_20_s` wrapper is gone). Pass the array **by value**, not `&[...]`: the bound is `IntoIterator<Item = &SweetCell>`, so a slice reference yields `&&SweetCell` and fails to compile.
 
 ### Deprecated: Tryorama (TypeScript)
 

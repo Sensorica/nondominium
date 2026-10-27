@@ -326,7 +326,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest 
 
 - Use `warn!` macro in Rust zome functions to log debugging information visible in test output
 - Use `#[ignore]` on tests not yet ready for execution
-- DHT sync between agents: `await_consistency_20_s([&cell_a, &cell_b]).await.unwrap()` (pass the array by value, not `&[...]`)
+- DHT sync between agents: `await_consistency_s(20, [&cell_a, &cell_b]).await.unwrap()` (pass the array by value, not `&[...]`)
 
 ---
 
@@ -447,7 +447,7 @@ Primary Accountable Agent (coordination/governance)
 ### Testing Patterns
 
 - **Multi-Agent**: All tests support 2+ distributed agents
-- **DHT Sync**: Use `await_consistency_20_s` with the timeout wrapper
+- **DHT Sync**: Use `await_consistency_s(20, ..)` with an explicit timeout in seconds
 - **Debug Support**: Verbose logging with `warn!` macro for Rust debugging
 - **Isolation**: Test isolation with proper cleanup between scenarios
 

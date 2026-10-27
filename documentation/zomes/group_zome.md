@@ -172,7 +172,7 @@ Domain errors are defined in `nondominium_shared::GroupError`:
 
 ## Testing
 
-Tests live in `dnas/group/tests/src/group/mod.rs` (group lifecycle) and `dnas/group/tests/src/ndo_anchor/mod.rs` (NDO-per-cell + anchors). All tests use `setup_two_agents()` / `ndo_dna_with_coordinates()` from `common::conductors` and `await_consistency_20_s` for cross-agent DHT sync.
+Tests live in `dnas/group/tests/src/group/mod.rs` (group lifecycle) and `dnas/group/tests/src/ndo_anchor/mod.rs` (NDO-per-cell + anchors). All tests use `setup_two_agents()` / `ndo_dna_with_coordinates()` from `common::conductors` and `await_consistency_s(20, ..)` for cross-agent DHT sync.
 
 Group target coverage: group creation, `get_group` (fetch by hash), `get_my_group`, membership (join/leave/is_member/duplicate-join error), work logs (`log_work`, `get_work_logs`, `get_my_work_logs`, `delete_work_log`), soft links (`create_soft_link`, `get_soft_links`, `delete_soft_link`), `update_group`, and validation rejection cases (empty name, zero hours). 13 tests — `--test-threads 6` required to avoid port exhaustion.
 
