@@ -154,7 +154,7 @@
   {/if}
 
   <div class="border-b border-gray-200 bg-white px-6 pt-4">
-    <div class="flex items-start justify-between">
+    <div class="flex flex-col items-start gap-3 md:flex-row md:justify-between md:gap-0">
       <div>
         {#if isLoading}
           <div class="mb-1 h-6 w-40 animate-pulse rounded bg-gray-200"></div>
@@ -165,7 +165,7 @@
         {/if}
         <p class="mt-1 font-mono text-xs text-gray-400">{specHashB64.slice(0, 20)}…</p>
       </div>
-      <div class="ml-4 flex shrink-0 items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 md:ml-4 md:shrink-0 md:flex-nowrap">
         <button
           type="button"
           disabled={joinLoading}
@@ -203,11 +203,11 @@
         {/if}
       </div>
     </div>
-    <nav class="mt-4 flex gap-2" aria-label="NDO sections">
+    <nav class="mt-4 flex gap-2 overflow-x-auto" aria-label="NDO sections">
       {#each tabs as t}
         <button
           type="button"
-          class="rounded-t border border-b-0 px-3 py-2 text-sm font-medium transition-colors {tab ===
+          class="shrink-0 rounded-t border border-b-0 px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors {tab ===
           t.id
             ? 'border-gray-200 bg-gray-50 text-gray-900'
             : 'border-transparent text-gray-500 hover:text-gray-800'}"
