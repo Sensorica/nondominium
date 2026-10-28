@@ -15,7 +15,7 @@ This section describes the minimalistic UI for MVP Layer 0 — NDO Identity (sta
 The Lobby is a permissionless digital environment that anyone can join. It is the persistent outer shell of the application, always visible regardless of which route is active.
 
 **Implemented:**
-- Persistent left sidebar present on all routes, containing:
+- Persistent left sidebar present on all routes (below the `md` breakpoint, 768px, it becomes a drawer opened from a top-bar menu button and closed by navigation, Escape or the backdrop), containing:
   - **Browse NDOs** link → root page (`/`) listing all unique NDOs across all the user's groups, with filter chips (Lifecycle Stage, Resource Nature, Property Regime)
   - **Groups list** — links to each group the user has created or joined (`/group/:id`)
   - **+ New Group** — inline form: user enters a group name and confirms; they become the group creator
