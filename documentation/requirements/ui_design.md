@@ -260,47 +260,52 @@ Technical mapping: `documentation/specifications/ui_architecture.md § 16`.
 
 ### Layer 0 Release Cut: Resource Perspective
 
-> **Status: prototyped in `nondominium-design-system`, not yet ported to the app.** Prototype: `/prototypes/resource-perspective` (components in `packages/ndo-ui/src/components/patterns/perspectives/`, copy registry in `packages/ndo-ui/src/domain/coming-next.ts`).
+> **Status in the nondominium app: not ported.** The behaviours below are the **target UX** for the upcoming port. They are validated in `nondominium-design-system` (`/prototypes/resource-perspective`; components in `packages/ndo-ui/…/perspectives/`, copy in `domain/coming-next.ts`). Until the port lands, the app keeps today’s Lobby → Group → `NdoBrowser` flow.
 
-The prototype host is Lobby → Group → Perspective. **Resource** and **Agent** are live inside the group. Intelligence and Work stay visible, labelled "Soon", and explained instead of hidden. Every Perspective is scoped to the current group. Breadcrumb: `Lobby › <Group> › Resource › <NDO>` or `Lobby › <Group> › Agent › <Name>`.
+**Shell (target):** Lobby → Group → Perspective. Resource and Agent Perspectives in the group; Intelligence and Work visible as "Soon" (explained, not hidden). Group-scoped. Breadcrumb: `Lobby › <Group> › Resource › <NDO>` or `… › Agent › <Name>`.
 
-**Live** (Resource Perspective + Layer 1 + Agent Perspective):
+**In scope for the port** (Resource + Layer 1 Resources tab + Agent Perspective):
 
-- NDO cards, search, stage / nature / regime filters, sort, and an ownership scope (All · Created by me · Joined by me).
-- Create NDO from the group page, NDO view, Join NDO, Associate with a group, Fork, Copy NDO link (also per card).
-- Lifecycle transition for the initiator (the only mutable Layer 0 field), with transition history.
-- NDO **Resources** tab: create and author-edit Layer 1 resource specifications (session-backed; gated by lifecycle stage).
-- Agent directory (group members, skill chips, groups as agents), agent profile (groups, initiated / joined NDOs, authored specs, derived connections), jumps from initiator / member with a return trail.
-- Group features unchanged: copy invite link, member list.
+- NDO cards, search, stage / nature / regime filters, sort, ownership scope (All · Created by me · Joined by me).
+- Create NDO via the archetype wizard (stub, open design, active project, **Source-NDO**). Source creation: `SourceType`, regime limited to `Nondominium` / `CommonPool`, and durable `ndo_archetype` + `source_profile` on the created NDO (REQ-UI-SOURCE-01). Design-system uses session foreshadow; the app port must map these onto real create APIs / entries when available.
+- Join NDO, Associate with a group, Fork, Copy NDO link (also per card).
+- Lifecycle transition for the initiator, with transition history.
+- NDO **Resources** tab — Layer 1 UX (lifecycle-gated). Until Rust grows inventory / locator / SourceSpecification fields (`resources.md` §2.1), the app may keep a client foreshadow; the **product behaviour** to port is:
+  - **Ordinary Resource / Project — “Kinds of item”**: separate *kind* (ResourceSpecification), *browse classifications* (`category` / tags), and *inventory intent* (Inventoried / NotInventoried / NotApplicable) with identification pattern + default unit when tracking applies. Starters / chips follow `resource_nature`.
+  - **Digital**: inventory always **NotApplicable**. Identity via **digital location** (`digital_locator_kind` + optional address). Starters: design package, software / application, documentation, method / protocol.
+  - **Source-NDO — “Source specification”** (not inventoriable kinds): Specify this Source; starters by `SourceType`; fields for boundary, monitoring, stakeholders, restoration; inventory locked NotApplicable. Yielded units stay separate inventoriable kinds (`source-ndo-requirements.md` §6.2; REQ-SOURCE-DATA-03 / REQ-GOV-08).
+- Agent directory and profile; jumps from initiator / member with a return trail.
+- Group features unchanged: invite link, member list.
 
-**Visible but "Coming next"** (a "Soon" badge; clicking opens the same popup, built from one registry, and the user stays where they are):
+**Visible but "Coming next" after the port** (Soon badge → shared popup; user stays put):
 
 | Area | Items |
 |---|---|
-| Perspectives | Intelligence, Work (switcher entries) |
-| NDO view tabs | Governance, Composition, Activity (Overview and Resources are live) |
-| Access actions | Use, Borrow, Offer, Transfer, Transfer custody (Offer's popup offers a shortcut to Create NDO) |
+| Perspectives | Intelligence, Work |
+| NDO view tabs | Governance, Composition, Activity (Overview + Resources in scope for the port) |
+| Access actions | Use, Borrow, Offer, Transfer, Transfer custody (Offer → shortcut to Create NDO) |
 | Service processes | Transport, Store, Repair |
-| Governed transitions | A disabled "Advance stage" for non-initiators, explaining how governed transitions will work |
+| Governed transitions | Locked "Advance stage" for non-initiators |
 | Agent tools | Reputation summary, ask to collaborate, map, chat |
 
-The registry also holds copy for the Unyt stake step of Fork and for the Source view; neither is wired to a control yet.
+Also in the registry (not in the first port): Unyt stake on Fork; richer **Source view** (regime dashboard, boundary-event history, coupling — REQ-UI-SOURCE-02–04). Source **create** + **Layer 1 Source specification** belong in the first Perspectives / Resources port; the richer Source surface does not.
 
-Why the access actions and processes are listed: `VfAction` and the Transport / Repair / Storage roles already model them in the backend (see `resources.md`, `governance.md`); the UI shows them so people see how the NDO will eventually be used.
+Why list access/process actions: backend already models them (`VfAction`, Transport / Repair / Storage); the UI shows the path of use even before those flows ship.
 
-**Open questions**: popup versus inline explainer per tab; whether Offer should go straight to the creation form; whether Layer 1/2 forms stay reachable behind a dev flag for internal testing.
+**Open questions** (resolve in design-system before or during port): popup vs inline explainer; Offer → form directly; Layer 1/2 foreshadow behind a dev flag.
 
 ### Port to the nondominium app (not yet)
 
-> **Decision**: the prototype stays in `nondominium-design-system` until the design is validated. Do **not** port yet; these are the ToDos for when it is.
+> **Decision**: keep iterating in `nondominium-design-system` until satisfied; then port. The checklist below is the acceptance surface for that UI update — **nothing here is done in the app yet.**
 
-1. **Perspectives host in the Group page** — replace the `NdoBrowser` block in `GroupView.svelte` with `GroupPerspectivesView` (switcher + Resource Perspective); the Lobby is untouched.
-2. **State** — add `currentPerspective` to `app.context.svelte.ts` (Resource only live; the trail comes with the full Perspectives work).
-3. **NDO view** — tabs (Overview live; the others open the Coming-next popup), access-action and process buttons, Copy NDO link, locked "Advance stage" for non-initiators, agent jump-point popups.
-4. **Shared copy** — adopt the `coming-next` registry and `ComingNextPopup` / `SoonBadge` from `@nondominium/ndo-ui`; no per-component copy.
-5. **Card actions** — per-card "Copy link" and the scope chips (Created by me / Joined by me) need `myAgentKey` and the joined list from the app context.
-6. **Replica re-sync** — after the port, re-copy the app files into `src/lib/replica/` in the design system so `check:fidelity` passes (the replica is a copy and is never improved by hand).
-7. **E2E** — adjust the Playwright specs under `ui/tests/` for create NDO, join, associate, fork, and add cases for the Coming-next popups, scope chips and the locked transition.
+1. **Perspectives host** — replace `NdoBrowser` in `GroupView.svelte` with `GroupPerspectivesView` (switcher + Resource / Agent); Lobby untouched.
+2. **State** — `currentPerspective` (+ navigation trail) in `app.context.svelte.ts`.
+3. **NDO view** — Overview + Resources tabs; other tabs Coming-next; access/process buttons; Copy link; locked Advance stage; agent jump popups.
+4. **Layer 1 Resources behaviour** — port `ResourcesPanel` / `SpecificationFormModal` branching (kinds vs Digital locator vs Source specification) and domain helpers (`spec-inventory`, `spec-starters`, `spec-profiles`). Persist archetype / `source_profile` on create so Source NDOs keep the Source form after create.
+5. **Shared copy** — `coming-next` registry + `ComingNextPopup` / `SoonBadge` from `@nondominium/ndo-ui`.
+6. **Card actions** — Copy link + ownership scope wired to `myAgentKey` / joined list.
+7. **Replica re-sync** — re-copy app files into design-system `src/lib/replica/` so `check:fidelity` passes.
+8. **E2E** — Playwright: create (incl. Source-NDO), join, associate, fork; Coming-next; scope chips; locked transition; Digital vs inventoriable vs Source Resources tab paths.
 
 ---
 

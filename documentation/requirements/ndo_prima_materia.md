@@ -45,7 +45,7 @@ That model is well-grounded in the ValueFlows standard and works well for resour
 **Still outstanding** (this document remains the normative target for these gaps):
 
 - **Layer 2 not activated:** process entries are not yet linked to Layer 0 via `NDOToProcess`. Layer 1 is activated (#132): `create_resource_specification` writes an `NdoToSpecification` link and the spec carries its Layer 0 pointers, so a spec can no longer be created without an NDO parent. Specification assets are still not attached via `DigitalAsset` capability slots (REQ-NDO-L1-06).
-- **Specification richness:** Structured project-type know-how bundles ([`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md)) are post-MVP requirements only — the MVP `ResourceSpecification` entry remains a thin summary (name, description, category, tags).
+- **Specification richness:** Structured project-type know-how bundles ([`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md)) are post-MVP requirements only — the MVP `ResourceSpecification` entry remains a thin summary (name, description, `category` [= primary browse classification], tags). ValueFlows inventory intent, identification pattern, default unit on the kind, substitutability, and true `classified_as` multi-classifications are **docs TODOs** — see [`resources.md`](resources.md) §2.1 *ValueFlows alignment — ResourceSpecification*.
 - **`ResourceState` conflation:** ~~On `EconomicResource`~~ **Resolved (data layer):** `EconomicResource.operational_state` uses `OperationalState`; lifecycle maturity lives on `NondominiumIdentity.lifecycle_stage`. Governance-zome transition ownership (REQ-NDO-OS-02/03) remains deferred.
 - **Governance-as-operator for lifecycle:** MVP allows only the NDO `initiator` to call `update_lifecycle_stage`. Governance-validated transitions, role authorization per Section 5.3, and automatic `EconomicEvent` generation on each transition (REQ-NDO-LC-02, REQ-NDO-LC-03) remain deferred.
 
@@ -267,23 +267,29 @@ Shared enums live in `crates/shared/src/types.rs`. `PropertyRegime` has seven va
 
 ### 4.3 Layer 1: Specification — The Form
 
-> **Status:** 🔄 **Post-MVP (not activated in code).** Legacy `ResourceSpecification` entries exist in `zome_resource` but are not linked to Layer 0 via `NDOToSpecification`. Project-type know-how bundles are specified in [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md).
+> **Status:** ✅ **Layer 1 activation implemented (#132)** — `NdoToSpecification` + Layer 0 pointer pair on every `create_resource_specification`, lifecycle gate. MVP fields remain a thin summary. Project-type know-how bundles: [`post-mvp/project-type-ndo-specifications.md`](post-mvp/project-type-ndo-specifications.md). VF inventory / identification / classification foreshadow: [`resources.md`](resources.md) §2.1.
 
 Layer 1 is activated when a resource has a form that needs to be communicated to others — when the resource is ready to be described, shared, peer-reviewed, or replicated.
 
 **Activation mechanism:** Creation of an `NDOToSpecification` link from the Layer 0 identity hash to a `ResourceSpecification` entry.
 
-**Layer 1 carries:**
-- Design intent and description (what the resource is)
-- Governance rules (who can access it and how)
-- Assets: files, 3D models, code references, digital integrity manifests, documentation links
-- Tags and categories for discovery
+**Layer 1 carries (MVP):**
+- Design intent and description (the *kind* — VF ResourceSpecification)
+- Primary browse classification (`category` field) and additional classifications (`tags`) for discovery — not the kind itself
+- Scope for discovery visibility; governance rules linked to the kind
+- Assets (post-MVP): files, 3D models, digital integrity manifests
+
+**Layer 1 foreshadow (post-MVP / docs TODO — see `resources.md` §2.1):**
+- `inventory_intent` (Inventoried / NotInventoried / NotApplicable)
+- `identification_pattern` (Serialized / LotControlled / Stock) when inventory applies
+- `default_unit_of_resource`, `substitutable`
+- Rename constraint-bag type `ResourceClassification` → `ConstraintContext` (not VF classification)
 
 **When to activate Layer 1:**
 - The resource has a design worth sharing with others
 - Distributed fabrication is intended (the spec is the product)
 - Peer review or validation of the design is needed
-- The resource needs to be discoverable by category or tag
+- The resource needs to be discoverable by browse classification or tag
 
 **When Layer 1 becomes dormant:**
 - The resource enters hibernation or end of life

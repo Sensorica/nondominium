@@ -2,7 +2,7 @@
 
 **Type**: Archive / Knowledge Base Document  
 **Created**: 2026-03-11  
-**Last updated**: 2026-06-16 (synced with NDO Layer 0 + federation code)  
+**Last updated**: 2026-10-27 (VF ResourceSpecification alignment notes + naming resolution)  
 **Relates to**: `ndo_prima_materia.md`, `versioning.md`, `digital-resource-integrity.md`, `unyt-integration.md`, `flowsta-integration.md`, `IMPLEMENTATION_STATUS.md`  
 **Sources**: MVP code (`zome_resource`, `zome_gouvernance`), shared types ([`crates/shared/src/types.rs`](../../crates/shared/src/types.rs)), NDO coordinator ([`dnas/nondominium/zomes/coordinator/zome_resource/src/ndo_identity.rs`](../../dnas/nondominium/zomes/coordinator/zome_resource/src/ndo_identity.rs)), federation modules (`zome_gouvernance` `hard_link.rs`, `contribution.rs`, `agreement.rs`), post-MVP design documents, [OVN wiki — Resource](https://ovn.world/index.php?title=Resource), [OVN wiki — Resource type](https://ovn.world/index.php?title=Resource_type)
 
@@ -157,6 +157,39 @@ pub struct ResourceSpecification {
 }
 ```
 This is the **knowledge layer** in ValueFlows terminology: the type or template of a resource. It corresponds to the OVN concept of "Resource Type" — an abstract representation that groups interchangeable concrete instances.
+
+#### ValueFlows alignment — ResourceSpecification (docs TODO; no Rust schema change yet)
+
+Reference: [ValueFlows — Economic Resources (specification, classification, inventory, identification)](https://www.valueflo.ws/concepts/resources/#inventory).
+
+ValueFlows separates three ideas that NDO currently blurs in the thin Layer 1 entry:
+
+1. **ResourceSpecification** — the *kind* (lowest useful type): what an inventoriable unit *is*.
+2. **Resource classification(s)** — *many* browse/taxonomy labels (`classifiedAs`-shaped) for filter, match, and group. Not the kind itself.
+3. **Inventory / identification behavior** — whether instances are tracked, and how they are identified (serialized, lot/batch, or stock/count/volume).
+
+| VF concept | Current NDO | Target (TODO — Rust follow-up; not in this doc pass) |
+|---|---|---|
+| Spec vs instance | `ResourceSpecification` + `EconomicResource` | Keep. Document that **not every spec is inventoriable** (designs, methods, work types often stay knowledge-only). |
+| Spec vs classification | `category` + `tags` on the spec (names conflate “kind” with browse labels) | Treat `category` as primary browse classification; `tags` as additional classifications. Longer term: `classified_as: Vec<String>` (or equivalent) and stop calling the kind “category” in UI/docs. |
+| Inventory applicability | Implicit | `inventory_intent: Inventoried \| NotInventoried \| NotApplicable` on the spec (or a linked profile). **`ResourceNature::Digital` → always `NotApplicable`** (digital artifacts are not shelf units). |
+| Identification pattern | Missing | `identification_pattern: Serialized \| LotControlled \| Stock` when inventory applies (Physical / Hybrid inventoriable kinds only). |
+| Digital location (reachability) | Missing | For Digital kinds: `digital_locator_kind` + optional `digital_locator` — content hash, URL, repository, distributed store, hosted DB, or local host path. Identity by address, not inventory qty. |
+| Default unit on kind | Unit only on `EconomicResource.unit` | `default_unit_of_resource: Option<String>` on the spec (VF-style default for instances). Not used when inventory is `NotApplicable`. |
+| Substitutability | Missing | `substitutable: Option<bool>` on the spec (inventoriable kinds). |
+| Batch / tracking id | Missing | On instance / lot record post-MVP. |
+| Accounting vs onhand quantity | Single `quantity` on `EconomicResource` | Split later (TODO only). |
+| Medium of exchange | Missing | Optional flag later (TODO only). |
+
+**Naming resolution (normative for docs and UI):**
+
+- **`category` (Rust field today):** means *primary browse classification* — one VF-style classification string used for discovery anchors (`SpecsByCategory`). It is **not** the ResourceSpecification itself and must not be labeled “Category” as if it were the kind.
+- **`tags`:** additional classifications / facets (VF `classifiedAs`-shaped).
+- **`ResourceClassification` in [`crates/shared/src/constraints.rs`](../../crates/shared/src/constraints.rs):** NDO **constraint evaluation context** (`resource_nature`, `property_regime`, `lifecycle_stage`, `rivalry_override`) — **not** ValueFlows ResourceClassification. **TODO (Rust):** rename this type to `ConstraintContext` in a follow-up PR so the VF name stays free.
+
+**UI target (not in the nondominium app yet):** after the Perspectives port (`ui_design.md` § Layer 0 Release Cut), the Resources tab should foreshadow inventory intent, identification pattern, default unit, substitutability, and (for Digital) digital locator kind/address until the zome schema lands. Reference behaviour exists in the design-system Resource Perspective (session-only). Digital NDOs never expose inventoriable tracking.
+
+**Source-NDO Layer 1 (UI target for that same port):** when `ndo_archetype === source_ndo` (or a linked `source_profile`), the Resources tab must **not** present inventoriable “kinds of item.” It presents a **Source specification** aligned with `SourceSpecification` in [`source-ndo-requirements.md`](post-mvp/source-ndo-requirements.md) §6.2 / REQ-SOURCE-DATA-03: boundary description, monitoring plan, stakeholder map, restoration obligations; inventory intent forced to `NotApplicable`. Starters and browse chips follow `SourceType` (Hydrological, Biological, …). Condition indicators (`current_stock`, `regime_state`, …) remain on Layer 0 `SourceProfile`, not on this form. Extracted units stay separate inventoriable `ResourceSpecification`s linked by boundary events.
 
 **`EconomicResource`**
 ```rust
@@ -744,6 +777,11 @@ These represent the forward agenda for the generic NDO design:
 | **Collective agent custodianship** | `EconomicResource.custodian` is currently `AgentPubKey`, assuming individual agent. Collective, Project, Network, and Bot agents (G1) should also be valid custodians | Replace `AgentPubKey` with `AgentContext` (union type) across `EconomicResource.custodian`, `TransitionContext.target_custodian`, and `NondominiumIdentity.initiator` (ref G1, REQ-AGENT-02) |
 | **Intangibles** | Social capital, trust, competencies — not tracked but should be preserved | Design principle: NDO governance architecture should cultivate intangibles as emergent properties, not track them as entries |
 | **Source as ontological primitive** | Generative ecological systems (watersheds, fisheries, forests) and knowledge commons fit neither `Agent` nor `Resource` faithfully. Modelling them as resources requires false `primaryAccountable` ownership; omitting them leaves depletion and ecological loading invisible | Introduce `Source` as a typed NDO specialization: `SourceProfile` entry linked to Layer 0, `stewardedBy` relation replacing custodian, `vf:Source` ValueFlows extension for flow endpoints. See [`source-ndo-requirements.md`](post-mvp/source-ndo-requirements.md) |
+| **VF inventory intent on Layer 1** | Specs do not declare whether instances will be tracked; UI and agents must guess | Add `inventory_intent` (`Inventoried` / `NotInventoried` / `NotApplicable`) on `ResourceSpecification` — see §2.1 ValueFlows alignment |
+| **VF identification pattern** | No serialized / lot / stock distinction on the kind | Add `identification_pattern` when inventory applies; batch/tracking ids on instances post-MVP |
+| **VF classifications vs kind** | `category` field name reads as “the kind”; conflates with tags | Normative rename in UI/docs: primary browse classification; TODO Rust `classified_as` and rename constraint bag `ResourceClassification` → `ConstraintContext` |
+| **Default unit on specification** | Unit only on `EconomicResource` | `default_unit_of_resource` on the spec so kinds declare measure before first instance |
+| **Substitutability** | Missing | `substitutable` on the spec (any unit of this kind interchangeable?) |
 
 ---
 

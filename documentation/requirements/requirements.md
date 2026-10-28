@@ -296,10 +296,10 @@ The **`Steward`** role is a functional stewardship role (obligations without ali
 
 The following requirements apply **only when the host application enables the Source-NDO profile**. They SHALL NOT expand the default Project or resource-mutualisation UI.
 
-- **REQ-UI-SOURCE-01**: A Source-enabled NDO creation flow SHALL offer a distinct Source-NDO variant with `property_regime` restricted to `Nondominium` / `CommonPool`, `SourceType` selection, steward assignment, and optional initial condition fields. The generic NDO form SHALL remain unchanged when Source support is disabled
-- **REQ-UI-SOURCE-02**: Source-enabled detail views SHALL display regime state, condition indicators, steward list, and boundary-event history linked to the Layer 0 hash; ordinary Resource and Project detail views SHALL omit these panels
+- **REQ-UI-SOURCE-01**: A Source-enabled NDO creation flow SHALL offer a distinct Source-NDO variant with `property_regime` restricted to `Nondominium` / `CommonPool`, `SourceType` selection, steward assignment, and optional initial condition fields. The generic NDO form SHALL remain unchanged when Source support is disabled. *Not in the nondominium app yet. Target UX validated in design-system (archetype wizard + `ndo_archetype` / `source_profile`); include in the Perspectives port — `ui_design.md` § Port checklist.*
+- **REQ-UI-SOURCE-02**: Source-enabled detail views SHALL display regime state, condition indicators, steward list, and boundary-event history linked to the Layer 0 hash; ordinary Resource and Project detail views SHALL omit these panels. *Not in the app. Richer Source view is Coming next after the first Perspectives / Resources port; design-system has partial Source profile UI as a reference.*
 - **REQ-UI-SOURCE-03**: A Source-enabled application SHALL visualise Source hierarchies and coupling links (watershed → river → resources) when Layer 1/Composition views mature
-- **REQ-UI-SOURCE-04**: Source-enabled applications SHALL provide stewards a dashboard for monitoring obligations, pending regime transitions, and access-affordance rule proposals
+- **REQ-UI-SOURCE-04**: Source-enabled applications SHALL provide stewards a dashboard for monitoring obligations, pending regime transitions, and access-affordance rule proposals. *Not in the app. First port should include Layer 1 **Source specification** on the Resources tab (boundary, monitoring, stakeholders, restoration) instead of inventoriable kinds — see `ui_design.md`; steward dashboard remains later.*
 
 ## 5. Economic Process Requirements
 
