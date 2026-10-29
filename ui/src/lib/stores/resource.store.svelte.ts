@@ -215,10 +215,16 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
       resourceHash: ActionHash,
       newQuantity: number
     ): Promise<ActionHash | null> {
+      // NOTE: the backend `update_resource_quantity` zome fn is not implemented
+      // yet. When it lands, it will have to swap the full `Measure` on the
+      // resource; this helper updates `numerical_value` in place and relies on
+      // the subsequent `fetchEconomicResource` for the canonical shape. The
+      // `unit` is left untouched — callers that need to change units should
+      // go through `update_economic_resource` instead.
       const hash = await run(resourceService.updateResourceQuantity(resourceHash, newQuantity));
       if (hash) {
         const updated = await fetchEconomicResource(resourceHash);
-        if (updated) updated.quantity = newQuantity;
+        if (updated) updated.quantity.numerical_value = newQuantity;
       }
       return hash;
     }

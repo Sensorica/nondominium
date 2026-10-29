@@ -172,7 +172,8 @@
           <li class="rounded border border-gray-200 bg-white p-3 text-sm">
             <div class="font-medium text-gray-900">{ev.action}</div>
             <div class="mt-1 text-gray-600">
-              Qty {ev.resource_quantity} · {new Date(Number(ev.event_time) / 1000).toLocaleString()}
+              Qty {ev.resource_quantity.numerical_value}
+              {ev.resource_quantity.has_unit} · {new Date(Number(ev.event_time) / 1000).toLocaleString()}
             </div>
             {#if ev.note}
               <div class="mt-1 text-xs text-gray-500">{ev.note}</div>

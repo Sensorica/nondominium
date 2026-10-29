@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import { MeasureSchema } from './resource.schemas.js';
 
 /**
  * Governance schema definitions for `zome_gouvernance`.
@@ -41,6 +42,8 @@ export class CommitmentInput extends Schema.Class<CommitmentInput>('CommitmentIn
   resource_inventoried_as: Schema.optional(Schema.Any), // ActionHash
   resource_conforms_to: Schema.optional(Schema.Any), // ActionHash
   input_of: Schema.optional(Schema.Any), // ActionHash
+  resource_quantity: Schema.optional(MeasureSchema),
+  effort_quantity: Schema.optional(MeasureSchema),
   due_date: Schema.Number, // Timestamp
   note: Schema.optional(Schema.String)
 }) {}
@@ -52,6 +55,8 @@ export class UICommitment extends Schema.Class<UICommitment>('UICommitment')({
   resource_inventoried_as: Schema.optional(Schema.Any),
   resource_conforms_to: Schema.optional(Schema.Any),
   input_of: Schema.optional(Schema.Any),
+  resource_quantity: Schema.optional(MeasureSchema),
+  effort_quantity: Schema.optional(MeasureSchema),
   due_date: Schema.Number,
   note: Schema.optional(Schema.String),
   committed_at: Schema.Number,
@@ -64,7 +69,7 @@ export class UIEconomicEvent extends Schema.Class<UIEconomicEvent>('UIEconomicEv
   receiver: Schema.Any, // AgentPubKey
   resource_inventoried_as: Schema.Any, // ActionHash
   affects: Schema.Any, // ActionHash
-  resource_quantity: Schema.Number,
+  resource_quantity: MeasureSchema,
   event_time: Schema.Number, // Timestamp
   note: Schema.optional(Schema.String),
   original_action_hash: Schema.optional(Schema.Any)

@@ -1,5 +1,18 @@
 import type { ActionHash, AgentPubKey, DnaHash, EntryHash, Record, Timestamp } from '@holochain/client';
 
+/**
+ * ValueFlows `Measure` — a numerical value with a unit label. Mirrors
+ * `crates/shared/src/types.rs::Measure` 1:1. Used anywhere ValueFlows carries
+ * a quantity: `resourceQuantity`, `effortQuantity`, `availableQuantity`.
+ *
+ * `has_unit` is a free-form string in the MVP; the VF spec recommends om2
+ * unit URIs (e.g. `om2:kilogram`), but typed units are deferred.
+ */
+export interface Measure {
+  numerical_value: number;
+  has_unit: string;
+}
+
 // Resource operational state types (Layer 2 instance condition)
 export type OperationalState =
   | "Available"
@@ -25,8 +38,7 @@ export interface ResourceSpecification {
 }
 
 export interface EconomicResource {
-  quantity: number;
-  unit: string;
+  quantity: Measure;
   custodian: AgentPubKey;
   current_location?: string;
   operational_state: OperationalState;
@@ -79,8 +91,7 @@ export interface NestedGovernanceRuleInput {
 
 export interface EconomicResourceInput {
   spec_hash: ActionHash;
-  quantity: number;
-  unit: string;
+  quantity: Measure;
   current_location?: string;
 }
 

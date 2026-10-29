@@ -136,8 +136,9 @@
             <ul class="mt-1 space-y-2">
               {#each instances as row, i (i)}
                 <li class="rounded border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
-                  <span class="font-medium">Qty</span> {row.resource.quantity}
-                  {row.resource.unit} ·
+                  <span class="font-medium">Qty</span>
+                  {row.resource.quantity.numerical_value}
+                  {row.resource.quantity.has_unit} ·
                   <span class="font-medium">Operational state</span>
                   {operationalStateLabel(row.resource.operational_state)}
                 </li>

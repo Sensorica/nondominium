@@ -5,9 +5,11 @@ import type { EconomicResource } from '@nondominium/shared-types';
 function isEconomicResource(x: unknown): x is EconomicResource {
   if (typeof x !== 'object' || x === null) return false;
   const o = x as Record<string, unknown>;
+  const q = o.quantity as Record<string, unknown> | undefined;
   return (
-    typeof o.quantity === 'number' &&
-    typeof o.unit === 'string' &&
+    !!q &&
+    typeof q.numerical_value === 'number' &&
+    typeof q.has_unit === 'string' &&
     o.custodian instanceof Uint8Array &&
     typeof o.operational_state === 'string'
   );
