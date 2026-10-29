@@ -15,6 +15,7 @@
   import NdoCreateModal from './NdoCreateModal.svelte';
   import GroupProfileModal from './GroupProfileModal.svelte';
   import MemberList from './MemberList.svelte';
+  import PoolSection from './PoolSection.svelte';
 
   interface Props {
     groupId: string;
@@ -221,4 +222,6 @@
   <div class="mt-6">
     <MemberList members={groupStore.members} />
   </div>
+
+  <PoolSection />
 </div>

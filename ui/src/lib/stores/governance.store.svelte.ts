@@ -15,8 +15,11 @@ import type {
   LogEconomicEventOutput,
   CheckActionConstraintsInput,
   ConstraintViolation,
-  VfCommitment
+  VfCommitment,
+  FulfillCommitmentClosureInput,
+  FulfillCommitmentClosureOutput
 } from '@nondominium/shared-types';
+import type { GetMyParticipationClaimsOptions, GetMyParticipationClaimsResult } from '../services/zomes/governance.service.js';
 
 export interface ResourceFlow {
   events: EconomicEvent[];
@@ -51,6 +54,14 @@ export type GovernanceStore = {
   fetchCommitment: (hash: ActionHash) => Promise<Commitment | null>;
   fetchAllCommitments: (cellId?: CellId) => Promise<VfCommitment[]>;
   fulfillCommitment: (hash: ActionHash) => Promise<ActionHash | null>;
+  fulfillCommitmentClosure: (
+    input: FulfillCommitmentClosureInput,
+    cellId?: CellId
+  ) => Promise<FulfillCommitmentClosureOutput | null>;
+  fetchMyParticipationClaims: (
+    options?: GetMyParticipationClaimsOptions,
+    cellId?: CellId
+  ) => Promise<GetMyParticipationClaimsResult | null>;
   createEconomicEvent: (
     eventData: Omit<EconomicEvent, 'occurred_at'>
   ) => Promise<ActionHash | null>;
@@ -189,6 +200,20 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
         }
       }
       return fulfillHash;
+    }
+
+    async function fulfillCommitmentClosure(
+      input: FulfillCommitmentClosureInput,
+      cellId?: CellId
+    ): Promise<FulfillCommitmentClosureOutput | null> {
+      return run(governanceService.fulfillCommitmentClosure(input, cellId));
+    }
+
+    async function fetchMyParticipationClaims(
+      options?: GetMyParticipationClaimsOptions,
+      cellId?: CellId
+    ): Promise<GetMyParticipationClaimsResult | null> {
+      return run(governanceService.getMyParticipationClaims(options, cellId));
     }
 
     async function createEconomicEvent(
@@ -394,6 +419,8 @@ const createGovernanceStore = (): E.Effect<GovernanceStore, never, GovernanceSer
       fetchCommitment,
       fetchAllCommitments,
       fulfillCommitment,
+      fulfillCommitmentClosure,
+      fetchMyParticipationClaims,
       createEconomicEvent,
       logEconomicEvent,
       fetchEconomicEvent,

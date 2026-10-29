@@ -9,7 +9,7 @@ import type {
   PersonRole,
   ResourceSpecificationListing,
   UpdateLifecycleStageInput,
-  VfCommitment,
+  CommitmentRecord,
   VfEconomicEvent
 } from '@nondominium/shared-types';
 import type { EconomicResourceRow } from '$lib/utils/holochain-records';
@@ -89,7 +89,7 @@ export interface NdoStore {
   governanceRules(): Promise<{ hasSpecifications: boolean; rules: RuleWithSpec[] }>;
   /** `agent` is null when the conductor did not return this agent's key. */
   myRoles(): Promise<{ agent: AgentPubKey | null; roles: PersonRole[] }>;
-  activity(): Promise<{ commitments: VfCommitment[]; events: VfEconomicEvent[] }>;
+  activity(): Promise<{ records: CommitmentRecord[]; events: VfEconomicEvent[] }>;
   personName(agentB64: string): Promise<{ ok: true; name: string | null } | { ok: false }>;
   destroy(): void;
 }
@@ -307,14 +307,16 @@ export function createNdoStore(hashB64: string): NdoStore {
     );
   }
 
-  function activity(): Promise<{ commitments: VfCommitment[]; events: VfEconomicEvent[] }> {
+  function activity(): Promise<{ records: CommitmentRecord[]; events: VfEconomicEvent[] }> {
     const hash = actionHash;
-    if (!hash) return Promise.resolve({ commitments: [], events: [] });
+    if (!hash) return Promise.resolve({ records: [], events: [] });
     const cell = cellId ?? undefined;
     return query(
       E.gen(function* () {
-        const commitmentsExit = yield* E.exit(services.governance.getAllCommitments(cell));
-        const commitments = Exit.isSuccess(commitmentsExit) ? commitmentsExit.value : [];
+        const recordsExit = yield* E.exit(
+          services.governance.getCommitmentsForNdoDetailed(hash, cell)
+        );
+        const records = Exit.isSuccess(recordsExit) ? recordsExit.value : [];
 
         const listings = yield* specificationsFor(hash, cell);
         const merged: VfEconomicEvent[] = [];
@@ -349,7 +351,7 @@ export function createNdoStore(hashB64: string): NdoStore {
           }
         }
         return {
-          commitments,
+          records,
           events: merged.sort((a, b) => Number(b.event_time) - Number(a.event_time))
         };
       })

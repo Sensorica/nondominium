@@ -15,6 +15,7 @@ import type {
   CheckActionConstraintsInput,
   ConstraintViolation,
   VfCommitment,
+  CommitmentRecord,
   FulfillCommitmentClosureInput,
   FulfillCommitmentClosureOutput,
   PrivateParticipationClaim
@@ -92,6 +93,20 @@ export interface GovernanceService {
     ndoIdentityHash: ActionHash,
     cellId?: CellId
   ) => E.Effect<VfCommitment[], GovernanceError>;
+  /**
+   * Hash-paired variant of `getAllCommitments` — needed when the UI must act
+   * on specific commitments (admit to a pool, fulfill). Prefer this when
+   * mutation is possible; the data-only variant stays available for cheap
+   * read-only lists.
+   */
+  getAllCommitmentsDetailed: (
+    cellId?: CellId
+  ) => E.Effect<CommitmentRecord[], GovernanceError>;
+  /** Hash-paired variant of `getCommitmentsForNdo`. */
+  getCommitmentsForNdoDetailed: (
+    ndoIdentityHash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<CommitmentRecord[], GovernanceError>;
   /**
    * Atomic commitment fulfillment closure (fixes #14): writes the
    * EconomicEvent, the Claim with the real event hash, optionally updates
@@ -312,6 +327,22 @@ export const GovernanceServiceLive: Layer.Layer<
           cellId
         ),
 
+      getAllCommitmentsDetailed: (cellId) =>
+        wz<CommitmentRecord[]>(
+          'get_all_commitments_detailed',
+          null,
+          GOVERNANCE_CONTEXTS.GET_PENDING_COMMITMENTS,
+          cellId
+        ),
+
+      getCommitmentsForNdoDetailed: (ndoIdentityHash, cellId) =>
+        wz<CommitmentRecord[]>(
+          'get_commitments_for_ndo_detailed',
+          ndoIdentityHash,
+          GOVERNANCE_CONTEXTS.GET_COMMITMENTS_FOR_NDO,
+          cellId
+        ),
+
       fulfillCommitmentClosure: (input, cellId) =>
         wz<FulfillCommitmentClosureOutput>(
           'fulfill_commitment_closure',
@@ -333,7 +364,7 @@ export const GovernanceServiceLive: Layer.Layer<
               to_time: options?.toTime ?? null,
               limit: options?.limit ?? null
             },
-            GOVERNANCE_CONTEXTS.FULFILL_COMMITMENT_CLOSURE,
+            GOVERNANCE_CONTEXTS.GET_MY_PARTICIPATION_CLAIMS,
             cellId
           ),
           (raw) => ({

@@ -146,6 +146,85 @@ pub fn get_commitments_for_ndo(
   Ok(commitments)
 }
 
+/// Hash-paired commitment record, returned by the `_detailed` reads.
+///
+/// The DHT-level link target is already an `ActionHash`, so pairing it with
+/// the resolved `Commitment` costs nothing extra. UIs that need to act on a
+/// specific commitment (admit to a pool, fulfill, withdraw) must have the
+/// hash — the data-only variants above are kept for backward-compatible
+/// listing reads.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CommitmentRecord {
+  pub action_hash: ActionHash,
+  pub commitment: Commitment,
+}
+
+#[hdk_extern]
+pub fn get_all_commitments_detailed(_: ()) -> ExternResult<Vec<CommitmentRecord>> {
+  let path = Path::from("all_commitments");
+  let anchor_hash = path.path_entry_hash()?;
+
+  let links = get_links(
+    LinkQuery::try_new(anchor_hash, LinkTypes::AllCommitments)?,
+    GetStrategy::default(),
+  )?;
+  let mut records = Vec::new();
+
+  for link in links {
+    let Ok(hash) = ActionHash::try_from(link.target.clone()) else {
+      continue;
+    };
+    let Some(record) = get(hash.clone(), GetOptions::default())? else {
+      continue;
+    };
+    if let Ok(Some(commitment)) =
+      record.entry().to_app_option::<Commitment>().map_err(|_| {
+        wasm_error!(WasmErrorInner::Guest(
+          "Failed to deserialize commitment".into()
+        ))
+      })
+    {
+      records.push(CommitmentRecord {
+        action_hash: hash,
+        commitment,
+      });
+    }
+  }
+  Ok(records)
+}
+
+#[hdk_extern]
+pub fn get_commitments_for_ndo_detailed(
+  ndo_identity_hash: ActionHash,
+) -> ExternResult<Vec<CommitmentRecord>> {
+  let links = get_links(
+    LinkQuery::try_new(ndo_identity_hash, LinkTypes::NdoToCommitments)?,
+    GetStrategy::default(),
+  )?;
+  let mut records = Vec::new();
+  for link in links {
+    let Ok(hash) = ActionHash::try_from(link.target.clone()) else {
+      continue;
+    };
+    let Some(record) = get(hash.clone(), GetOptions::default())? else {
+      continue;
+    };
+    if let Ok(Some(commitment)) =
+      record.entry().to_app_option::<Commitment>().map_err(|_| {
+        wasm_error!(WasmErrorInner::Guest(
+          "Failed to deserialize commitment".into()
+        ))
+      })
+    {
+      records.push(CommitmentRecord {
+        action_hash: hash,
+        commitment,
+      });
+    }
+  }
+  Ok(records)
+}
+
 #[hdk_extern]
 pub fn get_all_commitments(_: ()) -> ExternResult<Vec<Commitment>> {
   let path = Path::from("all_commitments");

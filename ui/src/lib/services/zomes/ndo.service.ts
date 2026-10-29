@@ -1,5 +1,5 @@
 import { Context, Effect as E, Layer } from 'effect';
-import type { ActionHash, AgentPubKey, CellId } from '@holochain/client';
+import type { ActionHash, AgentPubKey, CellId, DnaHash } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import type {
   NdoDescriptor,
@@ -58,6 +58,14 @@ export interface NdoService {
    */
   resolveCellIdForNdo: (ndoHash: ActionHash) => E.Effect<CellId | null, ResourceError>;
   /**
+   * Clone coordinates from the NDO's `NdoAnchor` — what a Group DNA
+   * `CommitmentAnchor` needs so a peer can resolve the commitment later.
+   * Returns null for legacy NDOs with no anchor.
+   */
+  getNdoCloneCoordinates: (
+    ndoHash: ActionHash
+  ) => E.Effect<NdoCloneCoordinates | null, ResourceError>;
+  /**
    * Declare participation in an NDO. Idempotent: joining twice is a no-op, not an error.
    * Membership makes participation listable; it is not an access grant (the agent already
    * holds the cloned cell to read the NDO at all).
@@ -66,6 +74,13 @@ export interface NdoService {
   getNdoMembers: (
     ndoHashB64: string
   ) => E.Effect<{ id: string; name: string }[], ResourceError | NdoNotFoundError>;
+}
+
+/** Clone coordinates a peer needs to re-derive and join this NDO cell. */
+export interface NdoCloneCoordinates {
+  ndo_dna_hash: DnaHash;
+  network_seed: string;
+  identity_action_hash: ActionHash;
 }
 
 export class NdoServiceTag extends Context.Service<NdoServiceTag, NdoService>()('NdoService') {}
@@ -543,6 +558,19 @@ export const NdoServiceLive: Layer.Layer<
             encodeHashToBase64(ndoHash)
           ).pipe(E.catch(() => E.succeed(null)));
           return resolved ? resolved.cellId : null;
+        }),
+
+      getNdoCloneCoordinates: (ndoHash) =>
+        E.gen(function* () {
+          const resolved = yield* resolveNdoCellForIdentity(
+            encodeHashToBase64(ndoHash)
+          ).pipe(E.catch(() => E.succeed(null)));
+          if (!resolved) return null;
+          return {
+            ndo_dna_hash: resolved.anchor.ndo_dna_hash,
+            network_seed: resolved.anchor.network_seed,
+            identity_action_hash: resolved.anchor.identity_action_hash
+          };
         }),
 
       joinNdo: (ndoHashB64) =>

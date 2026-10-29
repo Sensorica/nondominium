@@ -1,5 +1,7 @@
 import { Effect as E, Exit, pipe, Result } from 'effect';
-import type { GroupDescriptor, NdoDescriptor, NdoInput } from '@nondominium/shared-types';
+import type { ActionHash } from '@holochain/client';
+import { decodeHashFromBase64 } from '@holochain/client';
+import type { GroupDescriptor, NdoDescriptor, NdoInput, PoolEntry } from '@nondominium/shared-types';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
 import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
 import { GroupServiceTag, GroupServiceResolved } from '../services/zomes/group.service';
@@ -15,6 +17,7 @@ export type GroupStore = {
   readonly groupNdos: NdoDescriptor[];
   readonly group: GroupDescriptor | null;
   readonly members: { id: string; name: string; role?: string }[];
+  readonly poolEntries: PoolEntry[];
   readonly isLoading: boolean;
   readonly errorMessage: string | null;
   loadGroupData: (groupId: string) => Promise<void>;
@@ -27,12 +30,27 @@ export type GroupStore = {
   refreshCurrentGroup: () => Promise<void>;
   createNdo: (input: NdoInput) => Promise<string | null>;
   associateNdoWithGroup: (ndoHashB64: string, targetGroupId: string) => Promise<void>;
+  /**
+   * Admits a commitment (living on an NDO cell) into the named group's
+   * Commitment Pool. Any group member may call this; the pool does not
+   * require the NDO itself to be anchored here.
+   */
+  admitCommitment: (
+    groupId: string,
+    identityHash: ActionHash,
+    commitmentHash: ActionHash
+  ) => Promise<{ ok: true } | { ok: false; cause: string }>;
+  /** Status-marks an admitted pool entry as Withdrawn. Pool memory is kept. */
+  withdrawCommitment: (
+    entry: PoolEntry
+  ) => Promise<{ ok: true } | { ok: false; cause: string }>;
 };
 
 function createGroupStore(): GroupStore {
   let groupNdos = $state<NdoDescriptor[]>([]);
   let group = $state<GroupDescriptor | null>(null);
   let members = $state<{ id: string; name: string; role?: string }[]>([]);
+  let poolEntries = $state<PoolEntry[]>([]);
   let isLoading = $state(false);
   let errorMessage = $state<string | null>(null);
   let currentGroupId = $state<string | null>(null);
@@ -67,6 +85,7 @@ function createGroupStore(): GroupStore {
           // members default to "not fetched" (Failure) when there is no cell yet.
           let membersRes: Result.Result<{ id: string; name: string; role?: string }[], unknown> =
             Result.fail(undefined);
+          let poolRes: Result.Result<PoolEntry[], unknown> = Result.fail(undefined);
           if (cell) {
             // Self-heal membership only on a full (non-silent) load: if this agent
             // joined via an invite but the join missed (group profile had not
@@ -80,16 +99,27 @@ function createGroupStore(): GroupStore {
               );
             }
             membersRes = yield* E.result(groupService.getMembers(cell.cellId));
+            const groupHashB64 = Result.isSuccess(groupsRes)
+              ? (groupsRes.success.find((g) => g.id === groupId)?.groupHash ?? null)
+              : null;
+            if (groupHashB64) {
+              poolRes = yield* E.result(
+                groupService.getPoolContents(
+                  cell.cellId,
+                  decodeHashFromBase64(groupHashB64) as ActionHash
+                )
+              );
+            }
           }
 
-          return { groupsRes, ndosRes, hasCell: cell !== null, membersRes };
+          return { groupsRes, ndosRes, hasCell: cell !== null, membersRes, poolRes };
         }),
         E.provide(GroupStoreServicesResolved)
       )
     );
 
     if (Exit.isSuccess(exit)) {
-      const { groupsRes, ndosRes, hasCell, membersRes } = exit.value;
+      const { groupsRes, ndosRes, hasCell, membersRes, poolRes } = exit.value;
       let anyFailed = false;
 
       if (Result.isSuccess(groupsRes)) {
@@ -116,6 +146,12 @@ function createGroupStore(): GroupStore {
         if (!silent) members = [];
       }
 
+      if (hasCell && Result.isSuccess(poolRes)) {
+        poolEntries = poolRes.success;
+      } else if (!silent) {
+        poolEntries = [];
+      }
+
       if (anyFailed && !silent) {
         errorMessage = 'Failed to load group data.';
       }
@@ -126,6 +162,7 @@ function createGroupStore(): GroupStore {
       group = null;
       groupNdos = [];
       members = [];
+      poolEntries = [];
     }
     if (!silent) {
       isLoading = false;
@@ -188,6 +225,82 @@ function createGroupStore(): GroupStore {
     }
   }
 
+  async function admitCommitment(
+    groupId: string,
+    identityHash: ActionHash,
+    commitmentHash: ActionHash
+  ): Promise<{ ok: true } | { ok: false; cause: string }> {
+    const exit = await E.runPromiseExit(
+      pipe(
+        E.gen(function* () {
+          const lobbyService = yield* LobbyServiceTag;
+          const ndoService = yield* NdoServiceTag;
+          const groupService = yield* GroupServiceTag;
+
+          const coords = yield* ndoService.getNdoCloneCoordinates(identityHash);
+          if (!coords) {
+            return yield* E.fail(new Error('NDO clone coordinates not found (legacy NDO?)'));
+          }
+          const cell = yield* lobbyService.getGroupCell(groupId);
+          if (!cell) {
+            return yield* E.fail(new Error('Group cell not found'));
+          }
+          const groups = yield* lobbyService.getMyGroups();
+          const target = groups.find((g) => g.id === groupId);
+          if (!target?.groupHash) {
+            return yield* E.fail(new Error('Group hash not found'));
+          }
+          yield* groupService.admitCommitment(cell.cellId, {
+            group_hash: decodeHashFromBase64(target.groupHash) as ActionHash,
+            ndo_dna_hash: coords.ndo_dna_hash,
+            network_seed: coords.network_seed,
+            identity_action_hash: coords.identity_action_hash,
+            commitment_action_hash: commitmentHash
+          });
+        }),
+        E.provide(GroupStoreServicesResolved)
+      )
+    );
+    if (Exit.isFailure(exit)) {
+      return { ok: false, cause: 'Failed to admit commitment to the pool.' };
+    }
+    if (currentGroupId === groupId) {
+      await loadGroupData(groupId, { silent: true });
+    }
+    return { ok: true };
+  }
+
+  async function withdrawCommitment(
+    entry: PoolEntry
+  ): Promise<{ ok: true } | { ok: false; cause: string }> {
+    if (!currentGroupId) {
+      return { ok: false, cause: 'No group is open.' };
+    }
+    const groupId = currentGroupId;
+    const exit = await E.runPromiseExit(
+      pipe(
+        E.gen(function* () {
+          const lobbyService = yield* LobbyServiceTag;
+          const groupService = yield* GroupServiceTag;
+          const cell = yield* lobbyService.getGroupCell(groupId);
+          if (!cell) {
+            return yield* E.fail(new Error('Group cell not found'));
+          }
+          yield* groupService.withdrawCommitment(cell.cellId, {
+            original_action_hash: entry.original_action_hash,
+            previous_action_hash: entry.latest_action_hash
+          });
+        }),
+        E.provide(GroupStoreServicesResolved)
+      )
+    );
+    if (Exit.isFailure(exit)) {
+      return { ok: false, cause: 'Failed to withdraw commitment from the pool.' };
+    }
+    await loadGroupData(groupId, { silent: true });
+    return { ok: true };
+  }
+
   return {
     get groupNdos() {
       return groupNdos;
@@ -198,6 +311,9 @@ function createGroupStore(): GroupStore {
     get members() {
       return members;
     },
+    get poolEntries() {
+      return poolEntries;
+    },
     get isLoading() {
       return isLoading;
     },
@@ -207,7 +323,9 @@ function createGroupStore(): GroupStore {
     loadGroupData,
     refreshCurrentGroup,
     createNdo,
-    associateNdoWithGroup
+    associateNdoWithGroup,
+    admitCommitment,
+    withdrawCommitment
   };
 }
 

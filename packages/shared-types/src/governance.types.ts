@@ -110,6 +110,18 @@ export interface VfCommitment {
   ndo_identity_hash: ActionHash;
 }
 
+/**
+ * Hash-paired commitment record from the `_detailed` read endpoints.
+ *
+ * Needed by any UI that must act on a specific commitment (admit to a
+ * pool, fulfill, withdraw) — the ActionHash is the natural identity for
+ * mutations and cross-DNA links.
+ */
+export interface CommitmentRecord {
+  action_hash: ActionHash;
+  commitment: VfCommitment;
+}
+
 /** Input for `log_economic_event` in `zome_gouvernance`. */
 export interface LogEconomicEventInput {
   action: VfAction;

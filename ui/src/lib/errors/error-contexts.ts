@@ -89,7 +89,8 @@ export const GOVERNANCE_CONTEXTS = {
   CREATE_DISPUTE: 'Failed to create dispute',
   VOTE_ON_DISPUTE: 'Failed to vote on dispute',
   GET_COMMITMENTS_FOR_NDO: 'Failed to get commitments for NDO',
-  FULFILL_COMMITMENT_CLOSURE: 'Failed to close commitment fulfillment'
+  FULFILL_COMMITMENT_CLOSURE: 'Failed to close commitment fulfillment',
+  GET_MY_PARTICIPATION_CLAIMS: 'Failed to get my participation claims'
 } as const;
 
 export const PPR_CONTEXTS = {
