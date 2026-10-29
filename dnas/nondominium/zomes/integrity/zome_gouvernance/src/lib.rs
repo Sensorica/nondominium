@@ -195,6 +195,10 @@ pub enum LinkTypes {
   ContributionToEvent,    // Contribution -> EconomicEvent
   NdoToAgreement,         // ndo_identity_hash -> Agreement (latest)
   AgreementUpdates,       // Agreement -> Agreement (version chain)
+  // Commitment Pool protocol: lets anyone (including a Group DNA via
+  // CommitmentAnchor) list every commitment attached to an NDO without
+  // scanning `AllCommitments` across the whole network.
+  NdoToCommitments,       // ndo_identity_hash -> Commitment
 }
 
 #[hdk_extern]
