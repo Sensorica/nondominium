@@ -1,7 +1,7 @@
 use hdi::prelude::*;
 pub use nondominium_shared::types::{
-  LifecycleStage, NdoDnaProperties, OperationalState, PropertyRegime, ResourceNature, ResourceScope,
-  Rivalry,
+  LifecycleStage, Measure, NdoDnaProperties, OperationalState, PropertyRegime, ResourceNature,
+  ResourceScope, Rivalry,
 };
 pub use nondominium_shared::rule_data::RuleData;
 
@@ -54,8 +54,11 @@ pub struct GovernanceRule {
 #[hdk_entry_helper]
 #[derive(Clone, PartialEq)]
 pub struct EconomicResource {
-  pub quantity: f64,
-  pub unit: String,
+  /// Current inventoried quantity. ValueFlows models this as a `Measure`
+  /// (numericalValue + hasUnit); keeping it as its own type lets Commitments,
+  /// Events, and Resources share the same shape and keeps the wire format
+  /// aligned with hREA / Grassroots-side tooling.
+  pub quantity: Measure,
   pub custodian: AgentPubKey, // The Primary Accountable Agent holding the resource
   pub current_location: Option<String>, // Physical or virtual location TODO: use an enum
   pub operational_state: OperationalState,
@@ -482,15 +485,17 @@ fn validate_create_economic_resource(
   resource: &EconomicResource,
   _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
-  if resource.quantity <= 0.0 {
-    return Ok(ValidateCallbackResult::Invalid(
-      "Resource quantity must be positive".to_string(),
-    ));
+  if let Err(e) = resource.quantity.validate() {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "EconomicResource quantity invalid: {e}"
+    )));
   }
-
-  if resource.unit.trim().is_empty() {
+  // Creation requires a strictly positive quantity (zero is reserved for
+  // post-depletion observations captured through EconomicEvents, not for
+  // the initial inventoried state).
+  if resource.quantity.numerical_value <= 0.0 {
     return Ok(ValidateCallbackResult::Invalid(
-      "Resource unit cannot be empty".to_string(),
+      "Resource quantity must be positive at creation".to_string(),
     ));
   }
 

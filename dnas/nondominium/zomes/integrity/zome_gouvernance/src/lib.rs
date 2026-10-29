@@ -5,7 +5,7 @@ use hdi::prelude::*;
 // nondominium_shared::types so coordinator zomes and Sweettest test crates can import
 // them directly without WASM-crate dependency constraints.
 pub use nondominium_shared::types::{
-  BeneficiaryRef, BenefitClause, BenefitType, LifecycleStage, NdoLinkType, PropertyRegime,
+  BeneficiaryRef, BenefitClause, BenefitType, LifecycleStage, Measure, NdoLinkType, PropertyRegime,
   ResourceNature, Rivalry, VfAction,
 };
 
@@ -31,7 +31,10 @@ pub struct EconomicEvent {
   pub receiver: AgentPubKey,
   pub resource_inventoried_as: ActionHash, // Link to the EconomicResource
   pub affects: ActionHash,                 // Link to the EconomicResource that is affected
-  pub resource_quantity: f64,
+  /// ValueFlows `resourceQuantity` as a shared `Measure`. Replaces the previous
+  /// flattened `resource_quantity: f64` so Intent / Commitment / Event / Claim
+  /// all carry the same `{ numerical_value, has_unit }` shape.
+  pub resource_quantity: Measure,
   pub event_time: Timestamp,
   pub note: Option<String>,
   /// Direct pointer to Layer 0 for action-constraint evaluation.
@@ -47,6 +50,14 @@ pub struct Commitment {
   pub resource_inventoried_as: Option<ActionHash>, // Link to specific resource if applicable
   pub resource_conforms_to: Option<ActionHash>,    // Link to ResourceSpecification if general
   pub input_of: Option<ActionHash>,                // Optional link to a Process
+  /// ValueFlows `resourceQuantity` — how much of the resource the commitment
+  /// promises to flow. Optional for commitments whose quantity is implied by
+  /// context (e.g. "repair this machine"), present when the flow is countable.
+  pub resource_quantity: Option<Measure>,
+  /// ValueFlows `effortQuantity` — the labour or time component of the
+  /// commitment (e.g. 4 h of mechanic time). Optional and independent of
+  /// `resource_quantity`.
+  pub effort_quantity: Option<Measure>,
   pub due_date: Timestamp,
   pub note: Option<String>,
   pub committed_at: Timestamp,
@@ -482,6 +493,11 @@ fn validate_create_economic_event(
   event: &EconomicEvent,
   _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
+  if let Err(e) = event.resource_quantity.validate() {
+    return Ok(ValidateCallbackResult::Invalid(format!(
+      "EconomicEvent resource_quantity invalid: {e}"
+    )));
+  }
   validate_action_against_ndo(&event.ndo_identity_hash, &event.action)
 }
 
@@ -489,5 +505,19 @@ fn validate_create_commitment(
   commitment: &Commitment,
   _author: &AgentPubKey,
 ) -> ExternResult<ValidateCallbackResult> {
+  if let Some(ref m) = commitment.resource_quantity {
+    if let Err(e) = m.validate() {
+      return Ok(ValidateCallbackResult::Invalid(format!(
+        "Commitment resource_quantity invalid: {e}"
+      )));
+    }
+  }
+  if let Some(ref m) = commitment.effort_quantity {
+    if let Err(e) = m.validate() {
+      return Ok(ValidateCallbackResult::Invalid(format!(
+        "Commitment effort_quantity invalid: {e}"
+      )));
+    }
+  }
   validate_action_against_ndo(&commitment.ndo_identity_hash, &commitment.action)
 }

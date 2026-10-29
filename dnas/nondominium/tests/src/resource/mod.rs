@@ -20,7 +20,7 @@
 
 use holochain::prelude::*;
 use holochain::sweettest::{await_consistency_20_s, SweetCell, SweetConductorBatch};
-use nondominium_shared::types::OperationalState;
+use nondominium_shared::types::{Measure, OperationalState};
 use serde::{Deserialize, Serialize};
 
 use nondominium_sweettest::common::*;
@@ -118,15 +118,13 @@ struct UpdateResourceSpecificationInput {
 #[derive(Debug, Serialize, Deserialize)]
 struct EconomicResourceInput {
     pub spec_hash: ActionHash,
-    pub quantity: f64,
-    pub unit: String,
+    pub quantity: Measure,
     pub current_location: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct EconomicResource {
-    pub quantity: f64,
-    pub unit: String,
+    pub quantity: Measure,
     pub custodian: AgentPubKey,
     pub current_location: Option<String>,
     pub operational_state: OperationalState,
@@ -327,8 +325,7 @@ async fn economic_resource_operational_state_lifecycle() {
             "create_economic_resource",
             EconomicResourceInput {
                 spec_hash: spec_out.spec_hash,
-                quantity: 1.0,
-                unit: "each".to_string(),
+                quantity: Measure::new(1.0, "each"),
                 current_location: Some("workshop".to_string()),
             },
         )
