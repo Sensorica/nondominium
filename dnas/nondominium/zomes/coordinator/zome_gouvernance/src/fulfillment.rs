@@ -238,11 +238,14 @@ pub fn fulfill_commitment_closure(
     countersign_input,
   )?;
   let counterparty_signature: Signature = match zome_call_response {
-    ZomeCallResponse::Ok(bytes) => bytes.decode().map_err(|e| {
-      GovernanceError::SerializationError(format!(
-        "Failed to decode countersign_fulfillment response: {e:?}"
-      ))
-    })?,
+    ZomeCallResponse::Ok(bytes) => {
+      let out: CountersignFulfillmentOutput = bytes.decode().map_err(|e| {
+        GovernanceError::SerializationError(format!(
+          "Failed to decode countersign_fulfillment response: {e:?}"
+        ))
+      })?;
+      out.signature
+    }
     ZomeCallResponse::Unauthorized(..) => {
       return Err(
         GovernanceError::InvalidInput(

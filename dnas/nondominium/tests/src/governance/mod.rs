@@ -12,6 +12,7 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test governance
 
 use holochain::prelude::*;
+use holochain::sweettest::await_consistency_20_s;
 use serde::{Deserialize, Serialize};
 
 use nondominium_sweettest::common::*;
@@ -20,8 +21,9 @@ use nondominium_shared::io::governance::{
     CreateAgreementInput, CreateNdoHardLinkInput, GetNdoHardLinksByTypeInput,
     UpdateAgreementInput, ValidateContributionInput,
 };
+use nondominium_shared::rule_data::RuleData;
 use nondominium_shared::types::{
-    BeneficiaryRef, BenefitClause, BenefitType, Measure, NdoLinkType, VfAction,
+    BeneficiaryRef, BenefitClause, BenefitType, Measure, NdoLinkType, ResourceScope, VfAction,
 };
 
 // ─── Local output types (partial views for assertion — reference entry types
@@ -728,4 +730,347 @@ async fn economic_event_is_discoverable_by_its_author() {
     );
     assert_eq!(events[0].note.as_deref(), Some("discoverable event"));
     assert_eq!(events[0].ndo_identity_hash, ndo.action_hash);
+}
+
+// ─── Commitment Pool protocol (Grassroots release) ────────────────────────────
+//
+// Covers: get_commitments_for_ndo index + fulfill_commitment_closure atomic
+// bilateral PPR flow. Both are new coordinator surfaces introduced for the
+// Grassroots-style Commitment Pool experiment on this branch.
+
+/// Mirrors fulfillment.rs `FulfillCommitmentClosureInput`.
+#[derive(Debug, Serialize, Deserialize)]
+struct FulfillCommitmentClosureInput {
+    pub commitment_hash: ActionHash,
+    pub observed_quantity: Measure,
+    pub resource_state_update: Option<String>, // OperationalState variant name
+    pub provider_metrics: PerformanceMetricsStub,
+    pub receiver_metrics: PerformanceMetricsStub,
+    pub note: Option<String>,
+}
+
+/// Mirrors `PerformanceMetrics` just enough to serialise. Keep in sync with
+/// zome_gouvernance_integrity::PerformanceMetrics field order.
+#[derive(Debug, Serialize, Deserialize)]
+struct PerformanceMetricsStub {
+    pub timeliness: f64,
+    pub quality: f64,
+    pub reliability: f64,
+    pub communication: f64,
+    pub overall_satisfaction: f64,
+    pub notes: Option<String>,
+}
+
+impl PerformanceMetricsStub {
+    fn good() -> Self {
+        Self {
+            timeliness: 0.9,
+            quality: 0.9,
+            reliability: 0.9,
+            communication: 0.9,
+            overall_satisfaction: 0.9,
+            notes: None,
+        }
+    }
+}
+
+/// Minimal asserted fields from `FulfillCommitmentClosureOutput`.
+#[derive(Debug, Serialize, Deserialize)]
+struct FulfillCommitmentClosureOutput {
+    pub event_hash: ActionHash,
+    pub claim_hash: ActionHash,
+    pub ppr: PprPairStub,
+    pub resource_update_hash: Option<ActionHash>,
+}
+
+/// Mirror of IssueParticipationReceiptsOutput (only the hashes we assert on).
+#[derive(Debug, Serialize, Deserialize)]
+struct PprPairStub {
+    pub provider_claim_hash: ActionHash,
+    pub receiver_claim_hash: ActionHash,
+}
+
+/// Mirror of `EconomicResourceInput` (same shape as resource.rs tests).
+#[derive(Debug, Serialize, Deserialize)]
+struct EconomicResourceInputStub {
+    pub spec_hash: ActionHash,
+    pub quantity: Measure,
+    pub current_location: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NestedGovernanceRuleInputStub {
+    pub rule_data: RuleData,
+    pub enforced_by: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ResourceSpecInputStub {
+    pub name: String,
+    pub description: String,
+    pub category: String,
+    pub image_url: Option<String>,
+    pub tags: Vec<String>,
+    pub scope: ResourceScope,
+    pub ndo_identity_hash: ActionHash,
+    pub governance_rules: Vec<NestedGovernanceRuleInputStub>,
+}
+
+/// Mirror of `CreateResourceSpecificationOutput`.
+#[derive(Debug, Serialize, Deserialize)]
+struct CreateResourceSpecificationOutputStub {
+    pub spec_hash: ActionHash,
+    #[serde(default)]
+    pub governance_rule_hashes: Vec<ActionHash>,
+}
+
+/// Record wrapper with only an `action_hash` — matches ResourceSpecRecord /
+/// EconomicResourceRecord outputs in zome_resource coordinator.
+#[derive(Debug, Serialize, Deserialize)]
+struct RecordHash {
+    pub action_hash: ActionHash,
+}
+
+/// get_commitments_for_ndo returns only the commitments attached to the given
+/// NDO identity hash — a commitment on a different NDO must not leak in.
+#[tokio::test(flavor = "multi_thread")]
+async fn get_commitments_for_ndo_scopes_results() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_agents().await;
+    let alice_key = cell_alice.agent_pubkey().clone();
+
+    let ndo_a: NdoOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Pool target A".to_string(),
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+
+    let ndo_b: NdoOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Pool target B".to_string(),
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+
+    let _c_a: ProposeCommitmentOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "propose_commitment",
+            ProposeCommitmentInput {
+                action: "Use".to_string(),
+                resource_hash: None,
+                resource_spec_hash: None,
+                provider: alice_key.clone(),
+                receiver: alice_key.clone(),
+                resource_quantity: None,
+                effort_quantity: None,
+                due_date: Timestamp::now(),
+                note: Some("on A".to_string()),
+                ndo_identity_hash: ndo_a.action_hash.clone(),
+            },
+        )
+        .await;
+
+    let _c_b: ProposeCommitmentOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "propose_commitment",
+            ProposeCommitmentInput {
+                action: "Use".to_string(),
+                resource_hash: None,
+                resource_spec_hash: None,
+                provider: alice_key.clone(),
+                receiver: alice_key.clone(),
+                resource_quantity: None,
+                effort_quantity: None,
+                due_date: Timestamp::now(),
+                note: Some("on B".to_string()),
+                ndo_identity_hash: ndo_b.action_hash.clone(),
+            },
+        )
+        .await;
+
+    let on_a: Vec<CommitmentOutput> = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "get_commitments_for_ndo",
+            ndo_a.action_hash.clone(),
+        )
+        .await;
+
+    assert_eq!(on_a.len(), 1, "exactly one commitment on NDO A");
+    assert_eq!(on_a[0].note.as_deref(), Some("on A"));
+    assert_eq!(on_a[0].ndo_identity_hash, ndo_a.action_hash);
+
+    let on_b: Vec<CommitmentOutput> = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "get_commitments_for_ndo",
+            ndo_b.action_hash,
+        )
+        .await;
+
+    assert_eq!(on_b.len(), 1, "exactly one commitment on NDO B");
+    assert_eq!(on_b[0].note.as_deref(), Some("on B"));
+}
+
+/// Happy-path atomic fulfillment: Alice proposes a commitment with Bob as
+/// receiver, Bob calls fulfill_commitment_closure, which synchronously
+/// countersigns via Alice (call_remote) and writes event + claim + bilateral
+/// PPRs in a single commit. Verifies:
+///   - the economic event is readable by its author (Bob)
+///   - the claim's fulfilled_by matches the event hash (NOT the commitment
+///     hash — this is the pre-existing TODO fix in fulfillment.rs)
+///   - both PPR hashes are present and distinct (bilateral issuance)
+#[tokio::test(flavor = "multi_thread")]
+async fn fulfill_commitment_closure_happy_path() {
+    let (conductors, cell_alice, cell_bob) = setup_two_agents().await;
+    let alice_key = cell_alice.agent_pubkey().clone();
+    let bob_key = cell_bob.agent_pubkey().clone();
+
+    // Alice sets up an NDO + resource spec + economic resource owned by Alice
+    // and transfers custody to Bob so the receiver side holds a real resource
+    // for the commitment to point at.
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Pool fulfillment NDO".to_string(),
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+
+    let spec: CreateResourceSpecificationOutputStub = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_resource_specification",
+            ResourceSpecInputStub {
+                name: "Pool item spec".to_string(),
+                description: "spec for pool fulfillment test".to_string(),
+                category: "test".to_string(),
+                image_url: None,
+                tags: vec![],
+                scope: ResourceScope::Network,
+                ndo_identity_hash: ndo.action_hash.clone(),
+                governance_rules: vec![],
+            },
+        )
+        .await;
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct CreateEconomicResourceOutputStub {
+        pub resource_hash: ActionHash,
+    }
+
+    let resource: CreateEconomicResourceOutputStub = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_economic_resource",
+            EconomicResourceInputStub {
+                spec_hash: spec.spec_hash.clone(),
+                quantity: Measure::new(1.0, "each"),
+                current_location: None,
+            },
+        )
+        .await;
+
+    // Alice proposes a commitment: she is provider, Bob is receiver.
+    let commitment: ProposeCommitmentOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "propose_commitment",
+            ProposeCommitmentInput {
+                action: "Transfer".to_string(),
+                resource_hash: Some(resource.resource_hash.clone()),
+                resource_spec_hash: None,
+                provider: alice_key.clone(),
+                receiver: bob_key.clone(),
+                resource_quantity: Some(Measure::new(1.0, "each")),
+                effort_quantity: None,
+                due_date: Timestamp::now(),
+                note: Some("fulfill me".to_string()),
+                ndo_identity_hash: ndo.action_hash.clone(),
+            },
+        )
+        .await;
+
+    // Wait for DHT consistency so Bob (the fulfillment caller) sees the
+    // commitment entry Alice wrote.
+    await_consistency_20_s([&cell_alice, &cell_bob])
+        .await
+        .unwrap();
+
+    // Bob fulfills — this triggers call_remote back to Alice for her
+    // countersignature. If the init cap grant isn't live or the call fails
+    // for any reason, this entire call errors.
+    let fulfillment: FulfillCommitmentClosureOutput = conductors[1]
+        .call(
+            &cell_bob.zome("zome_gouvernance"),
+            "fulfill_commitment_closure",
+            FulfillCommitmentClosureInput {
+                commitment_hash: commitment.commitment_hash.clone(),
+                observed_quantity: Measure::new(1.0, "each"),
+                resource_state_update: None,
+                provider_metrics: PerformanceMetricsStub::good(),
+                receiver_metrics: PerformanceMetricsStub::good(),
+                note: Some("fulfilled in test".to_string()),
+            },
+        )
+        .await;
+
+    assert_ne!(fulfillment.event_hash, fulfillment.claim_hash);
+    assert_ne!(
+        fulfillment.ppr.provider_claim_hash,
+        fulfillment.ppr.receiver_claim_hash,
+        "bilateral PPR must produce two distinct claim hashes"
+    );
+    assert!(
+        fulfillment.resource_update_hash.is_none(),
+        "no resource_state_update was requested"
+    );
+
+    // Fetch all claims and confirm fulfilled_by = event_hash (the pre-fix
+    // behaviour used the commitment hash itself; the closure flow now sets
+    // the real event action hash).
+    let claims: Vec<ClaimOutput> = conductors[1]
+        .call(
+            &cell_bob.zome("zome_gouvernance"),
+            "get_all_claims",
+            (),
+        )
+        .await;
+    let fulfillment_claim = claims
+        .into_iter()
+        .find(|c| c.fulfilled_by == fulfillment.event_hash)
+        .expect("claim with fulfilled_by == event_hash must exist");
+    assert_eq!(fulfillment_claim.fulfills, commitment.commitment_hash);
+}
+
+/// Mirror of a Claim's asserted fields.
+#[derive(Debug, Serialize, Deserialize)]
+struct ClaimOutput {
+    pub fulfills: ActionHash,
+    pub fulfilled_by: ActionHash,
 }
