@@ -179,6 +179,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 | Document | Description |
 | --- | --- |
+| **[Grassroots Commitment Pool](Applications/grassroots-commitment-pool.md)** | Experiment: Groups as Commitment Pools; admit/fulfill/PPR flow for GE collaborators |
 | **[Artcoin Integration](Applications/nondominium_artcoin.md)** | Artcoin mapped onto the NDO model (property regimes, roles, custody, PPRs) + implementation status |
 | **[User Story — Artcoin](Applications/user-story/user-story-artcoin.md)** | Art circulation & discovery via venues and individual art lovers |
 | **[User Story — Art Distribution](Applications/user-story/user-story-art-distribution.md)** | Multi-venue exhibition tour: custody chain, transport & storage |
