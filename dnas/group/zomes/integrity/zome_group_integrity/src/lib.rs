@@ -69,6 +69,66 @@ pub struct NdoAnchor {
     pub resource_nature: ResourceNature,  // immutable classification (DNA property)
 }
 
+/// Admission status of a commitment in a Group used as a Commitment Pool.
+///
+/// Withdrawal is modelled as a *status marker on the same anchor* instead of a
+/// delete-link / tombstone, so a Group keeps **pool memory**: readers can
+/// still see that commitment X was once admitted and then withdrawn, by whom,
+/// and when. This matches Grassroots Economics' pool semantics — a pool's
+/// history is itself governance signal.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, SerializedBytes)]
+pub enum CommitmentAdmissionStatus {
+    /// Currently admitted — counts toward the pool's active contents.
+    Admitted,
+    /// Previously admitted, now withdrawn. The anchor stays on the DHT.
+    Withdrawn,
+}
+
+/// Authoritative pointer from a Group (used here as a Commitment Pool) to a
+/// Commitment living on a Nondominium NDO cell.
+///
+/// Symmetric to `NdoAnchor`: carries the full cross-cell coordinates
+/// (`ndo_dna_hash`, `network_seed`, `identity_action_hash`) that a reader
+/// needs to re-derive the NDO clone and look up the commitment there. The
+/// `commitment_action_hash` is the pointer into the governance zome's
+/// `all_commitments` entries.
+///
+/// A commitment can be anchored by many groups — one commitment, N anchors,
+/// same underlying NDO identity. This is how cross-pool continuity works
+/// without duplicating the commitment data.
+///
+/// Admission is permissionless **within group membership**: any member can
+/// admit any commitment (regardless of whether the NDO sits in this group).
+/// Governance happens later, on the commitment itself, when it is fulfilled.
+///
+/// The `status` field + `status_changed_at` form the lightweight withdrawal
+/// mechanism: an update rewrites the status to `Withdrawn` and keeps the
+/// anchor in place as pool memory.
+///
+/// Author (admitting member) and anchoring timestamp come from the action
+/// header.
+#[hdk_entry_helper]
+#[derive(Clone, PartialEq)]
+pub struct CommitmentAnchor {
+    /// Group that owns this pool anchor.
+    pub group_hash: ActionHash,
+    /// Full NDO cell coordinates — same pattern as `NdoAnchor`, so a reader
+    /// can clone/join the NDO cell and verify the commitment lives there.
+    pub ndo_dna_hash: DnaHash,
+    pub network_seed: String,
+    pub identity_action_hash: ActionHash, // NDO Layer 0 genesis action hash
+    /// The Commitment entry's `ActionHash` inside the NDO cell's governance
+    /// zome. The source of truth for shape (action/provider/receiver/
+    /// resource_quantity/effort_quantity/due_date/note) lives there.
+    pub commitment_action_hash: ActionHash,
+    /// Current admission status in this pool.
+    pub status: CommitmentAdmissionStatus,
+    /// Timestamp when the status last changed. On create this equals the
+    /// action's timestamp conceptually; on withdrawal updates it is bumped
+    /// so UIs can show "admitted → withdrawn X days ago".
+    pub status_changed_at: Timestamp,
+}
+
 #[hdk_entry_types]
 #[unit_enum(UnitEntryTypes)]
 pub enum EntryTypes {
@@ -77,6 +137,7 @@ pub enum EntryTypes {
     WorkLog(WorkLog),
     SoftLink(SoftLink),
     NdoAnchor(NdoAnchor),
+    CommitmentAnchor(CommitmentAnchor),
 }
 
 #[hdk_link_types]
@@ -90,6 +151,8 @@ pub enum LinkTypes {
     GroupToSoftLinks, // GroupProfile → SoftLink
     GroupToNdoAnchors, // GroupProfile → NdoAnchor
     NdoAnchorUpdates,  // NdoAnchor → NdoAnchor (cached descriptor sync)
+    GroupToCommitmentAnchors, // GroupProfile → CommitmentAnchor
+    CommitmentAnchorUpdates,  // CommitmentAnchor → CommitmentAnchor (status marker)
 }
 
 #[hdk_extern]
@@ -118,6 +181,9 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
                     EntryTypes::WorkLog(work_log) => validate_work_log(work_log),
                     EntryTypes::SoftLink(soft_link) => validate_soft_link(soft_link),
                     EntryTypes::NdoAnchor(ndo_anchor) => validate_ndo_anchor(ndo_anchor),
+                    EntryTypes::CommitmentAnchor(commitment_anchor) => {
+                        validate_commitment_anchor(commitment_anchor)
+                    }
                 }
             }
             _ => Ok(ValidateCallbackResult::Valid),
@@ -131,6 +197,15 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
             app_entry: EntryTypes::NdoAnchor(updated),
             action,
         }) => validate_ndo_anchor_update(action.original_action_address, updated),
+        // A CommitmentAnchor update is the withdrawal mechanism: only the
+        // `status` and `status_changed_at` fields may change. Every pointer
+        // field (group, NDO cell coordinates, commitment hash) is immutable
+        // so the anchor cannot be silently repointed at a different
+        // commitment, and the pool-memory invariant holds.
+        FlatOp::RegisterUpdate(OpUpdate::Entry {
+            app_entry: EntryTypes::CommitmentAnchor(updated),
+            action,
+        }) => validate_commitment_anchor_update(action.original_action_address, updated),
         _ => Ok(ValidateCallbackResult::Valid),
     }
 }
@@ -196,6 +271,57 @@ pub fn validate_ndo_anchor(ndo_anchor: NdoAnchor) -> ExternResult<ValidateCallba
     // The (ndo_dna_hash, network_seed, properties) coordinates cannot be verified from
     // the integrity context — cross-cell verification is the reader's pinning check:
     // re-derive the clone from the anchor fields and compare the resulting DnaHash.
+    Ok(ValidateCallbackResult::Valid)
+}
+
+pub fn validate_commitment_anchor(
+    anchor: CommitmentAnchor,
+) -> ExternResult<ValidateCallbackResult> {
+    if anchor.network_seed.trim().is_empty() {
+        return Ok(ValidateCallbackResult::Invalid(
+            "CommitmentAnchor network_seed cannot be empty".to_string(),
+        ));
+    }
+    // We can't verify cross-cell existence of the commitment from the
+    // integrity context — same reasoning as `NdoAnchor`. A reader validates
+    // by cloning the NDO cell from the carried coordinates and resolving
+    // `commitment_action_hash` there.
+    Ok(ValidateCallbackResult::Valid)
+}
+
+/// A `CommitmentAnchor` update is the pool-memory-preserving withdrawal
+/// mechanism. Only `status` and `status_changed_at` may change. Anything
+/// else — the pool reference, the NDO cell coordinates, the commitment
+/// hash — is immutable: silently repointing the anchor would both corrupt
+/// pool history and break the cross-cell lookup contract.
+pub fn validate_commitment_anchor_update(
+    original_action_hash: ActionHash,
+    updated: CommitmentAnchor,
+) -> ExternResult<ValidateCallbackResult> {
+    let original_record = must_get_valid_record(original_action_hash)?;
+    let Some(original) = original_record
+        .entry()
+        .to_app_option::<CommitmentAnchor>()
+        .map_err(|e| wasm_error!(WasmErrorInner::Serialize(e)))?
+    else {
+        return Ok(ValidateCallbackResult::Invalid(
+            "A CommitmentAnchor update must supersede a CommitmentAnchor entry".to_string(),
+        ));
+    };
+
+    let permitted = CommitmentAnchor {
+        status: updated.status.clone(),
+        status_changed_at: updated.status_changed_at,
+        ..original
+    };
+    if permitted != updated {
+        return Ok(ValidateCallbackResult::Invalid(
+            "CommitmentAnchor pointer fields are immutable: an update may only change \
+             status and status_changed_at"
+                .to_string(),
+        ));
+    }
+
     Ok(ValidateCallbackResult::Valid)
 }
 

@@ -1,12 +1,14 @@
 use hdk::prelude::*;
 pub use nondominium_shared::GroupError;
 
+pub mod commitment_anchor;
 pub mod group_profile;
 pub mod membership;
 pub mod ndo_anchor;
 pub mod soft_link;
 pub mod work_log;
 
+pub use commitment_anchor::*;
 pub use group_profile::*;
 pub use membership::*;
 pub use ndo_anchor::*;
