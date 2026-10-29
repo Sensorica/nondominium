@@ -1,9 +1,11 @@
 use hdk::prelude::*;
 pub use nondominium_shared::errors::GovernanceError;
+use std::collections::HashSet;
 use zome_gouvernance_integrity::*;
 
 pub mod commitment;
 pub mod economic_event;
+pub mod fulfillment;
 pub mod ppr;
 pub mod private_data_validation;
 pub mod validation;
@@ -16,6 +18,7 @@ pub mod transition;
 
 pub use commitment::*;
 pub use economic_event::*;
+pub use fulfillment::*;
 pub use ppr::*;
 pub use private_data_validation::*;
 pub use validation::*;
@@ -37,6 +40,26 @@ pub enum Signal {
 
 #[hdk_extern]
 pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
+  // Expose `countersign_fulfillment` as an unrestricted cap grant so the
+  // other party to a Commitment can be reached via `call_remote` during
+  // `fulfill_commitment_closure`. The authorisation is semantic
+  // (the fn re-fetches the commitment and verifies I'm actually the
+  // counterparty), so cap-token gating here would just be ceremony.
+  //
+  // Fixes #14's placeholder-signature problem at the architectural layer:
+  // without this grant, call_remote would come back as `Unauthorized`.
+  let mut functions: HashSet<GrantedFunction> = HashSet::new();
+  functions.insert((
+    ZomeName::from("zome_gouvernance".to_string()),
+    FunctionName::from("countersign_fulfillment".to_string()),
+  ));
+  let cap_grant = ZomeCallCapGrant {
+    tag: "countersign_fulfillment".to_string(),
+    access: CapAccess::Unrestricted,
+    functions: GrantedFunctions::Listed(functions),
+  };
+  create_cap_grant(cap_grant)?;
+
   Ok(InitCallbackResult::Pass)
 }
 
