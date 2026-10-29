@@ -14,7 +14,10 @@ import type {
   LogEconomicEventOutput,
   CheckActionConstraintsInput,
   ConstraintViolation,
-  VfCommitment
+  VfCommitment,
+  FulfillCommitmentClosureInput,
+  FulfillCommitmentClosureOutput,
+  PrivateParticipationClaim
 } from '@nondominium/shared-types';
 
 // ─── Service interface ────────────────────────────────────────────────────────
@@ -84,6 +87,42 @@ export interface GovernanceService {
     cellId?: CellId
   ) => E.Effect<VfEconomicEvent[], GovernanceError>;
   getAllEconomicEvents: (cellId?: CellId) => E.Effect<VfEconomicEvent[], GovernanceError>;
+  /** Returns commitments linked to one NDO via `NdoToCommitments`. */
+  getCommitmentsForNdo: (
+    ndoIdentityHash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<VfCommitment[], GovernanceError>;
+  /**
+   * Atomic commitment fulfillment closure (fixes #14): writes the
+   * EconomicEvent, the Claim with the real event hash, optionally updates
+   * the resource's `OperationalState`, and persists both bilateral PPRs
+   * with real co-signatures via `call_remote` countersigning.
+   */
+  fulfillCommitmentClosure: (
+    input: FulfillCommitmentClosureInput,
+    cellId?: CellId
+  ) => E.Effect<FulfillCommitmentClosureOutput, GovernanceError>;
+  /**
+   * The caller's own `PrivateParticipationClaim` private entries. Private
+   * entries are only readable by the agent that wrote them — this is a
+   * self-only query by design.
+   */
+  getMyParticipationClaims: (
+    options?: GetMyParticipationClaimsOptions,
+    cellId?: CellId
+  ) => E.Effect<GetMyParticipationClaimsResult, GovernanceError>;
+}
+
+export interface GetMyParticipationClaimsOptions {
+  claimTypeFilter?: PrivateParticipationClaim['claim_type'];
+  fromTime?: Timestamp;
+  toTime?: Timestamp;
+  limit?: number;
+}
+
+export interface GetMyParticipationClaimsResult {
+  totalCount: number;
+  claims: Array<{ hash: ActionHash; claim: PrivateParticipationClaim }>;
 }
 
 // ─── Context Tag ─────────────────────────────────────────────────────────────
@@ -263,6 +302,44 @@ export const GovernanceServiceLive: Layer.Layer<
           null,
           GOVERNANCE_CONTEXTS.GET_ALL_ECONOMIC_EVENTS,
           cellId
+        ),
+
+      getCommitmentsForNdo: (ndoIdentityHash, cellId) =>
+        wz<VfCommitment[]>(
+          'get_commitments_for_ndo',
+          ndoIdentityHash,
+          GOVERNANCE_CONTEXTS.GET_COMMITMENTS_FOR_NDO,
+          cellId
+        ),
+
+      fulfillCommitmentClosure: (input, cellId) =>
+        wz<FulfillCommitmentClosureOutput>(
+          'fulfill_commitment_closure',
+          input,
+          GOVERNANCE_CONTEXTS.FULFILL_COMMITMENT_CLOSURE,
+          cellId
+        ),
+
+      getMyParticipationClaims: (options, cellId) =>
+        E.map(
+          wz<{
+            total_count: number;
+            claims: Array<[ActionHash, PrivateParticipationClaim]>;
+          }>(
+            'get_my_participation_claims',
+            {
+              claim_type_filter: options?.claimTypeFilter ?? null,
+              from_time: options?.fromTime ?? null,
+              to_time: options?.toTime ?? null,
+              limit: options?.limit ?? null
+            },
+            GOVERNANCE_CONTEXTS.FULFILL_COMMITMENT_CLOSURE,
+            cellId
+          ),
+          (raw) => ({
+            totalCount: raw.total_count,
+            claims: raw.claims.map(([hash, claim]) => ({ hash, claim }))
+          })
         )
     } satisfies GovernanceService;
   })

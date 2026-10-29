@@ -87,7 +87,9 @@ export const GOVERNANCE_CONTEXTS = {
   CHECK_ACTION_CONSTRAINTS: 'Failed to check action constraints',
   LOG_INITIAL_TRANSFER: 'Failed to log initial transfer',
   CREATE_DISPUTE: 'Failed to create dispute',
-  VOTE_ON_DISPUTE: 'Failed to vote on dispute'
+  VOTE_ON_DISPUTE: 'Failed to vote on dispute',
+  GET_COMMITMENTS_FOR_NDO: 'Failed to get commitments for NDO',
+  FULFILL_COMMITMENT_CLOSURE: 'Failed to close commitment fulfillment'
 } as const;
 
 export const PPR_CONTEXTS = {

@@ -2,6 +2,7 @@ import type { ActionHash, AgentPubKey, EntryHash, Timestamp } from '@holochain/c
 import type {
   ConstraintViolation,
   Measure,
+  OperationalState,
   PropertyRegime,
   ResourceNature,
   Rivalry
@@ -132,6 +133,55 @@ export interface CheckActionConstraintsInput {
   resource_nature: ResourceNature;
   rivalry_override?: Rivalry;
   action: VfAction;
+}
+
+// ─── Atomic commitment fulfillment closure ──────────────────────────────────
+//
+// `fulfill_commitment_closure` writes the EconomicEvent, the Claim (with the
+// real event hash as `fulfilled_by` — fixes the pre-existing placeholder),
+// optionally updates the resource's `OperationalState`, and persists both
+// bilateral `PrivateParticipationClaim` entries with REAL co-signatures (fix
+// for #14). The counterparty is contacted synchronously via `call_remote` to
+// countersign; if they refuse or are offline the whole closure fails
+// cleanly before anything is written.
+
+/** Shape mirrors Rust `PerformanceMetrics` on `ppr.rs` — reused by closure. */
+export interface FulfillmentPerformanceMetrics {
+  timeliness: number;
+  quality: number;
+  reliability: number;
+  communication: number;
+  overall_satisfaction: number;
+  notes?: string;
+}
+
+export interface FulfillCommitmentClosureInput {
+  commitment_hash: ActionHash;
+  observed_quantity: Measure;
+  resource_state_update?: OperationalState | null;
+  provider_metrics: FulfillmentPerformanceMetrics;
+  receiver_metrics: FulfillmentPerformanceMetrics;
+  note?: string | null;
+}
+
+export interface FulfillmentPprPair {
+  provider_claim_hash: ActionHash;
+  receiver_claim_hash: ActionHash;
+}
+
+export interface FulfillCommitmentClosureOutput {
+  event_hash: ActionHash;
+  event: VfEconomicEvent;
+  claim_hash: ActionHash;
+  /** Minimal projection — the Rust side returns the full `Claim` entry. */
+  claim: {
+    fulfills: ActionHash;
+    fulfilled_by: ActionHash;
+    claimed_at: Timestamp;
+    note?: string | null;
+  };
+  ppr: FulfillmentPprPair;
+  resource_update_hash?: ActionHash | null;
 }
 
 // Zome Function Types

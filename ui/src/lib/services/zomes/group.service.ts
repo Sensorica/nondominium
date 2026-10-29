@@ -4,7 +4,15 @@ import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import { HolochainClientServiceTag, HolochainClientServiceLive } from '../holochain.service.svelte';
 import { GroupError } from '$lib/errors/group.errors';
 import { GROUP_CONTEXTS } from '$lib/errors/error-contexts';
-import type { SoftLink, NdoAnchorInput, NdoAnchorEntry, LifecycleStage } from '@nondominium/shared-types';
+import type {
+  SoftLink,
+  NdoAnchorInput,
+  NdoAnchorEntry,
+  LifecycleStage,
+  AdmitCommitmentInput,
+  WithdrawCommitmentInput,
+  PoolEntry
+} from '@nondominium/shared-types';
 import {
   decodeGroupEntry,
   decodeNdoAnchorRecord,
@@ -62,6 +70,28 @@ export interface GroupService {
     identityActionHash: ActionHash,
     lifecycleStage: LifecycleStage
   ) => E.Effect<void, GroupError>;
+  /**
+   * Admits a commitment into this group's Commitment Pool. Any current group
+   * member may call this; the admission is permissionless beyond membership.
+   */
+  admitCommitment: (groupCellId: CellId, input: AdmitCommitmentInput) => E.Effect<void, GroupError>;
+  /**
+   * Withdraws (status-marks) a previously admitted commitment. The pool keeps
+   * memory of past admissions — the entry is updated, not deleted.
+   */
+  withdrawCommitment: (
+    groupCellId: CellId,
+    input: WithdrawCommitmentInput
+  ) => E.Effect<void, GroupError>;
+  /**
+   * Reads every commitment ever admitted to the pool (both Admitted and
+   * Withdrawn, each resolved to its latest version) — the pool-memory
+   * invariant. Filter on `anchor.status` client-side.
+   */
+  getPoolContents: (
+    groupCellId: CellId,
+    groupHash: ActionHash
+  ) => E.Effect<PoolEntry[], GroupError>;
 }
 
 export class GroupServiceTag extends Context.Service<GroupServiceTag, GroupService>()('GroupService') {}
@@ -240,7 +270,35 @@ export const GroupServiceLive: Layer.Layer<GroupServiceTag, never, HolochainClie
               },
               'REFRESH_NDO_ANCHOR'
             );
-          })
+          }),
+
+        admitCommitment: (groupCellId, input) =>
+          E.gen(function* () {
+            yield* callGroupZome(
+              groupCellId,
+              'admit_commitment',
+              input,
+              'ADMIT_COMMITMENT'
+            );
+          }),
+
+        withdrawCommitment: (groupCellId, input) =>
+          E.gen(function* () {
+            yield* callGroupZome(
+              groupCellId,
+              'withdraw_commitment',
+              input,
+              'WITHDRAW_COMMITMENT'
+            );
+          }),
+
+        getPoolContents: (groupCellId, groupHash) =>
+          callGroupZome<PoolEntry[]>(
+            groupCellId,
+            'get_pool_contents',
+            groupHash,
+            'GET_POOL_CONTENTS'
+          )
       } satisfies GroupService;
     })
   );
