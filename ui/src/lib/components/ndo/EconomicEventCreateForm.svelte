@@ -59,6 +59,10 @@
   let receiverB64 = $state('');
   let resourceHashB64 = $state('');
   let quantity = $state('1');
+  // ValueFlows `Measure.has_unit`. Defaults to "each" for the common
+  // "custody of one tool" case; override for countable continuous resources
+  // (kWh, kg, hr, …).
+  let unit = $state('each');
   let note = $state('');
   let fromCommitmentIdx = $state<number | ''>('');
   let isSubmitting = $state(false);
@@ -152,7 +156,10 @@
         provider,
         receiver,
         resource_inventoried_as: resource,
-        resource_quantity: Number(quantity) || 1,
+        resource_quantity: {
+          numerical_value: Number(quantity) || 1,
+          has_unit: unit.trim() || 'each'
+        },
         note: note.trim() || null,
         generate_pprs: false,
         ndo_identity_hash: ndoActionHash,
@@ -227,9 +234,15 @@
         >
         <input id="e-res" type="text" bind:value={resourceHashB64} class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs" />
       </div>
-      <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700" for="e-qty">Quantity</label>
-        <input id="e-qty" type="number" bind:value={quantity} class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700" for="e-qty">Quantity</label>
+          <input id="e-qty" type="number" bind:value={quantity} class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700" for="e-unit">Unit</label>
+          <input id="e-unit" type="text" bind:value={unit} placeholder="each" class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+        </div>
       </div>
       <div>
         <label class="mb-1 block text-sm text-gray-600" for="e-note">Note</label>

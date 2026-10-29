@@ -1,19 +1,25 @@
 import type { ActionHash, AgentPubKey, EntryHash, Timestamp } from '@holochain/client';
 import type {
   ConstraintViolation,
+  Measure,
   PropertyRegime,
   ResourceNature,
   Rivalry
 } from './resource.types.js';
 
-export type { ConstraintViolation };
+export type { ConstraintViolation, Measure };
 
 // Core Governance Types
+//
+// Note: the `Commitment` / `EconomicEvent` interfaces below are the pre-NDO
+// legacy shapes kept for backward compatibility with a handful of UI views.
+// The canonical zome entries are `VfCommitment` / `VfEconomicEvent` further
+// down this file — new code should prefer those.
 export interface Commitment {
   resource_specification: EntryHash;
   provider: AgentPubKey;
   receiver: AgentPubKey;
-  quantity?: number;
+  quantity?: Measure;
   due_date?: Timestamp;
   fulfilled: boolean;
   created_at: Timestamp;
@@ -23,7 +29,7 @@ export interface EconomicEvent {
   resource_specification: EntryHash;
   provider: AgentPubKey;
   receiver: AgentPubKey;
-  quantity?: number;
+  quantity?: Measure;
   event_type: 'transfer' | 'produce' | 'consume' | 'use';
   occurred_at: Timestamp;
 }
@@ -54,7 +60,8 @@ export interface VfEconomicEvent {
   receiver: AgentPubKey;
   resource_inventoried_as: ActionHash;
   affects: ActionHash;
-  resource_quantity: number;
+  /** ValueFlows `resourceQuantity`. */
+  resource_quantity: Measure;
   event_time: Timestamp;
   note?: string | null;
   ndo_identity_hash: ActionHash;
@@ -66,6 +73,16 @@ export interface ProposeCommitmentInput {
   resource_hash?: ActionHash | null;
   resource_spec_hash?: ActionHash | null;
   provider: AgentPubKey;
+  /**
+   * Explicit receiver. Previously the zome hardcoded the caller as receiver;
+   * the UI now has to pass it. For "I propose this to myself" flows pass the
+   * caller's own key.
+   */
+  receiver: AgentPubKey;
+  /** ValueFlows `resourceQuantity` on the commitment (optional). */
+  resource_quantity?: Measure | null;
+  /** ValueFlows `effortQuantity` on the commitment (optional). */
+  effort_quantity?: Measure | null;
   due_date: Timestamp;
   note?: string | null;
   ndo_identity_hash: ActionHash;
@@ -84,6 +101,8 @@ export interface VfCommitment {
   resource_inventoried_as?: ActionHash | null;
   resource_conforms_to?: ActionHash | null;
   input_of?: ActionHash | null;
+  resource_quantity?: Measure | null;
+  effort_quantity?: Measure | null;
   due_date: Timestamp;
   note?: string | null;
   committed_at: Timestamp;
@@ -96,7 +115,7 @@ export interface LogEconomicEventInput {
   provider: AgentPubKey;
   receiver: AgentPubKey;
   resource_inventoried_as: ActionHash;
-  resource_quantity: number;
+  resource_quantity: Measure;
   note?: string | null;
   commitment_hash?: ActionHash | null;
   generate_pprs?: boolean | null;

@@ -53,8 +53,17 @@
 
   let action = $state<VfAction>('Use');
   let providerB64 = $state('');
+  // Explicit receiver (was previously hardcoded on the backend to the caller;
+  // the zome now requires an explicit field). Defaults to self for the common
+  // "I propose this to myself" flow.
+  let receiverB64 = $state('');
   let dueDateLocal = $state('');
   let note = $state('');
+  // Optional ValueFlows Measures. Empty = omit from the commitment.
+  let resourceQuantity = $state('');
+  let resourceUnit = $state('each');
+  let effortQuantity = $state('');
+  let effortUnit = $state('hour');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
   let violations = $state<ConstraintViolation[]>([]);
@@ -64,13 +73,13 @@
   const softViolations = $derived(violations.filter((v) => v.severity === 'Soft'));
 
   async function ensureProvider() {
-    if (!providerB64) {
-      try {
-        const me = await connectionStore.getMyAgentPubKey();
-        providerB64 = encodeHashToBase64(me);
-      } catch {
-        /* leave empty */
-      }
+    try {
+      const me = await connectionStore.getMyAgentPubKey();
+      const b64 = encodeHashToBase64(me);
+      if (!providerB64) providerB64 = b64;
+      if (!receiverB64) receiverB64 = b64;
+    } catch {
+      /* leave empty */
     }
   }
 
@@ -103,24 +112,41 @@
       errorMessage = 'Resolve Hard action constraints before submitting.';
       return;
     }
-    if (!providerB64 || !dueDateLocal) {
-      errorMessage = 'Provider and due date are required.';
+    if (!providerB64 || !receiverB64 || !dueDateLocal) {
+      errorMessage = 'Provider, receiver, and due date are required.';
       return;
     }
     let provider: AgentPubKey;
+    let receiver: AgentPubKey;
     try {
       provider = decodeHashFromBase64(providerB64) as AgentPubKey;
+      receiver = decodeHashFromBase64(receiverB64) as AgentPubKey;
     } catch {
-      errorMessage = 'Invalid provider pubkey (base64).';
+      errorMessage = 'Invalid base64 pubkey for provider or receiver.';
       return;
     }
     isSubmitting = true;
     errorMessage = '';
     const dueMs = new Date(dueDateLocal).getTime();
+    const resQty = resourceQuantity.trim()
+      ? {
+          numerical_value: Number(resourceQuantity),
+          has_unit: resourceUnit.trim() || 'each'
+        }
+      : null;
+    const effQty = effortQuantity.trim()
+      ? {
+          numerical_value: Number(effortQuantity),
+          has_unit: effortUnit.trim() || 'hour'
+        }
+      : null;
     const out = await governanceStore.proposeCommitment(
       {
         action,
         provider,
+        receiver,
+        resource_quantity: resQty,
+        effort_quantity: effQty,
         due_date: dueMs * 1000,
         note: note.trim() || null,
         ndo_identity_hash: ndoActionHash
@@ -178,6 +204,17 @@
         />
       </div>
       <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700" for="c-receiver"
+          >Receiver (agent pubkey b64)</label
+        >
+        <input
+          id="c-receiver"
+          type="text"
+          bind:value={receiverB64}
+          class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs"
+        />
+      </div>
+      <div>
         <label class="mb-1 block text-sm font-medium text-gray-700" for="c-due">Due date</label>
         <input
           id="c-due"
@@ -185,6 +222,48 @@
           bind:value={dueDateLocal}
           class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
         />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1 block text-sm text-gray-600" for="c-res-qty">Resource quantity (optional)</label>
+          <input
+            id="c-res-qty"
+            type="number"
+            bind:value={resourceQuantity}
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            placeholder="e.g. 1"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm text-gray-600" for="c-res-unit">Resource unit</label>
+          <input
+            id="c-res-unit"
+            type="text"
+            bind:value={resourceUnit}
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="mb-1 block text-sm text-gray-600" for="c-eff-qty">Effort quantity (optional)</label>
+          <input
+            id="c-eff-qty"
+            type="number"
+            bind:value={effortQuantity}
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            placeholder="e.g. 4"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm text-gray-600" for="c-eff-unit">Effort unit</label>
+          <input
+            id="c-eff-unit"
+            type="text"
+            bind:value={effortUnit}
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
       </div>
       <div>
         <label class="mb-1 block text-sm text-gray-600" for="c-note">Note</label>
