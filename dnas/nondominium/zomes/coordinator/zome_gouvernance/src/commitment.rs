@@ -88,13 +88,62 @@ pub fn propose_commitment(input: ProposeCommitmentInput) -> ExternResult<Propose
     (),
   )?;
 
+  // NDO-indexed link: `get_commitments_for_ndo` reads this to answer
+  // "every commitment attached to NDO X" in O(links) without a full
+  // AllCommitments scan. The Group DNA's `CommitmentAnchor` uses the same
+  // `commitment_action_hash` as pointer, so a pool-side pool scan can resolve
+  // against this per-NDO index on the Nondominium side.
+  create_link(
+    commitment.ndo_identity_hash.clone(),
+    commitment_hash.clone(),
+    LinkTypes::NdoToCommitments,
+    (),
+  )?;
+
   // TODO: Link commitment to provider and receiver when AgentToCommitment link type is added
-  // For now, just use the basic discovery link
 
   Ok(ProposeCommitmentOutput {
     commitment_hash,
     commitment,
   })
+}
+
+/// Returns every commitment that was proposed against the given NDO Layer 0
+/// identity hash. Reads the per-NDO `NdoToCommitments` index written by
+/// `propose_commitment`, so it stays cheap as the global `AllCommitments`
+/// anchor grows.
+///
+/// Pairs with the Group DNA's `CommitmentAnchor` for the Commitment Pool
+/// read path: UIs can show "commitments on this NDO" (this fn) + "pools
+/// this commitment is admitted to" (Group DNA side) and have both sides
+/// cross-link via `commitment_action_hash`.
+#[hdk_extern]
+pub fn get_commitments_for_ndo(
+  ndo_identity_hash: ActionHash,
+) -> ExternResult<Vec<Commitment>> {
+  let links = get_links(
+    LinkQuery::try_new(ndo_identity_hash, LinkTypes::NdoToCommitments)?,
+    GetStrategy::default(),
+  )?;
+  let mut commitments = Vec::new();
+  for link in links {
+    let Ok(hash) = AnyDhtHash::try_from(link.target) else {
+      continue;
+    };
+    let Some(record) = get(hash, GetOptions::default())? else {
+      continue;
+    };
+    if let Ok(Some(commitment)) =
+      record.entry().to_app_option::<Commitment>().map_err(|_| {
+        wasm_error!(WasmErrorInner::Guest(
+          "Failed to deserialize commitment".into()
+        ))
+      })
+    {
+      commitments.push(commitment);
+    }
+  }
+  Ok(commitments)
 }
 
 #[hdk_extern]
