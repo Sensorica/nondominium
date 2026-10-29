@@ -66,8 +66,11 @@ pub struct ValidateNewResourceInput {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EconomicResourceInput {
   pub spec_hash: ActionHash,
-  pub quantity: f64,
-  pub unit: String,
+  /// ValueFlows `resourceQuantity` on this inventoried resource.
+  /// The pair `{ numerical_value, has_unit }` replaces the previous flattened
+  /// `quantity: f64 + unit: String` so Commitments, Events, and Resources all
+  /// share the same wire shape.
+  pub quantity: Measure,
   pub current_location: Option<String>,
 }
 
@@ -83,13 +86,14 @@ pub fn create_economic_resource(
 ) -> ExternResult<CreateEconomicResourceOutput> {
   let agent_info = agent_info()?;
 
-  // Validate input
-  if input.quantity <= 0.0 {
+  // Validate input (shape + positivity). Measure::validate() checks the pair;
+  // the > 0 check captures the creation-time positive-balance requirement.
+  input
+    .quantity
+    .validate()
+    .map_err(|e| ResourceError::InvalidInput(format!("Invalid quantity: {e}")))?;
+  if input.quantity.numerical_value <= 0.0 {
     return Err(ResourceError::InvalidInput("Quantity must be positive".to_string()).into());
-  }
-
-  if input.unit.trim().is_empty() {
-    return Err(ResourceError::InvalidInput("Unit cannot be empty".to_string()).into());
   }
 
   // Validate that the specification exists
@@ -99,7 +103,6 @@ pub fn create_economic_resource(
 
   let resource = EconomicResource {
     quantity: input.quantity,
-    unit: input.unit,
     custodian: agent_info.agent_initial_pubkey.clone(),
     current_location: input.current_location,
     operational_state: OperationalState::PendingValidation,
@@ -242,18 +245,17 @@ pub fn update_economic_resource(input: UpdateEconomicResourceInput) -> ExternRes
     return Err(ResourceError::NotCustodian.into());
   }
 
-  // Validate input
-  if input.updated_resource.quantity <= 0.0 {
-    return Err(ResourceError::InvalidInput("Quantity must be positive".to_string()).into());
-  }
-
-  if input.updated_resource.unit.trim().is_empty() {
-    return Err(ResourceError::InvalidInput("Unit cannot be empty".to_string()).into());
-  }
+  // Validate input. Updates may legitimately drop quantity to 0 (post-depletion
+  // bookkeeping), so we validate shape only here; the create-time > 0 check does
+  // not apply to updates.
+  input
+    .updated_resource
+    .quantity
+    .validate()
+    .map_err(|e| ResourceError::InvalidInput(format!("Invalid quantity: {e}")))?;
 
   let updated_resource = EconomicResource {
     quantity: input.updated_resource.quantity,
-    unit: input.updated_resource.unit,
     custodian: original_resource.custodian, // Keep the same custodian
     current_location: input.updated_resource.current_location,
     operational_state: original_resource.operational_state,

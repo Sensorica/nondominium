@@ -20,7 +20,9 @@ use nondominium_shared::io::governance::{
     CreateAgreementInput, CreateNdoHardLinkInput, GetNdoHardLinksByTypeInput,
     UpdateAgreementInput, ValidateContributionInput,
 };
-use nondominium_shared::types::{BeneficiaryRef, BenefitClause, BenefitType, NdoLinkType, VfAction};
+use nondominium_shared::types::{
+    BeneficiaryRef, BenefitClause, BenefitType, Measure, NdoLinkType, VfAction,
+};
 
 // ─── Local output types (partial views for assertion — reference entry types
 //     from integrity zomes which cannot be imported in native test crates) ──────
@@ -74,7 +76,7 @@ struct LogEconomicEventInput {
     pub provider: AgentPubKey,
     pub receiver: AgentPubKey,
     pub resource_inventoried_as: ActionHash,
-    pub resource_quantity: f64,
+    pub resource_quantity: Measure,
     pub note: Option<String>,
     pub commitment_hash: Option<ActionHash>,
     pub generate_pprs: Option<bool>,
@@ -271,7 +273,7 @@ async fn create_and_get_ndo_hard_link() {
                 provider: alice_key.clone(),
                 receiver: alice_key.clone(),
                 resource_inventoried_as: stub_resource,
-                resource_quantity: 1.0,
+                resource_quantity: Measure::new(1.0, "each"),
                 note: Some("link fulfillment event".to_string()),
                 commitment_hash: None,
                 generate_pprs: Some(false),
@@ -371,7 +373,7 @@ async fn nondominium_transfer_event_is_hard_rejected() {
                 provider: alice_key.clone(),
                 receiver: alice_key.clone(),
                 resource_inventoried_as: stub_resource,
-                resource_quantity: 1.0,
+                resource_quantity: Measure::new(1.0, "each"),
                 note: Some("should fail".to_string()),
                 commitment_hash: None,
                 generate_pprs: Some(false),
@@ -466,8 +468,7 @@ async fn evaluate_state_transition_hard_and_soft_paths() {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     struct EconomicResourceView {
-        pub quantity: f64,
-        pub unit: String,
+        pub quantity: Measure,
         pub custodian: AgentPubKey,
         pub current_location: Option<String>,
         pub operational_state: String,
@@ -499,8 +500,7 @@ async fn evaluate_state_transition_hard_and_soft_paths() {
     }
 
     let resource = EconomicResourceView {
-        quantity: 1.0,
-        unit: "each".to_string(),
+        quantity: Measure::new(1.0, "each"),
         custodian: alice_key.clone(),
         current_location: None,
         operational_state: "Available".to_string(),
@@ -579,6 +579,9 @@ struct ProposeCommitmentInput {
     pub resource_hash: Option<ActionHash>,
     pub resource_spec_hash: Option<ActionHash>,
     pub provider: AgentPubKey,
+    pub receiver: AgentPubKey,
+    pub resource_quantity: Option<Measure>,
+    pub effort_quantity: Option<Measure>,
     pub due_date: Timestamp,
     pub note: Option<String>,
     pub ndo_identity_hash: ActionHash,
@@ -637,6 +640,9 @@ async fn commitment_is_discoverable_by_its_author() {
                 resource_hash: None,
                 resource_spec_hash: None,
                 provider: alice_key.clone(),
+                receiver: alice_key.clone(),
+                resource_quantity: None,
+                effort_quantity: None,
                 due_date: Timestamp::now(),
                 note: Some("discoverable commitment".to_string()),
                 ndo_identity_hash: ndo.action_hash.clone(),
@@ -698,7 +704,7 @@ async fn economic_event_is_discoverable_by_its_author() {
                 provider: alice_key.clone(),
                 receiver: alice_key.clone(),
                 resource_inventoried_as: stub_resource,
-                resource_quantity: 1.0,
+                resource_quantity: Measure::new(1.0, "each"),
                 note: Some("discoverable event".to_string()),
                 commitment_hash: None,
                 generate_pprs: Some(false),

@@ -1,5 +1,6 @@
 use crate::GovernanceError;
 use hdk::prelude::*;
+use nondominium_shared::types::Measure;
 use zome_gouvernance_integrity::*;
 
 // ============================================================================
@@ -12,6 +13,18 @@ pub struct ProposeCommitmentInput {
   pub resource_hash: Option<ActionHash>,
   pub resource_spec_hash: Option<ActionHash>,
   pub provider: AgentPubKey,
+  /// Explicit receiver of the flow. Previously the receiver was hardcoded to
+  /// the caller, which forced the provider-is-caller convention and prevented
+  /// third parties (e.g. a Group member proposing a commitment on behalf of
+  /// two other agents) from authoring commitments. Making this explicit also
+  /// keeps us closer to the ValueFlows flow pair (provider ↔ receiver).
+  pub receiver: AgentPubKey,
+  /// ValueFlows `resourceQuantity` for countable commitments. Optional for
+  /// commitments whose quantity is implied by context (e.g. "repair this
+  /// machine").
+  pub resource_quantity: Option<Measure>,
+  /// ValueFlows `effortQuantity` for labour/time components (e.g. "4 h").
+  pub effort_quantity: Option<Measure>,
   pub due_date: Timestamp,
   pub note: Option<String>,
   /// Layer 0 identity for action-constraint evaluation.
@@ -26,8 +39,24 @@ pub struct ProposeCommitmentOutput {
 
 #[hdk_extern]
 pub fn propose_commitment(input: ProposeCommitmentInput) -> ExternResult<ProposeCommitmentOutput> {
-  let agent_info = agent_info()?;
+  let _agent_info = agent_info()?;
   let now = sys_time()?;
+
+  // Shape-check any Measures before integrity sees them.
+  if let Some(ref m) = input.resource_quantity {
+    m.validate().map_err(|e| {
+      wasm_error!(WasmErrorInner::Guest(format!(
+        "Invalid resource_quantity: {e}"
+      )))
+    })?;
+  }
+  if let Some(ref m) = input.effort_quantity {
+    m.validate().map_err(|e| {
+      wasm_error!(WasmErrorInner::Guest(format!(
+        "Invalid effort_quantity: {e}"
+      )))
+    })?;
+  }
 
   // Hard action constraints are enforced by integrity validation.
   // Soft warnings: use evaluate_state_transition / check_action_constraints (parallel path).
@@ -35,10 +64,12 @@ pub fn propose_commitment(input: ProposeCommitmentInput) -> ExternResult<Propose
   let commitment = Commitment {
     action: input.action,
     provider: input.provider,
-    receiver: agent_info.agent_initial_pubkey,
+    receiver: input.receiver,
     resource_inventoried_as: input.resource_hash,
     resource_conforms_to: input.resource_spec_hash,
     input_of: None, // TODO: Add process support in Phase 4
+    resource_quantity: input.resource_quantity,
+    effort_quantity: input.effort_quantity,
     due_date: input.due_date,
     note: input.note,
     committed_at: now,
