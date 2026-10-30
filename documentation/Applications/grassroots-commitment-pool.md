@@ -3,6 +3,7 @@
 **Audience:** Grassroots Economics (GE) collaborators trying Commitment Pooling on Holochain, without adopting the rest of the Nondominium roadmap.
 **Branch:** `commitment-pool-experiment`
 **Status:** Runnable two-agent prototype. Not a production protocol.
+**Why / how / decisions:** [user-story/commitment-pool-experiment.md](user-story/commitment-pool-experiment.md) — branch fork, design-system remix, DNA + UI additions, locked decisions for people building on top.
 
 This is a thin mapping: GE's Commitment Pool is a **Group**. The things people commit *about* are **NDOs**. The promises themselves are ValueFlows **Commitments**. Fulfillment is one coordinator call that writes the observation, the claim, and both bilateral Private Participation Receipts (PPRs).
 
