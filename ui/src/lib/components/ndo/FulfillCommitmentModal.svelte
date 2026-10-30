@@ -5,6 +5,7 @@
     FulfillmentPerformanceMetrics,
     OperationalState
   } from '@nondominium/shared-types';
+  import { Modal, NdoButton } from '@nondominium/ndo-ui';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
 
   interface Props {
@@ -74,22 +75,13 @@
   }
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-  <div
-    class="relative w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="fulfill-title"
-  >
-    <div class="border-b border-gray-100 px-6 py-4">
-      <h2 id="fulfill-title" class="text-lg font-semibold text-gray-900">Fulfill commitment</h2>
-      <p class="mt-1 text-sm text-gray-500">
-        Writes the event, the claim, and both bilateral PPRs in one call. The counterparty must be
-        reachable to countersign.
-      </p>
-    </div>
-
-    <div class="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-4">
+<Modal
+  title="Fulfill commitment"
+  subtitle="Writes the event, the claim, and both bilateral PPRs in one call. The counterparty must be reachable to countersign."
+  maxWidth="lg"
+>
+  {#snippet children()}
+    <div class="space-y-4">
       <p class="text-sm text-gray-700">
         Action <span class="font-medium">{record.commitment.action}</span>
       </p>
@@ -164,19 +156,11 @@
         <p class="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{errorMessage}</p>
       {/if}
     </div>
-
-    <div class="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
-      <button type="button" onclick={onclose} class="rounded px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
-        >Cancel</button
-      >
-      <button
-        type="button"
-        disabled={isSubmitting}
-        onclick={handleSubmit}
-        class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-      >
-        {isSubmitting ? 'Fulfilling…' : 'Fulfill'}
-      </button>
-    </div>
-  </div>
-</div>
+  {/snippet}
+  {#snippet footer()}
+    <NdoButton variant="ghost" onclick={onclose}>Cancel</NdoButton>
+    <NdoButton disabled={isSubmitting} onclick={() => void handleSubmit()}>
+      {isSubmitting ? 'Fulfilling…' : 'Fulfill'}
+    </NdoButton>
+  {/snippet}
+</Modal>

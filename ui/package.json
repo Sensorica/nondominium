@@ -49,6 +49,7 @@
   "dependencies": {
     "@holochain/client": "^0.20.0",
     "@msgpack/msgpack": "^3.0.0",
+    "@nondominium/ndo-ui": "file:../../nondominium-design-system/packages/ndo-ui",
     "@nondominium/shared-types": "workspace:*",
     "@valueflows/vf-graphql-holochain": "file:../vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz",
     "effect": "4.0.0",

@@ -7,9 +7,10 @@
 
   interface Props {
     members: Member[];
+    onmemberclick?: (member: Member) => void;
   }
 
-  let { members }: Props = $props();
+  let { members, onmemberclick }: Props = $props();
 </script>
 
 <section class="mt-8">
@@ -25,7 +26,17 @@
           data-testid="member-row"
           class="flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2 text-sm"
         >
-          <span class="font-medium text-gray-800">{m.name}</span>
+          {#if onmemberclick}
+            <button
+              type="button"
+              class="font-medium text-blue-700 hover:underline"
+              onclick={() => onmemberclick?.(m)}
+            >
+              {m.name}
+            </button>
+          {:else}
+            <span class="font-medium text-gray-800">{m.name}</span>
+          {/if}
           {#if m.role}
             <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{m.role}</span>
           {/if}

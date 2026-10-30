@@ -1,6 +1,14 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { goto } from '$app/navigation';
+  import {
+    Breadcrumb,
+    NdoActionRow,
+    NdoButton,
+    type BreadcrumbItem
+  } from '@nondominium/ndo-ui';
   import { appContext } from '$lib/stores/app.context.svelte';
+  import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import {
     createNdoStore,
     isTaskInterrupted,
@@ -24,19 +32,11 @@
 
   let { specHashB64 }: Props = $props();
 
-  /**
-   * The store of the NDO open in this view, one per `specHashB64`. Recreated when the
-   * prop changes and destroyed with the old hash or on teardown, which interrupts every
-   * fiber it forked. Descendants read it through `getNdoStore()`; they only mount once
-   * `specActionHash` is set, so the store exists by then.
-   */
   let store = $state.raw<NdoStore | null>(null);
   setNdoStore(() => store!);
 
   $effect(() => {
     const hashB64 = specHashB64;
-    // Untracked: creating the store seeds and reads its own state, which must not
-    // become a dependency of this effect.
     const next = untrack(() => {
       const created = createNdoStore(hashB64);
       if (created.actionHash) {
@@ -51,33 +51,57 @@
     return () => next.destroy();
   });
 
-  let tab = $state<'resources' | 'governance' | 'composition' | 'activity'>('resources');
+  type TabId = 'overview' | 'resources' | 'governance' | 'composition' | 'activity';
+  let tab = $state<TabId>('overview');
   let showForkModal = $state(false);
   let showAssociateModal = $state(false);
   let showJoinPanel = $state(false);
   let joinMessage = $state<string | null>(null);
   let joinError = $state<string | null>(null);
   let joinLoading = $state(false);
+  let linkCopied = $state(false);
 
   const specActionHash = $derived(store?.actionHash ?? null);
   const parseError = $derived(store?.parseError ?? null);
   const ndoDescriptor = $derived(store?.ndo ?? null);
   const isLoading = $derived(store?.isLoading ?? false);
   const loadError = $derived(store?.loadError ?? null);
-  /**
-   * The cloned `ndo` cell holding this NDO's Layer 0 identity. Every Layer 1 and
-   * Layer 2 call below is addressed to it: the identity those entries reference
-   * only exists in that DHT, never in the shared provisioned cell. `null` means
-   * a legacy NDO still living in the shared cell, and callers fall back to it.
-   */
   const ndoCellId = $derived(store?.cellId ?? null);
 
-  // A failed members read shows an empty list beside its error, as before.
   const memberRows = (members: EntityState<NdoMember[], string>): NdoMember[] =>
     errorOf(members) ? [] : (dataOf(members) ?? []);
   const ndoMembers = $derived(store ? memberRows(store.members) : []);
   const membersLoading = $derived(store ? isBusy(store.members) : false);
   const membersError = $derived(store ? errorOf(store.members) : null);
+
+  const isAuthenticated = $derived(appContext.myAgentPubKey != null);
+  const missing = $derived(!isLoading && !loadError && !ndoDescriptor && !parseError && !!specActionHash);
+
+  const breadcrumb = $derived.by((): BreadcrumbItem[] => {
+    const items: BreadcrumbItem[] = [{ label: 'Lobby', href: '/' }];
+    const groupId = appContext.selectedGroupId;
+    if (groupId) {
+      const g = lobbyStore.groups.find((x) => x.id === groupId);
+      items.push({
+        label: g?.name ?? 'Group',
+        href: `/group/${encodeURIComponent(groupId)}`
+      });
+      items.push({
+        label: 'Resource',
+        href: `/group/${encodeURIComponent(groupId)}`
+      });
+    }
+    items.push({ label: ndoDescriptor?.name ?? 'NDO' });
+    return items;
+  });
+
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'resources', label: 'Resources' },
+    { id: 'governance', label: 'Governance' },
+    { id: 'composition', label: 'Composition' },
+    { id: 'activity', label: 'Activity' }
+  ];
 
   function handleRefresh() {
     store?.refresh();
@@ -111,29 +135,42 @@
     showJoinPanel = true;
   }
 
+  async function copyLink() {
+    try {
+      const url = `${window.location.origin}/ndo/${encodeURIComponent(specHashB64)}`;
+      await navigator.clipboard.writeText(url);
+      linkCopied = true;
+      setTimeout(() => (linkCopied = false), 2000);
+    } catch {
+      // clipboard unavailable
+    }
+  }
+
   $effect(() => {
-    // Load once from Idle. Keying on an empty list re-fired on every successful
-    // empty read, polling the conductor for as long as the panel stayed open.
     if (showJoinPanel && store && needsFirstLoad(store.members)) {
       void loadNdoMembers();
     }
   });
 
-  const tabs = [
-    { id: 'resources' as const, label: 'Resources' },
-    { id: 'governance' as const, label: 'Governance' },
-    { id: 'composition' as const, label: 'Composition' },
-    { id: 'activity' as const, label: 'Activity' }
-  ];
-
-  const isAuthenticated = $derived(appContext.myAgentPubKey != null);
+  $effect(() => {
+    if (tab === 'overview' && store && needsFirstLoad(store.members)) {
+      void loadNdoMembers();
+    }
+  });
 </script>
 
 {#if parseError}
   <div class="p-6">
     <p class="text-red-600">{parseError}</p>
+    <a href="/" class="mt-3 inline-block text-sm text-blue-700 hover:underline">Back to Lobby</a>
   </div>
-{:else if specActionHash}
+{:else if !specActionHash}
+  <div class="p-6">
+    <h1 class="text-xl font-bold text-gray-900">This NDO is not available</h1>
+    <p class="mt-2 text-sm text-gray-600">No resource matches this link.</p>
+    <a href="/" class="mt-3 inline-block text-sm text-blue-700 hover:underline">Back to Lobby</a>
+  </div>
+{:else}
   {#if showForkModal && ndoDescriptor}
     <ForkNdoModal
       descriptor={ndoDescriptor}
@@ -153,56 +190,47 @@
     />
   {/if}
 
-  <div class="border-b border-gray-200 bg-white px-6 pt-4">
+  <div class="border-b border-gray-200 bg-white px-6 pt-4" data-testid="ndo-resource-view">
+    <div class="mb-3">
+      <Breadcrumb items={breadcrumb} />
+    </div>
+
     <div class="flex flex-col items-start gap-3 md:flex-row md:justify-between md:gap-0">
       <div>
         {#if isLoading}
           <div class="mb-1 h-6 w-40 animate-pulse rounded bg-gray-200"></div>
         {:else if loadError}
           <h1 class="text-xl font-bold text-red-600">Failed to load NDO</h1>
+        {:else if missing}
+          <h1 class="text-xl font-bold text-gray-900">This NDO is not in the session</h1>
         {:else}
           <h1 class="text-xl font-bold text-gray-900">{ndoDescriptor?.name ?? 'NDO'}</h1>
         {/if}
         <p class="mt-1 font-mono text-xs text-gray-400">{specHashB64.slice(0, 20)}…</p>
       </div>
-      <div class="flex flex-wrap items-center gap-2 md:ml-4 md:shrink-0 md:flex-nowrap">
-        <button
-          type="button"
+      <div class="flex flex-wrap items-center gap-2 md:ml-4 md:shrink-0">
+        <NdoButton
+          variant="ghost"
           disabled={joinLoading}
           onclick={() => {
             showJoinPanel = !showJoinPanel;
             if (showJoinPanel) void loadNdoMembers();
           }}
-          class="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
         >
           {joinLoading ? 'Joining…' : 'Join NDO'}
-        </button>
-
-        <!-- Associate with group: writes an NdoAnchor (clone coordinates) on the target group DHT -->
-        <button
-          type="button"
-          onclick={() => {
-            showAssociateModal = true;
-          }}
-          class="rounded border border-blue-300 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50"
-        >
+        </NdoButton>
+        <NdoButton variant="ghost" onclick={() => (showAssociateModal = true)}>
           Associate with a group
-        </button>
-
-        <!-- Fork: requires live Holochain connection -->
+        </NdoButton>
+        <NdoButton variant="ghost" onclick={() => void copyLink()}>
+          {linkCopied ? 'Link copied!' : 'Copy NDO link'}
+        </NdoButton>
         {#if isAuthenticated}
-          <button
-            type="button"
-            onclick={() => {
-              showForkModal = true;
-            }}
-            class="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-          >
-            Fork this NDO
-          </button>
+          <NdoButton variant="ghost" onclick={() => (showForkModal = true)}>Fork this NDO</NdoButton>
         {/if}
       </div>
     </div>
+
     <nav class="mt-4 flex gap-2 overflow-x-auto" aria-label="NDO sections">
       {#each tabs as t}
         <button
@@ -230,43 +258,21 @@
     </div>
   {/if}
 
-  <!-- NDO detail card -->
-  {#if ndoDescriptor}
-    <div class="mx-6 mt-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {#if ndoDescriptor.description}
-          <div class="sm:col-span-2">
-            <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Description</p>
-            <p class="mt-1 text-sm text-gray-800">{ndoDescriptor.description}</p>
-          </div>
-        {/if}
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Property regime</p>
-          <p class="mt-1 text-sm font-medium text-gray-800">
-            {ndoDescriptor.property_regime ?? '—'}
-          </p>
-        </div>
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Resource nature</p>
-          <p class="mt-1 text-sm font-medium text-gray-800">
-            {ndoDescriptor.resource_nature ?? '—'}
-          </p>
-        </div>
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Lifecycle stage</p>
-          <p data-testid="ndo-lifecycle-stage" class="mt-1 text-sm font-medium text-gray-800">
-            {ndoDescriptor.lifecycle_stage ?? '—'}
-          </p>
-        </div>
-        {#if ndoDescriptor.created_at}
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Created</p>
-            <p class="mt-1 text-sm text-gray-600">
-              {new Date(ndoDescriptor.created_at / 1000).toLocaleString()}
-            </p>
-          </div>
-        {/if}
-      </div>
+  {#if missing}
+    <div class="mx-6 mt-4 rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      No resource matches this link.
+      {#if appContext.selectedGroupId}
+        <a
+          class="ml-1 text-blue-700 underline"
+          href="/group/{encodeURIComponent(appContext.selectedGroupId)}"
+        >
+          Back to group
+        </a>
+      {:else}
+        <button type="button" class="ml-1 text-blue-700 underline" onclick={() => goto('/')}>
+          Back to the lobby
+        </button>
+      {/if}
     </div>
   {/if}
 
@@ -275,17 +281,12 @@
       <h2 class="text-sm font-semibold text-gray-800">NDO membership</h2>
       <p class="mt-1 text-xs text-gray-500">
         Joining an NDO records your participation on the DHT. This is distinct from associating the
-        NDO with a group (a curated short list for group members).
+        NDO with a group.
       </p>
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={joinLoading}
-          onclick={handleJoinNdo}
-          class="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
+        <NdoButton disabled={joinLoading} onclick={() => void handleJoinNdo()}>
           {joinLoading ? 'Joining…' : 'Join this NDO'}
-        </button>
+        </NdoButton>
       </div>
       {#if joinMessage}
         <p class="mt-2 text-xs text-gray-600">{joinMessage}</p>
@@ -304,17 +305,33 @@
     </div>
   {/if}
 
-  <NdoIdentityLayer descriptor={ndoDescriptor} onrefresh={handleRefresh} />
-
-  <div class="p-6">
-    {#if tab === 'resources'}
+  <div class="space-y-4 p-6">
+    {#if tab === 'overview'}
+      <NdoActionRow
+        oncreatendo={() => {
+          const gid = appContext.selectedGroupId;
+          if (gid) void goto(`/group/${encodeURIComponent(gid)}?createNdo=1`);
+          else void goto('/ndo/new');
+        }}
+      />
+      <NdoIdentityLayer descriptor={ndoDescriptor} onrefresh={handleRefresh} />
+      <section class="rounded-lg border border-gray-200 bg-white p-4">
+        <h2 class="text-sm font-semibold text-gray-800">Members</h2>
+        <MemberList members={ndoMembers} />
+        {#if membersLoading}
+          <p class="mt-2 text-xs text-gray-400 italic">Loading members…</p>
+        {:else if membersError}
+          <p class="mt-2 text-xs text-amber-700">{membersError}</p>
+        {/if}
+      </section>
+    {:else if tab === 'resources' && specActionHash}
       <ResourcesTab
         {specActionHash}
         {ndoCellId}
         lifecycleStage={ndoDescriptor?.lifecycle_stage ?? null}
         propertyRegime={ndoDescriptor?.property_regime ?? null}
       />
-    {:else if tab === 'governance'}
+    {:else if tab === 'governance' && specActionHash}
       <GovernanceTab
         {specActionHash}
         {ndoCellId}
@@ -322,9 +339,9 @@
         resourceNature={ndoDescriptor?.resource_nature ?? null}
         rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
       />
-    {:else if tab === 'composition'}
-      <CompositionTab />
-    {:else}
+    {:else if tab === 'composition' && specActionHash}
+      <CompositionTab ndoIdentityHash={specActionHash} />
+    {:else if tab === 'activity' && specActionHash}
       <ActivityTab
         {specActionHash}
         {ndoCellId}

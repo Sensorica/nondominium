@@ -46,6 +46,7 @@
       "dependencies": {
         "@holochain/client": "^0.20.0",
         "@msgpack/msgpack": "^3.0.0",
+        "@nondominium/ndo-ui": "file:../../nondominium-design-system/packages/ndo-ui",
         "@nondominium/shared-types": "workspace:*",
         "@valueflows/vf-graphql-holochain": "file:../vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz",
         "effect": "4.0.0",
@@ -1473,6 +1474,8 @@
     "ui/@holochain/client": ["@holochain/client@0.20.1", "", { "dependencies": { "@bitgo/blake2b": "^3.2.4", "@msgpack/msgpack": "^3.1.2", "emittery": "^1.2.0", "isomorphic-ws": "^5.0.0", "js-base64": "^3.7.8", "js-sha512": "^0.9.0", "libsodium-wrappers": "^0.7.15", "lodash-es": "^4.17.21", "ws": "^8.18.3" } }, "sha512-PG9x8UgOiQH5nMIVBG+YiZ1wX4sIv9/aAd9LUV2bkGojh3bXyyHD3dZ2B2hzZiOHU8p1gwPSi0N/rCb0WZr0hQ=="],
 
     "ui/@msgpack/msgpack": ["@msgpack/msgpack@3.1.2", "", {}, "sha512-JEW4DEtBzfe8HvUYecLU9e6+XJnKDlUAIve8FvPzF3Kzs6Xo/KuZkZJsDH0wJXl/qEZbeeE7edxDNY3kMs39hQ=="],
+
+    "ui/@nondominium/ndo-ui": ["@nondominium/ndo-ui@file:../nondominium-design-system/packages/ndo-ui", { "peerDependencies": { "svelte": "^5.0.0" } }],
 
     "unconfig/jiti": ["jiti@2.6.1", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ=="],
 

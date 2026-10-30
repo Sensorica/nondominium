@@ -179,20 +179,40 @@ export interface NdoFormInput {
 }
 
 /**
- * Creates an NDO through the group view's NdoCreateModal (native selects, so
- * selectOption drives them directly).
+ * Creates an NDO through the group view's ndo-ui wizard (`NdoCreateWizard`).
+ * Optional `regime` for Collective/Pool/Public uses the hApp "Final property
+ * regime" override (wizard refinement only offers four regimes).
  */
 export async function createNdo(page: Page, input: NdoFormInput): Promise<void> {
+  // Prefer "Activate for use" when nature/regime/stage need refinement; otherwise
+  // "Capture an idea" skips refinement (archetype → kernel → review).
+  const needsRefinement = !!(input.regime || input.nature || (input.stage && input.stage !== 'Ideation'));
   await page.getByRole('button', { name: '+ Create NDO' }).click();
-  await expect(page.getByRole('heading', { name: 'Create NDO' })).toBeVisible();
-  await page.locator('#ndo-name').fill(input.name);
-  if (input.regime) await page.locator('#ndo-regime').selectOption(input.regime);
-  if (input.nature) await page.locator('#ndo-nature').selectOption(input.nature);
-  if (input.stage) await page.locator('#ndo-stage').selectOption(input.stage);
-  if (input.description) await page.locator('#ndo-desc').fill(input.description);
+  await expect(page.getByText('What are you trying to do?')).toBeVisible();
+  await page
+    .getByRole('button', {
+      name: needsRefinement ? /Activate for use/i : /Capture an idea/i
+    })
+    .click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.locator('#wizard-name').fill(input.name);
+  if (input.nature) {
+    await page.getByRole('button', { name: new RegExp(`^${input.nature}`, 'i') }).first().click();
+  }
+  if (input.description) {
+    const desc = page.locator('#wizard-description, textarea').first();
+    if (await desc.count()) await desc.fill(input.description);
+  }
+  await page.getByRole('button', { name: 'Continue' }).click();
+  if (needsRefinement) {
+    if (input.regime && ['Collective', 'Pool', 'Public'].includes(input.regime)) {
+      await page.getByLabel(/Final property regime/i).selectOption(input.regime);
+    }
+    await page.getByRole('button', { name: 'Continue' }).click();
+  }
   await page.getByRole('button', { name: 'Create NDO', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Create NDO' })).toBeHidden({
-    timeout: 60_000
+  await expect(page.getByText('What are you trying to do?')).toBeHidden({
+    timeout: 120_000
   });
 }
 

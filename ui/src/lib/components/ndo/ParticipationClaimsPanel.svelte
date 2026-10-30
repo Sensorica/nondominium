@@ -1,8 +1,10 @@
 <script lang="ts">
   import type { CellId } from '@holochain/client';
   import { encodeHashToBase64 } from '@holochain/client';
-  import { governanceStore } from '$lib/stores/governance.store.svelte';
-  import type { GetMyParticipationClaimsResult } from '$lib/services/zomes/governance.service';
+  import {
+    governanceStore,
+    type GetMyParticipationClaimsResult
+  } from '$lib/stores/governance.store.svelte';
 
   interface Props {
     ndoCellId?: CellId | null;

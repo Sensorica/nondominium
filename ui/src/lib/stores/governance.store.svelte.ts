@@ -19,7 +19,12 @@ import type {
   FulfillCommitmentClosureInput,
   FulfillCommitmentClosureOutput
 } from '@nondominium/shared-types';
-import type { GetMyParticipationClaimsOptions, GetMyParticipationClaimsResult } from '../services/zomes/governance.service.js';
+import type {
+  GetMyParticipationClaimsOptions,
+  GetMyParticipationClaimsResult
+} from '../services/zomes/governance.service.js';
+
+export type { GetMyParticipationClaimsOptions, GetMyParticipationClaimsResult };
 
 export interface ResourceFlow {
   events: EconomicEvent[];

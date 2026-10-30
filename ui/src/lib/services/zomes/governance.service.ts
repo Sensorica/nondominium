@@ -6,6 +6,7 @@ import { GovernanceError } from '$lib/errors/governance.errors';
 import { GOVERNANCE_CONTEXTS } from '$lib/errors/error-contexts';
 import type {
   Commitment,
+  CreateNdoHardLinkInput,
   EconomicEvent,
   VfEconomicEvent,
   ProposeCommitmentInput,
@@ -18,8 +19,14 @@ import type {
   CommitmentRecord,
   FulfillCommitmentClosureInput,
   FulfillCommitmentClosureOutput,
+  NdoHardLink,
   PrivateParticipationClaim
 } from '@nondominium/shared-types';
+
+export interface NdoHardLinkRecord {
+  action_hash: ActionHash;
+  entry: NdoHardLink;
+}
 
 // ─── Service interface ────────────────────────────────────────────────────────
 
@@ -32,7 +39,7 @@ export interface GovernanceService {
     input: ProposeCommitmentInput,
     cellId?: CellId
   ) => E.Effect<ProposeCommitmentOutput, GovernanceError>;
-  getCommitment: (hash: ActionHash) => E.Effect<Commitment, GovernanceError>;
+  getCommitment: (hash: ActionHash, cellId?: CellId) => E.Effect<Commitment, GovernanceError>;
   getAllCommitments: (cellId?: CellId) => E.Effect<VfCommitment[], GovernanceError>;
   fulfillCommitment: (hash: ActionHash) => E.Effect<ActionHash, GovernanceError>;
   createEconomicEvent: (
@@ -126,6 +133,14 @@ export interface GovernanceService {
     options?: GetMyParticipationClaimsOptions,
     cellId?: CellId
   ) => E.Effect<GetMyParticipationClaimsResult, GovernanceError>;
+  getNdoHardLinks: (
+    ndoIdentityHash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<NdoHardLinkRecord[], GovernanceError>;
+  createNdoHardLink: (
+    input: CreateNdoHardLinkInput,
+    cellId?: CellId
+  ) => E.Effect<ActionHash, GovernanceError>;
 }
 
 export interface GetMyParticipationClaimsOptions {
@@ -187,8 +202,8 @@ export const GovernanceServiceLive: Layer.Layer<
           cellId
         ),
 
-      getCommitment: (hash) =>
-        wz<Commitment>('get_commitment', hash, GOVERNANCE_CONTEXTS.GET_COMMITMENT),
+      getCommitment: (hash, cellId) =>
+        wz<Commitment>('get_commitment', hash, GOVERNANCE_CONTEXTS.GET_COMMITMENT, cellId),
 
       getAllCommitments: (cellId) =>
         wz<VfCommitment[]>(
@@ -371,6 +386,22 @@ export const GovernanceServiceLive: Layer.Layer<
             totalCount: raw.total_count,
             claims: raw.claims.map(([hash, claim]) => ({ hash, claim }))
           })
+        ),
+
+      getNdoHardLinks: (ndoIdentityHash, cellId) =>
+        wz<NdoHardLinkRecord[]>(
+          'get_ndo_hard_links',
+          ndoIdentityHash,
+          GOVERNANCE_CONTEXTS.GET_NDO_HARD_LINKS,
+          cellId
+        ),
+
+      createNdoHardLink: (input, cellId) =>
+        wz<ActionHash>(
+          'create_ndo_hard_link',
+          input,
+          GOVERNANCE_CONTEXTS.CREATE_NDO_HARD_LINK,
+          cellId
         )
     } satisfies GovernanceService;
   })

@@ -1,21 +1,39 @@
 <script lang="ts">
+  /**
+   * Group as Perspective host (release-prototype Resource Perspective IA).
+   * Resource + Agent live; Intelligence / Work stay Soon. Commitment Pool
+   * mounts on the Resource view.
+   */
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import type {
     GroupMemberProfile,
-    LifecycleStage,
     NdoDescriptor,
-    PropertyRegime,
-    ResourceNature
+    NdoInput,
+    PrivateParticipationClaim
   } from '@nondominium/shared-types';
+  import {
+    Breadcrumb,
+    PerspectiveSwitcher,
+    ResourcePerspective,
+    type BreadcrumbItem,
+    type PerspectiveId
+  } from '@nondominium/ndo-ui';
   import { appContext } from '$lib/stores/app.context.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
+  import { navTrail } from '$lib/stores/nav-trail.svelte';
+  import { toNdoUiDescriptors } from '$lib/utils/ndo-ui-adapters';
+  import { encodeHashToBase64 } from '@holochain/client';
+  import { governanceStore } from '$lib/stores/governance.store.svelte';
   import { devStorageKey } from '$lib/utils/hc-connect';
-  import type { ActiveFilters } from '$lib/stores/lobby.store.svelte';
-  import NdoBrowser from '$lib/components/lobby/NdoBrowser.svelte';
-  import NdoCreateModal from './NdoCreateModal.svelte';
   import GroupProfileModal from './GroupProfileModal.svelte';
   import MemberList from './MemberList.svelte';
   import PoolSection from './PoolSection.svelte';
+  import NdoCreateWizard from './NdoCreateWizard.svelte';
+  import AgentDirectory, { type AgentDirectoryPerson } from './AgentDirectory.svelte';
+  import AgentProfileView, { type AgentConnection } from './AgentProfileView.svelte';
+  import { NdoButton } from '@nondominium/ndo-ui';
 
   interface Props {
     groupId: string;
@@ -24,37 +42,10 @@
 
   let { groupId, autoOpenCreateModal = false }: Props = $props();
 
-  let activeFilters = $state<ActiveFilters>({ stages: [], natures: [], regimes: [] });
   let inviteCopied = $state(false);
-
-  function setFilters(partial: Partial<ActiveFilters>): void {
-    activeFilters = { ...activeFilters, ...partial };
-  }
-
-  function clearFilters(): void {
-    activeFilters = { stages: [], natures: [], regimes: [] };
-  }
-
-  const filteredNdos = $derived.by(() => {
-    const { stages, natures, regimes } = activeFilters;
-    const noFilter = stages.length === 0 && natures.length === 0 && regimes.length === 0;
-    if (noFilter) return groupStore.groupNdos;
-    return groupStore.groupNdos.filter((d: NdoDescriptor) => {
-      const stageOk =
-        stages.length === 0 ||
-        (d.lifecycle_stage !== null && stages.includes(d.lifecycle_stage as LifecycleStage));
-      const natureOk =
-        natures.length === 0 ||
-        (d.resource_nature !== null && natures.includes(d.resource_nature as ResourceNature));
-      const regimeOk =
-        regimes.length === 0 ||
-        (d.property_regime !== null && regimes.includes(d.property_regime as PropertyRegime));
-      return stageOk && natureOk && regimeOk;
-    });
-  });
-
   let showCreateModal = $state(false);
   let showProfileModal = $state(false);
+  let selfClaims = $state<Array<{ claim: PrivateParticipationClaim }>>([]);
 
   const VISITED_KEY = devStorageKey('ndo_group_visited_v1');
 
@@ -99,6 +90,139 @@
     }
   }
 
+  const perspectiveParam = $derived($page.url.searchParams.get('perspective'));
+  const agentParam = $derived($page.url.searchParams.get('agent'));
+  const activePerspective = $derived<PerspectiveId>(
+    perspectiveParam === 'agent' ? 'agent' : 'resource'
+  );
+
+  const myKeyB64 = $derived(
+    appContext.myAgentPubKey ? encodeHashToBase64(appContext.myAgentPubKey) : null
+  );
+
+  const people = $derived<AgentDirectoryPerson[]>(
+    groupStore.members.map((m) => ({
+      id: m.id,
+      name: m.name,
+      bio: undefined,
+      skills: m.role ? [m.role] : undefined
+    }))
+  );
+
+  const selectedPerson = $derived(
+    agentParam ? (people.find((p) => p.id === agentParam) ?? null) : null
+  );
+
+  const initiatedBySelected = $derived.by((): NdoDescriptor[] => {
+    if (!agentParam) return [];
+    return groupStore.groupNdos.filter((d) => d.initiator === agentParam);
+  });
+
+  const connections = $derived.by((): AgentConnection[] => {
+    if (!agentParam) return [];
+    const others = people.filter((p) => p.id !== agentParam);
+    return others.map((p) => ({
+      agentId: p.id,
+      name: p.name,
+      reasons: ['same_group' as const]
+    }));
+  });
+
+  const isSelf = $derived(!!(agentParam && myKeyB64 && agentParam === myKeyB64));
+
+  const breadcrumb = $derived.by((): BreadcrumbItem[] => {
+    const groupName = groupStore.group?.name ?? 'Group';
+    const items: BreadcrumbItem[] = [
+      { label: 'Lobby', href: '/' },
+      { label: groupName, href: `/group/${encodeURIComponent(groupId)}` }
+    ];
+    if (activePerspective === 'agent') {
+      items.push({
+        label: 'Agent',
+        href: agentParam
+          ? `/group/${encodeURIComponent(groupId)}?perspective=agent`
+          : undefined
+      });
+      if (selectedPerson) items.push({ label: selectedPerson.name });
+    } else {
+      items.push({ label: 'Resource' });
+    }
+    return items;
+  });
+
+  function groupUrl(opts?: { perspective?: 'resource' | 'agent'; agent?: string | null }) {
+    const params = new URLSearchParams();
+    if (opts?.perspective === 'agent') params.set('perspective', 'agent');
+    if (opts?.agent) params.set('agent', opts.agent);
+    const q = params.toString();
+    return `/group/${encodeURIComponent(groupId)}${q ? `?${q}` : ''}`;
+  }
+
+  function currentHref(): string {
+    return `${$page.url.pathname}${$page.url.search}`;
+  }
+
+  function currentLabel(): string {
+    if (selectedPerson) return selectedPerson.name;
+    if (activePerspective === 'agent') return 'Agent';
+    return groupStore.group?.name ?? 'Group';
+  }
+
+  function handlePerspectiveSelect(id: PerspectiveId) {
+    navTrail.clear();
+    if (id === 'agent') {
+      void goto(groupUrl({ perspective: 'agent' }));
+    } else if (id === 'resource') {
+      void goto(groupUrl());
+    }
+  }
+
+  function jumpToAgent(agentId: string) {
+    navTrail.push({ label: currentLabel(), href: currentHref() });
+    void goto(groupUrl({ perspective: 'agent', agent: agentId }));
+  }
+
+  function handleSelectAgent(id: string) {
+    if (agentParam) {
+      navTrail.push({ label: currentLabel(), href: currentHref() });
+    }
+    void goto(groupUrl({ perspective: 'agent', agent: id }));
+  }
+
+  function handleClearAgent() {
+    void goto(groupUrl({ perspective: 'agent' }));
+  }
+
+  function handleBack() {
+    const top = navTrail.pop();
+    if (top) void goto(top.href);
+    else handleClearAgent();
+  }
+
+  function handleSelectGroup(id: string) {
+    navTrail.clear();
+    void goto(`/group/${encodeURIComponent(id)}?perspective=agent`);
+  }
+
+  function handleResources(id: string) {
+    navTrail.clear();
+    void goto(`/group/${encodeURIComponent(id)}`);
+  }
+
+  function handleSelectNdo(hash: string) {
+    navTrail.push({ label: currentLabel(), href: currentHref() });
+    void goto(`/ndo/${encodeURIComponent(hash)}`);
+  }
+
+  async function loadSelfClaims() {
+    if (!isSelf) {
+      selfClaims = [];
+      return;
+    }
+    const out = await governanceStore.fetchMyParticipationClaims({ limit: 24 });
+    selfClaims = out ? out.claims.map((c) => ({ claim: c.claim })) : [];
+  }
+
   $effect(() => {
     appContext.currentView = 'group';
     appContext.selectedGroupId = groupId;
@@ -108,17 +232,7 @@
     }
   });
 
-  // Pull-based reactivity for shared-group items (members, NDOs): silently
-  // re-fetch when the tab regains focus and on a gentle poll while this group
-  // is open, so changes gossiped from other members surface without a manual
-  // reload. Keyed on groupId so listeners/interval are torn down and re-created
-  // when navigating between groups.
-  // TODO(signals): replace this pull layer with Holochain remote signals — the
-  // group zome should remote_signal members on join_group / create_soft_link /
-  // create_work_log, and the UI should refresh on those signals (keeping a
-  // focus/poll fallback only for offline/missed-signal cases).
   $effect(() => {
-    // Reference groupId so the effect re-runs when the open group changes.
     void groupId;
     if (typeof window === 'undefined') return;
 
@@ -145,18 +259,37 @@
   });
 
   $effect(() => {
-    if (autoOpenCreateModal) {
+    if (autoOpenCreateModal || $page.url.searchParams.get('createNdo') === '1') {
       showCreateModal = true;
     }
+  });
+
+  function closeCreateModal() {
+    showCreateModal = false;
+    if ($page.url.searchParams.get('createNdo') === '1') {
+      const next = new URL($page.url);
+      next.searchParams.delete('createNdo');
+      void goto(`${next.pathname}${next.search}${next.hash}`, {
+        replaceState: true,
+        noScroll: true,
+        keepFocus: true
+      });
+    }
+  }
+
+  $effect(() => {
+    void agentParam;
+    void isSelf;
+    void loadSelfClaims();
   });
 </script>
 
 {#if showCreateModal}
-  <NdoCreateModal
+  <NdoCreateWizard
     {groupId}
-    onclose={() => {
-      showCreateModal = false;
-    }}
+    groupName={groupStore.group?.name}
+    existingNdos={lobbyStore.ndos}
+    onclose={closeCreateModal}
   />
 {/if}
 
@@ -174,33 +307,28 @@
   />
 {/if}
 
-<div class="p-6">
-  <!-- Group header -->
-  <div class="mb-6 flex items-start justify-between">
+<div class="p-6" data-testid="group-perspectives-view">
+  <div class="mb-3">
+    <Breadcrumb items={breadcrumb} />
+  </div>
+
+  <div class="mb-4 flex items-start justify-between gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">
-        {groupStore.group?.name ?? 'Group'}
-      </h1>
+      <h1 class="text-2xl font-bold text-gray-900">{groupStore.group?.name ?? 'Group'}</h1>
       <p class="mt-1 font-mono text-sm text-gray-400">{groupId}</p>
     </div>
-    <div class="flex items-center gap-2">
-      <button
-        type="button"
-        onclick={copyInviteLink}
-        class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-      >
+    <div class="flex flex-wrap items-center gap-2">
+      <NdoButton variant="ghost" onclick={() => void copyInviteLink()}>
         {inviteCopied ? 'Invite link copied!' : 'Copy invite link'}
-      </button>
-      <button
-        type="button"
-        onclick={() => {
-          showCreateModal = true;
-        }}
-        class="flex items-center gap-1.5 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-      >
+      </NdoButton>
+      <NdoButton onclick={() => (showCreateModal = true)}>
         <span class="text-base leading-none">+</span> Create NDO
-      </button>
+      </NdoButton>
     </div>
+  </div>
+
+  <div class="mb-4">
+    <PerspectiveSwitcher active={activePerspective} onselect={handlePerspectiveSelect} />
   </div>
 
   {#if groupStore.errorMessage}
@@ -209,19 +337,53 @@
     </p>
   {/if}
 
-  <!-- Group-scoped NDO browser -->
-  <NdoBrowser
-    descriptors={filteredNdos}
-    {activeFilters}
-    onfilterchange={(f) => setFilters(f)}
-    onclearfilters={() => clearFilters()}
-    isLoading={groupStore.isLoading}
-  />
+  {#if activePerspective === 'agent'}
+    {#if agentParam}
+      <AgentProfileView
+        agentId={agentParam}
+        agentName={selectedPerson?.name ?? agentParam.slice(0, 12)}
+        bio={selectedPerson?.bio ?? null}
+        roleInGroup={selectedPerson?.skills?.[0] ?? null}
+        theirGroups={lobbyStore.groups}
+        initiated={initiatedBySelected}
+        joined={[]}
+        {connections}
+        {isSelf}
+        claims={selfClaims}
+        trailTop={navTrail.top}
+        onselectndo={handleSelectNdo}
+        onselectagent={handleSelectAgent}
+        onselectgroup={handleSelectGroup}
+        onback={handleBack}
+      />
+    {:else}
+      <AgentDirectory
+        {groupId}
+        groupName={groupStore.group?.name}
+        {people}
+        groups={lobbyStore.groups}
+        onselectagent={handleSelectAgent}
+        onselectgroup={handleSelectGroup}
+        onresources={handleResources}
+      />
+    {/if}
+  {:else}
+    <ResourcePerspective
+      ndos={toNdoUiDescriptors(groupStore.groupNdos)}
+      myAgentKey={myKeyB64}
+      joinedHashes={[]}
+      isLoading={groupStore.isLoading}
+      ndoHref={(hash) => `/ndo/${encodeURIComponent(hash)}`}
+      oncreateclick={() => (showCreateModal = true)}
+    />
 
-  <!-- Member list -->
-  <div class="mt-6">
-    <MemberList members={groupStore.members} />
-  </div>
+    <div class="mt-6">
+      <MemberList
+        members={groupStore.members}
+        onmemberclick={(m) => jumpToAgent(m.id)}
+      />
+    </div>
 
-  <PoolSection />
+    <PoolSection />
+  {/if}
 </div>

@@ -121,6 +121,16 @@
     Browse NDOs
   </a>
 
+  <!-- REQ-UI-NAV-03: New NDO → group create when a group is selected, else /ndo/new -->
+  <a
+    href={appContext.selectedGroupId
+      ? `/group/${encodeURIComponent(appContext.selectedGroupId)}?createNdo=1`
+      : '/ndo/new'}
+    class="mb-3 block rounded px-2 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-white"
+  >
+    + New NDO
+  </a>
+
   <div class="mb-1 text-xs font-semibold tracking-wide text-gray-400 uppercase">Groups</div>
 
   <!-- Group list -->

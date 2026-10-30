@@ -1,17 +1,36 @@
 import { Effect as E, Exit, pipe, Result } from 'effect';
 import type { ActionHash } from '@holochain/client';
-import { decodeHashFromBase64 } from '@holochain/client';
-import type { GroupDescriptor, NdoDescriptor, NdoInput, PoolEntry } from '@nondominium/shared-types';
+import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+import type {
+  GroupDescriptor,
+  NdoDescriptor,
+  NdoInput,
+  PoolEntry,
+  VfCommitment
+} from '@nondominium/shared-types';
 import { NdoServiceTag, NdoServiceResolved } from '../services/zomes/ndo.service';
 import { LobbyServiceTag, LobbyServiceResolved } from '../services/zomes/lobby.service';
 import { GroupServiceTag, GroupServiceResolved } from '../services/zomes/group.service';
+import {
+  GovernanceServiceTag,
+  GovernanceServiceResolved
+} from '../services/zomes/governance.service';
+import { HolochainClientServiceLive } from '../services/holochain.service.svelte';
 import { Layer } from 'effect';
 
 const GroupStoreServicesResolved = Layer.mergeAll(
   NdoServiceResolved,
   LobbyServiceResolved,
-  GroupServiceResolved
+  GroupServiceResolved,
+  GovernanceServiceResolved,
+  HolochainClientServiceLive
 );
+
+export type PoolCommitmentSummary = {
+  action: string;
+  quantity?: string;
+  due?: string;
+};
 
 export type GroupStore = {
   readonly groupNdos: NdoDescriptor[];
@@ -44,6 +63,13 @@ export type GroupStore = {
   withdrawCommitment: (
     entry: PoolEntry
   ) => Promise<{ ok: true } | { ok: false; cause: string }>;
+  /**
+   * Resolves commitment action/quantity/due for pool rows by reading each
+   * NDO cell's commitment list (keyed by commitment action hash b64).
+   */
+  resolvePoolCommitmentDetails: (
+    entries: PoolEntry[]
+  ) => Promise<Record<string, PoolCommitmentSummary | null>>;
 };
 
 function createGroupStore(): GroupStore {
@@ -301,6 +327,60 @@ function createGroupStore(): GroupStore {
     return { ok: true };
   }
 
+  function summarizeCommitment(c: VfCommitment): PoolCommitmentSummary {
+    return {
+      action: String(c.action),
+      quantity: c.resource_quantity
+        ? `${c.resource_quantity.numerical_value} ${c.resource_quantity.has_unit}`
+        : undefined,
+      due: c.due_date ? new Date(Number(c.due_date) / 1000).toLocaleString() : undefined
+    };
+  }
+
+  async function resolvePoolCommitmentDetails(
+    entries: PoolEntry[]
+  ): Promise<Record<string, PoolCommitmentSummary | null>> {
+    const next: Record<string, PoolCommitmentSummary | null> = {};
+    const byIdentity = new Map<string, PoolEntry[]>();
+    for (const entry of entries) {
+      const id = encodeHashToBase64(entry.anchor.identity_action_hash);
+      const list = byIdentity.get(id) ?? [];
+      list.push(entry);
+      byIdentity.set(id, list);
+    }
+
+    for (const [, group] of byIdentity) {
+      const identityHash = group[0]!.anchor.identity_action_hash as ActionHash;
+      const exit = await E.runPromiseExit(
+        pipe(
+          E.gen(function* () {
+            const ndo = yield* NdoServiceTag;
+            const gov = yield* GovernanceServiceTag;
+            const cellId = yield* ndo.resolveCellIdForNdo(identityHash);
+            return yield* gov.getCommitmentsForNdoDetailed(identityHash, cellId ?? undefined);
+          }),
+          E.provide(GroupStoreServicesResolved)
+        )
+      );
+
+      if (Exit.isSuccess(exit)) {
+        const byHash = new Map(
+          exit.value.map((r) => [encodeHashToBase64(r.action_hash), r.commitment] as const)
+        );
+        for (const entry of group) {
+          const ck = encodeHashToBase64(entry.anchor.commitment_action_hash);
+          const c = byHash.get(ck);
+          next[ck] = c ? summarizeCommitment(c) : null;
+        }
+      } else {
+        for (const entry of group) {
+          next[encodeHashToBase64(entry.anchor.commitment_action_hash)] = null;
+        }
+      }
+    }
+    return next;
+  }
+
   return {
     get groupNdos() {
       return groupNdos;
@@ -325,7 +405,8 @@ function createGroupStore(): GroupStore {
     createNdo,
     associateNdoWithGroup,
     admitCommitment,
-    withdrawCommitment
+    withdrawCommitment,
+    resolvePoolCommitmentDetails
   };
 }
 

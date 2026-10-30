@@ -3,8 +3,10 @@ import { Effect as E, Exit, Cause, Layer, pipe } from 'effect';
 import type { ActionHash, AgentPubKey, CellId } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import type {
+  CreateNdoHardLinkInput,
   GovernanceRule,
   NdoDescriptor,
+  NdoHardLink,
   NdoTransitionHistoryEvent,
   PersonRole,
   ResourceSpecificationListing,
@@ -91,8 +93,24 @@ export interface NdoStore {
   myRoles(): Promise<{ agent: AgentPubKey | null; roles: PersonRole[] }>;
   activity(): Promise<{ records: CommitmentRecord[]; events: VfEconomicEvent[] }>;
   personName(agentB64: string): Promise<{ ok: true; name: string | null } | { ok: false }>;
+  /** NdoHardLink list for Composition tab (empty on read failure). */
+  hardLinks(): Promise<NdoHardLinkRecord[]>;
+  /**
+   * Creates a hard link. Resolves target DNA from group anchors when
+   * `to_ndo_dna_hash` is omitted from the caller's known coords.
+   */
+  createHardLink(
+    input: Omit<CreateNdoHardLinkInput, 'to_ndo_dna_hash'> & {
+      to_ndo_dna_hash?: CreateNdoHardLinkInput['to_ndo_dna_hash'];
+    }
+  ): Promise<{ ok: true; hash: ActionHash } | { ok: false; cause: string }>;
   destroy(): void;
 }
+
+export type NdoHardLinkRecord = {
+  action_hash: ActionHash;
+  entry: NdoHardLink;
+};
 
 // ─── Services, provided once for every NDO store ───────────────────────────────
 
@@ -367,6 +385,56 @@ export function createNdoStore(hashB64: string): NdoStore {
     return { ok: true, name: match?.name ?? null };
   }
 
+  function hardLinks(): Promise<NdoHardLinkRecord[]> {
+    const hash = actionHash;
+    if (!hash) return Promise.resolve([]);
+    const cell = cellId ?? undefined;
+    return query(
+      E.gen(function* () {
+        const exit = yield* E.exit(services.governance.getNdoHardLinks(hash, cell));
+        return Exit.isSuccess(exit) ? exit.value : [];
+      })
+    );
+  }
+
+  async function createHardLink(
+    input: Omit<CreateNdoHardLinkInput, 'to_ndo_dna_hash'> & {
+      to_ndo_dna_hash?: CreateNdoHardLinkInput['to_ndo_dna_hash'];
+    }
+  ): Promise<{ ok: true; hash: ActionHash } | { ok: false; cause: string }> {
+    const cell = cellId ?? undefined;
+    const exit = await tasks.run(
+      E.uninterruptible(
+        E.gen(function* () {
+          let toDna = input.to_ndo_dna_hash;
+          if (!toDna) {
+            const coords = yield* services.ndo.getNdoCloneCoordinates(input.to_ndo_identity_hash);
+            if (!coords) {
+              return yield* E.fail(new Error('Could not resolve target NDO DNA hash'));
+            }
+            toDna = coords.ndo_dna_hash;
+          }
+          const full: CreateNdoHardLinkInput = {
+            from_ndo_identity_hash: input.from_ndo_identity_hash,
+            to_ndo_dna_hash: toDna,
+            to_ndo_identity_hash: input.to_ndo_identity_hash,
+            link_type: input.link_type,
+            fulfillment_hash: input.fulfillment_hash
+          };
+          return yield* services.governance.createNdoHardLink(full, cell);
+        })
+      )
+    );
+    if (Exit.isFailure(exit)) {
+      return {
+        ok: false,
+        cause:
+          'Create failed. The fulfillment hash must be a valid EconomicEvent on this NDO cell, and the target NDO must be anchored in a group you can see.'
+      };
+    }
+    return { ok: true, hash: exit.value };
+  }
+
   function destroy(): void {
     tasks.close();
   }
@@ -409,6 +477,8 @@ export function createNdoStore(hashB64: string): NdoStore {
     myRoles,
     activity,
     personName,
+    hardLinks,
+    createHardLink,
     destroy
   };
 }
