@@ -1,7 +1,7 @@
 use hdi::prelude::*;
 pub use nondominium_shared::types::{
-  LifecycleStage, Measure, NdoDnaProperties, OperationalState, PropertyRegime, ResourceNature,
-  ResourceScope, Rivalry,
+  DigitalLocatorKind, IdentificationPattern, InventoryIntent, LifecycleStage, Measure,
+  NdoDnaProperties, OperationalState, PropertyRegime, ResourceNature, ResourceScope, Rivalry,
 };
 pub use nondominium_shared::rule_data::RuleData;
 
@@ -36,6 +36,20 @@ pub struct ResourceSpecification {
   ///
   /// Equal to `ndo_identity_hash` when the NDO has never been updated.
   pub ndo_state_hash: ActionHash,
+  /// Inventory foreshadow (ValueFlows) — additive; None for legacy entries.
+  #[serde(default)]
+  pub inventory_intent: Option<InventoryIntent>,
+  #[serde(default)]
+  pub identification_pattern: Option<IdentificationPattern>,
+  #[serde(default)]
+  pub default_unit: Option<String>,
+  #[serde(default)]
+  pub substitutable: Option<bool>,
+  /// Digital location foreshadow — additive; None for legacy / non-digital kinds.
+  #[serde(default)]
+  pub digital_locator_kind: Option<DigitalLocatorKind>,
+  #[serde(default)]
+  pub digital_locator: Option<String>,
 }
 
 #[hdk_entry_helper]
@@ -441,6 +455,15 @@ fn validate_create_resource_spec(
       "Cannot activate Layer 1 while the NDO is {:?}.",
       ndi.lifecycle_stage
     )));
+  }
+
+  if let Err(msg) = nondominium_shared::types::validate_spec_foreshadow(
+    spec.inventory_intent.as_ref(),
+    spec.identification_pattern.as_ref(),
+    spec.default_unit.as_deref(),
+    Some(&ndi.resource_nature),
+  ) {
+    return Ok(ValidateCallbackResult::Invalid(msg));
   }
 
   validate_spec_scope_against_regime(spec, &ndi)
@@ -894,6 +917,14 @@ fn validate_update_resource_spec(
   // arm has already rejected any change to `ndo_identity_hash` or `ndo_state_hash`, so the
   // NDO reached here is the same one the create-time gate judged.
   let (_root_hash, ndi) = resolve_ndo_state(spec.ndo_state_hash.clone())?;
+  if let Err(msg) = nondominium_shared::types::validate_spec_foreshadow(
+    spec.inventory_intent.as_ref(),
+    spec.identification_pattern.as_ref(),
+    spec.default_unit.as_deref(),
+    Some(&ndi.resource_nature),
+  ) {
+    return Ok(ValidateCallbackResult::Invalid(msg));
+  }
   validate_spec_scope_against_regime(spec, &ndi)
 }
 

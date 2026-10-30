@@ -153,7 +153,11 @@
   });
 
   $effect(() => {
-    if (tab === 'overview' && store && needsFirstLoad(store.members)) {
+    if (
+      (tab === 'overview' || tab === 'activity') &&
+      store &&
+      needsFirstLoad(store.members)
+    ) {
       void loadNdoMembers();
     }
   });
@@ -330,6 +334,7 @@
         {ndoCellId}
         lifecycleStage={ndoDescriptor?.lifecycle_stage ?? null}
         propertyRegime={ndoDescriptor?.property_regime ?? null}
+        {ndoDescriptor}
       />
     {:else if tab === 'governance' && specActionHash}
       <GovernanceTab
@@ -338,6 +343,7 @@
         propertyRegime={ndoDescriptor?.property_regime ?? null}
         resourceNature={ndoDescriptor?.resource_nature ?? null}
         rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
+        {ndoDescriptor}
       />
     {:else if tab === 'composition' && specActionHash}
       <CompositionTab ndoIdentityHash={specActionHash} />
@@ -348,6 +354,7 @@
         propertyRegime={ndoDescriptor?.property_regime ?? null}
         resourceNature={ndoDescriptor?.resource_nature ?? null}
         rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
+        ndoMembers={ndoMembers}
       />
     {/if}
   </div>

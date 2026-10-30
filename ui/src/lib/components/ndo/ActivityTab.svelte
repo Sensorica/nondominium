@@ -9,6 +9,8 @@
     VfEconomicEvent
   } from '@nondominium/shared-types';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
+  import { groupStore } from '$lib/stores/group.store.svelte';
+  import { mergeAgentOptions, type AgentMemberOption } from '$lib/utils/agent-pubkey';
   import CommitmentCreateForm from './CommitmentCreateForm.svelte';
   import EconomicEventCreateForm from './EconomicEventCreateForm.svelte';
   import AdmitToPoolModal from './AdmitToPoolModal.svelte';
@@ -23,6 +25,8 @@
     propertyRegime?: string | null;
     resourceNature?: string | null;
     rivalryOverride?: string | null;
+    /** NDO members (nickname + full pubkey id) for provider/receiver pickers. */
+    ndoMembers?: AgentMemberOption[];
   }
 
   let {
@@ -30,8 +34,13 @@
     ndoCellId = null,
     propertyRegime = null,
     resourceNature = null,
-    rivalryOverride = null
+    rivalryOverride = null,
+    ndoMembers = []
   }: Props = $props();
+
+  const pickerMembers = $derived(
+    mergeAgentOptions(ndoMembers, groupStore.members as AgentMemberOption[])
+  );
 
   const ndo = getNdoStore();
 
@@ -74,6 +83,7 @@
     propertyRegime={propertyRegime as PropertyRegime}
     resourceNature={resourceNature as ResourceNature}
     rivalryOverride={(rivalryOverride as Rivalry | null) ?? undefined}
+    members={pickerMembers}
     onclose={() => {
       showCommitment = false;
     }}
@@ -91,6 +101,7 @@
     resourceNature={resourceNature as ResourceNature}
     rivalryOverride={(rivalryOverride as Rivalry | null) ?? undefined}
     pendingCommitments={ndoCommitments}
+    members={pickerMembers}
     onclose={() => {
       showEvent = false;
     }}

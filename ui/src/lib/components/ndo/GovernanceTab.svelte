@@ -1,16 +1,24 @@
 <script lang="ts">
   import type { ActionHash, AgentPubKey, CellId } from '@holochain/client';
+  import { encodeHashToBase64 } from '@holochain/client';
+  import { GovernanceTemplatePicker, NdoButton } from '@nondominium/ndo-ui';
   import type {
+    GovernanceRuleInput,
+    NdoDescriptor,
     PersonRole,
     PropertyRegime,
     ResourceNature,
     Rivalry,
     RuleData
   } from '@nondominium/shared-types';
-  // The '+ New rule' handler still reads listings through resourceStore: it is inline in the
-  // markup, which this refactor leaves untouched (design-system fidelity), so it is not moved.
   import { resourceStore } from '$lib/stores/resource.store.svelte';
   import { getNdoStore, isTaskInterrupted, type RuleWithSpec } from '$lib/stores/ndo.store.svelte';
+  import { toNdoUiDescriptor } from '$lib/utils/ndo-ui-adapters';
+  import {
+    CREATABLE_TEMPLATE_IDS,
+    mapTemplateToRuleData,
+    regimeForTemplateRecommendations
+  } from '$lib/utils/governance-template-map';
   import RuleEditorModal from './RuleEditorModal.svelte';
 
   interface Props {
@@ -21,6 +29,7 @@
     propertyRegime?: string | null;
     resourceNature?: string | null;
     rivalryOverride?: string | null;
+    ndoDescriptor?: NdoDescriptor | null;
   }
 
   let {
@@ -28,7 +37,8 @@
     ndoCellId = null,
     propertyRegime = null,
     resourceNature = null,
-    rivalryOverride = null
+    rivalryOverride = null,
+    ndoDescriptor = null
   }: Props = $props();
 
   const ndo = getNdoStore();
@@ -39,6 +49,31 @@
   let loadMessage = $state<string | null>(null);
   let showRuleEditor = $state(false);
   let editorSpecHash = $state<ActionHash | undefined>(undefined);
+  let selectedTemplateIds = $state<string[]>([]);
+  let applyBusy = $state(false);
+  let applyMessage = $state<string | null>(null);
+
+  const pickerDescriptor = $derived.by((): NdoDescriptor => {
+    const base =
+      ndoDescriptor ??
+      ({
+        hash: encodeHashToBase64(specActionHash),
+        name: 'NDO',
+        lifecycle_stage: null,
+        property_regime: propertyRegime,
+        resource_nature: resourceNature,
+        description: null,
+        initiator: null,
+        created_at: null,
+        successor_ndo_hash: null,
+        hibernation_origin: null,
+        rivalry_override: rivalryOverride
+      } satisfies NdoDescriptor);
+    return {
+      ...base,
+      property_regime: regimeForTemplateRecommendations(base.property_regime)
+    };
+  });
 
   function ruleTypeLabel(ruleData: RuleData): string {
     return Object.keys(ruleData)[0] ?? 'Unknown';
@@ -65,11 +100,15 @@
     }
     if (!result.hasSpecifications) {
       rules = [];
-      loadMessage = 'No Layer 1 specifications yet — create one on the Resources tab before adding rules.';
+      loadMessage =
+        'No Layer 1 specifications yet — create one on the Resources tab before adding rules.';
       return true;
     }
     rules = result.rules;
-    loadMessage = result.rules.length === 0 ? 'No governance rules linked to this NDO’s specifications.' : null;
+    loadMessage =
+      result.rules.length === 0
+        ? 'No governance rules linked to this NDO’s specifications.'
+        : null;
     return true;
   }
 
@@ -96,6 +135,95 @@
       (propertyRegime as PropertyRegime) &&
       (resourceNature as ResourceNature)
   );
+
+  async function resolveSpecHash(): Promise<ActionHash | null> {
+    const listings = await resourceStore.fetchSpecificationsForNdo(
+      specActionHash,
+      ndoCellId ?? undefined
+    );
+    if (listings.length === 0) {
+      loadMessage =
+        'No Layer 1 specifications yet - create one on the Resources tab before adding rules.';
+      return null;
+    }
+    return listings[0]?.action_hash ?? null;
+  }
+
+  async function openCustomEditor() {
+    const hash = await resolveSpecHash();
+    if (!hash) return;
+    editorSpecHash = hash;
+    showRuleEditor = true;
+  }
+
+  async function applySelectedTemplates() {
+    if (!canCreateRule || selectedTemplateIds.length === 0) return;
+    applyBusy = true;
+    applyMessage = null;
+    const specHash = await resolveSpecHash();
+    if (!specHash) {
+      applyBusy = false;
+      return;
+    }
+
+    const creatable = selectedTemplateIds.filter((id) => CREATABLE_TEMPLATE_IDS.has(id));
+    const skipped = selectedTemplateIds.filter((id) => !CREATABLE_TEMPLATE_IDS.has(id));
+    const notes: string[] = [];
+    let created = 0;
+    let failed = 0;
+
+    for (const id of creatable) {
+      const mapped = mapTemplateToRuleData(id);
+      if (!mapped) {
+        skipped.push(id);
+        continue;
+      }
+      if (mapped.note) notes.push(mapped.note);
+
+      const input: GovernanceRuleInput = {
+        rule_data: mapped.rule_data,
+        ...(mapped.enforced_by && { enforced_by: mapped.enforced_by }),
+        ndo_identity_hash: specActionHash,
+        property_regime: propertyRegime as PropertyRegime,
+        resource_nature: resourceNature as ResourceNature,
+        ...(rivalryOverride && { rivalry_override: rivalryOverride as Rivalry }),
+        specification_hash: specHash
+      };
+
+      const violations = await resourceStore.checkRuleDataConstraints(
+        {
+          property_regime: input.property_regime,
+          resource_nature: input.resource_nature,
+          ...(input.rivalry_override && { rivalry_override: input.rivalry_override }),
+          rule_data: input.rule_data
+        },
+        ndoCellId ?? undefined
+      );
+      const hard = violations.filter((v) => v.severity === 'Hard');
+      if (hard.length > 0) {
+        failed += 1;
+        notes.push(`${id}: ${hard.map((v) => v.message).join('; ')}`);
+        continue;
+      }
+
+      const ok = await resourceStore.createGovernanceRule(input, ndoCellId ?? undefined);
+      if (ok) created += 1;
+      else failed += 1;
+    }
+
+    applyBusy = false;
+    selectedTemplateIds = [];
+    const parts = [`Created ${created} rule(s).`];
+    if (failed > 0) parts.push(`${failed} failed.`);
+    if (skipped.length > 0) {
+      parts.push(
+        `Skipped (not yet creatable): ${[...new Set(skipped)].join(', ')}.`
+      );
+    }
+    if (notes.length > 0) parts.push(notes.join(' '));
+    applyMessage = parts.join(' ');
+    await loadRules();
+  }
 </script>
 
 {#if showRuleEditor && canCreateRule}
@@ -123,26 +251,41 @@
       <button
         type="button"
         disabled={!canCreateRule}
-        onclick={async () => {
-          const listings = await resourceStore.fetchSpecificationsForNdo(
-            specActionHash,
-            ndoCellId ?? undefined
-          );
-          // A rule with no specification_hash is written but never linked, so no
-          // read path can surface it again. Refuse rather than orphan it.
-          if (listings.length === 0) {
-            loadMessage =
-              'No Layer 1 specifications yet - create one on the Resources tab before adding rules.';
-            return;
-          }
-          editorSpecHash = listings[0]?.action_hash;
-          showRuleEditor = true;
-        }}
-        class="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        onclick={() => void openCustomEditor()}
+        class="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
       >
-        + New rule
+        Custom rule…
       </button>
     </div>
+
+    {#if canCreateRule}
+      <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+        <h4 class="mb-3 text-sm font-semibold text-gray-800">Recommended templates</h4>
+        <GovernanceTemplatePicker
+          descriptor={toNdoUiDescriptor(pickerDescriptor)}
+          selectedRuleIds={selectedTemplateIds}
+          onchange={(ids) => {
+            selectedTemplateIds = ids;
+          }}
+        />
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <NdoButton
+            variant="primary"
+            disabled={applyBusy || selectedTemplateIds.length === 0}
+            onclick={() => void applySelectedTemplates()}
+          >
+            {applyBusy ? 'Applying…' : 'Apply selected'}
+          </NdoButton>
+          <p class="text-xs text-gray-500">
+            Attribution, integrity, capacity, and Source templates are listed when recommended but
+            skipped until their schemas land.
+          </p>
+        </div>
+        {#if applyMessage}
+          <p class="mt-2 text-xs text-gray-600">{applyMessage}</p>
+        {/if}
+      </div>
+    {/if}
 
     {#if loadMessage && rules.length === 0}
       <p class="text-sm text-gray-500">{loadMessage}</p>

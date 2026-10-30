@@ -94,9 +94,17 @@ export interface ResourceService {
     custodian: AgentPubKey
   ) => E.Effect<EconomicResource[], ResourceError>;
   updateResourceSpecification: (
-    hash: ActionHash,
-    updatedSpec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
-  ) => E.Effect<ActionHash, ResourceError>;
+    input: {
+      original_action_hash: ActionHash;
+      previous_action_hash: ActionHash;
+      updated_specification: ResourceSpecificationInput;
+    },
+    cellId?: CellId
+  ) => E.Effect<HoloRecord, ResourceError>;
+  getLatestResourceSpecificationRecord: (
+    originalActionHash: ActionHash,
+    cellId?: CellId
+  ) => E.Effect<HoloRecord | null, ResourceError>;
   transferResourceCustody: (
     resourceHash: ActionHash,
     newCustodian: AgentPubKey,
@@ -184,7 +192,7 @@ export const ResourceServiceLive: Layer.Layer<
 
       getResourceSpecification: (hash, cellId) =>
         wz<ResourceSpecification>(
-          'get_resource_specification',
+          'get_latest_resource_specification',
           hash,
           RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION,
           cellId
@@ -253,11 +261,20 @@ export const ResourceServiceLive: Layer.Layer<
           RESOURCE_CONTEXTS.GET_RESOURCES_BY_CUSTODIAN
         ),
 
-      updateResourceSpecification: (hash, updatedSpec) =>
-        wz<ActionHash>(
+      updateResourceSpecification: (input, cellId) =>
+        wz<HoloRecord>(
           'update_resource_specification',
-          { hash, specification: updatedSpec },
-          RESOURCE_CONTEXTS.UPDATE_RESOURCE_SPECIFICATION
+          input,
+          RESOURCE_CONTEXTS.UPDATE_RESOURCE_SPECIFICATION,
+          cellId
+        ),
+
+      getLatestResourceSpecificationRecord: (originalActionHash, cellId) =>
+        wz<HoloRecord | null>(
+          'get_latest_resource_specification_record',
+          originalActionHash,
+          RESOURCE_CONTEXTS.GET_RESOURCE_SPECIFICATION,
+          cellId
         ),
 
       transferResourceCustody: (resourceHash, newCustodian, cellId) =>

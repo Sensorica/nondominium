@@ -58,9 +58,17 @@ export type ResourceStore = {
   searchResourcesBySpecification: (specificationHash: EntryHash) => Promise<EconomicResource[]>;
   getResourceHistory: (resourceHash: ActionHash) => Promise<EconomicResource[]>;
   updateResourceSpecification: (
-    hash: ActionHash,
-    updatedSpec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
+    input: {
+      original_action_hash: ActionHash;
+      previous_action_hash: ActionHash;
+      updated_specification: ResourceSpecificationInput;
+    },
+    cellId?: CellId
   ) => Promise<ActionHash | null>;
+  getLatestResourceSpecificationRecord: (
+    originalActionHash: ActionHash,
+    cellId?: CellId
+  ) => Promise<{ actionHash: ActionHash } | null>;
   deleteResourceSpecification: (hash: ActionHash) => Promise<ActionHash | null>;
   archiveEconomicResource: (hash: ActionHash) => Promise<ActionHash | null>;
   createGovernanceRule: (input: GovernanceRuleInput, cellId?: CellId) => Promise<boolean>;
@@ -244,14 +252,26 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     }
 
     async function updateResourceSpecification(
-      hash: ActionHash,
-      updatedSpec: Omit<ResourceSpecification, 'created_by' | 'created_at'>
+      input: {
+        original_action_hash: ActionHash;
+        previous_action_hash: ActionHash;
+        updated_specification: ResourceSpecificationInput;
+      },
+      cellId?: CellId
     ): Promise<ActionHash | null> {
-      const updateHash = await run(
-        resourceService.updateResourceSpecification(hash, updatedSpec)
+      const record = await run(resourceService.updateResourceSpecification(input, cellId));
+      if (record) await fetchAllResourceSpecifications();
+      return record ? record.signed_action.hashed.hash : null;
+    }
+
+    async function getLatestResourceSpecificationRecord(
+      originalActionHash: ActionHash,
+      cellId?: CellId
+    ): Promise<{ actionHash: ActionHash } | null> {
+      const record = await run(
+        resourceService.getLatestResourceSpecificationRecord(originalActionHash, cellId)
       );
-      if (updateHash) await fetchAllResourceSpecifications();
-      return updateHash;
+      return record ? { actionHash: record.signed_action.hashed.hash } : null;
     }
 
     async function deleteResourceSpecification(hash: ActionHash): Promise<ActionHash | null> {
@@ -317,6 +337,7 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
       searchResourcesBySpecification,
       getResourceHistory,
       updateResourceSpecification,
+      getLatestResourceSpecificationRecord,
       deleteResourceSpecification,
       archiveEconomicResource,
       createGovernanceRule,

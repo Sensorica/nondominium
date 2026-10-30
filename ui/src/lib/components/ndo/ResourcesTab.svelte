@@ -1,15 +1,23 @@
 <script lang="ts">
   import type { ActionHash, CellId } from '@holochain/client';
-  import type { EconomicResourceRow } from '$lib/utils/holochain-records';
+  import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
+  import { ResourcesPanel } from '@nondominium/ndo-ui';
+  import type { ResourceSpecificationInput as NdoUiSpecInput } from '@nondominium/ndo-ui';
   import type {
     LifecycleStage,
+    NdoDescriptor,
     PropertyRegime,
     ResourceSpecificationListing
   } from '@nondominium/shared-types';
+  import type { EconomicResourceRow } from '$lib/utils/holochain-records';
   import { operationalStateLabel } from '$lib/utils/operational-state-labels';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
-  import SpecificationCreateModal from './SpecificationCreateModal.svelte';
-
+  import { resourceStore } from '$lib/stores/resource.store.svelte';
+  import {
+    fromNdoUiSpecInput,
+    toNdoUiDescriptor,
+    toNdoUiSpecifications
+  } from '$lib/utils/ndo-ui-adapters';
   interface Props {
     /** NDO Layer 0 action hash (prop name kept for NdoView compatibility). */
     specActionHash: ActionHash;
@@ -18,13 +26,16 @@
     lifecycleStage?: LifecycleStage | string | null;
     /** Layer 0 property regime; forwarded so the create form can lock scope (REQ-RES-03). */
     propertyRegime?: PropertyRegime | string | null;
+    /** Full NDO descriptor for ResourcesPanel chrome (nature, name, stage). */
+    ndoDescriptor?: NdoDescriptor | null;
   }
 
   let {
     specActionHash,
     ndoCellId = null,
     lifecycleStage = null,
-    propertyRegime = null
+    propertyRegime = null,
+    ndoDescriptor = null
   }: Props = $props();
 
   const ndo = getNdoStore();
@@ -32,10 +43,30 @@
   let listings = $state<ResourceSpecificationListing[]>([]);
   let instancesBySpec = $state<Map<string, EconomicResourceRow[]>>(new Map());
   let loadError = $state<string | null>(null);
-  let showCreateModal = $state(false);
+  let formError = $state<string | null>(null);
 
-  const ineligibleStages = new Set(['Ideation', 'Hibernating', 'Deprecated', 'EndOfLife']);
-  const canCreateSpec = $derived(!lifecycleStage || !ineligibleStages.has(lifecycleStage));
+  const panelDescriptor = $derived.by((): NdoDescriptor => {
+    if (ndoDescriptor) return ndoDescriptor;
+    return {
+      hash: encodeHashToBase64(specActionHash),
+      name: 'NDO',
+      lifecycle_stage: lifecycleStage ? String(lifecycleStage) : null,
+      property_regime: propertyRegime ? String(propertyRegime) : null,
+      resource_nature: null,
+      description: null,
+      initiator: null,
+      created_at: null,
+      successor_ndo_hash: null,
+      hibernation_origin: null,
+      rivalry_override: null
+    };
+  });
+
+  const uiSpecs = $derived(
+    toNdoUiSpecifications(listings, {
+      activatedAtStage: lifecycleStage ? String(lifecycleStage) : null
+    })
+  );
 
   async function load() {
     let rows;
@@ -59,74 +90,70 @@
     void ndoCellId;
     void load();
   });
+
+  async function handleCreate(input: NdoUiSpecInput) {
+    formError = null;
+    const payload = fromNdoUiSpecInput(input, specActionHash);
+    const out = await resourceStore.createResourceSpecification(
+      payload,
+      ndoCellId ?? undefined
+    );
+    if (!out) {
+      formError = resourceStore.errorMessage ?? 'Failed to create resource specification.';
+      throw new Error(formError);
+    }
+    await load();
+  }
+
+  async function handleUpdate(actionHashB64: string, input: NdoUiSpecInput) {
+    formError = null;
+    const original = decodeHashFromBase64(actionHashB64) as ActionHash;
+    const payload = fromNdoUiSpecInput(input, specActionHash);
+    const cell = ndoCellId ?? undefined;
+
+    const latest = await resourceStore.getLatestResourceSpecificationRecord(original, cell);
+    const previous = latest?.actionHash ?? original;
+
+    const updateHash = await resourceStore.updateResourceSpecification(
+      {
+        original_action_hash: original,
+        previous_action_hash: previous,
+        updated_specification: payload
+      },
+      cell
+    );
+    if (!updateHash) {
+      formError = resourceStore.errorMessage ?? 'Failed to update resource specification.';
+      throw new Error(formError);
+    }
+    await load();
+  }
 </script>
 
-{#if showCreateModal}
-  <SpecificationCreateModal
-    ndoActionHash={specActionHash}
-    {ndoCellId}
-    {lifecycleStage}
-    {propertyRegime}
-    onclose={() => {
-      showCreateModal = false;
-    }}
-    oncreated={() => {
-      void load();
-    }}
-  />
-{/if}
-
-<div class="space-y-4">
-  <div class="flex items-center justify-between gap-3">
-    <div>
-      <h3 class="text-base font-semibold text-gray-900">Layer 1 specifications</h3>
-      <p class="text-xs text-gray-500">Resource specifications linked to this NDO.</p>
-    </div>
-    <button
-      type="button"
-      disabled={!canCreateSpec}
-      title={!canCreateSpec
-        ? `Cannot create while NDO is ${lifecycleStage}`
-        : 'Create a Layer 1 specification'}
-      onclick={() => {
-        showCreateModal = true;
-      }}
-      class="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      + New specification
-    </button>
-  </div>
-
-  {#if !canCreateSpec}
-    <p class="rounded border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-      Layer 1 activation is blocked while the NDO is <strong>{lifecycleStage}</strong>. Advance the
-      lifecycle first.
-    </p>
+<div class="space-y-6">
+  {#if formError}
+    <p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>
   {/if}
+
+  <ResourcesPanel
+    descriptor={toNdoUiDescriptor(panelDescriptor)}
+    specifications={uiSpecs}
+    oncreate={handleCreate}
+    onupdate={handleUpdate}
+  />
 
   {#if loadError}
     <p class="text-sm text-red-600">{loadError}</p>
-  {:else if listings.length === 0}
-    <p class="text-sm text-gray-500">No resource specifications for this NDO yet.</p>
-  {:else}
-    <div class="space-y-4">
+  {:else if listings.length > 0}
+    <section class="space-y-3">
+      <h3 class="text-sm font-semibold text-gray-800">Inventoried instances</h3>
+      <p class="text-xs text-gray-500">
+        Economic resources linked to each kind. Creating instances from the UI is not yet available.
+      </p>
       {#each listings as listing (listing.action_hash.toString())}
         {@const instances = instancesBySpec.get(listing.action_hash.toString()) ?? []}
         <div class="rounded border border-gray-200 bg-white p-4">
-          <div class="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <div class="font-medium text-gray-900">{listing.specification.name}</div>
-              <div class="mt-0.5 text-xs text-gray-500">
-                {listing.specification.category ?? '—'} · scope
-                {listing.specification.scope ?? '—'} ·
-                {listing.specification.is_active !== false ? 'active' : 'inactive'}
-              </div>
-              {#if listing.specification.description}
-                <p class="mt-2 text-sm text-gray-600">{listing.specification.description}</p>
-              {/if}
-            </div>
-          </div>
-
+          <div class="font-medium text-gray-900">{listing.specification.name}</div>
           <h4 class="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
             Economic resources
           </h4>
@@ -147,6 +174,6 @@
           {/if}
         </div>
       {/each}
-    </div>
+    </section>
   {/if}
 </div>

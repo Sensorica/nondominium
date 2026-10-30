@@ -1,7 +1,9 @@
 use crate::ResourceError;
 use hdk::prelude::*;
 use nondominium_shared::rule_data::RuleData;
-use nondominium_shared::types::ResourceScope;
+use nondominium_shared::types::{
+  DigitalLocatorKind, IdentificationPattern, InventoryIntent, ResourceNature, ResourceScope,
+};
 use zome_resource_integrity::*;
 
 /// Nested rule payload when creating a spec — classification is denormalized from the NDO.
@@ -21,6 +23,83 @@ pub struct ResourceSpecificationInput {
   pub scope: ResourceScope,
   pub ndo_identity_hash: ActionHash,
   pub governance_rules: Vec<NestedGovernanceRuleInput>,
+  #[serde(default)]
+  pub inventory_intent: Option<InventoryIntent>,
+  #[serde(default)]
+  pub identification_pattern: Option<IdentificationPattern>,
+  #[serde(default)]
+  pub default_unit: Option<String>,
+  #[serde(default)]
+  pub substitutable: Option<bool>,
+  #[serde(default)]
+  pub digital_locator_kind: Option<DigitalLocatorKind>,
+  #[serde(default)]
+  pub digital_locator: Option<String>,
+}
+
+/// Normalize foreshadow for digital natures and drop tracking fields when NotApplicable.
+fn normalize_foreshadow(
+  nature: &ResourceNature,
+  inventory_intent: Option<InventoryIntent>,
+  identification_pattern: Option<IdentificationPattern>,
+  default_unit: Option<String>,
+  substitutable: Option<bool>,
+  digital_locator_kind: Option<DigitalLocatorKind>,
+  digital_locator: Option<String>,
+) -> (
+  Option<InventoryIntent>,
+  Option<IdentificationPattern>,
+  Option<String>,
+  Option<bool>,
+  Option<DigitalLocatorKind>,
+  Option<String>,
+) {
+  let unit = default_unit.and_then(|u| {
+    let t = u.trim().to_string();
+    if t.is_empty() {
+      None
+    } else {
+      Some(t)
+    }
+  });
+  let locator = digital_locator.and_then(|u| {
+    let t = u.trim().to_string();
+    if t.is_empty() {
+      None
+    } else {
+      Some(t)
+    }
+  });
+
+  if *nature == ResourceNature::Digital {
+    return (
+      Some(InventoryIntent::NotApplicable),
+      None,
+      None,
+      None,
+      digital_locator_kind.or(Some(DigitalLocatorKind::ContentAddressed)),
+      locator,
+    );
+  }
+
+  match inventory_intent {
+    Some(InventoryIntent::NotApplicable) | None => (
+      inventory_intent,
+      None,
+      None,
+      None,
+      digital_locator_kind,
+      locator,
+    ),
+    Some(InventoryIntent::Inventoried) | Some(InventoryIntent::NotInventoried) => (
+      inventory_intent,
+      identification_pattern,
+      unit,
+      substitutable,
+      None,
+      None,
+    ),
+  }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -102,6 +181,31 @@ pub fn create_resource_specification(
   .action_address()
   .clone();
 
+  let (
+    inventory_intent,
+    identification_pattern,
+    default_unit,
+    substitutable,
+    digital_locator_kind,
+    digital_locator,
+  ) = normalize_foreshadow(
+    &ndo.resource_nature,
+    input.inventory_intent,
+    input.identification_pattern,
+    input.default_unit,
+    input.substitutable,
+    input.digital_locator_kind,
+    input.digital_locator,
+  );
+
+  nondominium_shared::types::validate_spec_foreshadow(
+    inventory_intent.as_ref(),
+    identification_pattern.as_ref(),
+    default_unit.as_deref(),
+    Some(&ndo.resource_nature),
+  )
+  .map_err(|msg| ResourceError::InvalidInput(msg))?;
+
   // Create the resource specification
   let spec = ResourceSpecification {
     name: input.name,
@@ -113,6 +217,12 @@ pub fn create_resource_specification(
     scope: input.scope.clone(),
     ndo_identity_hash: input.ndo_identity_hash.clone(),
     ndo_state_hash,
+    inventory_intent,
+    identification_pattern,
+    default_unit,
+    substitutable,
+    digital_locator_kind,
+    digital_locator,
   };
 
   let spec_hash = create_entry(&EntryTypes::ResourceSpecification(spec.clone()))?;
@@ -305,6 +415,31 @@ pub fn update_resource_specification(
 
   let listed_globally = input.updated_specification.scope != ResourceScope::Project;
 
+  let (
+    inventory_intent,
+    identification_pattern,
+    default_unit,
+    substitutable,
+    digital_locator_kind,
+    digital_locator,
+  ) = normalize_foreshadow(
+    &ndo.resource_nature,
+    input.updated_specification.inventory_intent,
+    input.updated_specification.identification_pattern,
+    input.updated_specification.default_unit,
+    input.updated_specification.substitutable,
+    input.updated_specification.digital_locator_kind,
+    input.updated_specification.digital_locator,
+  );
+
+  nondominium_shared::types::validate_spec_foreshadow(
+    inventory_intent.as_ref(),
+    identification_pattern.as_ref(),
+    default_unit.as_deref(),
+    Some(&ndo.resource_nature),
+  )
+  .map_err(|msg| ResourceError::InvalidInput(msg))?;
+
   let updated_spec = ResourceSpecification {
     name: input.updated_specification.name,
     description: input.updated_specification.description,
@@ -317,6 +452,12 @@ pub fn update_resource_specification(
     // Carried over, not re-resolved: this records the state under which Layer 1
     // was *activated*, and editing a spec's name does not re-activate it.
     ndo_state_hash: original_spec.ndo_state_hash,
+    inventory_intent,
+    identification_pattern,
+    default_unit,
+    substitutable,
+    digital_locator_kind,
+    digital_locator,
   };
 
   let updated_spec_hash = update_entry(input.previous_action_hash, &updated_spec)?;

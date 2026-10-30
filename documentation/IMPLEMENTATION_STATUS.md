@@ -80,8 +80,10 @@ Each local DNA domain follows the integrity/coordinator pattern; the Lobby and G
 
 #### Resource Specifications ✅
 
-- `ResourceSpecification` entries with name, description, category
+- `ResourceSpecification` entries with name, description, category, scope, Layer 0 pointers
+- Additive inventory foreshadow (`inventory_intent`, `identification_pattern`, `default_unit`, `substitutable`) and digital locator (`digital_locator_kind`, `digital_locator`)
 - Tag-based discovery, governance rule linking, active/inactive status
+- UI: design-system `ResourcesPanel` / `SpecificationFormModal`; Governance template picker → creatable `RuleData`
 
 #### Economic Resources ✅ Data model and CRUD implemented
 

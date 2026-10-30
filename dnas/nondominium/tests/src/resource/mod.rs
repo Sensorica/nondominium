@@ -81,6 +81,18 @@ struct ResourceSpecificationInput {
     pub scope: String,
     pub ndo_identity_hash: ActionHash,
     pub governance_rules: Vec<NestedGovernanceRuleInput>,
+    #[serde(default)]
+    pub inventory_intent: Option<String>,
+    #[serde(default)]
+    pub identification_pattern: Option<String>,
+    #[serde(default)]
+    pub default_unit: Option<String>,
+    #[serde(default)]
+    pub substitutable: Option<bool>,
+    #[serde(default)]
+    pub digital_locator_kind: Option<String>,
+    #[serde(default)]
+    pub digital_locator: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -93,6 +105,18 @@ struct ResourceSpecification {
     pub is_active: bool,
     pub scope: String,
     pub ndo_identity_hash: ActionHash,
+    #[serde(default)]
+    pub inventory_intent: Option<String>,
+    #[serde(default)]
+    pub identification_pattern: Option<String>,
+    #[serde(default)]
+    pub default_unit: Option<String>,
+    #[serde(default)]
+    pub substitutable: Option<bool>,
+    #[serde(default)]
+    pub digital_locator_kind: Option<String>,
+    #[serde(default)]
+    pub digital_locator: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -186,6 +210,17 @@ async fn create_ndo_with_regime(
     stage: &str,
     regime: &str,
 ) -> ActionHash {
+    create_ndo_classified(conductors, cell, name, stage, regime, "Physical").await
+}
+
+async fn create_ndo_classified(
+    conductors: &SweetConductorBatch,
+    cell: &SweetCell,
+    name: &str,
+    stage: &str,
+    regime: &str,
+    nature: &str,
+) -> ActionHash {
     let ndo: NdoOutput = conductors[0]
         .call(
             &cell.zome("zome_resource"),
@@ -193,7 +228,7 @@ async fn create_ndo_with_regime(
             NdoInput {
                 name: name.to_string(),
                 property_regime: regime.to_string(),
-                resource_nature: "Physical".to_string(),
+                resource_nature: nature.to_string(),
                 lifecycle_stage: stage.to_string(),
                 description: None,
                 rivalry_override: None,
@@ -222,7 +257,34 @@ fn spec_input_with_scope(
         scope: scope.to_string(),
         ndo_identity_hash: ndo,
         governance_rules: vec![],
+        inventory_intent: None,
+        identification_pattern: None,
+        default_unit: None,
+        substitutable: None,
+        digital_locator_kind: None,
+        digital_locator: None,
     }
+}
+
+fn spec_input_inventoried(
+    name: &str,
+    category: &str,
+    ndo: ActionHash,
+) -> ResourceSpecificationInput {
+    let mut input = spec_input(name, category, ndo);
+    input.inventory_intent = Some("Inventoried".to_string());
+    input.identification_pattern = Some("Serialized".to_string());
+    input.default_unit = Some("each".to_string());
+    input.substitutable = Some(false);
+    input
+}
+
+fn spec_input_digital(name: &str, category: &str, ndo: ActionHash) -> ResourceSpecificationInput {
+    let mut input = spec_input(name, category, ndo);
+    input.inventory_intent = Some("NotApplicable".to_string());
+    input.digital_locator_kind = Some("ContentAddressed".to_string());
+    input.digital_locator = Some("bafybei.testcid".to_string());
+    input
 }
 
 // ---------------------------------------------------------------------------
@@ -1041,5 +1103,88 @@ async fn resource_spec_rejected_after_deprecation() {
         result.is_err(),
         "activating Layer 1 on a Deprecated NDO must fail; gating on the genesis \
          record would wrongly allow it because the NDO was created at Active"
+    );
+}
+
+/// Inventoried foreshadow fields round-trip through create + get.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_persists_inventory_foreshadow() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+    let ndo = create_ndo_at_stage(&conductors, &alice, "Tool NDO", "Active").await;
+
+    let created: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            spec_input_inventoried("Drill kind", "tools", ndo),
+        )
+        .await;
+
+    assert_eq!(
+        created.spec.inventory_intent.as_deref(),
+        Some("Inventoried")
+    );
+    assert_eq!(
+        created.spec.identification_pattern.as_deref(),
+        Some("Serialized")
+    );
+    assert_eq!(created.spec.default_unit.as_deref(), Some("each"));
+    assert_eq!(created.spec.substitutable, Some(false));
+    assert!(created.spec.digital_locator_kind.is_none());
+
+    let fetched: ResourceSpecification = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_latest_resource_specification",
+            created.spec_hash,
+        )
+        .await;
+    assert_eq!(fetched.inventory_intent.as_deref(), Some("Inventoried"));
+    assert_eq!(fetched.identification_pattern.as_deref(), Some("Serialized"));
+    assert_eq!(fetched.default_unit.as_deref(), Some("each"));
+}
+
+/// Digital nature forces NotApplicable inventory and keeps digital locator.
+#[tokio::test(flavor = "multi_thread")]
+async fn resource_spec_persists_digital_locator() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+    let ndo = create_ndo_classified(
+        &conductors,
+        &alice,
+        "Design NDO",
+        "Active",
+        "Commons",
+        "Digital",
+    )
+    .await;
+
+    let created: CreateResourceSpecificationOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "create_resource_specification",
+            // Caller may send Inventoried by mistake — coordinator normalizes.
+            {
+                let mut input = spec_input_digital("CAD package", "designs", ndo);
+                input.inventory_intent = Some("Inventoried".to_string());
+                input.identification_pattern = Some("Serialized".to_string());
+                input.default_unit = Some("each".to_string());
+                input
+            },
+        )
+        .await;
+
+    assert_eq!(
+        created.spec.inventory_intent.as_deref(),
+        Some("NotApplicable")
+    );
+    assert!(created.spec.identification_pattern.is_none());
+    assert!(created.spec.default_unit.is_none());
+    assert_eq!(
+        created.spec.digital_locator_kind.as_deref(),
+        Some("ContentAddressed")
+    );
+    assert_eq!(
+        created.spec.digital_locator.as_deref(),
+        Some("bafybei.testcid")
     );
 }

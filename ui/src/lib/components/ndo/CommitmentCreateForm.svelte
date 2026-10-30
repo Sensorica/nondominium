@@ -10,6 +10,8 @@
   } from '@nondominium/shared-types';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
   import { connectionStore } from '$lib/stores/connection.store.svelte';
+  import AgentPubkeyField from '$lib/components/agent/AgentPubkeyField.svelte';
+  import type { AgentMemberOption } from '$lib/utils/agent-pubkey';
 
   interface Props {
     ndoActionHash: ActionHash;
@@ -18,6 +20,8 @@
     propertyRegime: PropertyRegime;
     resourceNature: ResourceNature;
     rivalryOverride?: Rivalry;
+    /** Group + NDO members for the provider/receiver picker. */
+    members?: AgentMemberOption[];
     onclose: () => void;
     oncreated?: () => void;
   }
@@ -28,6 +32,7 @@
     propertyRegime,
     resourceNature,
     rivalryOverride,
+    members = [],
     onclose,
     oncreated
   }: Props = $props();
@@ -192,28 +197,20 @@
           {/each}
         </select>
       </div>
-      <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700" for="c-provider"
-          >Provider (agent pubkey b64)</label
-        >
-        <input
-          id="c-provider"
-          type="text"
-          bind:value={providerB64}
-          class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs"
-        />
-      </div>
-      <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700" for="c-receiver"
-          >Receiver (agent pubkey b64)</label
-        >
-        <input
-          id="c-receiver"
-          type="text"
-          bind:value={receiverB64}
-          class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs"
-        />
-      </div>
+      <AgentPubkeyField
+        id="c-provider"
+        label="Provider"
+        bind:value={providerB64}
+        {members}
+        hint="Pick a member or paste a full agent pubkey."
+      />
+      <AgentPubkeyField
+        id="c-receiver"
+        label="Receiver"
+        bind:value={receiverB64}
+        {members}
+        hint="Who receives this commitment (often the other party)."
+      />
       <div>
         <label class="mb-1 block text-sm font-medium text-gray-700" for="c-due">Due date</label>
         <input

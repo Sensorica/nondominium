@@ -7,6 +7,7 @@
   import type { GroupDescriptor, NdoDescriptor, PrivateParticipationClaim } from '@nondominium/shared-types';
   import { NdoButton, ComingNextPopup, SoonBadge } from '@nondominium/ndo-ui';
   import type { NavTrailEntry } from '$lib/stores/nav-trail.svelte';
+  import { copyPubkey, truncatePubkey } from '$lib/utils/agent-pubkey';
 
   export interface AgentConnection {
     agentId: string;
@@ -51,11 +52,22 @@
   }: Props = $props();
 
   let soonId = $state<string | null>(null);
+  let copied = $state(false);
 
   const REASON_LABEL: Record<AgentConnection['reasons'][number], string> = {
     same_group: 'same group',
     same_resource: 'same resource'
   };
+
+  async function onCopyKey() {
+    const ok = await copyPubkey(agentId);
+    if (ok) {
+      copied = true;
+      setTimeout(() => {
+        copied = false;
+      }, 1500);
+    }
+  }
 </script>
 
 {#if soonId}
@@ -76,9 +88,18 @@
     >
       {agentName.slice(0, 1).toUpperCase()}
     </span>
-    <div class="min-w-0">
+    <div class="min-w-0 flex-1">
       <h2 class="text-xl font-bold text-gray-900">{agentName}</h2>
-      <p class="mt-0.5 font-mono text-xs text-gray-400">{agentId.slice(0, 16)}…</p>
+      <div class="mt-1 flex flex-wrap items-center gap-2">
+        <p class="font-mono text-xs text-gray-400" title={agentId}>{truncatePubkey(agentId)}</p>
+        <button
+          type="button"
+          class="rounded border border-gray-200 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-50"
+          onclick={() => void onCopyKey()}
+        >
+          {copied ? 'Copied' : 'Copy full key'}
+        </button>
+      </div>
       {#if roleInGroup}
         <p class="mt-1 text-xs text-gray-600">In this group: {roleInGroup}</p>
       {/if}

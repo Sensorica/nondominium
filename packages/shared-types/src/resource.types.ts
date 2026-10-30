@@ -35,6 +35,13 @@ export interface ResourceSpecification {
   is_active?: boolean;
   scope?: ResourceScope;
   ndo_identity_hash?: ActionHash;
+  /** Inventory foreshadow — additive; absent on legacy entries. */
+  inventory_intent?: InventoryIntent | null;
+  identification_pattern?: IdentificationPattern | null;
+  default_unit?: string | null;
+  substitutable?: boolean | null;
+  digital_locator_kind?: DigitalLocatorKind | null;
+  digital_locator?: string | null;
 }
 
 export interface EconomicResource {
@@ -82,6 +89,12 @@ export interface ResourceSpecificationInput {
   scope: ResourceScope;
   ndo_identity_hash: ActionHash;
   governance_rules: NestedGovernanceRuleInput[];
+  inventory_intent?: InventoryIntent | null;
+  identification_pattern?: IdentificationPattern | null;
+  default_unit?: string | null;
+  substitutable?: boolean | null;
+  digital_locator_kind?: DigitalLocatorKind | null;
+  digital_locator?: string | null;
 }
 
 export interface NestedGovernanceRuleInput {
@@ -296,6 +309,19 @@ export type ResourceNature = "Physical" | "Digital" | "Hybrid";
 export type Rivalry = "Rivalrous" | "NonRivalrous";
 
 export type ResourceScope = "Project" | "Network" | "Public";
+
+/** Layer 1 inventory foreshadow (ValueFlows). */
+export type InventoryIntent = "Inventoried" | "NotInventoried" | "NotApplicable";
+
+export type IdentificationPattern = "Serialized" | "LotControlled" | "Stock";
+
+export type DigitalLocatorKind =
+  | "ContentAddressed"
+  | "Url"
+  | "Repository"
+  | "DistributedStore"
+  | "HostedService"
+  | "LocalHost";
 
 export type ConstraintSeverity = "Hard" | "Soft";
 

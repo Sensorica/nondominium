@@ -5,6 +5,7 @@
    */
   import type { GroupDescriptor } from '@nondominium/shared-types';
   import { NdoButton, ComingNextPopup } from '@nondominium/ndo-ui';
+  import { copyPubkey, truncatePubkey } from '$lib/utils/agent-pubkey';
 
   export interface AgentDirectoryPerson {
     id: string;
@@ -35,6 +36,19 @@
 
   let skill = $state<string | null>(null);
   let soonId = $state<string | null>(null);
+  let copiedId = $state<string | null>(null);
+
+  async function onCopy(id: string, e: MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    const ok = await copyPubkey(id);
+    if (ok) {
+      copiedId = id;
+      setTimeout(() => {
+        if (copiedId === id) copiedId = null;
+      }, 1500);
+    }
+  }
 
   const skills = $derived(
     Array.from(new Set(people.flatMap((p) => p.skills ?? []))).sort()
@@ -89,10 +103,10 @@
 
   <ul class="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
     {#each filtered as person (person.id)}
-      <li>
+      <li class="flex items-start gap-2 px-4 py-3 hover:bg-gray-50">
         <button
           type="button"
-          class="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-gray-50"
+          class="flex min-w-0 flex-1 items-start gap-3 text-left"
           data-testid="agent-card"
           data-agent={person.id}
           onclick={() => onselectagent?.(person.id)}
@@ -105,6 +119,9 @@
           </span>
           <span class="min-w-0 flex-1">
             <span class="block text-sm font-medium text-gray-900">{person.name}</span>
+            <span class="mt-0.5 block font-mono text-[11px] text-gray-400" title={person.id}
+              >{truncatePubkey(person.id)}</span
+            >
             {#if person.bio}
               <span class="mt-0.5 block text-xs text-gray-500">{person.bio}</span>
             {/if}
@@ -116,6 +133,14 @@
               </span>
             {/if}
           </span>
+        </button>
+        <button
+          type="button"
+          class="mt-1 shrink-0 rounded border border-gray-200 px-2 py-0.5 text-xs text-gray-600 hover:bg-white"
+          title="Copy full agent pubkey"
+          onclick={(e) => void onCopy(person.id, e)}
+        >
+          {copiedId === person.id ? 'Copied' : 'Copy key'}
         </button>
       </li>
     {:else}
