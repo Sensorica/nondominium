@@ -11,8 +11,10 @@
   } from '@nondominium/shared-types';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
   import { connectionStore } from '$lib/stores/connection.store.svelte';
+  import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import AgentPubkeyField from '$lib/components/agent/AgentPubkeyField.svelte';
   import type { AgentMemberOption } from '$lib/utils/agent-pubkey';
+  import { resourceHashPrompt } from './resource-hash-field';
 
   interface Props {
     ndoActionHash: ActionHash;
@@ -63,6 +65,9 @@
   let providerB64 = $state('');
   let receiverB64 = $state('');
   let resourceHashB64 = $state('');
+  /** null until the NDO's inventoried instances have been read. */
+  let inventoriedCount = $state<number | null>(null);
+  let resourceLookupFailed = $state(false);
   let quantity = $state('1');
   // ValueFlows `Measure.has_unit`. Defaults to "each" for the common
   // "custody of one tool" case; override for countable continuous resources
@@ -77,6 +82,17 @@
 
   const hardViolations = $derived(violations.filter((v) => v.severity === 'Hard'));
   const softViolations = $derived(violations.filter((v) => v.severity === 'Soft'));
+
+  const ndo = getNdoStore();
+
+  const hashPrompt = $derived(
+    resourceHashPrompt({
+      loaded: inventoriedCount !== null,
+      lookupFailed: resourceLookupFailed,
+      instanceCount: inventoriedCount ?? 0,
+      filledFromCommitment: fromCommitmentIdx !== '' && resourceHashB64 !== ''
+    })
+  );
 
   const ndoCommitments = $derived(
     pendingCommitments.filter(
@@ -97,6 +113,32 @@
 
   $effect(() => {
     void seedAgents();
+  });
+
+  $effect(() => {
+    const cell = ndoCellId;
+    let cancelled = false;
+    inventoriedCount = null;
+    resourceLookupFailed = false;
+    void (async () => {
+      let rows;
+      try {
+        rows = await ndo().specificationsWithInstances();
+      } catch (error) {
+        if (cancelled || isTaskInterrupted(error)) return;
+        resourceLookupFailed = true;
+        inventoriedCount = 0;
+        return;
+      }
+      if (cancelled) return;
+      // A lookup started before the NDO cell resolved would miss per-cell
+      // instances. Drop it; the effect re-runs once `ndoCellId` is set.
+      if (cell == null && ndo().cellId != null) return;
+      inventoriedCount = rows.reduce((count, row) => count + row.instances.length, 0);
+    })();
+    return () => {
+      cancelled = true;
+    };
   });
 
   $effect(() => {
@@ -134,6 +176,10 @@
     await runDryRun();
     if (hardViolations.length > 0) {
       errorMessage = 'Resolve Hard action constraints before submitting.';
+      return;
+    }
+    if (hashPrompt.kind === 'missing') {
+      errorMessage = hashPrompt.message;
       return;
     }
     if (!providerB64 || !receiverB64 || !resourceHashB64) {
@@ -239,12 +285,20 @@
         {members}
         hint="Who receives this event."
       />
-      <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700" for="e-res"
-          >Resource action hash b64</label
-        >
-        <input id="e-res" type="text" bind:value={resourceHashB64} class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs" />
-      </div>
+      {#if hashPrompt.kind === 'loading'}
+        <p class="text-sm text-gray-500">Looking up inventoried resources…</p>
+      {:else if hashPrompt.kind === 'missing'}
+        <p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
+          {hashPrompt.message}
+        </p>
+      {:else}
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700" for="e-res"
+            >Resource action hash b64</label
+          >
+          <input id="e-res" type="text" bind:value={resourceHashB64} class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs" />
+        </div>
+      {/if}
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="mb-1 block text-sm font-medium text-gray-700" for="e-qty">Quantity</label>
@@ -285,7 +339,7 @@
       >
       <button
         type="button"
-        disabled={isSubmitting || dryRunPending || hardViolations.length > 0}
+        disabled={isSubmitting || dryRunPending || hardViolations.length > 0 || hashPrompt.kind !== 'entry'}
         onclick={handleSubmit}
         class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >

@@ -11,6 +11,7 @@ import type {
   EconomicResource,
   ResourceSpecificationListing,
   ResourceSpecificationInput,
+  EconomicResourceInput,
   CreateResourceSpecificationOutput,
   GovernanceRuleInput,
   CheckRuleDataConstraintsInput,
@@ -42,7 +43,8 @@ export type ResourceStore = {
   ) => Promise<ResourceSpecificationListing[]>;
   fetchResourceSpecification: (hash: ActionHash) => Promise<ResourceSpecification | null>;
   createEconomicResource: (
-    resourceData: Omit<EconomicResource, 'created_at'>
+    input: EconomicResourceInput,
+    cellId?: CellId
   ) => Promise<ActionHash | null>;
   fetchEconomicResource: (hash: ActionHash) => Promise<EconomicResource | null>;
   fetchResourcesByCustodian: (custodian: AgentPubKey) => Promise<EconomicResource[]>;
@@ -176,11 +178,11 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
     }
 
     async function createEconomicResource(
-      resourceData: Omit<EconomicResource, 'created_at'>
+      input: EconomicResourceInput,
+      cellId?: CellId
     ): Promise<ActionHash | null> {
-      const hash = await run(resourceService.createEconomicResource(resourceData));
-      if (hash) await fetchResourcesByCustodian(resourceData.custodian);
-      return hash;
+      const created = await run(resourceService.createEconomicResource(input, cellId));
+      return created?.resource_hash ?? null;
     }
 
     async function fetchEconomicResource(hash: ActionHash): Promise<EconomicResource | null> {

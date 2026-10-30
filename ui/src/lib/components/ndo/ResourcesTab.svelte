@@ -12,6 +12,7 @@
   import type { EconomicResourceRow } from '$lib/utils/holochain-records';
   import { operationalStateLabel } from '$lib/utils/operational-state-labels';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
+  import InstanceCreateForm from './InstanceCreateForm.svelte';
   import { resourceStore } from '$lib/stores/resource.store.svelte';
   import {
     fromNdoUiSpecInput,
@@ -44,6 +45,7 @@
   let instancesBySpec = $state<Map<string, EconomicResourceRow[]>>(new Map());
   let loadError = $state<string | null>(null);
   let formError = $state<string | null>(null);
+  let copiedHash = $state<string | null>(null);
 
   const panelDescriptor = $derived.by((): NdoDescriptor => {
     if (ndoDescriptor) return ndoDescriptor;
@@ -128,6 +130,19 @@
     }
     await load();
   }
+
+  async function copyInstanceHash(hash: ActionHash) {
+    const b64 = encodeHashToBase64(hash);
+    try {
+      await navigator.clipboard.writeText(b64);
+      copiedHash = b64;
+      setTimeout(() => {
+        if (copiedHash === b64) copiedHash = null;
+      }, 2000);
+    } catch {
+      copiedHash = null;
+    }
+  }
 </script>
 
 <div class="space-y-6">
@@ -148,7 +163,8 @@
     <section class="space-y-3">
       <h3 class="text-sm font-semibold text-gray-800">Inventoried instances</h3>
       <p class="text-xs text-gray-500">
-        Economic resources linked to each kind. Creating instances from the UI is not yet available.
+        A quantity of a kind, held on this NDO. New instances start pending validation. The action
+        hash is what an economic event records.
       </p>
       {#each listings as listing (listing.action_hash.toString())}
         {@const instances = instancesBySpec.get(listing.action_hash.toString()) ?? []}
@@ -161,17 +177,39 @@
             <p class="mt-1 text-sm text-gray-500">No inventoried resources for this specification.</p>
           {:else}
             <ul class="mt-1 space-y-2">
-              {#each instances as row, i (i)}
+              {#each instances as row (encodeHashToBase64(row.actionHash))}
+                {@const hashB64 = encodeHashToBase64(row.actionHash)}
                 <li class="rounded border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
-                  <span class="font-medium">Qty</span>
-                  {row.resource.quantity.numerical_value}
-                  {row.resource.quantity.has_unit} ·
-                  <span class="font-medium">Operational state</span>
-                  {operationalStateLabel(row.resource.operational_state)}
+                  <div>
+                    <span class="font-medium">Qty</span>
+                    {row.resource.quantity.numerical_value}
+                    {row.resource.quantity.has_unit} ·
+                    <span class="font-medium">Operational state</span>
+                    {operationalStateLabel(row.resource.operational_state)}
+                  </div>
+                  <div class="mt-1 flex items-center gap-2">
+                    <span class="font-mono text-xs text-gray-500">{hashB64.slice(0, 20)}…</span>
+                    <button
+                      type="button"
+                      class="text-xs text-blue-700 underline"
+                      onclick={() => void copyInstanceHash(row.actionHash)}
+                    >
+                      {copiedHash === hashB64 ? 'Copied' : 'Copy action hash'}
+                    </button>
+                  </div>
                 </li>
               {/each}
             </ul>
           {/if}
+          <InstanceCreateForm
+            specHash={listing.action_hash}
+            specName={listing.specification.name}
+            defaultUnit={listing.specification.default_unit}
+            cellId={ndoCellId}
+            oncreated={() => {
+              void load();
+            }}
+          />
         </div>
       {/each}
     </section>

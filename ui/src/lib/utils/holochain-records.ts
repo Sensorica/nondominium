@@ -25,12 +25,22 @@ export interface EconomicResourceRow {
   resource: EconomicResource;
 }
 
+/** Msgpack bytes of an app entry, from either conductor record shape this app sees. */
+function appEntryBytes(present: unknown): Uint8Array | null {
+  if (!present || typeof present !== 'object') return null;
+  const body = present as Record<string, unknown>;
+  // `@holochain/client` records: `entry.Present.entry` is the msgpack payload.
+  if (body.entry instanceof Uint8Array) return body.entry;
+  // Externally tagged Rust `Entry::App`.
+  if (body.App instanceof Uint8Array) return body.App;
+  return null;
+}
+
 /** Resolves `EconomicResource` entries plus their create `ActionHash` from conductor `Record[]`.
  *
  * Holochain `Record.entry` is a discriminated union `{ Present: Entry } | { Hidden: void } | ...`.
- * For app entries, `Entry` uses Rust's externally-tagged enum serialization: `{ App: Uint8Array }`
- * where the Uint8Array contains msgpack-encoded entry bytes. This function decodes those bytes
- * and type-guards the result before adding to the output list.
+ * The present entry's msgpack bytes live on `Present.entry` (client records) or `Present.App`
+ * (externally tagged Rust `Entry`). This function decodes those bytes and type-guards the result.
  */
 export function economicResourceRowsFromRecords(data: unknown): EconomicResourceRow[] {
   if (!Array.isArray(data)) return [];
@@ -45,11 +55,8 @@ export function economicResourceRowsFromRecords(data: unknown): EconomicResource
     const entry = rec.entry;
     if (!entry || typeof entry !== 'object') continue;
     if (!('Present' in entry)) continue;
-    const present = (entry as { Present: unknown }).Present;
-    if (!present || typeof present !== 'object') continue;
-    // Rust externally-tagged enum: { App: Uint8Array } for app entries
-    const appBytes = (present as Record<string, unknown>)['App'];
-    if (!(appBytes instanceof Uint8Array)) continue;
+    const appBytes = appEntryBytes((entry as { Present: unknown }).Present);
+    if (!appBytes) continue;
     const decoded = decode(appBytes);
     if (isEconomicResource(decoded)) {
       out.push({ actionHash, resource: decoded });

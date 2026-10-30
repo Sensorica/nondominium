@@ -13,7 +13,9 @@ import type {
   GetAllResourceSpecificationsOutput,
   ResourceSpecificationListing,
   ResourceSpecificationInput,
+  EconomicResourceInput,
   CreateResourceSpecificationOutput,
+  CreateEconomicResourceOutput,
   GetResourceSpecWithRulesOutput,
   GetAllNdosOutput,
   NdoInput,
@@ -83,9 +85,9 @@ export interface ResourceService {
   ) => E.Effect<EconomicResourceRow[], ResourceError>;
   getAllNdos: () => E.Effect<GetAllNdosOutput, ResourceError>;
   createEconomicResource: (
-    resource: Omit<EconomicResource, 'created_at'>,
+    resource: EconomicResourceInput,
     cellId?: CellId
-  ) => E.Effect<ActionHash, ResourceError>;
+  ) => E.Effect<CreateEconomicResourceOutput, ResourceError>;
   getEconomicResource: (
     hash: ActionHash,
     cellId?: CellId
@@ -239,7 +241,7 @@ export const ResourceServiceLive: Layer.Layer<
         wz<GetAllNdosOutput>('get_all_ndos', null, RESOURCE_CONTEXTS.GET_ALL_NDOS),
 
       createEconomicResource: (resource, cellId) =>
-        wz<ActionHash>(
+        wz<CreateEconomicResourceOutput>(
           'create_economic_resource',
           resource,
           RESOURCE_CONTEXTS.CREATE_ECONOMIC_RESOURCE,
