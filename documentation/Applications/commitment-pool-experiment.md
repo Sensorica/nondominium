@@ -2,7 +2,7 @@
 
 **Audience:** people continuing this prototype (Grassroots Economics collaborators, Nondominium contributors, or anyone remapping Commitment Pooling onto Holochain).
 **Branch:** `commitment-pool-experiment` (remote: `Sensorica/commitment-pool-experiment`)
-**Companion how-to:** [Grassroots Commitment Pool](../grassroots-commitment-pool.md) — runnable walkthrough, GE↔Nondominium mapping, out-of-scope list, code map.
+**Companion how-to:** [Grassroots Commitment Pool](grassroots-commitment-pool.md) — runnable walkthrough, GE↔Nondominium mapping, out-of-scope list, code map.
 **Status:** Runnable two-agent prototype. Experiment cut, not a production protocol or a merge-ready `dev` feature set.
 
 This note explains **why** we carved the experiment out, **how** we did it (branch, design-system remix, DNA + UI), and **which decisions** we locked so someone else can build on top without reverse-engineering chat history.
@@ -181,6 +181,7 @@ These were explicit product decisions during the experiment. Treat them as defau
 | Activity / Composition / Pool | Stay live while adopting DS Resources/Governance chrome | Experiment value is the pool loop; don’t regress it to “Soon” |
 | Separate lab route | No | Lobby → Group → NDO is enough |
 | Merge to `dev` | Not automatic | Validate mapping with GE first; cherry-pick or rebase slices |
+| Pool listing architecture | Group-side `CommitmentAnchor` (leave as-is) | See §8 — not CapabilitySlot; primary key is the Group |
 
 **Locked plan shorthand** used in implementation chat for the DS alignment pass:
 
@@ -189,7 +190,46 @@ These were explicit product decisions during the experiment. Treat them as defau
 
 ---
 
-## 8. What this experiment deliberately is *not*
+## 8. Architecture: Group `CommitmentAnchor` vs capability surface
+
+### 8.1 What we chose
+
+Pool admission is implemented as a **first-class Group DNA entry** (`CommitmentAnchor`), patterned after **`NdoAnchor`**: thick cross-cell pointer + membership-scoped write + status-marker withdrawal. It is **not** a `CapabilitySlot` attachment from the NDO Layer 0 hash.
+
+Normative capability surface: [`ndo_prima_materia.md` §6](../requirements/ndo_prima_materia.md) (REQ-NDO-CS-*). That substrate (`CapabilitySlot` link type, `CapabilitySlotTag`, `SlotType`) is **not implemented in Rust** as of this experiment.
+
+### 8.2 Why leave as-is (accepted recommendation)
+
+Capability slots optimize for *“what tools/operators are attached to this NDO?”* Commitment Pool optimizes for *“what promises has this community pool admitted?”*
+
+| Concern | Capability surface | This experiment’s need |
+|---|---|---|
+| Primary key | NDO (or Person) identity hash | **Group** hash (GE: pool = Group) |
+| Cheap query | Slots from a known NDO | **`get_pool_contents(group)`** without reverse-index gymnastics |
+| Pointer richness | Thin typed link (+ tag) | Thick coords (NDO cell + commitment hash) + status/memory — same lesson that retired bare `SoftLink` for NDOs in favor of `NdoAnchor` |
+| Who may attach | Permissionless-at-DHT (CS-02), trust later | **Group membership** membrane for admit |
+| Withdrawal | Link delete vs trust filter (underspecified for “pool memory”) | Status mark `Admitted` → `Withdrawn`, history retained |
+| Scope of change | Would require landing CS substrate first | Thin Group entry; fulfillment/PPRs stay on Nondominium DNA |
+
+Same *spirit* as capability slots (pointer, don’t copy the commitment; don’t enlarge the NDO entry). Different **ownership and query direction**. Treating pool listing as a CS-only link from Layer 0 would invert the GE UI (Group → contents) unless a Group-side reverse index were added — at which point you largely reinvent `CommitmentAnchor`.
+
+**Decision:** keep `CommitmentAnchor` for the experiment and for any near-term cherry-pick to `dev`. Do not block GE validation on implementing REQ-NDO-CS-*.
+
+### 8.3 Future refactor — when capability surface lands in Rust
+
+When `CapabilitySlot` / `SlotType` exist in `zome_resource` (and optionally on `Person` per G15), revisit pool discovery with a **hybrid**, not a naïve “delete anchors, only NDO→pool links”:
+
+1. **Land CS substrate** — `LinkTypes::CapabilitySlot`, `CapabilitySlotTag`, `SlotType` (add something like `CommitmentPool` or use `CustomApp("CommitmentPool")`), attach/list APIs, Sweettests for CS-01–04.
+2. **Optional NDO-facing slot** — from Layer 0 (or from the commitment action hash) → pool/group target, answering *“which pools list this NDO/commitment?”* without scanning all groups.
+3. **Keep a Group-side index** — retain `CommitmentAnchor` (or a thinner successor) as the authoritative listing for `get_pool_contents`, membership-gated admit/withdraw, and withdrawn memory. Dual-write on admit/withdraw; document which side is source of truth for conflicts.
+4. **Do not move** — `fulfill_commitment_closure`, Measure, `NdoToCommitments`, bilateral PPRs. Those stay on the Nondominium DNA regardless of listing architecture.
+5. **Migrate** — experiment sandboxes may wipe; if anchors shipped on `dev`, write an additive migration that attaches CS links for existing admitted anchors and leaves Group entries in place until readers are cut over.
+
+Trigger to start that work: CS implementation for Unyt/Flowsta/MOSS (prima materia §6.6–6.7), not GE demo polish alone. Until then, Group-side thick pointers remain the correct local fit — same architectural family as `NdoAnchor`.
+
+---
+
+## 9. What this experiment deliberately is *not*
 
 Same spirit as the collaboration brief — restated so builders don’t “complete” the wrong thing:
 
@@ -197,30 +237,33 @@ Same spirit as the collaboration brief — restated so builders don’t “compl
 - Mandatory governance-as-operator funnel for all writes
 - Source-NDO / ecological Source profile
 - Unyt settlement, Flowsta identity, hREA Phases 2–4 wiring as a product requirement
+- Implementing CapabilitySlot solely to host pool listing (see §8 — deferred until CS lands for Unyt/Flowsta/MOSS)
 - Global reputation scores (PPRs stay private)
 - Mirroring the counterparty’s PPR onto *their* chain when they next come online (`mirror_counterparty_ppr` noted, not built)
 - Publishing `@nondominium/ndo-ui` as a versioned npm package for this experiment (sibling path pin only)
 
 ---
 
-## 9. How to build on top
+## 10. How to build on top
 
-1. **Read** [grassroots-commitment-pool.md](../grassroots-commitment-pool.md) and run `AGENTS=2 bun run network` inside `nix develop`.
+1. **Read** [grassroots-commitment-pool.md](grassroots-commitment-pool.md) and run `AGENTS=2 bun run network` inside `nix develop`.
 2. **Talk to GE** with the open questions in that brief (who admits vs fulfills; NDO constraints on pools; withdrawal vs archive; offline PPR mirror).
-3. **If promoting to `dev`:** prefer small PRs — Measure, CommitmentAnchor, fulfillment closure, foreshadow fields, UI adapters — rather than one mega-merge of the experiment branch.
+3. **If promoting to `dev`:** prefer small PRs — Measure, CommitmentAnchor, fulfillment closure, foreshadow fields, UI adapters — rather than one mega-merge of the experiment branch. Keep Group-side anchors (§8); do not rewrite pool onto CS in the same PR.
 4. **If extending Layer 1:** keep foreshadow validation in `nondominium_shared::types::validate_spec_foreshadow`; add Sweettests that call `get_latest_resource_specification`.
 5. **If extending governance templates:** add a mapping in `ui/src/lib/utils/governance-template-map.ts` only when a typed `RuleData` variant already exists; otherwise leave Soon.
 6. **If refreshing design-system:** update the sibling `release-prototype` checkout and keep Vite aliases pointed at it until a real package version is cut.
-7. **Sweettest tip:** serial threads for governance/resource pool tests; cold WASM per conductor can take many minutes on first run — slow ≠ stuck.
+7. **When CS lands:** follow the hybrid refactor in §8.3; do not drop `get_pool_contents` without a Group-side index.
+8. **Sweettest tip:** serial threads for governance/resource pool tests; cold WASM per conductor can take many minutes on first run — slow ≠ stuck.
 
 ---
 
-## 10. Key paths (quick index)
+## 11. Key paths (quick index)
 
 | Concern | Path |
 |---|---|
 | Collaboration brief / runbook | `documentation/Applications/grassroots-commitment-pool.md` |
-| This work summary | `documentation/Applications/user-story/commitment-pool-experiment.md` |
+| This work summary | `documentation/Applications/commitment-pool-experiment.md` |
+| Capability surface (normative, not coded) | `documentation/requirements/ndo_prima_materia.md` §6, REQ-NDO-CS-* |
 | `Measure` / foreshadow enums | `crates/shared/src/types.rs` |
 | CommitmentAnchor | `dnas/group/zomes/coordinator/zome_group/src/commitment_anchor.rs` |
 | Fulfillment closure | `dnas/nondominium/zomes/coordinator/zome_gouvernance/src/fulfillment.rs` |
@@ -232,4 +275,4 @@ Same spirit as the collaboration brief — restated so builders don’t “compl
 
 ---
 
-*Living note for the experiment cut. Update when GE feedback changes the mapping or when slices land on `dev`.*
+*Living note for the experiment cut. Update when GE feedback changes the mapping, when slices land on `dev`, or when CapabilitySlot lands and §8.3 is executed.*
