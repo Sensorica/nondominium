@@ -29,7 +29,7 @@ The core supports **four structured Economic Processes** (Use, Transport, Storag
 graph TB
     subgraph "Frontend Layer"
         UI["Svelte 5.0 + TypeScript"]
-        Client["holochain-client ^0.21.0"]
+        Client["holochain-client ^0.21.1"]
     end
 
     subgraph "Holochain Runtime"
@@ -99,7 +99,7 @@ sequenceDiagram
 │                    FRONTEND LAYER                           │
 ├─────────────────────────────────────────────────────────────┤
 │ Svelte 5.0 + TypeScript + Vite 7                            │
-│ @holochain/client ^0.21.0                                   │
+│ @holochain/client ^0.21.1                                   │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼

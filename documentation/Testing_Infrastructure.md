@@ -81,7 +81,7 @@ Our testing approach follows **Holochain community best practices** with emphasi
 ### Technology Stack
 
 **Sweettest (Rust — new primary):**
-- **Framework**: `holochain = "=0.7.0"` with `test_utils` feature
+- **Framework**: `holochain = "=0.7.1"` with `test_utils` feature
 - **Runtime**: `tokio` multi-thread executor
 - **Language**: Rust, in-process Holochain
 - **CARGO_TARGET_DIR**: `target/native-tests` (isolated from WASM artifacts)
@@ -418,12 +418,12 @@ warn!("Checkpoint reached in function_name");
 
 | Component             | Version | Status |
 | --------------------- | ------- | ------ |
-| **Sweettest (Rust)**  | holochain 0.7.0 | ✅ Active — primary |
+| **Sweettest (Rust)**  | holochain 0.7.1 | ✅ Active — primary |
 | **Vitest**            | 3.2.4   | ✅ Active (UI unit tests) |
 | **Tryorama**          | 0.19.2  | ❌ Retired — no 0.7-compatible release; `tests/` cannot run against a 0.7 conductor |
-| **Holochain Client**  | 0.21.0  | ✅ Active |
+| **Holochain Client**  | 0.21.1  | ✅ Active |
 | **TypeScript**        | 5.6.3   | ✅ Active |
-| **HDK / HDI**         | 0.7.0 / 0.8.0 | ✅ Active |
+| **HDK / HDI**         | 0.7.1 / 0.8.1 | ✅ Active |
 | **HDI**               | ^0.7.0  | ✅ Active |
 
 ## Development Workflow Integration

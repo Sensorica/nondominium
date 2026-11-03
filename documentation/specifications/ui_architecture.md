@@ -35,7 +35,7 @@ On top of this hierarchy, the **next** UI iteration adds a cross-cutting **Persp
 | Styling                | UnoCSS (atomic CSS, preset-wind)                                                |
 | Headless components    | Melt UI next-gen (`melt`)                                                       |
 | Async / error handling | Effect-TS 4 (`effect` 4.0.0): `Context.Service`, `Layer`, `E.gen`, `Result`     |
-| Holochain client       | `@holochain/client` ^0.21.0                                                     |
+| Holochain client       | `@holochain/client` ^0.21.1                                                     |
 | Shared types           | `@nondominium/shared-types` (workspace package)                                 |
 | hREA GraphQL adapter   | `@valueflows/vf-graphql-holochain` 0.700.0-rc.0, vendored tarball (`vendor/`)   |
 | Build                  | Vite 7                                                                          |

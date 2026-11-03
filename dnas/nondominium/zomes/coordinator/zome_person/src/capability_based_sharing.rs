@@ -42,17 +42,17 @@ pub fn grant_private_data_access(
   let expires_at = Timestamp::from_micros(now.as_micros() + duration_micros);
 
   // Create capability grant for specific private data functions
-  let cap_grant = ZomeCallCapGrant {
-    tag: format!("private_data_{}", input.context.replace(" ", "_")),
-    access: CapAccess::Assigned {
+  let cap_grant = CapGrant::new_zome_call_grant(
+    format!("private_data_{}", input.context.replace(" ", "_")),
+    GrantConstraint::Assigned {
       secret: cap_secret.clone(),
       assignees: BTreeSet::from([input.agent_to_grant.clone()]),
     },
-    functions: GrantedFunctions::Listed(HashSet::from([(
+    GrantedFunctions::Listed(HashSet::from([(
       ZomeName::from("zome_person"),
       FunctionName::from("get_private_data_with_capability"),
     )])),
-  };
+  );
 
   let grant_hash = create_cap_grant(cap_grant)?;
 
@@ -652,19 +652,19 @@ pub fn create_transferable_private_data_access(
   let expires_at = Timestamp::from_micros(now.as_micros() + duration_micros);
 
   // Create transferable capability grant
-  let cap_grant = ZomeCallCapGrant {
-    tag: format!(
+  let cap_grant = CapGrant::new_zome_call_grant(
+    format!(
       "transferable_private_data_{}",
       input.context.replace(" ", "_")
     ),
-    access: CapAccess::Transferable {
+    GrantConstraint::Transferable {
       secret: cap_secret.clone(),
     },
-    functions: GrantedFunctions::Listed(HashSet::from([(
+    GrantedFunctions::Listed(HashSet::from([(
       ZomeName::from("zome_person"),
       FunctionName::from("get_private_data_with_capability"),
     )])),
-  };
+  );
 
   let grant_hash = create_cap_grant(cap_grant)?;
 

@@ -73,7 +73,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 - **Framework**: Holochain HDK ^0.7.0 / HDI ^0.8.0 (Rust + WASM)
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) deprecated
-- **Client**: @holochain/client ^0.21.0
+- **Client**: @holochain/client ^0.21.1
 - **Package Management**: Bun for dependency management and build orchestration
 
 ### Zome Structure
