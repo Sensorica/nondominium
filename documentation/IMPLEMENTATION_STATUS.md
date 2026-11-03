@@ -40,7 +40,7 @@ Holochain 0.7 changes every DNA hash, so a 0.7 build cannot reach any 0.6 networ
 | --- | --- | --- |
 | `lobby` | `uhC0kyI7d80mfkSqBYxPsuiwRStStIVMJt2fsI1sla_h6W0GrxKuP` | With the role's fixed network seed `nondominium-lobby-v1`. Every install joins this network. |
 | `nondominium` | `uhC0k8HbqmcIJODRVOMuvc_74foAClnPG1JAer-BFaYYlK_T-qFZK` | Seed `~` in the manifest: the hash an agent gets is the base hash. |
-| `hrea` | `uhC0knbVvh1vveP9Bnn456mo6_KVVorJhd8foVUBVwksVSaQYVRTu` | Built from the pinned `vendor/hrea` commit. This value changes if the submodule pin changes (see #130). |
+| `hrea` | `uhC0kqRmO5ZkbuLCLS18qro-HT8Vp2kVfgZX3QI5JCVmDf8Zrv4G-` | Built from the pinned `vendor/hrea` commit (`Sensorica/hREA` `c4c44adb`, release `happ-0.5.0-beta.1` plus the hdk 0.7.1 pin bump). This value changes when the submodule pin changes. |
 | `group` | `uhC0kJ2HPdnV14G_EIj9GFQfNXjAx3YBuIGPOOHjEWW6xGHjc2AbK` | Base hash of the clone template. Each cloned Group gets its own hash from a unique network seed. |
 | `ndo` | `uhC0kVU9I_kb0Rnm4q-I3HkZ3Rapg_Plhza7UYt26E2IRbAXNNlrp` | Base hash of the clone template. Each NDO cell gets its own hash. |
 
