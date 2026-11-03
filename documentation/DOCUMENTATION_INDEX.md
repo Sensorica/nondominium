@@ -158,7 +158,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 | Document | Description | Status |
 | --- | --- | --- |
-| **[Lobby DNA Requirements](requirements/lobby-dna.md)** | Multi-network federation: Lobby DNA, Group DNA, NDO extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) | ✅ Lobby + Group DNAs shipped (#103, #107); NDO-level extensions in progress (#112) |
+| **[Lobby DNA Requirements](requirements/lobby-dna.md)** | Multi-network federation: Lobby DNA, Group DNA, NDO extensions, group model by deployment mode, work contexts, sovereignty levels (REQ-LOBBY-*, REQ-GROUP-*, REQ-WC-*, REQ-SOV-*, REQ-FED-*, REQ-NDO-EXT-*) | ✅ Lobby + Group DNAs shipped (#103, #107); NDO-level extensions in progress (#112) |
 | **[Unyt Integration](requirements/post-mvp/unyt-integration.md)** | Economic settlement, Smart Agreements, RAVE proofs, PPR↔RAVE provenance | 🔄 Post-MVP |
 | **[Flowsta Integration](requirements/post-mvp/flowsta-integration.md)** | Cross-app identity (IsSamePersonEntry, FlowstaIdentity, DID, key recovery) | 🔄 Post-MVP |
 | **[NDO Versioning](requirements/post-mvp/ndo-versioning.md)** | DAG-based version graph, fork/merge/repair relations, contribution propagation | 🔄 Post-MVP |
