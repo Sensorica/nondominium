@@ -47,7 +47,7 @@
         "@holochain/client": "^0.20.0",
         "@msgpack/msgpack": "^3.0.0",
         "@nondominium/shared-types": "workspace:*",
-        "@valueflows/vf-graphql-holochain": "file:../vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz",
+        "@valueflows/vf-graphql-holochain": "^0.700.0-rc.0",
         "effect": "4.0.0",
         "melt": "^0.44.0",
       },
@@ -482,7 +482,7 @@
 
     "@valueflows/vf-graphql": ["@valueflows/vf-graphql@0.9.1-alpha.6", "", { "dependencies": { "@graphql-tools/merge": "^8.3.16" }, "peerDependencies": { "graphql": ">=15" } }, "sha512-mKk3xRP076ULe85S7EAVK+x5uz7Brg9V61uTwBukh+gDTRYuBV/x8oMdGieH3ygUlxkg1S2tDOIlp/L6/DLr5w=="],
 
-    "@valueflows/vf-graphql-holochain": ["@valueflows/vf-graphql-holochain@../vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz", { "dependencies": { "@graphql-tools/schema": "^10.0.23", "@holochain/client": "^0.21.0", "@msgpack/msgpack": "^2.8.0", "@valueflows/vf-graphql": "^0.9.1-alpha.5", "graphql": "15.8.0", "graphql-tag": "2.12.6", "signal-polyfill": "0.2.2", "signal-utils": "0.21.1" } }],
+    "@valueflows/vf-graphql-holochain": ["@valueflows/vf-graphql-holochain@0.700.0-rc.0", "", { "dependencies": { "@graphql-tools/schema": "^10.0.23", "@holochain/client": "^0.21.0", "@msgpack/msgpack": "^2.8.0", "@valueflows/vf-graphql": "^0.9.1-alpha.5", "graphql": "15.8.0", "graphql-tag": "2.12.6", "signal-polyfill": "0.2.2", "signal-utils": "0.21.1" } }, "sha512-HdnnB44QxcRKH1u9n2rGW8Qm15rvlc2rDzzkikwdM8wPejpk9KXg/UFbkv7tfoCfP4SW2mdAkHy7T7OngMSnGw=="],
 
     "@vitest/browser": ["@vitest/browser@3.2.4", "", { "dependencies": { "@testing-library/dom": "^10.4.0", "@testing-library/user-event": "^14.6.1", "@vitest/mocker": "3.2.4", "@vitest/utils": "3.2.4", "magic-string": "^0.30.17", "sirv": "^3.0.1", "tinyrainbow": "^2.0.0", "ws": "^8.18.2" }, "peerDependencies": { "playwright": "*", "vitest": "3.2.4", "webdriverio": "^7.0.0 || ^8.0.0 || ^9.0.0" }, "optionalPeers": ["playwright", "webdriverio"] }, "sha512-tJxiPrWmzH8a+w9nLKlQMzAKX/7VjFs50MWgcAj7p9XQ7AQ9/35fByFYptgPELyLw+0aixTnC4pUWV+APcZ/kw=="],
 
