@@ -140,6 +140,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | --- | --- | --- |
 | **[Technical Specifications](specifications/specifications.md)** | Detailed data structures, zome functions, cross-zome interfaces | ✅ Complete |
 | **[ADR-010…013 — Per-NDO cells](specifications/adr/ADR-010-013-per-ndo-cells.md)** | One cloned cell per NDO, group `NdoAnchor` discovery, DnaHash bound to Layer 0 via DNA properties | ✅ Active |
+| **[ADR-014 — Work contexts live in the group DHT](specifications/adr/ADR-014-work-contexts-in-group-dht.md)** | Work contexts as entries of the group cell in both modes, the rejected dedicated work-context DNA, the Moss mapping (one Nondominium group per Moss group) | ✅ Accepted, no code yet (v0.2) |
 | **[Architecture Overview](zomes/architecture_overview.md)** | Comprehensive system architecture & cross-zome integration | ✅ Complete |
 | **[Governance Operator Architecture](specifications/governance/governance-operator-architecture.md)** | Technical architecture for modular governance design | ✅ Complete |
 | **[Governance Implementation Guide](specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples | ✅ Complete |
