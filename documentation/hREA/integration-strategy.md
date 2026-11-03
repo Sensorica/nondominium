@@ -8,7 +8,7 @@ This document outlines the comprehensive integration strategy for incorporating 
 
 **Bound on the GraphQL adapter**: the UI vendors hREA's GraphQL adapter (`vendor/valueflows-vf-graphql-holochain-0.700.0-rc.0.tgz`, #153) for read-only queries only, such as showing a resource's ValueFlows history. Every write (Agents, Commitments, EconomicEvents, EconomicResources) still goes through the Nondominium zomes and their cross-DNA calls, for the reasons in [Why Zome-Level Integration](#why-zome-level-integration-not-graphql). A UI mutation through the adapter would skip governance evaluation and PPR issuance, so it is out of bounds.
 
-**hREA Repository**: https://github.com/h-REA/hREA (release tag `happ-0.5.0-beta.1`, commit `79c8d4fb`, Holochain 0.7; pinned in #154)
+**hREA Repository**: https://github.com/h-REA/hREA (release tag `happ-0.5.0-beta.1`, commit `79c8d4fb`, Holochain 0.7), consumed as `Sensorica/hREA` branch `chore/holochain-0.7.1` (`c4c44adb`: that commit plus the hdk 0.7.1 / hdi 0.8.1 pin bump, proposed upstream as h-REA/hREA#423)
 **Architecture**: Single DNA (`hrea`) with separate coordinator + integrity zomes
 
 ---
@@ -843,7 +843,7 @@ The bridge call overhead (~5-10ms) is acceptable because hREA integration happen
 | ----------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------- |
 | hREA `main-0.6` branch API changes                    | Medium     | High   | Pin to a specific commit hash, not a branch pointer             |
 | Cross-DNA call capability issues                      | Medium     | High   | Test cap grants early in Phase 1                                |
-| hREA DNA build incompatibility (HDK version mismatch) | Realized   | High   | The `happ-0.5.0-beta.1` pin uses hdk 0.7.0 / hdi 0.8.0 and does not compile on the Holonix main-0.6 toolchain; it lands together with the Holochain 0.7 move (#130) |
+| hREA DNA build incompatibility (HDK version mismatch) | Realized   | High   | The `happ-0.5.0-beta.1` release uses hdk 0.7.0 / hdi 0.8.0: it does not compile on the Holonix main-0.6 toolchain, and a 0.7.1 conductor cannot grant it a signing capability. The submodule pins the fork commit that bumps both to 0.7.1 / 0.8.1 (#130) |
 | Performance degradation from bridge calls             | Low        | Medium | Benchmark early; cache hREA hashes in Nondominium links         |
 | Migration query complexity (dual-read layer)          | Medium     | Low    | Keep migration period short; prioritize hREA-backed data        |
 
@@ -879,4 +879,4 @@ Key outcomes:
 _Document Version: 2.0_
 _Last Updated: 2026-03-02_
 _Status: Implementation Ready_
-_hREA Source: https://github.com/h-REA/hREA (tag: happ-0.5.0-beta.1, commit: 79c8d4fb)_
+_hREA Source: https://github.com/h-REA/hREA (tag: happ-0.5.0-beta.1, commit: 79c8d4fb) plus the 0.7.1 pin bump at Sensorica/hREA c4c44adb_

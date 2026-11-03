@@ -102,7 +102,7 @@ bun install                              # Install all dependencies
 ```
 
 The `hrea` role is vendored as a git submodule at `vendor/hrea`, pinned to the h-REA/hREA release
-tag `happ-0.5.0-beta.1` (Holochain 0.7); `bun run build:happ` builds and packs it, so the build
+`happ-0.5.0-beta.1` plus a 0.7.1 pin bump on the Sensorica fork (Holochain 0.7.1); `bun run build:happ` builds and packs it, so the build
 fails without this step.
 
 **⚠️ Run all commands from within the nix shell, otherwise they won't work.**
