@@ -1,4 +1,6 @@
-import { AdminWebsocket, AppWebsocket, type CellId } from '@holochain/client';
+import { AdminWebsocket, AppWebsocket, type AppClient, type CellId } from '@holochain/client';
+import { detectCurrentHost } from '../moss/host';
+import { connectMoss, type MossConnection } from '../moss/connect';
 
 const DEV_AGENT_STORAGE_KEY = 'ndo_dev_agent';
 const DEV_WS_ORIGIN = 'nondominium-ui';
@@ -23,10 +25,11 @@ export interface HcConnectionManifest {
   updatedAt?: string;
 }
 
-export type HolochainConnectionMode = 'launcher' | 'manifest' | 'env';
+export type HolochainConnectionMode = 'launcher' | 'manifest' | 'env' | 'moss';
 
 export interface HolochainConnectResult {
-  client: AppWebsocket;
+  /** An `AppWebsocket` standalone, the applet client Moss hands the tool inside Moss. */
+  client: AppClient;
   connectionUrl: string;
   connectionMode: HolochainConnectionMode;
   /**
@@ -35,6 +38,8 @@ export interface HolochainConnectResult {
    * are created at runtime. Undefined in launcher mode (the launcher signs).
    */
   adminWsUrl?: string;
+  /** Set only in Moss mode: the Weave client, the group and the tool instance. */
+  moss?: MossConnection;
 }
 
 export class HolochainConnectionError extends Error {
@@ -219,6 +224,7 @@ const BROWSER_DEV_HINTS = [
 
 /**
  * Connect to the local Holochain conductor.
+ * 0. Moss (the Weave host), detected from the page itself; Moss owns the conductor and signing
  * 1. hc-spin Electron launcher env (when using hc-spin directly)
  * 2. /hc-connection.json written by scripts/launch-happ.mjs (`bun run network`)
  * 3. VITE_HC_ADMIN_WS_URL + VITE_HC_APP_WS_URL (manual override)
@@ -226,6 +232,12 @@ const BROWSER_DEV_HINTS = [
 export async function connectHolochainClient(
   defaultAppId: string
 ): Promise<HolochainConnectResult> {
+  const host = detectCurrentHost();
+  if (host.mode === 'moss') {
+    const moss = await connectMoss({ hotReload: host.hotReload });
+    return { client: moss.appClient, connectionUrl: 'moss://applet', connectionMode: 'moss', moss };
+  }
+
   const launcherEnv = getLauncherEnvironment();
   if (launcherEnv?.APP_INTERFACE_PORT) {
     const connectionUrl = `ws://localhost:${launcherEnv.APP_INTERFACE_PORT}`;

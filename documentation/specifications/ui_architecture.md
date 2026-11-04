@@ -102,6 +102,8 @@ On top of this hierarchy, the **next** UI iteration adds a cross-cutting **Persp
 
 Dependencies only point down: routes render components, components read stores, stores call services, services call the Holochain client. The domain layer sits beside the services and is imported by stores and components. The three rules that keep it that way are enforced by a script (see [§17](#17-architecture-invariants)).
 
+**Moss host (`lib/moss/`).** When the UI runs inside Moss it is a tool, not a page that owns its conductor connection. `lib/moss/` holds that seam as plain TypeScript beside the service layer: `host.ts` (pure host detection), `connect.ts` (the `WeaveClient` connection, injectable for tests) and `applet-services.ts` (what the tool tells Moss about itself). Only `utils/hc-connect.ts` imports it, as one more connection mode (§15.4), so components, stores and services see the same `AppClient` whether the host is Moss or a standalone conductor. Details in [moss-integration.md](moss-integration.md).
+
 ---
 
 
@@ -740,6 +742,7 @@ Each agent gets a **dedicated port = dedicated origin**, which yields fully isol
 | `launcher` | `window.__HC_LAUNCHER_ENV__` present          | hc-spin Electron path (legacy/optional)                                                                         |
 | `manifest` | `/hc-connection.json` has agents              | **Primary web path**; picks the entry matching `getDevAgentIndex()`; polls up to 5 min while conductors install |
 | `env`      | `VITE_HC_ADMIN_WS_URL` + `VITE_HC_APP_WS_URL` | manual override                                                                                                 |
+| `moss`     | `detectCurrentHost()` reports Moss            | Checked first. The UI runs as a Moss tool: `connectMoss()` returns the applet client Moss hands the tool; Moss owns the conductor and signing, so there is no admin URL and no credential authorization. See [moss-integration.md](moss-integration.md) |
 
 
 In `manifest`/`env` modes the result carries the `adminWsUrl` so the UI can authorize signing credentials for **runtime-created group clone cells**.

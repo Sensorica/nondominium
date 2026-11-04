@@ -1,7 +1,7 @@
 manifest_version: "1"
 name: nondominium
 description: Nondominium OVN resource sharing network with Lobby federation layer
-icon: ../ui/src/assets/favicon.png
+icon: ../ui/static/icon.png
 source:
   type: local
   path: ./nondominium.happ

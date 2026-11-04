@@ -1,4 +1,5 @@
-import { type AgentPubKey, type AppInfoResponse, type CellId, type ClonedCell, AppWebsocket } from '@holochain/client';
+import type { AgentPubKey, AppClient, AppInfoResponse, CellId, ClonedCell } from '@holochain/client';
+import type { MossConnection } from '../moss/connect';
 import { Context, Layer } from 'effect';
 import {
   authorizeCellSigning,
@@ -14,7 +15,9 @@ export type RoleName = 'nondominium' | 'lobby';
 
 export interface HolochainClientService {
   readonly appId: string;
-  readonly client: AppWebsocket | null;
+  readonly client: AppClient | null;
+  /** Set only when hosted by Moss. */
+  readonly moss: MossConnection | null;
   readonly isConnected: boolean;
   readonly connectionUrl: string | null;
   readonly connectionMode: HolochainConnectionMode | null;
@@ -71,7 +74,8 @@ export interface HolochainClientService {
 function createHolochainClientService(): HolochainClientService {
   // State
   const appId: string = 'nondominium';
-  let client: AppWebsocket | null = $state(null);
+  let client: AppClient | null = $state(null);
+  let moss: MossConnection | null = $state(null);
   let isConnected: boolean = $state(false);
   let connectionUrl: string | null = $state(null);
   let connectionMode: HolochainConnectionMode | null = $state(null);
@@ -96,11 +100,13 @@ function createHolochainClientService(): HolochainClientService {
       connectionUrl = null;
       connectionMode = null;
       adminWsUrl = null;
+      moss = null;
 
       try {
         console.log('Attempting to connect to Holochain conductor...');
         const result = await connectHolochainClient(appId);
         client = result.client;
+        moss = result.moss ?? null;
         connectionUrl = result.connectionUrl;
         connectionMode = result.connectionMode;
         adminWsUrl = result.adminWsUrl ?? null;
@@ -213,7 +219,8 @@ function createHolochainClientService(): HolochainClientService {
    * private cache field itself.
    */
   function invalidateAppInfoCache(): void {
-    if (client) client.cachedAppInfo = undefined;
+    // Only the websocket client memoizes AppInfo; the applet client Moss hands a tool does not.
+    if (client && 'cachedAppInfo' in client) client.cachedAppInfo = undefined;
   }
 
   async function enableGroupCloneCell(dnaHash: Uint8Array): Promise<ClonedCell> {
@@ -326,6 +333,9 @@ function createHolochainClientService(): HolochainClientService {
     },
     get connectionUrl() {
       return connectionUrl;
+    },
+    get moss() {
+      return moss;
     },
     get connectionMode() {
       return connectionMode;
