@@ -92,6 +92,10 @@ CARGO_TARGET_DIR=target/native-tests cargo test --test nondominium
 CARGO_TARGET_DIR=target/native-tests cargo test --test nondominium ndo_cross_agent_discovery
 ```
 
+### Sweettest in CI
+
+The `sweettest` job in `.github/workflows/build.yml` runs one shard per `[[test]]` binary, across all three packages: `misc`, `person`, `governance`, `resource` and `nondominium` (two halves) from `nondominium_sweettest` at `--test-threads 2`; `group` and `ndo_anchor` from `group_sweettest` at `--test-threads 6`; `lobby` from `lobby_sweettest` at `--test-threads 1`. A failure in any shard turns the job red. To add a binary, add one matrix entry naming its `package`, `target` and `threads`.
+
 ## 🎭 **E2E (Playwright + real conductors)**
 
 Browser-level coverage of the Lobby → Group → NDO holarchy against real conductors. Full

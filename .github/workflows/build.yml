@@ -71,6 +71,15 @@ jobs:
   # split lives in the run step below, as name filters on the same [[test]]
   # target, so no test file has to change.
   #
+  # The Group and Lobby DNAs have their own Sweettest packages (#160), run as
+  # further shards of this same job so a regression in either turns the check
+  # red: group_sweettest (`group`, `ndo_anchor`) and lobby_sweettest (`lobby`).
+  # An entry names its `package` and `threads`; the nondominium entries above
+  # name neither and keep nondominium_sweettest at 2 threads. The group
+  # entries run at 6 threads, the figure CLAUDE.md and TEST_COMMANDS.md give
+  # for that suite (two conductors per test); the 2-thread cap above was
+  # measured on the nondominium target, not on these.
+  #
   # timeout-minutes: without it the runner default is 360 min, so a hung
   # conductor holds a runner for six hours. 45 is about twice the slowest half
   # measured above; hitting it names itself in the job annotation instead of
@@ -91,6 +100,9 @@ jobs:
           - target: resource
           - { target: nondominium, half: a }
           - { target: nondominium, half: b }
+          - { package: group_sweettest, target: group, threads: 6 }
+          - { package: group_sweettest, target: ndo_anchor, threads: 6 }
+          - { package: lobby_sweettest, target: lobby, threads: 1 }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,8 +144,10 @@ jobs:
       # rebalance, move a filter; never list `b` separately.
       - name: Run Sweettest target
         env:
+          PACKAGE: ${{ matrix.package || 'nondominium_sweettest' }}
           TARGET: ${{ matrix.target }}
           HALF: ${{ matrix.half }}
+          THREADS: ${{ matrix.threads || 2 }}
         run: |
           case "$TARGET" in
             nondominium) half_a="ndo_layer0::ndo_lifecycle ndo_layer0::ndo_transition_history ndo_layer0::ndo_hibernation ndo_layer0::ndo_deprecat ndo_layer0::ndo_invalid" ;;
@@ -144,8 +158,8 @@ jobs:
             a) for f in $half_a; do filters+=("$f"); done ;;
             b) for f in $half_a; do filters+=(--skip "$f"); done ;;
           esac
-          nix develop --command cargo test --package nondominium_sweettest \
-            --test "$TARGET" -- --test-threads 2 "${filters[@]}"
+          nix develop --command cargo test --package "$PACKAGE" \
+            --test "$TARGET" -- --test-threads "$THREADS" "${filters[@]}"
 
   # Browser-level e2e against real conductors (ui/tests/e2e). Gated behind
   # sweettest so backend regressions fail before the slower browser suite runs.
