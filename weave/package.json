@@ -1,0 +1,20 @@
+{
+  "name": "nondominium-weave",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Runs Nondominium as a Moss tool in weave dev mode. Kept out of the root workspaces so CI and the standalone build never install Electron.",
+  "scripts": {
+    "agent1": "weave --agent-idx 1 --dev-config ./weave.dev.config.ts",
+    "agent2": "sleep 5 && weave --agent-idx 2 --dev-config ./weave.dev.config.ts --sync-time 20000"
+  },
+  "devDependencies": {
+    "@theweave/cli": "0.16.0-rc.5",
+    "@types/node": "^22.0.0",
+    "tslib": "^2.8.1",
+    "typescript": "~5.9.3"
+  },
+  "trustedDependencies": [
+    "@theweave/cli",
+    "electron"
+  ]
+}

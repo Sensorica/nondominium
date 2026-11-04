@@ -149,6 +149,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | **[Private Participation Receipts](specifications/governance/private-participation-receipt.md)** | PPR system full specification | ✅ Complete |
 | **[Governance Model (Legacy)](specifications/governance/governance.md)** | Legacy governance model and decision-making processes | 📦 Reference |
 | **[UI Architecture](specifications/ui_architecture.md)** | Frontend design patterns & component structure | ✅ Complete |
+| **[Moss Integration](specifications/moss-integration.md)** | Running Nondominium as a Moss tool (v0.1.0 pilot): dev config, host seam, what Moss does to our roles | 🔄 In progress (#163 to #165) |
 | **[ValueFlows Action Usage](specifications/VfAction_Usage.md)** | ValueFlows implementation with governance examples | ✅ Complete |
 | **[Protocol Bridge Specifications](specifications/protocol-bridge-specifications.md)** | Bun Protocol Bridge architecture for platform integration (Tiki, Odoo) | ✅ Complete |
 | **[API Reference](API_REFERENCE.md)** | Complete function reference across all zomes | ✅ Complete |

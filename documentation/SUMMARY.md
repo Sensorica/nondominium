@@ -43,6 +43,7 @@
 - [NDO v1 Architecture Design](specifications/ndo-v1-architecture-design.md)
 - [Architecture Components](ARCHITECTURE_COMPONENTS.md)
 - [UI Architecture](specifications/ui_architecture.md)
+- [Moss Integration](specifications/moss-integration.md)
 - [VfAction Usage](specifications/VfAction_Usage.md)
 - [Protocol Bridge Specifications](specifications/protocol-bridge-specifications.md)
 - [API Reference](API_REFERENCE.md)

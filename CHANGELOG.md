@@ -22,6 +22,10 @@ NDO over a live DHT.
 
 ### Added
 
+- **Moss tool scaffold.** Nondominium runs as a Moss tool in `weave` dev mode: a dev config
+  with two agents and one group (`bun run tool-dev`), `@theweave/api` in the UI, and a
+  connection mode that takes the conductor client from Moss. The standalone build is
+  unchanged. See `documentation/specifications/moss-integration.md`.
 - **Lobby DNA** as the entry point. Groups are announced here for discovery, and NDOs are
   browsed and filtered across every group the agent belongs to.
 - **Group DNA, one cloned cell per group.** Each group is its own DHT with its own
