@@ -1,9 +1,8 @@
 # Lobby DNA: Multi-Network Federation Requirements
 
-**Status**: Partially implemented — Lobby DNA and NDO federation extensions landed in PR #103;
-Group DNA in progress (#101); MVP UI uses a localStorage group shell until Group DNA ships
+**Status**: Partially implemented. Lobby DNA and NDO federation extensions landed in PR #103, Group DNA in PR #107, DHT-backed group UI in PR #111. The group model for Moss and standalone and the work-context layer (§5.6, §5.7, §8.4) are proposed on 2026-11-03 and await review.
 **Created**: 2026-04-14
-**Last updated**: 2026-05-23
+**Last updated**: 2026-11-03
 **Authors**: Nondominium project
 **Relates to**: `ndo_prima_materia.md`, `flowsta-integration.md`, `unyt-integration.md`,
 `many-to-many-flows.md`, `../requirements.md §2.3`, `../ui_design.md` (MVP Lobby → Group → NDO UI),
@@ -17,10 +16,10 @@ Group DNA in progress (#101); MVP UI uses a localStorage group shell until Group
 2. [Background: the multi-network problem](#2-background-the-multi-network-problem)
 3. [Architecture overview](#3-architecture-overview)
 4. [Lobby DNA requirements](#4-lobby-dna-requirements)
-5. [Group DNA requirements](#5-group-dna-requirements)
+5. [Group DNA requirements](#5-group-dna-requirements), including the group model by deployment mode (§5.6) and work contexts (§5.7)
 6. [NDO DNA extension requirements](#6-ndo-dna-extension-requirements)
 7. [Cross-cutting requirements](#7-cross-cutting-requirements)
-8. [Governance layers](#8-governance-layers)
+8. [Governance layers](#8-governance-layers), including the three sovereignty levels (§8.4)
 9. [Integration requirements](#9-integration-requirements)
 10. [Current state vs planned enforcement](#10-current-state-vs-planned-enforcement)
 
@@ -117,6 +116,10 @@ layers each hold a distinct identity record for the same person:
 
 For the full identity-layer diagram and implementer guidance, see
 `documentation/specifications/post-mvp/lobby-architecture.md §2 "Agent identity layers"`.
+
+### Group model by deployment mode and work contexts
+
+Since 2026-11-03 the Group DNA stays in both deployment modes. In Moss the Moss group is the federation layer and holds exactly one Nondominium group, the group cell of the tool instance. Work contexts, the project layer, live in the group DHT and are many-to-many with groups. They ship in v0.2, not in v0.1.0. See §5.6, §5.7, §8.4 and §8.5.
 
 ### Groups vs organization-NDOs
 
@@ -235,8 +238,7 @@ lifecycle_stage, property_regime, resource_nature) inside each group cell.
 
 ### 5.2 Membership
 
-- **REQ-GROUP-05**: Group membership is invite-only. Joining requires a valid invite code
-  (or, when running inside Moss, the Moss invite system).
+- **REQ-GROUP-05**: Group membership is invite-only. In standalone mode joining requires a valid invite code. In Moss the invitation is Moss's: an agent joins the Moss group, and the Nondominium group follows automatically (REQ-GROUP-22).
 - **REQ-GROUP-06**: A `GroupMembership` entry records the joining agent's Group DHT pubkey
   and their per-NDO pubkey map (`Vec<NdoPubkeyEntry>`), following the Moss
   `AppletToJoinedAgent` identity pattern.
@@ -278,6 +280,54 @@ lifecycle_stage, property_regime, resource_nature) inside each group cell.
   contributions, benefit distribution, or smart agreements (these belong to NDO governance).
 - **REQ-GROUP-18**: NDO governance supersedes group governance. If an NDO's governance rules
   conflict with a group's rules, the NDO rules take precedence for any action on that NDO.
+
+### 5.6 Group model by deployment mode
+
+Decided 2026-11-03. The Group DNA stays in both deployment modes, so standalone and Moss share one architecture. What differs is who supplies membership, identity and invitation. Release scope (what v0.1.0 ships and what v0.2 adds) is in `../requirements.md` §2.4 (REQ-REL-01 to REQ-REL-05).
+
+- **REQ-GROUP-19**: The Group DNA is the group architecture in both deployment modes. A Moss build and a standalone build contain the same `group` role, and a group cell answers the same zome calls in both.
+  **Falsifier:** a Moss build without the `group` role, or a zome call that exists in one mode's group cell and not in the other's.
+  **Status:** 🔄 Partial. The `group` role exists (PR #107); the Moss build does not exist yet.
+- **REQ-GROUP-20**: In standalone mode a group is a cloned Group DNA cell that an agent creates, registers in the Lobby (`GroupAnnouncement`) and opens to others by invite code. REQ-GROUP-01, REQ-GROUP-05 and REQ-LOBBY-10 apply unchanged.
+  **Falsifier:** an agent joins a standalone group without a valid invite code.
+  **Status:** ✅ Implemented (PR #107, PR #111).
+- **REQ-GROUP-21**: In Moss there is exactly one Nondominium group per Moss group: the group cell of the Nondominium tool instance installed in that Moss group. The Moss group is the federation layer above it (REQ-FED-01).
+  **Falsifier:** two Nondominium group cells for one tool instance, or a member of the Moss group with no Nondominium group to act in.
+  **Status:** ❌ Not implemented. The Moss spike confirms that Moss accepts a deferred `group` role before this is built.
+- **REQ-GROUP-22**: In Moss an agent joins the Nondominium group automatically when the agent joins the tool instance. No invite code is requested and no Lobby `GroupAnnouncement` is needed to reach the group.
+  **Falsifier:** a Moss-mode screen that asks for an invite code, or a Moss group member who must take a Nondominium-specific step to reach the group's NDOs.
+  **Status:** ❌ Not implemented.
+- **REQ-GROUP-23**: In Moss, membership and the agent profile come from Moss, and Nondominium does not keep a second copy of either. Standalone keeps `LobbyAgentProfile` and the invite flow unchanged.
+  **Falsifier:** a profile edited in Moss that reads differently in Nondominium, or a Moss-mode write of a `LobbyAgentProfile`.
+  **Status:** ❌ Not implemented.
+
+Annotation to REQ-GROUP-01: in Moss each tool instance in each Moss group receives its own network seed from Moss, so the group's seed is Moss's, not an invite code.
+
+### 5.7 Work contexts (v0.2)
+
+A work context is the project layer: the space where agents work with several NDOs towards deliverables. Internally the term is **work context** (Bob Haugen's *context of work*, kept because it describes open collaboration, with no contract and no employment). The interface displays **project**, and a community may use its own word. No work context ships in v0.1.0.
+
+- **REQ-WC-01**: A work context is stored in the Group DHT, as entries of the group cell, in both deployment modes. It has no DNA of its own. Decision of 2026-11-03, recorded in `../specifications/adr/ADR-014-work-contexts-in-group-dht.md`.
+  **Falsifier:** a `work_context` DNA or role in `workdir/happ.yaml`, or a work-context entry written outside a group cell.
+  **Status:** ❌ Not implemented (v0.2).
+- **REQ-WC-02**: A work context is not an NDO. It has no `NondominiumIdentity`, no Layer 0 lifecycle and no PPRs. It is a space and an amalgam of agents, closer to an organizational agent than to a resource, and Valueflows keeps the agent and the resource apart.
+  **Falsifier:** a `NondominiumIdentity` created to represent a work context.
+  **Status:** ❌ Not implemented (v0.2).
+- **REQ-WC-03**: Work contexts and groups are many-to-many. A group holds several work contexts, and one work context may be worked in by several groups. Reference case: Catmaster, one work context with its own set of NDOs, worked in by Sensorica, Ludociel and Sainte-Justine.
+  **Falsifier:** the Catmaster scenario fails: a work context that three groups each see and work in cannot be set up, or a work context can be attached to one group only.
+  **Status:** ❌ Not implemented (v0.2). The mechanism that keeps a shared work context's state consistent across groups is open (see the ADR).
+- **REQ-WC-04**: A work context works with NDOs by reference, following the pointer pattern of ADR-011: it stores the NDO's clone coordinates (DnaHash, network seed, properties), never a copy of the NDO's data. One NDO may appear in several work contexts.
+  **Falsifier:** NDO data duplicated inside a work context, or an NDO that cannot be listed by two work contexts at once.
+  **Status:** ❌ Not implemented (v0.2). `NdoAnchor` (PR #128) is the existing pattern.
+- **REQ-WC-05**: A work context governs its own scope only (REQ-SOV-03). Its governance cannot change an NDO's lifecycle or an NDO's governance rules.
+  **Falsifier:** a work-context rule that blocks or triggers an NDO lifecycle transition.
+  **Status:** ❌ Not implemented (v0.2).
+- **REQ-WC-06**: A work context may clone an NDO to experiment. Disagreements about the clone stay in the clone, and the original NDO and its governance are untouched. This is the fractal sovereignty case of REQ-SOV-05.
+  **Falsifier:** a governance event or a lifecycle change in a clone that appears on the original NDO.
+  **Status:** ❌ Not implemented (v0.2). A fork is expressed today by `NdoHardLink` of type `DerivedFrom` (REQ-NDO-EXT-05).
+- **REQ-WC-07**: The interface displays a work context as a project by default, and the code and the design documents call it a work context.
+  **Falsifier:** a code identifier that names the entity `project`, or a default screen that says "work context".
+  **Status:** ❌ Not implemented (v0.2).
 
 ---
 
@@ -390,16 +440,12 @@ Entry type name: `Agreement` (aligned with VF vocabulary `vf:Agreement`); referr
 
 ### 7.1 Dual deployment
 
-- **REQ-XCUT-01**: The Nondominium hApp shall run as a standalone application (Lobby DNA +
-  Group DNA + NDO DNA, all managed by one conductor) AND as a single Moss/The Weave Tool
-  applet (Nondominium Lobby appears as one tile in the Moss sidebar; Moss handles agent
-  invites and identity at the surface level).
-  **Status:** 🔄 Partial — standalone bundle includes **lobby** + **nondominium** + **hrea**
-  roles; Group DNA and Moss WeApplet not yet present.
-- **REQ-XCUT-02**: The NDO DNA is not modified between standalone and Moss deployments. The
-  Lobby and Group DNAs are either used directly (standalone) or delegated to Moss
-  equivalents (Moss integration).
-  **Status:** ✅ NDO DNA unchanged; Moss path not implemented.
+- **REQ-XCUT-01**: The Nondominium hApp shall run as a standalone application (Lobby DNA, Group DNA and NDO DNA, all managed by one conductor) and as a single Moss/The Weave Tool applet (Nondominium appears as one tool in the Moss group; Moss supplies membership, invitation and agent identity at the surface level).
+  **Falsifier:** either mode cannot create a group, create an NDO inside it and open that NDO from a second agent.
+  **Status:** 🔄 Partial. The standalone bundle includes the **lobby**, **group**, **ndo**, **nondominium** and **hrea** roles; the Moss tool does not exist yet.
+- **REQ-XCUT-02**: The NDO DNA and the Group DNA are not modified between standalone and Moss deployments (REQ-GROUP-19). What Moss replaces is the surface around them: the invite flow, the agent profile and group creation (REQ-GROUP-21 to REQ-GROUP-23). Superseded wording: earlier versions said the Group DNA is delegated to a Moss equivalent in Moss; the decision of 2026-11-03 keeps it in both modes.
+  **Falsifier:** a Moss build whose `group` or `ndo` DNA differs from the standalone build's.
+  **Status:** ✅ NDO DNA unchanged; the Moss path is not implemented.
 
 ### 7.2 Resources are organization-agnostic
 
@@ -412,6 +458,12 @@ Entry type name: `Agreement` (aligned with VF vocabulary `vf:Agreement`); referr
 - **REQ-XCUT-04**: A solo agent who has not joined any multi-member group appears in the UI
   as an individual Agent. Internally, they operate via an auto-created group-of-one. This
   group-of-one can grow to accommodate new members without any structural migration.
+
+### 7.4 Interoperability between Moss and standalone
+
+- **REQ-XCUT-05**: The NDO is the bridge between Moss and standalone. An agent in a standalone Nondominium and an agent in Moss reach the same NDO when both derive the same clone cell from the same coordinates (DnaHash, network seed, properties) and run the same Holochain network protocol. Work contexts are managed by Nondominium, not by Moss, so they do not need Moss to be shared.
+  **Falsifier:** an NDO created in Moss whose anchor coordinates, given to a standalone agent on the same protocol, do not open the same cell.
+  **Status:** ❌ Not verified. Constraint recorded on 2026-10-27: the Moss 0.16 test builds ran a patched Holochain 0.7.1 that partitions their network from a standard 0.7.1, so the bridge holds only when both sides run the same protocol. Each tool instance in each Moss group also receives its own network seed, so the NDO's coordinates, not the group's, are what cross.
 
 ---
 
@@ -444,6 +496,35 @@ Group governance does NOT govern contributions, benefit distribution, or smart a
 The Lobby DHT is permissionless. Any agent may register a profile or NDO descriptor.
 The only implicit governance is the requirement that a registered NDO descriptor references
 an actual deployed DNA (discoverable by peers who attempt to connect).
+
+### 8.4 Three sovereignty levels
+
+Brainstorm of 2026-10-27, restated here as requirements. Each level is sovereign within its own scope, and each higher level interconnects the lower ones while preserving their sovereignty. The levels are the NDO (hyperlocal), the work context (a social and economic boundary, around what a group wants to obtain from the NDOs it uses) and the federation (the layer that aggregates knowledge and redistributes it across work contexts and NDOs). REQ-GROUP-18 holds inside this model: NDO governance takes precedence for actions on that NDO, because that is the NDO's own scope.
+
+- **REQ-SOV-01**: Three sovereignty levels exist, NDO, work context and federation, each with its own governance scope, and no level's governance changes another level's.
+  **Falsifier:** a governance action at one level that alters the lifecycle, the rules or the membership of another level's entity.
+  **Status:** 🔄 Partial. NDO and Group governance exist; work-context and federation scopes do not.
+- **REQ-SOV-02**: The NDO governs what it becomes: its lifecycle from idea to design specification, prototype and new versions, including the choice between designs and forking.
+  **Falsifier:** an NDO lifecycle transition decided by a work-context or federation rule.
+  **Status:** ✅ Lifecycle implemented (Layer 0, #80); design choice and fork governance partial.
+- **REQ-SOV-03**: A work context governs which NDOs it works with, the soft links it makes, the direction it develops in, what it submits to an NDO as a version or update, activity management, and the order of contributions before they reach the NDO.
+  **Falsifier:** a work-context rule that acts on something outside this list, or something in this list that only the NDO or the federation can decide.
+  **Status:** ❌ Not implemented (v0.2). Benefit redistribution is deliberately absent from this list: REQ-GROUP-17 places it with NDO governance, and whether work-context contribution tables change that is open.
+- **REQ-SOV-04**: The federation governs the list of work contexts, the overall strategy, the link to the macro level and common policies across work contexts.
+  **Falsifier:** a federation rule that acts on a single NDO's lifecycle or on a work context's internal organization.
+  **Status:** ❌ Not implemented. Which component holds federation governance in Moss is open: Moss groups carry no governance of their own.
+- **REQ-SOV-05**: A work context may clone an NDO and disagree on the clone without touching the original NDO or its governance (REQ-WC-06).
+  **Falsifier:** a change made on a clone that shows on the original NDO.
+  **Status:** 🔄 Partial. Forks are recorded by `NdoHardLink` of type `DerivedFrom`.
+
+### 8.5 Federation (v0.2)
+
+- **REQ-FED-01**: In Moss the Moss group is the federation layer. Nondominium adds no group-of-groups structure of its own, so REQ-GROUP-03 (groups are flat) holds. In standalone mode the Lobby remains the only shared layer above groups.
+  **Falsifier:** a Nondominium entry type or role that nests a group inside another group.
+  **Status:** ✅ By design; no code adds a nesting.
+- **REQ-FED-02**: In Moss an agent can view the work contexts of all the agent's groups from one place, across Moss groups.
+  **Falsifier:** an agent in two Moss groups who must open each group's tool instance to learn which work contexts exist.
+  **Status:** ❌ Not implemented (v0.2).
 
 ---
 
@@ -496,7 +577,9 @@ an actual deployed DNA (discoverable by peers who attempt to connect).
 | Layer | Status | Notes |
 |-------|--------|-------|
 | **Lobby profile UI sync** | 🔄 Issue #106 / PR #114 | Profile bar + fire-and-forget `upsert_lobby_agent_profile` |
-| **Moss WeApplet** | ❌ | `ui/src/we-applet.ts` contract specified in architecture doc; not in repo |
+| **Moss WeApplet** | ❌ | `ui/src/we-applet.ts` contract specified in architecture doc; not in repo. v0.1.0 ships Moss only (REQ-REL-01) |
+| **Group model in Moss** | ❌ | One Nondominium group per Moss group, joined automatically (REQ-GROUP-21 to REQ-GROUP-23); proposed 2026-11-03 |
+| **Work contexts** | ❌ | v0.2: group DHT, many-to-many with groups (REQ-WC-01 to REQ-WC-07); not in v0.1.0 |
 | **Facet discovery (nature / regime)** | ❌ | REQ-LOBBY-07 nature and property-regime path anchors not in Lobby DNA (NDO announcements removed; facets now group-scoped via anchors) |
 | **Governance-as-operator** | ❌ | #41–#44 — blocks full AccountableAgent enforcement on Contribution / Agreement / hard links |
 
