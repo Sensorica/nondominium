@@ -32,6 +32,30 @@ The packaged hApp declares five roles in `workdir/happ.yaml`:
 
 Each local DNA domain follows the integrity/coordinator pattern; the Lobby and Group DNAs carry their own zomes (`zome_lobby_coordinator`, `zome_group`). The core Nondominium domain remains a three-zome architecture, but the installed hApp is a multi-DNA system. See [ARCHITECTURE_COMPONENTS.md](ARCHITECTURE_COMPONENTS.md) and [zomes/architecture_overview.md](zomes/architecture_overview.md).
 
+### DNA hashes (Holochain 0.7.1 build)
+
+Holochain 0.7 changes every DNA hash, so a 0.7 build cannot reach any 0.6 network. These are the hashes of the DNAs in `workdir/nondominium.happ` as built from the commit of this document, with the toolchain pinned by `flake.lock` (holochain 0.7.1). They change whenever a zome, a manifest or a toolchain pin changes, so the ones that count are those of the tagged release build; regenerate them with the commands below before publishing.
+
+| Role | DNA hash | Notes |
+| --- | --- | --- |
+| `lobby` | `uhC0kyI7d80mfkSqBYxPsuiwRStStIVMJt2fsI1sla_h6W0GrxKuP` | With the role's fixed network seed `nondominium-lobby-v1`. Every install joins this network. |
+| `nondominium` | `uhC0k8HbqmcIJODRVOMuvc_74foAClnPG1JAer-BFaYYlK_T-qFZK` | Seed `~` in the manifest: the hash an agent gets is the base hash. |
+| `hrea` | `uhC0kqRmO5ZkbuLCLS18qro-HT8Vp2kVfgZX3QI5JCVmDf8Zrv4G-` | Built from the pinned `vendor/hrea` commit (`Sensorica/hREA` `c4c44adb`, release `happ-0.5.0-beta.1` plus the hdk 0.7.1 pin bump). This value changes when the submodule pin changes. |
+| `group` | `uhC0kJ2HPdnV14G_EIj9GFQfNXjAx3YBuIGPOOHjEWW6xGHjc2AbK` | Base hash of the clone template. Each cloned Group gets its own hash from a unique network seed. |
+| `ndo` | `uhC0kVU9I_kb0Rnm4q-I3HkZ3Rapg_Plhza7UYt26E2IRbAXNNlrp` | Base hash of the clone template. Each NDO cell gets its own hash. |
+
+To reproduce them, inside `nix develop` and after `bun run build:happ`:
+
+```bash
+hc dna hash dnas/nondominium/workdir/nondominium.dna
+hc dna hash vendor/hrea/dnas/hrea/workdir/hrea.dna
+hc dna hash dnas/group/workdir/group.dna
+hc dna hash dnas/ndo/workdir/ndo.dna
+hc dna hash --network-seed nondominium-lobby-v1 dnas/lobby/workdir/lobby.dna
+```
+
+The lobby command passes the seed that `workdir/happ.yaml` sets for that role, so the printed value is the hash of the installed cell and not of the bare DNA file.
+
 ### Status Terminology
 
 - **Complete** — implemented end-to-end for the stated scope and covered by active tests

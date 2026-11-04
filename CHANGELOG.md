@@ -41,6 +41,10 @@ NDO over a live DHT.
 - **Browser-based multi-agent development harness**: one Vite dev server per agent on
   consecutive ports, so each agent gets an isolated origin.
 
+### Network identity
+
+Holochain 0.7.1 changes every DNA hash, so this release joins a new network and cannot see any 0.6 data. The DNA hashes for the release build are listed in [documentation/IMPLEMENTATION_STATUS.md](documentation/IMPLEMENTATION_STATUS.md#dna-hashes-holochain-071-build), with the `hc dna hash` commands that reproduce them. The values there are those of the commit that wrote them; replace them with the hashes of the tagged build when the release is cut.
+
 ### Deliberately not in this release
 
 Named here because a pilot cohort will otherwise assume the architecture documents describe
