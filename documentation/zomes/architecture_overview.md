@@ -30,7 +30,7 @@ Nondominium is a **multi-DNA Holochain hApp** implementing ValueFlows-compliant 
 
 ### Technology Foundation
 
-- **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), WASM compilation
+- **Backend**: Rust (Holochain HDK ^0.7.0 / HDI ^0.8.0), WASM compilation
 - **Data Model**: Agent-centric with public/private separation, progressive trust model (Simple → Accountable → Primary Accountable Agent)
 - **Security**: Progressive capability-based access using Holochain capability tokens (general → restricted → full) with automatic advancement based on PPR milestones
 - **Compliance**: ValueFlows standard for economic resource management with nondominium extensions (VfAction enum, Economic Processes)

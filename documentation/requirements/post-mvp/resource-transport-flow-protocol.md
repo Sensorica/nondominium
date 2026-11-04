@@ -3,7 +3,7 @@
 **Version**: 0.2
 **Date**: 2026-08-06
 **Status**: 🔄 Post-MVP — conceptual specification. Grounded in implemented NDO Layer 0 + `OperationalState` foundations; the transport/flow **process** layer (Layer 2 activation, `EconomicProcess`, governance-as-operator transitions) is **not yet wired in code**.
-**Framework**: Holochain HDK ^0.6.0 / HDI ^0.7.0, hREA ValueFlows
+**Framework**: Holochain HDK ^0.7.0 / HDI ^0.8.0, hREA ValueFlows
 **License**: CAL-1.0 + AGPLv3 (project dual license)
 
 **Relates to**:

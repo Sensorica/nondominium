@@ -108,7 +108,7 @@ pub fn validate_agent_joining(
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     match op.flattened::<EntryTypes, LinkTypes>()? {
-        FlatOp::StoreEntry(store_entry) => match store_entry {
+        FlatOp::CreateEntry(store_entry) => match store_entry {
             OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
                 match app_entry {
                     EntryTypes::GroupProfile(profile) => validate_group_profile(profile),
@@ -127,10 +127,10 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         // re-derive the NDO cell from, so a rewrite would silently repoint the group
         // at a different network. Enforced here rather than trusted to the
         // coordinator, because any group member may update any anchor.
-        FlatOp::RegisterUpdate(OpUpdate::Entry {
+        FlatOp::Update(OpUpdate::Entry {
             app_entry: EntryTypes::NdoAnchor(updated),
             action,
-        }) => validate_ndo_anchor_update(action.original_action_address, updated),
+        }) => validate_ndo_anchor_update(action.data.original_action_address, updated),
         _ => Ok(ValidateCallbackResult::Valid),
     }
 }

@@ -1,5 +1,5 @@
 // Author and timestamp fields are not stored in entries — they come from the Holochain
-// action header (record.signed_action.hashed.content.author / timestamp).
+// action header (record.signed_action.hashed.content.header.author / timestamp).
 import type { ActionHash } from '@holochain/client';
 
 export interface GroupProfile {
