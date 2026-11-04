@@ -13,6 +13,9 @@ import { HolochainClientServiceTag, HolochainClientServiceLive } from '../holoch
 import { wrapZomeCallWithErrorFactory } from '$lib/utils/zome-helpers';
 import { devStorageKey } from '$lib/utils/hc-connect';
 import { LobbyError } from '$lib/errors/lobby.errors';
+import { detectCurrentHost } from '$lib/moss/host';
+import { getMossGroupCell } from '$lib/moss/group-cell';
+import { createMossLobbyService } from './moss-lobby';
 import { enumerateGroupCells, getGroupCellHandleBySeed, type GroupCellInfo } from '../cell.manager';
 import {
   generateNetworkSeed,
@@ -621,6 +624,52 @@ export const LobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClie
     })
   );
 
-export const LobbyServiceResolved: Layer.Layer<LobbyServiceTag> = LobbyServiceLive.pipe(
-  Layer.provide(HolochainClientServiceLive)
-);
+// ─── Moss Layer ───────────────────────────────────────────────────────────────
+
+/**
+ * The group context when the UI is hosted by Moss: the Moss group is the
+ * federation layer and the tool instance's group cell is the one group
+ * (`moss-lobby.ts`). Selected over `LobbyServiceLive` by `LobbyServiceResolved`.
+ */
+export const MossLobbyServiceLive: Layer.Layer<LobbyServiceTag, never, HolochainClientServiceTag> =
+  Layer.effect(
+    LobbyServiceTag,
+    E.gen(function* () {
+      const holochainClient = yield* HolochainClientServiceTag;
+
+      const moss = () => {
+        const connection = holochainClient.moss;
+        if (!connection) throw new Error('Not connected through Moss.');
+        return connection;
+      };
+
+      return createMossLobbyService({
+        getGroupCell: async () => {
+          if (!holochainClient.isConnected) await holochainClient.connectClient();
+          return getMossGroupCell(await holochainClient.getAppInfo());
+        },
+        callGroupZome: (cellId, fnName, payload) =>
+          holochainClient.callZome('zome_group', fnName, payload, undefined, undefined, cellId) as Promise<never>,
+        myAgentPubKey: () => holochainClient.getMyAgentPubKey(),
+        mossGroupName: async () => {
+          const { weaveClient, groupHash } = moss();
+          if (!groupHash) return 'Nondominium';
+          const profile = (await weaveClient.groupProfile(groupHash)) as { name?: string } | undefined;
+          return profile?.name?.trim() || 'Nondominium';
+        },
+        isToolInstaller: async () => {
+          const { weaveClient, appletHash, groupHash } = moss();
+          const installer = await weaveClient.toolInstaller(appletHash, groupHash ?? undefined);
+          if (!installer) return false;
+          const me = await holochainClient.getMyAgentPubKey();
+          return encodeHashToBase64(installer) === encodeHashToBase64(me);
+        },
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+      });
+    })
+  );
+
+/** Moss when the page is hosted by Moss, the Lobby and Group DNAs otherwise. */
+export const LobbyServiceResolved: Layer.Layer<LobbyServiceTag> = (
+  detectCurrentHost().mode === 'moss' ? MossLobbyServiceLive : LobbyServiceLive
+).pipe(Layer.provide(HolochainClientServiceLive));

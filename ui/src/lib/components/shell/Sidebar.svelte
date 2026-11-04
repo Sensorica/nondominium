@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { appContext } from '$lib/stores/app.context.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
   import UserProfileForm from '$lib/components/lobby/UserProfileForm.svelte';
 
   const isActive = (href: string) =>
@@ -138,21 +139,27 @@
           >
             {g.name}
           </a>
-          <button
-            type="button"
-            title="Copy invite link"
-            onclick={(e) => copyInviteLink(g.id, e)}
-            class="shrink-0 rounded px-1.5 py-0.5 text-xs text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white hover:text-blue-600"
-          >
-            {copiedGroupId === g.id ? '✓' : '⎘'}
-          </button>
+          {#if !mossStore.isMoss}
+            <button
+              type="button"
+              title="Copy invite link"
+              onclick={(e) => copyInviteLink(g.id, e)}
+              class="shrink-0 rounded px-1.5 py-0.5 text-xs text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white hover:text-blue-600"
+            >
+              {copiedGroupId === g.id ? '✓' : '⎘'}
+            </button>
+          {/if}
         </li>
       {/each}
     </ul>
   {:else}
-    <p class="mb-2 text-xs text-gray-400 italic">No groups yet.</p>
+    <p class="mb-2 text-xs text-gray-400 italic">
+      {mossStore.isMoss ? 'Waiting for the Moss group to sync…' : 'No groups yet.'}
+    </p>
   {/if}
 
+  <!-- Inside Moss the Moss group is the group: no creating, joining or invite codes. -->
+  {#if !mossStore.isMoss}
   <!-- Create Group -->
   {#if showCreateForm}
     <div class="mb-2 rounded border border-gray-200 bg-white p-2">
@@ -255,8 +262,19 @@
     </button>
   {/if}
 
+  {/if}
+
   <!-- My Profile -->
   <div class="mt-auto border-t border-gray-200 pt-3">
+    {#if mossStore.isMoss}
+      <!-- The profile and the role belong to the Moss group; edit them in Moss. -->
+      <p class="px-2 py-1.5 text-xs text-gray-500">
+        <span class="font-medium text-gray-700">{appContext.lobbyUserProfile?.nickname ?? 'Member'}</span>
+        {#if mossStore.role}
+          <span class="ml-1 text-gray-400">· {mossStore.role}</span>
+        {/if}
+      </p>
+    {:else}
     <button
       type="button"
       onclick={() => {
@@ -271,5 +289,6 @@
         Set up profile
       {/if}
     </button>
+    {/if}
   </div>
 </nav>

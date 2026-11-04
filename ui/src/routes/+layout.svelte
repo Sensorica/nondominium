@@ -8,6 +8,7 @@
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
   import { appContext } from '$lib/stores/app.context.svelte';
   import { connectionStore } from '$lib/stores/connection.store.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
 
   let { children } = $props();
 
@@ -24,6 +25,11 @@
         appContext.myAgentPubKey = await connectionStore.getMyAgentPubKey();
       } catch {
         appContext.myAgentPubKey = null;
+      }
+      if (mossStore.isMoss) {
+        // Inside Moss the profile comes from the Moss group, not from a form.
+        await mossStore.load();
+        appContext.lobbyUserProfile = mossStore.profile ?? { nickname: 'Member' };
       }
       await lobbyStore.loadLobby();
       if (!appContext.lobbyUserProfile) {

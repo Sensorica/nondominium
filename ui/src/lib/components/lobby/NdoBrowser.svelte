@@ -6,6 +6,7 @@
     ResourceNature
   } from '@nondominium/shared-types';
   import type { ActiveFilters } from '$lib/stores/lobby.store.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
   import NdoCard from './NdoCard.svelte';
 
   interface Props {
@@ -224,7 +225,11 @@
         Loading NDOs…
       </div>
     {:else if descriptors.length === 0 && !errorMessage}
-      {#if showOnboarding && !hasGroups}
+      {#if showOnboarding && !hasGroups && mossStore.isMoss}
+        <p class="text-sm text-gray-500">
+          Waiting for the Moss group to sync. NDOs appear here once it has.
+        </p>
+      {:else if showOnboarding && !hasGroups}
         <div class="rounded-lg border border-dashed border-blue-200 bg-blue-50 p-6 text-center">
           <p class="text-sm font-medium text-gray-800">Create or join a group to see NDOs</p>
           <p class="mt-1 text-sm text-gray-500">

@@ -1,6 +1,6 @@
 # Moss Integration
 
-**Status:** v0.1.0 pilot, in progress. The tool scaffold and dev config are implemented (#163). The Moss group context (#164) and NDOs as assets (#165) follow. Supersedes the "Moss Integration Contract" in [lobby-architecture.md](lobby-architecture.md) §9 where they differ.
+**Status:** v0.1.0 pilot, in progress. The tool scaffold and dev config (#163) and the Moss group context (#164) are implemented. NDOs as assets (#165) follows. Supersedes the "Moss Integration Contract" in [lobby-architecture.md](lobby-architecture.md) §9 where they differ.
 
 Moss is the Weave host (lightningrodlabs/moss). In the v0.1.0 pilot Nondominium runs as a **tool** inside Moss, started with the `weave` CLI in dev mode. The standalone build (Lobby DNA, Group DNA, invite codes) keeps compiling and running unchanged; the pilot ships Moss only.
 
@@ -55,7 +55,26 @@ hc-connect.ts  connectHolochainClient()
 
 Moss mode is a connection mode (`HolochainConnectionMode` gains `'moss'`). The cross-group view is not implemented: a cross-group render throws.
 
+## The Moss group context (#164)
+
+Inside Moss the standalone Lobby model is replaced behind one seam, `LobbyServiceResolved` in `lobby.service.ts`: it is `MossLobbyServiceLive` when the page is hosted by Moss and `LobbyServiceLive` otherwise. Stores, `NdoService` and components see the same `LobbyService` interface in both.
+
+| Concern | Standalone | Inside Moss |
+|---|---|---|
+| Groups | Lobby DNA announces clones of the Group DNA | One group: the tool instance's provisioned `group` cell (`MOSS_GROUP_ID = 'moss'`) |
+| Joining | Invite code or link | Automatic: the tool installer (`toolInstaller`) creates the `GroupProfile`, named after the Moss group; every other member waits for it to gossip, then calls `join_group` |
+| Profile | `LobbyUserProfile` form, localStorage | `profilesClient`, mapped to the same `LobbyUserProfile` shape |
+| Role | none | `myAccountabilitiesPerGroup()`, strongest of Member, Steward, Progenitor, shown in the sidebar |
+| NDO clone | `AppWebsocket.createCloneCell` | `WeaveClient.createCloneCell(req, PUBLIC_NDO_CLONES)` |
+| Discovery of NDOs | `NdoAnchor` in the group cell | same |
+
+Create group, join group and invite links are hidden in Moss (`mossStore.isMoss`), and the service refuses them with `Groups are managed by Moss`. The Lobby DHT calls answer with nothing: every tool instance is its own network, so there is no shared lobby to announce to.
+
+Code: `ui/src/lib/moss/` (`group-cell.ts`, `profile.ts`, `ndo-clone.ts`), `ui/src/lib/services/zomes/moss-lobby.ts` (the service, with injected dependencies so it runs in a unit test against a mocked WeaveClient) and `ui/src/lib/stores/moss.store.svelte.ts`.
+
+**NDO clones are not public to the Moss group (`PUBLIC_NDO_CLONES = false`).** `createCloneCell(req, true)` registers the clone in the Moss group DNA so other members and always-online nodes can install it. Moss `0.16.0-rc.5` cannot register a clone that carries DNA properties: `join_cloned_cell` declares `properties: Option<SerializedBytes>` and the renderer forwards the properties object untouched, so the call fails with a Deserialize error and leaves an orphan cell. NDO clones need their properties (ADR-013). Discovery does not depend on the registration, since peers re-derive the clone from the `NdoAnchor` in the group cell, but an always-online node (wdocker) will not host the NDO cells until this flips. Flip `PUBLIC_NDO_CLONES` once Moss accepts properties.
+
 ## Open items
 
-- `weaveClient.createCloneCell(req, true)` fails whenever `req.modifiers.properties` is set, which NDO clones need. See the #162 result and #164.
+- `weaveClient.createCloneCell(req, true)` fails whenever `req.modifiers.properties` is set, which NDO clones need (see above and the #162 result).
 - `AppletServices` in `@theweave/api` `0.7.0-rc.3` has `getAssetInfo`, `search` and `creatables`. Opening an asset is not a method on it: Moss renders the tool with an `asset` view (`renderInfo.view.type === 'asset'`), and the tool calls `weaveClient.openAsset` to open other assets.
