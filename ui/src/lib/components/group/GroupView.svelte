@@ -9,6 +9,7 @@
   import { appContext } from '$lib/stores/app.context.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
   import { devStorageKey } from '$lib/utils/hc-connect';
   import type { ActiveFilters } from '$lib/stores/lobby.store.svelte';
   import NdoBrowser from '$lib/components/lobby/NdoBrowser.svelte';
@@ -102,7 +103,8 @@
     appContext.currentView = 'group';
     appContext.selectedGroupId = groupId;
     void groupStore.loadGroupData(groupId);
-    if (!hasVisited(groupId)) {
+    // Inside Moss the profile and who sees it are the Moss group's business.
+    if (!mossStore.isMoss && !hasVisited(groupId)) {
       showProfileModal = true;
     }
   });
@@ -183,13 +185,15 @@
       <p class="mt-1 font-mono text-sm text-gray-400">{groupId}</p>
     </div>
     <div class="flex items-center gap-2">
-      <button
-        type="button"
-        onclick={copyInviteLink}
-        class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-      >
-        {inviteCopied ? 'Invite link copied!' : 'Copy invite link'}
-      </button>
+      {#if !mossStore.isMoss}
+        <button
+          type="button"
+          onclick={copyInviteLink}
+          class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+        >
+          {inviteCopied ? 'Invite link copied!' : 'Copy invite link'}
+        </button>
+      {/if}
       <button
         type="button"
         onclick={() => {

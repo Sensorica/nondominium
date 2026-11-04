@@ -26,6 +26,7 @@ NDO over a live DHT.
   with two agents and one group (`bun run tool-dev`), `@theweave/api` in the UI, and a
   connection mode that takes the conductor client from Moss. The standalone build is
   unchanged. See `documentation/specifications/moss-integration.md`.
+- **Moss group context.** Inside Moss the Moss group is the group: the tool instance's `group` cell is the one Nondominium group, joined automatically with no invite code, the profile comes from Moss, the role from the Moss accountabilities, and NDO clones are created through the `WeaveClient`. Standalone keeps the Lobby, the Group DNA and invite links.
 - **Lobby DNA** as the entry point. Groups are announced here for discovery, and NDOs are
   browsed and filtered across every group the agent belongs to.
 - **Group DNA, one cloned cell per group.** Each group is its own DHT with its own

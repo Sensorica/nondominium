@@ -296,7 +296,7 @@ There is no `get_all_groups` extern in a Group cell; each cell represents one is
 Nondominium runs as a Moss tool in `weave` dev mode. Standalone (Lobby, Group DNA, invite codes) is unchanged.
 
 - ✅ **Scaffold (#163).** `weave/weave.dev.config.ts` (two agents, one group, tool served from `localhost:8888`), `bun run tool-dev`, `@theweave/api` in `ui/`, host detection and the Moss connection mode in `ui/src/lib/moss/`, an empty `AppletServices`. The UI connects through the applet client Moss hands it.
-- ❌ **Moss group context (#164).** Profiles from Moss, roles from `myAccountabilitiesPerGroup()`, the instance's `group` cell as the Nondominium group, NDO clones through the `WeaveClient`. Not yet implemented: inside Moss the Lobby and invite-code flows are not adapted.
+- ✅ **Moss group context (#164).** Inside Moss the profile comes from `profilesClient`, the role from `myAccountabilitiesPerGroup()`, the tool instance's provisioned `group` cell is the one Nondominium group (the tool installer creates its profile, every other member joins it automatically, no invite code), and NDO clones are created through the `WeaveClient`. Standalone keeps the Lobby DNA, Group DNA and invite codes. Known gap: NDO clones are not registered as public to the Moss group, because Moss rc.5 cannot register a clone that carries DNA properties (see [moss-integration.md](specifications/moss-integration.md)).
 - ❌ **NDOs as assets (#165).** WAL, `getAssetInfo`, `search`, asset view.
 
 See [moss-integration.md](specifications/moss-integration.md).
