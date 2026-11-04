@@ -45,6 +45,14 @@ describe('connectMoss', () => {
     expect(deps.connect).toHaveBeenCalledWith({ marker: 'services' });
   });
 
+  it('prefers the applet services the service layer supplies, so assets can read the group', async () => {
+    const { deps } = fakeDeps(appletView);
+    const supplied = vi.fn(() => ({ marker: 'with-assets' }) as never);
+    await connectMoss({ hotReload: false, appletServices: supplied }, deps);
+    expect(deps.connect).toHaveBeenCalledWith({ marker: 'with-assets' });
+    expect(deps.createAppletServices).not.toHaveBeenCalled();
+  });
+
   it('returns the applet client and the group the tool instance lives in', async () => {
     const { deps } = fakeDeps(appletView);
     const connection = await connectMoss({ hotReload: false }, deps);

@@ -1,4 +1,5 @@
 import { AdminWebsocket, AppWebsocket, type AppClient, type CellId } from '@holochain/client';
+import type { AppletServices } from '@theweave/api';
 import { detectCurrentHost } from '../moss/host';
 import { connectMoss, type MossConnection } from '../moss/connect';
 
@@ -230,11 +231,12 @@ const BROWSER_DEV_HINTS = [
  * 3. VITE_HC_ADMIN_WS_URL + VITE_HC_APP_WS_URL (manual override)
  */
 export async function connectHolochainClient(
-  defaultAppId: string
+  defaultAppId: string,
+  mossAppletServices?: () => AppletServices
 ): Promise<HolochainConnectResult> {
   const host = detectCurrentHost();
   if (host.mode === 'moss') {
-    const moss = await connectMoss({ hotReload: host.hotReload });
+    const moss = await connectMoss({ hotReload: host.hotReload, appletServices: mossAppletServices });
     return { client: moss.appClient, connectionUrl: 'moss://applet', connectionMode: 'moss', moss };
   }
 

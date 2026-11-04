@@ -1,6 +1,8 @@
 import type { AgentPubKey, AppClient, AppInfoResponse, CellId, ClonedCell } from '@holochain/client';
 import type { MossConnection } from '../moss/connect';
 import { createNdoCloneViaWeave } from '../moss/ndo-clone';
+import { createAppletServices } from '../moss/applet-services';
+import { loadGroupAnchors } from '../moss/anchors';
 import { Context, Layer } from 'effect';
 import {
   authorizeCellSigning,
@@ -105,7 +107,9 @@ function createHolochainClientService(): HolochainClientService {
 
       try {
         console.log('Attempting to connect to Holochain conductor...');
-        const result = await connectHolochainClient(appId);
+        const result = await connectHolochainClient(appId, () =>
+          createAppletServices({ loadAnchors: loadGroupAnchors })
+        );
         client = result.client;
         moss = result.moss ?? null;
         connectionUrl = result.connectionUrl;
