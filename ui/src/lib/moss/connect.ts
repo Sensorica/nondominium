@@ -32,15 +32,19 @@ const defaultDeps: MossDeps = {
  * Connects to Moss. `hotReload` is true in `weave` dev mode, where the tool is
  * served from localhost: Moss only injects its API after the tool asks for the
  * iframe script, and `WeaveClient.connect` waits for that forever otherwise.
+ *
+ * `appletServices` is supplied by the service layer, which knows how to read the
+ * group's NDOs (assets). This module is reachable from components through
+ * `hc-connect`, so it must not import `$lib/services` itself (invariant I1).
  */
 export async function connectMoss(
-  options: { hotReload: boolean },
+  options: { hotReload: boolean; appletServices?: () => AppletServices },
   deps: MossDeps = defaultDeps
 ): Promise<MossConnection> {
   if (options.hotReload) {
     await deps.initializeHotReload();
   }
-  const weaveClient = await deps.connect(deps.createAppletServices());
+  const weaveClient = await deps.connect((options.appletServices ?? deps.createAppletServices)());
   const info = weaveClient.renderInfo;
   if (info.type !== 'applet-view') {
     throw new Error('Nondominium does not implement the Moss cross-group view.');

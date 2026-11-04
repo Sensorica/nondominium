@@ -1,6 +1,6 @@
 # Moss Integration
 
-**Status:** v0.1.0 pilot, in progress. The tool scaffold and dev config (#163) and the Moss group context (#164) are implemented. NDOs as assets (#165) follows. Supersedes the "Moss Integration Contract" in [lobby-architecture.md](lobby-architecture.md) §9 where they differ.
+**Status:** v0.1.0 pilot. The tool scaffold and dev config (#163), the Moss group context (#164) and NDOs as assets (#165) are implemented. Supersedes the "Moss Integration Contract" in [lobby-architecture.md](lobby-architecture.md) §9 where they differ.
 
 Moss is the Weave host (lightningrodlabs/moss). In the v0.1.0 pilot Nondominium runs as a **tool** inside Moss, started with the `weave` CLI in dev mode. The standalone build (Lobby DNA, Group DNA, invite codes) keeps compiling and running unchanged; the pilot ships Moss only.
 
@@ -73,6 +73,17 @@ Create group, join group and invite links are hidden in Moss (`mossStore.isMoss`
 Code: `ui/src/lib/moss/` (`group-cell.ts`, `profile.ts`, `ndo-clone.ts`), `ui/src/lib/services/zomes/moss-lobby.ts` (the service, with injected dependencies so it runs in a unit test against a mocked WeaveClient) and `ui/src/lib/stores/moss.store.svelte.ts`.
 
 **NDO clones are not public to the Moss group (`PUBLIC_NDO_CLONES = false`).** `createCloneCell(req, true)` registers the clone in the Moss group DNA so other members and always-online nodes can install it. Moss `0.16.0-rc.5` cannot register a clone that carries DNA properties: `join_cloned_cell` declares `properties: Option<SerializedBytes>` and the renderer forwards the properties object untouched, so the call fails with a Deserialize error and leaves an orphan cell. NDO clones need their properties (ADR-013). Discovery does not depend on the registration, since peers re-derive the clone from the `NdoAnchor` in the group cell, but an always-online node (wdocker) will not host the NDO cells until this flips. Flip `PUBLIC_NDO_CLONES` once Moss accepts properties.
+
+## NDOs as Moss assets (#165)
+
+Each NDO is a Moss asset, so other tools can point at it.
+
+- **The WAL.** `ndoWal(anchor)` is `{ hrl: [ndo_dna_hash, identity_action_hash] }`: the NDO's own clone DNA, its permanent identity (ADR-010), and its `NondominiumIdentity` record inside it (`moss/assets.ts`).
+- **`getAssetInfo` and `search`.** `AppletServices` in `@theweave/api` `0.7.0-rc.3` offers `getAssetInfo(appletClient, wal, recordInfo)`, `search(appletClient, appletHash, weaveServices, filter)` and `creatables`. Both read the NDO anchors of the instance's `group` cell through the applet client Moss passes (`moss/anchors.ts`), so they run outside the UI's stores. `getAssetInfo` answers the NDO name and an inline icon; `search` returns the WALs of the NDOs whose name contains the filter, ignoring case.
+- **`openAsset`.** It is not a method on `AppletServices`. A tool calls `weaveClient.openAsset(wal, mode)` to open another tool's asset, and Moss opens ours by rendering the tool with an `asset` view, or with the main view on a WAL (`openAppletMain(hash, wal)`). `moss/view.ts` turns either into the NDO route and the layout navigates there; in an asset view the shell shows the NDO alone, without the sidebar.
+- **The pocket.** The NDO detail view has an `Add to Moss pocket` button (`weaveClient.assets.assetToPocket`), from where the WAL can be linked in other tools.
+
+**An asset resolves only where the NDO's clone is joined.** Moss maps a WAL to a tool through the DNAs of the cells in the agent's own conductor. NDO clones are not registered as public to the Moss group (see above), so on load each member joins the clone of every anchored NDO in the background, one at a time (`joinAnchoredNdoCells`, `moss/ndo-cells.ts`). Until that has run, an NDO created by someone else does not resolve as an asset on this member's machine. This is the cost of `PUBLIC_NDO_CLONES = false`: with public clones Moss would register them in the group DNA, though the renderer in rc.5 never joins them on its own either.
 
 ## Open items
 

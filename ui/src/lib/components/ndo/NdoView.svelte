@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { decodeHashFromBase64 } from '@holochain/client';
   import { appContext } from '$lib/stores/app.context.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
   import {
     createNdoStore,
     isTaskInterrupted,
@@ -23,6 +25,18 @@
   }
 
   let { specHashB64 }: Props = $props();
+
+  // Moss: the NDO's asset, put in the pocket so it can be linked from other tools.
+  let pocketAdded = $state(false);
+  async function addToPocket() {
+    const cellId = store?.cellId;
+    if (!cellId) return;
+    await mossStore.addToPocket({
+      dnaHash: cellId[0],
+      identityActionHash: decodeHashFromBase64(specHashB64)
+    });
+    pocketAdded = true;
+  }
 
   /**
    * The store of the NDO open in this view, one per `specHashB64`. Recreated when the
@@ -166,6 +180,15 @@
         <p class="mt-1 font-mono text-xs text-gray-400">{specHashB64.slice(0, 20)}…</p>
       </div>
       <div class="flex flex-wrap items-center gap-2 md:ml-4 md:shrink-0 md:flex-nowrap">
+        {#if mossStore.isMoss && store?.cellId}
+          <button
+            type="button"
+            onclick={() => void addToPocket()}
+            class="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+          >
+            {pocketAdded ? 'In your Moss pocket' : 'Add to Moss pocket'}
+          </button>
+        {/if}
         <button
           type="button"
           disabled={joinLoading}

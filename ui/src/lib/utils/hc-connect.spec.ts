@@ -42,6 +42,16 @@ describe('connectHolochainClient', () => {
     expect(result.adminWsUrl).toBeUndefined();
   });
 
+  it('hands the applet services of the service layer to the Moss connection', async () => {
+    const appletServices = () => ({ marker: 'with-assets' }) as never;
+    detectCurrentHost.mockReturnValue({ mode: 'moss', hotReload: false });
+    connectMoss.mockResolvedValue({ appClient: {}, weaveClient: {}, groupHash: null, appletHash: new Uint8Array() });
+
+    await connectHolochainClient('nondominium', appletServices);
+
+    expect(connectMoss).toHaveBeenCalledWith({ hotReload: false, appletServices });
+  });
+
   it('never touches Moss when running standalone', async () => {
     detectCurrentHost.mockReturnValue({ mode: 'standalone' });
     const standaloneClient = { appInfo: vi.fn() };
