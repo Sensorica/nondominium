@@ -1,7 +1,11 @@
 //! Atomic commitment fulfillment closure.
 //!
 //! One coordinator call to close a Commitment:
-//!   1. Validates the commitment and the caller's role in it (provider / receiver)
+//!   1. Validates the commitment and the caller's role in it (provider / receiver).
+//!      Consent: the commitment's author agreed by writing it, the other party
+//!      agrees by initiating, so only the non-author may initiate and the
+//!      author countersigns. A fulfilled commitment (a `CommitmentToClaim`
+//!      link exists) is refused, on both sides.
 //!   2. Fetches the counterparty's real cryptographic signature via `call_remote`
 //!      (fixes #14 — the current `issue_participation_receipts` writes a
 //!      64-byte zero placeholder which would make every PPR fail
@@ -30,7 +34,8 @@
 //! their UI's PPR list) and is handled by `mirror_counterparty_ppr` or an
 //! equivalent pattern in a follow-up. For MVP, both PPR private entries
 //! live on the fulfillment-initiator's chain, both carrying real
-//! co-signatures, so cryptographic validation already passes end-to-end.
+//! co-signatures over the same `signed_data_hash`, which the counterparty
+//! rebuilds from the commitment it fetched before signing.
 
 use crate::ppr::*;
 use crate::GovernanceError;
@@ -91,11 +96,14 @@ pub struct CountersignFulfillmentInput {
   /// commitment — i.e. we rely on the integrity of this value, which we
   /// cross-check against `agent_info` of the caller).
   pub initiator: AgentPubKey,
-  /// The event hash the initiator will write for this fulfillment.
-  /// The counterparty signs *including* this hash, so the signature is
-  /// bound to a specific future event entry and can't be reused.
-  pub event_hash_prefix: Vec<u8>,
+  /// The quantity the initiator observed. The counterparty rebuilds the
+  /// signing payload from the commitment it fetched plus this value and
+  /// `event_time`, so it signs only what it can see, never a bare hash.
+  pub observed_quantity: Measure,
+  /// The event time the initiator will write, part of the signed payload.
+  pub event_time: Timestamp,
   /// Blake3 hash of the shared signing data — same algorithm as `ppr.rs`.
+  /// The counterparty refuses when its own rebuilt hash differs.
   pub signed_data_hash: [u8; 32],
   /// Claim type being attested to on behalf of the counterparty.
   pub counterparty_claim_type: ParticipationClaimType,
@@ -161,6 +169,24 @@ pub fn fulfill_commitment_closure(
     );
   };
 
+  // Consent: the commitment's author agreed to it by writing it, and the
+  // other party agrees by initiating the fulfillment. So the initiator must
+  // be the party who did NOT author the commitment, and the author is the
+  // one asked to countersign. A commitment written by a third party, or one
+  // that names an agent who never wrote it, cannot be closed this way.
+  let commitment_author = commitment_record.action().author().clone();
+  if commitment_author != counterparty {
+    return Err(
+      GovernanceError::InvalidInput(
+        "fulfill_commitment_closure must be initiated by the party who did not \
+         author the commitment; the author countersigns"
+          .to_string(),
+      )
+      .into(),
+    );
+  }
+  ensure_not_yet_fulfilled(&input.commitment_hash)?;
+
   // 2. Build the EconomicEvent we are about to write. We don't commit yet —
   //    we want the shared signing payload bound to the event *before* the
   //    counterparty signs it, so a rollback (counterparty offline / rejects)
@@ -217,8 +243,9 @@ pub fn fulfill_commitment_closure(
   );
   let signed_data_hash = blake3_hash(&signing_data);
 
-  // Caller signs their own view.
-  let caller_signature = sign(caller.clone(), signing_data.clone())?;
+  // Caller signs the hash, as the counterparty does and as
+  // `validate_participation_claim_signature` verifies both.
+  let caller_signature = sign(caller.clone(), signed_data_hash.to_vec())?;
 
   // 3. Ask the counterparty, synchronously, to sign the same payload.
   //    If they're offline or reject, the whole closure fails here before
@@ -226,7 +253,8 @@ pub fn fulfill_commitment_closure(
   let countersign_input = CountersignFulfillmentInput {
     commitment_hash: input.commitment_hash.clone(),
     initiator: caller.clone(),
-    event_hash_prefix: vec![], // event hasn't been written yet; the payload is enough
+    observed_quantity: input.observed_quantity.clone(),
+    event_time: now,
     signed_data_hash,
     counterparty_claim_type: counterparty_claim_type.clone(),
   };
@@ -561,11 +589,77 @@ pub fn countersign_fulfillment(
     );
   }
 
-  // Sign the shared payload — the hash is sufficient because the initiator
-  // built the full payload deterministically and will verify both sides
-  // against the same `signed_data_hash`.
-  let signature = sign(my_key, input.signed_data_hash.to_vec())?;
+  // I only countersign a commitment I wrote myself: writing it was my consent.
+  if commitment_record.action().author() != &my_key {
+    return Err(
+      GovernanceError::InvalidInput(
+        "countersign_fulfillment: I did not author this commitment, so I do not \
+         countersign its fulfillment"
+          .to_string(),
+      )
+      .into(),
+    );
+  }
+  ensure_not_yet_fulfilled(&input.commitment_hash)?;
+  input.observed_quantity.validate().map_err(|e| {
+    wasm_error!(WasmErrorInner::Guest(format!(
+      "countersign_fulfillment: invalid observed_quantity: {e}"
+    )))
+  })?;
+
+  // Rebuild the payload from what I can see (the commitment I fetched, the
+  // observed quantity and the event time) and sign my own hash, never the
+  // one I was handed.
+  let resource_hash = commitment.resource_inventoried_as.clone().ok_or_else(|| {
+    GovernanceError::InvalidInput(
+      "countersign_fulfillment: commitment has no resource_inventoried_as".to_string(),
+    )
+  })?;
+  let event_view = EconomicEvent {
+    action: commitment.action.clone(),
+    provider: commitment.provider.clone(),
+    receiver: commitment.receiver.clone(),
+    resource_inventoried_as: resource_hash.clone(),
+    affects: resource_hash,
+    resource_quantity: input.observed_quantity.clone(),
+    event_time: input.event_time,
+    note: None,
+    ndo_identity_hash: commitment.ndo_identity_hash.clone(),
+  };
+  let claim_types = determine_claim_types_for_action(&event_view.action)?;
+  let my_hash = blake3_hash(&build_fulfillment_signing_data(
+    &input.commitment_hash,
+    &event_view,
+    &claim_types,
+    input.event_time,
+  ));
+  if my_hash != input.signed_data_hash {
+    return Err(
+      GovernanceError::InvalidInput(
+        "countersign_fulfillment: the payload I rebuilt does not match the hash I was sent"
+          .to_string(),
+      )
+      .into(),
+    );
+  }
+  let signature = sign(my_key, my_hash.to_vec())?;
   Ok(CountersignFulfillmentOutput { signature })
+}
+
+/// A commitment is fulfilled once: any existing `CommitmentToClaim` link
+/// refuses a second closure. Two concurrent closures can still race before
+/// either link has propagated.
+fn ensure_not_yet_fulfilled(commitment_hash: &ActionHash) -> ExternResult<()> {
+  let existing = get_links(
+    LinkQuery::try_new(commitment_hash.clone(), LinkTypes::CommitmentToClaim)?,
+    GetStrategy::default(),
+  )?;
+  if !existing.is_empty() {
+    return Err(
+      GovernanceError::InvalidInput("This commitment is already fulfilled".to_string()).into(),
+    );
+  }
+  Ok(())
 }
 
 /// Determine the appropriate PPR claim pair for a given VfAction. Same
