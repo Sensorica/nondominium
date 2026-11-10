@@ -606,6 +606,31 @@ pub fn countersign_fulfillment(
       "countersign_fulfillment: invalid observed_quantity: {e}"
     )))
   })?;
+  // What I committed to bounds what I countersign: the observed quantity
+  // keeps the committed unit, and the event time is close to my own clock,
+  // so a direct call cannot collect my signature for another unit or a
+  // backdated event.
+  if let Some(committed) = &commitment.resource_quantity {
+    if committed.has_unit != input.observed_quantity.has_unit {
+      return Err(
+        GovernanceError::InvalidInput(format!(
+          "countersign_fulfillment: observed unit {:?} differs from the committed unit {:?}",
+          input.observed_quantity.has_unit, committed.has_unit
+        ))
+        .into(),
+      );
+    }
+  }
+  let my_now = sys_time()?.as_micros();
+  let skew = (my_now - input.event_time.as_micros()).abs();
+  if skew > COUNTERSIGN_MAX_CLOCK_SKEW_MICROS {
+    return Err(
+      GovernanceError::InvalidInput(
+        "countersign_fulfillment: event time is too far from my clock".to_string(),
+      )
+      .into(),
+    );
+  }
 
   // Rebuild the payload from what I can see (the commitment I fetched, the
   // observed quantity and the event time) and sign my own hash, never the
@@ -726,6 +751,9 @@ fn build_fulfillment_signing_data(
   data.extend_from_slice(&now.as_micros().to_le_bytes());
   data
 }
+
+/// How far the initiator's event time may be from the countersigner's clock.
+const COUNTERSIGN_MAX_CLOCK_SKEW_MICROS: i64 = 5 * 60 * 1_000_000;
 
 fn blake3_hash(data: &[u8]) -> [u8; 32] {
   let mut hasher = Hasher::new();
