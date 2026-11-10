@@ -60,9 +60,10 @@
   let dueDateLocal = $state('');
   let note = $state('');
   // Optional ValueFlows Measures. Empty = omit from the commitment.
-  let resourceQuantity = $state('');
+  // Bound to type="number" inputs, so Svelte gives a number, or undefined when empty.
+  let resourceQuantity = $state<number | undefined>(undefined);
   let resourceUnit = $state('each');
-  let effortQuantity = $state('');
+  let effortQuantity = $state<number | undefined>(undefined);
   let effortUnit = $state('hour');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
@@ -128,13 +129,15 @@
     isSubmitting = true;
     errorMessage = '';
     const dueMs = new Date(dueDateLocal).getTime();
-    const resQty = resourceQuantity.trim()
+    const resQty =
+      resourceQuantity != null && Number.isFinite(resourceQuantity)
       ? {
           numerical_value: Number(resourceQuantity),
           has_unit: resourceUnit.trim() || 'each'
         }
       : null;
-    const effQty = effortQuantity.trim()
+    const effQty =
+      effortQuantity != null && Number.isFinite(effortQuantity)
       ? {
           numerical_value: Number(effortQuantity),
           has_unit: effortUnit.trim() || 'hour'
