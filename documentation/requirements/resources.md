@@ -154,9 +154,17 @@ pub struct ResourceSpecification {
     /// cannot walk an update chain forward deterministically, so the author names
     /// the state they saw and validation resolves it backward to the identity.
     pub ndo_state_hash: ActionHash,
+    /// Inventory foreshadow (ValueFlows) — additive; None on legacy entries.
+    pub inventory_intent: Option<InventoryIntent>,
+    pub identification_pattern: Option<IdentificationPattern>,
+    pub default_unit: Option<String>,
+    pub substitutable: Option<bool>,
+    /// Digital location foreshadow — additive; for Digital natures.
+    pub digital_locator_kind: Option<DigitalLocatorKind>,
+    pub digital_locator: Option<String>,
 }
 ```
-This is the **knowledge layer** in ValueFlows terminology: the type or template of a resource. It corresponds to the OVN concept of "Resource Type" — an abstract representation that groups interchangeable concrete instances.
+This is the **knowledge layer** in ValueFlows terminology: the type or template of a resource. It corresponds to the OVN concept of "Resource Type" — an abstract representation that groups interchangeable concrete instances. Inventory foreshadow and digital locator fields persist on the entry (design-system Layer 1 form); Source-NDO specification fields remain post-MVP.
 
 **`EconomicResource`**
 ```rust
@@ -327,7 +335,7 @@ The following improvements are designed in the post-MVP documentation. Items mar
 The most significant architectural change. Replaces the flat `ResourceSpecification + EconomicResource` model with a progressive three-layer structure:
 
 - **Layer 0 — NondominiumIdentity**: ✅ **Implemented** (PR #80/#84). A permanent, immutable identity anchor. The genesis entry whose action hash becomes the stable identifier for the resource across its entire existence. Contains `name`, `description`, `initiator`, `property_regime`, `resource_nature`, `lifecycle_stage`, `created_at`, `successor_ndo_hash`, `hibernation_origin`. Never voided — serves as the tombstone at end of life.
-- **Layer 1 — ResourceSpecification** (activated by the `NdoToSpecification` link): ✅ **Implemented** (PR #132). The form of the resource — design, typed governance rules, scope. `create_resource_specification` writes the link and the spec carries `ndo_identity_hash` / `ndo_state_hash`, so a spec can no longer exist without an NDO parent. Activation is gated to lifecycle stages `Specification` through `Active`. Digital asset manifests (REQ-NDO-L1-06) remain post-MVP.
+- **Layer 1 — ResourceSpecification** (activated by the `NdoToSpecification` link): ✅ **Implemented** (PR #132; foreshadow/digital fields additive). The form of the resource — design, typed governance rules, scope, inventory foreshadow, digital locator. `create_resource_specification` writes the link and the spec carries `ndo_identity_hash` / `ndo_state_hash`, so a spec can no longer exist without an NDO parent. Activation is gated to lifecycle stages `Specification` through `Active`. Digital asset manifests (REQ-NDO-L1-06) and Source-NDO Layer 1 fields remain post-MVP.
 - **Layer 2 — Process** (activated by `NDOToProcess` link): 🔄 **Not started**. The activity around the resource — EconomicEvents, Commitments, Claims, PPRs. Activated when multi-agent coordination begins. ValueFlows cycle exists in `zome_gouvernance` but is not yet linked to NDO identity via `NDOToProcess`.
 
 This model directly implements the complexity matching principle: coordination overhead grows with actual social complexity, not at resource creation. The three-layer structure describes the **resource face** of any entity — including collective entities. When a collective (project-organisation, cooperative, network) has an associated NDO, that NDO is its digital twin as a Resource: its permanent identity, lifecycle, specification, and governance. The collective also has an **agent face** (`AgentContext`) through which it participates in economic events. These are distinct — see `agent.md §3.1` for the dual-face model.

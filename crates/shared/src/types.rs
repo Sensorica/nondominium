@@ -159,6 +159,69 @@ pub enum ResourceScope {
   Public,
 }
 
+/// Whether a Layer 1 kind tracks inventoriable units (ValueFlows foreshadow).
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum InventoryIntent {
+  Inventoried,
+  NotInventoried,
+  NotApplicable,
+}
+
+/// How inventoriable units are identified when tracking applies.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum IdentificationPattern {
+  Serialized,
+  LotControlled,
+  Stock,
+}
+
+/// How a digital (non-inventoriable) artifact is located / addressed.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum DigitalLocatorKind {
+  ContentAddressed,
+  Url,
+  Repository,
+  DistributedStore,
+  HostedService,
+  LocalHost,
+}
+
+/// Soft foreshadow rules mirrored from the design-system `validateForeshadow`.
+/// Returns `Err(message)` when Inventoried lacks pattern or default unit.
+pub fn validate_spec_foreshadow(
+  inventory_intent: Option<&InventoryIntent>,
+  identification_pattern: Option<&IdentificationPattern>,
+  default_unit: Option<&str>,
+  resource_nature: Option<&ResourceNature>,
+) -> Result<(), String> {
+  let intent = match inventory_intent {
+    Some(i) => i,
+    None => return Ok(()),
+  };
+  // Digital kinds are never inventoriable.
+  if matches!(resource_nature, Some(ResourceNature::Digital)) {
+    if matches!(intent, InventoryIntent::Inventoried | InventoryIntent::NotInventoried) {
+      return Err(
+        "Digital resource kinds are not inventoriable; use NotApplicable inventory intent"
+          .to_string(),
+      );
+    }
+    return Ok(());
+  }
+  if *intent != InventoryIntent::Inventoried {
+    return Ok(());
+  }
+  if identification_pattern.is_none() {
+    return Err(
+      "Choose how units are identified (serialized, lot, or stock).".to_string(),
+    );
+  }
+  if default_unit.map(|u| u.trim().is_empty()).unwrap_or(true) {
+    return Err("Enter a default unit for this kind (e.g. each, kg, L).".to_string());
+  }
+  Ok(())
+}
+
 /// Current process condition on a specific EconomicResource instance (Layer 2).
 /// Cycles frequently as processes begin and end; orthogonal to LifecycleStage.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
