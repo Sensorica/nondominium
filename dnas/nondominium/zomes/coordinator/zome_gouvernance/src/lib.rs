@@ -53,10 +53,12 @@ pub fn init(_: ()) -> ExternResult<InitCallbackResult> {
     ZomeName::from("zome_gouvernance".to_string()),
     FunctionName::from("countersign_fulfillment".to_string()),
   ));
-  let cap_grant = ZomeCallCapGrant {
+  let cap_grant = CapGrant {
     tag: "countersign_fulfillment".to_string(),
-    access: CapAccess::Unrestricted,
-    functions: GrantedFunctions::Listed(functions),
+    constraint: GrantConstraint::Unrestricted,
+    capability: Capability::ZomeCall(ZomeCallGrant {
+      functions: GrantedFunctions::Listed(functions),
+    }),
   };
   create_cap_grant(cap_grant)?;
 
