@@ -12,7 +12,7 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test governance
 
 use holochain::prelude::*;
-use holochain::sweettest::await_consistency_20_s;
+use holochain::sweettest::await_consistency_s;
 use serde::{Deserialize, Serialize};
 
 use nondominium_sweettest::common::*;
@@ -1018,7 +1018,7 @@ async fn fulfill_commitment_closure_happy_path() {
 
     // Wait for DHT consistency so Bob (the fulfillment caller) sees the
     // commitment entry Alice wrote.
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
