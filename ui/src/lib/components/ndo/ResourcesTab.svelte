@@ -2,7 +2,10 @@
   import type { ActionHash, CellId } from '@holochain/client';
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import { ResourcesPanel } from '@nondominium/ndo-ui';
-  import type { ResourceSpecificationInput as NdoUiSpecInput } from '@nondominium/ndo-ui';
+  import type {
+    CreateInstanceInput,
+    ResourceSpecificationInput as NdoUiSpecInput
+  } from '@nondominium/ndo-ui';
   import type {
     LifecycleStage,
     NdoDescriptor,
@@ -12,13 +15,13 @@
   import type { EconomicResourceRow } from '$lib/utils/holochain-records';
   import { operationalStateLabel } from '$lib/utils/operational-state-labels';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
-  import InstanceCreateForm from './InstanceCreateForm.svelte';
   import { resourceStore } from '$lib/stores/resource.store.svelte';
   import {
     fromNdoUiSpecInput,
     toNdoUiDescriptor,
     toNdoUiSpecifications
   } from '$lib/utils/ndo-ui-adapters';
+  import { happNdoUiProfile } from '$lib/utils/ndo-ui-profile';
   interface Props {
     /** NDO Layer 0 action hash (prop name kept for NdoView compatibility). */
     specActionHash: ActionHash;
@@ -42,10 +45,9 @@
   const ndo = getNdoStore();
 
   let listings = $state<ResourceSpecificationListing[]>([]);
-  let instancesBySpec = $state<Map<string, EconomicResourceRow[]>>(new Map());
+  let instancesBySpec = $state<Record<string, { action_hash: string; quantity: number; unit: string; operational_state: string }>>({});
   let loadError = $state<string | null>(null);
   let formError = $state<string | null>(null);
-  let copiedHash = $state<string | null>(null);
 
   const panelDescriptor = $derived.by((): NdoDescriptor => {
     if (ndoDescriptor) return ndoDescriptor;
@@ -70,6 +72,20 @@
     })
   );
 
+  const uiProfile = $derived(
+    happNdoUiProfile({
+      descriptor: ndoDescriptor,
+      resourceNature: ndoDescriptor?.resource_nature ?? panelDescriptor.resource_nature,
+      propertyRegime: ndoDescriptor?.property_regime ?? panelDescriptor.property_regime,
+      economicMode: ndoDescriptor?.economic_mode ?? null,
+      useKind: ndoDescriptor?.use_kind ?? null,
+      existingSpecCount: listings.length,
+      hasInventoriableResource: Object.values(instancesBySpec).some((rows) => rows.length > 0)
+    })
+  );
+  const allowsManualKindCreate = $derived(uiProfile.resources.allowSpecCreate);
+  const allowsManualInstanceCreate = $derived(uiProfile.resources.allowInstanceCreate);
+
   async function load() {
     let rows;
     try {
@@ -81,8 +97,16 @@
       throw error;
     }
     listings = rows.map((row) => row.listing);
-    const next = new Map<string, EconomicResourceRow[]>();
-    for (const row of rows) next.set(row.listing.action_hash.toString(), row.instances);
+    const next: typeof instancesBySpec = {};
+    for (const row of rows) {
+      const panelKey = encodeHashToBase64(row.listing.action_hash);
+      next[panelKey] = row.instances.map((inst: EconomicResourceRow) => ({
+        action_hash: encodeHashToBase64(inst.actionHash),
+        quantity: inst.resource.quantity.numerical_value,
+        unit: inst.resource.quantity.has_unit,
+        operational_state: operationalStateLabel(inst.resource.operational_state)
+      }));
+    }
     instancesBySpec = next;
     loadError = null;
   }
@@ -131,17 +155,21 @@
     await load();
   }
 
-  async function copyInstanceHash(hash: ActionHash) {
-    const b64 = encodeHashToBase64(hash);
-    try {
-      await navigator.clipboard.writeText(b64);
-      copiedHash = b64;
-      setTimeout(() => {
-        if (copiedHash === b64) copiedHash = null;
-      }, 2000);
-    } catch {
-      copiedHash = null;
+  async function handleCreateInstance(input: CreateInstanceInput) {
+    formError = null;
+    const specHash = decodeHashFromBase64(input.spec_action_hash) as ActionHash;
+    const created = await resourceStore.createEconomicResource(
+      {
+        spec_hash: specHash,
+        quantity: { numerical_value: input.quantity, has_unit: input.unit }
+      },
+      ndoCellId ?? undefined
+    );
+    if (!created) {
+      formError = resourceStore.errorMessage ?? 'Failed to create economic resource.';
+      throw new Error(formError);
     }
+    await load();
   }
 </script>
 
@@ -150,68 +178,16 @@
     <p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>
   {/if}
 
+  {#if loadError}
+    <p class="text-sm text-red-600">{loadError}</p>
+  {/if}
+
   <ResourcesPanel
     descriptor={toNdoUiDescriptor(panelDescriptor)}
     specifications={uiSpecs}
-    oncreate={handleCreate}
+    {instancesBySpec}
+    oncreate={allowsManualKindCreate ? handleCreate : undefined}
     onupdate={handleUpdate}
+    oncreateinstance={allowsManualInstanceCreate ? handleCreateInstance : undefined}
   />
-
-  {#if loadError}
-    <p class="text-sm text-red-600">{loadError}</p>
-  {:else if listings.length > 0}
-    <section class="space-y-3">
-      <h3 class="text-sm font-semibold text-gray-800">Inventoried instances</h3>
-      <p class="text-xs text-gray-500">
-        A quantity of a kind, held on this NDO. New instances start pending validation. The action
-        hash is what an economic event records.
-      </p>
-      {#each listings as listing (listing.action_hash.toString())}
-        {@const instances = instancesBySpec.get(listing.action_hash.toString()) ?? []}
-        <div class="rounded border border-gray-200 bg-white p-4">
-          <div class="font-medium text-gray-900">{listing.specification.name}</div>
-          <h4 class="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Economic resources
-          </h4>
-          {#if instances.length === 0}
-            <p class="mt-1 text-sm text-gray-500">No inventoried resources for this specification.</p>
-          {:else}
-            <ul class="mt-1 space-y-2">
-              {#each instances as row (encodeHashToBase64(row.actionHash))}
-                {@const hashB64 = encodeHashToBase64(row.actionHash)}
-                <li class="rounded border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
-                  <div>
-                    <span class="font-medium">Qty</span>
-                    {row.resource.quantity.numerical_value}
-                    {row.resource.quantity.has_unit} ·
-                    <span class="font-medium">Operational state</span>
-                    {operationalStateLabel(row.resource.operational_state)}
-                  </div>
-                  <div class="mt-1 flex items-center gap-2">
-                    <span class="font-mono text-xs text-gray-500">{hashB64.slice(0, 20)}…</span>
-                    <button
-                      type="button"
-                      class="text-xs text-blue-700 underline"
-                      onclick={() => void copyInstanceHash(row.actionHash)}
-                    >
-                      {copiedHash === hashB64 ? 'Copied' : 'Copy action hash'}
-                    </button>
-                  </div>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-          <InstanceCreateForm
-            specHash={listing.action_hash}
-            specName={listing.specification.name}
-            defaultUnit={listing.specification.default_unit}
-            cellId={ndoCellId}
-            oncreated={() => {
-              void load();
-            }}
-          />
-        </div>
-      {/each}
-    </section>
-  {/if}
 </div>

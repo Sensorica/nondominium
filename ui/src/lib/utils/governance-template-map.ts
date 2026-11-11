@@ -14,6 +14,7 @@ export type TemplateCreateResult = {
 /** Templates that can be written as live typed RuleData today. */
 export const CREATABLE_TEMPLATE_IDS = new Set([
   'access_accountable',
+  'access_attribution',
   'quota_extraction',
   'maintenance_schedule',
   'no_ownership_transfer',
@@ -23,7 +24,7 @@ export const CREATABLE_TEMPLATE_IDS = new Set([
 
 /**
  * Map a DS template id to RuleData. Returns null for templates that need schema
- * work (attribution, integrity, Source-*).
+ * work (integrity, Source-*).
  */
 export function mapTemplateToRuleData(
   templateId: string,
@@ -39,6 +40,17 @@ export function mapTemplateToRuleData(
           }
         },
         enforced_by: 'AccountableAgent'
+      };
+    case 'access_attribution':
+      // Attribution-on-share is not a typed RuleData field yet. Free access is the
+      // enforceable Commons stand-in so Digital/Commons NDOs can apply a rule today.
+      return {
+        rule_data: {
+          AccessRequirement: {
+            accessibility: 'Free'
+          }
+        },
+        note: 'Attribution-on-share is not typed yet; created an open (Free) access rule as the Commons stand-in.'
       };
     case 'quota_extraction':
       return {
@@ -113,4 +125,73 @@ export function regimeForTemplateRecommendations(regime: string | null | undefin
     default:
       return 'Commons';
   }
+}
+
+function ruleDiscriminant(ruleData: RuleData): string | null {
+  const key = Object.keys(ruleData)[0];
+  return key ?? null;
+}
+
+function rulePayload(ruleData: RuleData): Record<string, unknown> {
+  const key = ruleDiscriminant(ruleData);
+  if (!key) return {};
+  const payload = (ruleData as unknown as Record<string, unknown>)[key];
+  if (payload && typeof payload === 'object') {
+    return payload as Record<string, unknown>;
+  }
+  return {};
+}
+
+/**
+ * Whether an existing on-chain rule already covers this template.
+ * Matches by RuleData variant + the template's identifying fields (not exact
+ * numeric equality), so a customized capacity still blocks re-applying
+ * capacity_limit.
+ */
+export function ruleMatchesTemplate(ruleData: RuleData, templateId: string): boolean {
+  const mapped = mapTemplateToRuleData(templateId);
+  if (!mapped) return false;
+
+  const existingKind = ruleDiscriminant(ruleData);
+  const templateKind = ruleDiscriminant(mapped.rule_data);
+  if (!existingKind || existingKind !== templateKind) return false;
+
+  const existing = rulePayload(ruleData);
+  const template = rulePayload(mapped.rule_data);
+
+  switch (templateId) {
+    case 'access_accountable':
+      return (
+        existing.accessibility === template.accessibility &&
+        existing.required_role === template.required_role
+      );
+    case 'access_attribution':
+      return existing.accessibility === template.accessibility;
+    case 'quota_extraction':
+      return existing.max_quantity_per_period != null;
+    case 'capacity_limit':
+      return existing.max_concurrent_users != null;
+    case 'max_per_agent':
+      return existing.max_per_agent != null;
+    case 'maintenance_schedule':
+      return existing.interval_days != null;
+    case 'no_ownership_transfer':
+      return existing.transfer_type === template.transfer_type;
+    default:
+      return false;
+  }
+}
+
+/** Template ids already represented by existing governance rules. */
+export function appliedTemplateIdsFromRules(rules: Iterable<RuleData>): string[] {
+  const applied: string[] = [];
+  for (const id of CREATABLE_TEMPLATE_IDS) {
+    for (const rule of rules) {
+      if (ruleMatchesTemplate(rule, id)) {
+        applied.push(id);
+        break;
+      }
+    }
+  }
+  return applied;
 }

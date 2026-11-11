@@ -119,7 +119,17 @@ export interface VfCommitment {
  */
 export interface CommitmentRecord {
   action_hash: ActionHash;
+  /**
+   * Action author who wrote the commitment. Only the *other* party may initiate
+   * `fulfill_commitment_closure`; the author countersigns.
+   */
+  author: AgentPubKey;
   commitment: VfCommitment;
+  /**
+   * True once a Claim is linked (`CommitmentToClaim`). A commitment is fulfilled
+   * at most once — Fulfill must stay disabled after this flips.
+   */
+  fulfilled: boolean;
 }
 
 /** Input for `log_economic_event` in `zome_gouvernance`. */

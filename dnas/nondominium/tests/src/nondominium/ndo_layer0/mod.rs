@@ -150,6 +150,8 @@ struct NdoEntry {
     #[serde(default)]
     pub max_concurrent_users: Option<u32>,
     #[serde(default)]
+    pub initial_quantity: Option<f64>,
+    #[serde(default)]
     pub closure_reason: Option<ClosureReason>,
     #[serde(default)]
     pub closure_note: Option<String>,
@@ -1293,6 +1295,95 @@ async fn consume_ideation_stores_mode_without_inventory() {
     assert!(
         specs.action_hashes.is_empty(),
         "Ideation must not activate Layer 1 / inventory"
+    );
+    assert_eq!(
+        output.entry.initial_quantity,
+        Some(10.0),
+        "Ideation must foreshadow initial_quantity for deferred dual create"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn consume_ideation_dual_creates_on_first_layer1_transition() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let mut input = ndo_input(
+        "Deferred Batch",
+        PropertyRegime::CommonPool,
+        ResourceNature::Physical,
+        LifecycleStage::Ideation,
+    );
+    input.economic_mode = Some(EconomicMode::Consume);
+    input.default_unit = Some("L".to_string());
+    input.initial_quantity = Some(42.0);
+    input.identification_pattern = Some(IdentificationPattern::Stock);
+
+    let created: NdoOutput = conductors[0]
+        .call(&alice.zome("zome_resource"), "create_ndo", input)
+        .await;
+    assert!(created.specification_action_hash.is_none());
+
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "update_lifecycle_stage",
+            update_stage(
+                created.action_hash.clone(),
+                LifecycleStage::Specification,
+                None,
+            ),
+        )
+        .await;
+
+    let specs: SpecsForNdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            created.action_hash.clone(),
+        )
+        .await;
+    assert_eq!(
+        specs.action_hashes.len(),
+        1,
+        "first Layer-1-eligible transition must dual-create the ResourceSpecification"
+    );
+
+    let resources: Vec<Record> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_resources_by_specification",
+            specs.action_hashes[0].clone(),
+        )
+        .await;
+    assert_eq!(
+        resources.len(),
+        1,
+        "deferred dual create must seed the EconomicResource"
+    );
+
+    // Second Layer-1 transition must not create another kind.
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "update_lifecycle_stage",
+            update_stage(
+                created.action_hash.clone(),
+                LifecycleStage::Development,
+                None,
+            ),
+        )
+        .await;
+    let specs_again: SpecsForNdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            created.action_hash,
+        )
+        .await;
+    assert_eq!(
+        specs_again.action_hashes.len(),
+        1,
+        "subsequent transitions must not dual-create again"
     );
 }
 

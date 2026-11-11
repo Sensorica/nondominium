@@ -49,7 +49,8 @@ export type GroupStore = {
   refreshCurrentGroup: () => Promise<void>;
   /**
    * Creates the NDO in the current group. Returns hash + optional hard-dual
-   * Layer 1 hashes so the wizard can attach preselected governance templates.
+   * Layer 1 hashes (inventory). Governance templates are applied later from the
+   * Governance tab when the agent selects them.
    */
   createNdo: (input: NdoInput) => Promise<{
     hashB64: string;

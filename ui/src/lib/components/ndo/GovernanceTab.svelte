@@ -15,6 +15,7 @@
   import { getNdoStore, isTaskInterrupted, type RuleWithSpec } from '$lib/stores/ndo.store.svelte';
   import { toNdoUiDescriptor } from '$lib/utils/ndo-ui-adapters';
   import {
+    appliedTemplateIdsFromRules,
     CREATABLE_TEMPLATE_IDS,
     mapTemplateToRuleData,
     regimeForTemplateRecommendations
@@ -74,6 +75,9 @@
       property_regime: regimeForTemplateRecommendations(base.property_regime)
     };
   });
+
+  const uiPickerDescriptor = $derived(toNdoUiDescriptor(pickerDescriptor));
+
 
   function ruleTypeLabel(ruleData: RuleData): string {
     return Object.keys(ruleData)[0] ?? 'Unknown';
@@ -136,6 +140,18 @@
       (resourceNature as ResourceNature)
   );
 
+  const appliedTemplateIds = $derived(
+    appliedTemplateIdsFromRules(rules.map((item) => item.rule.rule_data))
+  );
+
+  // Drop selection for templates that became Applied after a successful Apply.
+  $effect(() => {
+    const applied = new Set(appliedTemplateIds);
+    if (selectedTemplateIds.some((id) => applied.has(id))) {
+      selectedTemplateIds = selectedTemplateIds.filter((id) => !applied.has(id));
+    }
+  });
+
   async function resolveSpecHash(): Promise<ActionHash | null> {
     const listings = await resourceStore.fetchSpecificationsForNdo(
       specActionHash,
@@ -166,8 +182,14 @@
       return;
     }
 
-    const creatable = selectedTemplateIds.filter((id) => CREATABLE_TEMPLATE_IDS.has(id));
-    const skipped = selectedTemplateIds.filter((id) => !CREATABLE_TEMPLATE_IDS.has(id));
+    const alreadyApplied = new Set(appliedTemplateIds);
+    const creatable = selectedTemplateIds.filter(
+      (id) => CREATABLE_TEMPLATE_IDS.has(id) && !alreadyApplied.has(id)
+    );
+    const duplicates = selectedTemplateIds.filter((id) => alreadyApplied.has(id));
+    const skipped = selectedTemplateIds.filter(
+      (id) => !CREATABLE_TEMPLATE_IDS.has(id) && !alreadyApplied.has(id)
+    );
     const notes: string[] = [];
     let created = 0;
     let failed = 0;
@@ -207,18 +229,21 @@
       }
 
       const ok = await resourceStore.createGovernanceRule(input, ndoCellId ?? undefined);
-      if (ok) created += 1;
-      else failed += 1;
+      if (ok) {
+        created += 1;
+        alreadyApplied.add(id);
+      } else failed += 1;
     }
 
     applyBusy = false;
     selectedTemplateIds = [];
     const parts = [`Created ${created} rule(s).`];
     if (failed > 0) parts.push(`${failed} failed.`);
+    if (duplicates.length > 0) {
+      parts.push(`Skipped duplicates: ${[...new Set(duplicates)].join(', ')}.`);
+    }
     if (skipped.length > 0) {
-      parts.push(
-        `Skipped (not yet creatable): ${[...new Set(skipped)].join(', ')}.`
-      );
+      parts.push(`Skipped (not yet creatable): ${[...new Set(skipped)].join(', ')}.`);
     }
     if (notes.length > 0) parts.push(notes.join(' '));
     applyMessage = parts.join(' ');
@@ -262,10 +287,14 @@
       <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
         <h4 class="mb-3 text-sm font-semibold text-gray-800">Recommended templates</h4>
         <GovernanceTemplatePicker
-          descriptor={toNdoUiDescriptor(pickerDescriptor)}
+          descriptor={uiPickerDescriptor}
           selectedRuleIds={selectedTemplateIds}
+          appliedRuleIds={appliedTemplateIds}
+          economicMode={uiPickerDescriptor.economic_mode ?? null}
+          useKind={uiPickerDescriptor.use_kind ?? null}
+          creatableRuleIds={CREATABLE_TEMPLATE_IDS}
           onchange={(ids) => {
-            selectedTemplateIds = ids;
+            selectedTemplateIds = ids.filter((id) => !appliedTemplateIds.includes(id));
           }}
         />
         <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -277,8 +306,8 @@
             {applyBusy ? 'Applying…' : 'Apply selected'}
           </NdoButton>
           <p class="text-xs text-gray-500">
-            Attribution, integrity, capacity, and Source templates are listed when recommended but
-            skipped until their schemas land.
+            Soon-marked templates stay listed for guidance but cannot be applied yet — use Custom
+            rule for a typed RuleData now.
           </p>
         </div>
         {#if applyMessage}

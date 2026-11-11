@@ -379,6 +379,7 @@
         propertyRegime={ndoDescriptor?.property_regime ?? null}
         resourceNature={ndoDescriptor?.resource_nature ?? null}
         rivalryOverride={ndoDescriptor?.rivalry_override ?? null}
+        economicMode={ndoDescriptor?.economic_mode ?? null}
         ndoMembers={ndoMembers}
       />
     {/if}

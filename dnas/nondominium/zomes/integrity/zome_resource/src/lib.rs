@@ -140,6 +140,10 @@ pub struct NondominiumIdentity {
   /// Required when Use/capacity. Immutable after creation.
   #[serde(default)]
   pub max_concurrent_users: Option<u32>,
+  /// Consume foreshadow qty for deferred hard dual create (Ideation → Layer 1).
+  /// Immutable after creation. Not used after inventory is seeded.
+  #[serde(default)]
+  pub initial_quantity: Option<f64>,
   /// Set once on Deprecated / EndOfLife (esp. Consume Depleted).
   #[serde(default)]
   pub closure_reason: Option<ClosureReason>,
@@ -829,6 +833,11 @@ fn validate_update_nondominium_identity(
   if new_entry.max_concurrent_users != original.max_concurrent_users {
     return Ok(ValidateCallbackResult::Invalid(
       "NondominiumIdentity max_concurrent_users is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.initial_quantity != original.initial_quantity {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity initial_quantity is immutable after creation".to_string(),
     ));
   }
 

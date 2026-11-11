@@ -23,13 +23,33 @@ import type {
 
 const NDO_UI_REGIMES = new Set<string>(['Private', 'Commons', 'Nondominium', 'CommonPool']);
 
+/** hApp `Use`/`Consume` → design-system `use`/`consume`. */
+function toNdoUiEconomicMode(
+  mode: NdoDescriptor['economic_mode']
+): NdoUiNdo['economic_mode'] {
+  if (mode === 'Use') return 'use';
+  if (mode === 'Consume') return 'consume';
+  return mode ?? null;
+}
+
+/** hApp `Unit`/`Capacity` → design-system `unit`/`capacity`. */
+function toNdoUiUseKind(kind: NdoDescriptor['use_kind']): NdoUiNdo['use_kind'] {
+  if (kind === 'Unit') return 'unit';
+  if (kind === 'Capacity') return 'capacity';
+  return kind ?? null;
+}
+
 /** Cast hApp descriptors for ndo-ui presentational components (NdoBrowser, ResourcePerspective). */
 export function toNdoUiDescriptors(ndos: NdoDescriptor[]): NdoUiNdo[] {
-  return ndos as unknown as NdoUiNdo[];
+  return ndos.map(toNdoUiDescriptor);
 }
 
 export function toNdoUiDescriptor(ndo: NdoDescriptor): NdoUiNdo {
-  return ndo as unknown as NdoUiNdo;
+  return {
+    ...(ndo as unknown as NdoUiNdo),
+    economic_mode: toNdoUiEconomicMode(ndo.economic_mode),
+    use_kind: toNdoUiUseKind(ndo.use_kind)
+  };
 }
 
 /** Map DHT listings to ndo-ui ResourcesPanel rows (string hashes + foreshadow). */

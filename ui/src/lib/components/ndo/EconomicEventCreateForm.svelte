@@ -3,6 +3,7 @@
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import type {
     ConstraintViolation,
+    EconomicMode,
     PropertyRegime,
     ResourceNature,
     Rivalry,
@@ -14,6 +15,7 @@
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import AgentPubkeyField from '$lib/components/agent/AgentPubkeyField.svelte';
   import type { AgentMemberOption } from '$lib/utils/agent-pubkey';
+  import { happNdoUiProfile } from '$lib/utils/ndo-ui-profile';
   import { resourceHashPrompt } from './resource-hash-field';
 
   interface Props {
@@ -23,6 +25,8 @@
     propertyRegime: PropertyRegime;
     resourceNature: ResourceNature;
     rivalryOverride?: Rivalry;
+    /** When set, prefer the dual-created EconomicResource (no free paste). */
+    economicMode?: EconomicMode | null;
     pendingCommitments?: VfCommitment[];
     /** Group + NDO members for the provider/receiver picker. */
     members?: AgentMemberOption[];
@@ -36,37 +40,40 @@
     propertyRegime,
     resourceNature,
     rivalryOverride,
+    economicMode = null,
     pendingCommitments = [],
     members = [],
     onclose,
     oncreated
   }: Props = $props();
 
-  const actions: VfAction[] = [
-    'Transfer',
-    'Move',
-    'Use',
-    'Consume',
-    'Produce',
-    'Work',
-    'Modify',
-    'Combine',
-    'Separate',
-    'Raise',
-    'Lower',
-    'Cite',
-    'Accept',
-    'InitialTransfer',
-    'AccessForUse',
-    'TransferCustody'
-  ];
+  const inventoriableFork = $derived(!!economicMode);
+  const digital = $derived(String(resourceNature) === 'Digital');
 
-  let action = $state<VfAction>('Use');
   let providerB64 = $state('');
   let receiverB64 = $state('');
   let resourceHashB64 = $state('');
   /** null until the NDO's inventoried instances have been read. */
   let inventoriedCount = $state<number | null>(null);
+
+  const palette = $derived(
+    happNdoUiProfile({
+      resourceNature,
+      propertyRegime,
+      economicMode,
+      hasInventoriableResource:
+        inventoriableFork || (inventoriedCount != null && inventoriedCount > 0) || !!resourceHashB64
+    }).actionPalette
+  );
+
+  let action = $state<VfAction>(
+    happNdoUiProfile({
+      resourceNature,
+      propertyRegime,
+      economicMode,
+      hasInventoriableResource: !!economicMode
+    }).activity.defaultAction as VfAction
+  );
   let resourceLookupFailed = $state(false);
   let quantity = $state('1');
   // ValueFlows `Measure.has_unit`. Defaults to "each" for the common
@@ -87,10 +94,12 @@
 
   const hashPrompt = $derived(
     resourceHashPrompt({
-      loaded: inventoriedCount !== null,
+      loaded: inventoriedCount !== null || digital,
       lookupFailed: resourceLookupFailed,
       instanceCount: inventoriedCount ?? 0,
-      filledFromCommitment: fromCommitmentIdx !== '' && resourceHashB64 !== ''
+      filledFromCommitment: fromCommitmentIdx !== '' && resourceHashB64 !== '',
+      inventoriableFork,
+      digital
     })
   );
 
@@ -116,6 +125,11 @@
   });
 
   $effect(() => {
+    if (digital) {
+      inventoriedCount = 0;
+      resourceLookupFailed = false;
+      return;
+    }
     const cell = ndoCellId;
     let cancelled = false;
     inventoriedCount = null;
@@ -134,7 +148,12 @@
       // A lookup started before the NDO cell resolved would miss per-cell
       // instances. Drop it; the effect re-runs once `ndoCellId` is set.
       if (cell == null && ndo().cellId != null) return;
-      inventoriedCount = rows.reduce((count, row) => count + row.instances.length, 0);
+      const flat = rows.flatMap((row) => row.instances);
+      inventoriedCount = flat.length;
+      if (flat.length === 1 && !resourceHashB64) {
+        resourceHashB64 = encodeHashToBase64(flat[0].actionHash);
+        unit = flat[0].resource.quantity.has_unit || unit;
+      }
     })();
     return () => {
       cancelled = true;
@@ -178,7 +197,7 @@
       errorMessage = 'Resolve Hard action constraints before submitting.';
       return;
     }
-    if (hashPrompt.kind === 'missing') {
+    if (hashPrompt.kind === 'missing' || hashPrompt.kind === 'digital') {
       errorMessage = hashPrompt.message;
       return;
     }
@@ -270,10 +289,25 @@
       <div>
         <label class="mb-1 block text-sm font-medium text-gray-700" for="e-action">Action</label>
         <select id="e-action" bind:value={action} class="w-full rounded border border-gray-300 px-3 py-2 text-sm">
-          {#each actions as a}
-            <option value={a}>{a}</option>
-          {/each}
+          <optgroup label="Suggested for this NDO">
+            {#each palette.primary as a}
+              <option value={a}>{a}</option>
+            {/each}
+          </optgroup>
+          {#if palette.more.length > 0}
+            <optgroup label="More">
+              {#each palette.more as a}
+                <option value={a}>{a}</option>
+              {/each}
+            </optgroup>
+          {/if}
         </select>
+        <p class="mt-1 text-xs text-gray-500">
+          Suggested actions match this NDO’s nature
+          {#if economicMode}
+            and inventoriable mode ({economicMode})
+          {/if}. Hard-illegal or irrelevant actions are hidden.
+        </p>
       </div>
       <AgentPubkeyField
         id="e-provider"
@@ -291,10 +325,27 @@
       />
       {#if hashPrompt.kind === 'loading'}
         <p class="text-sm text-gray-500">Looking up inventoried resources…</p>
-      {:else if hashPrompt.kind === 'missing'}
+      {:else if hashPrompt.kind === 'digital' || hashPrompt.kind === 'missing'}
         <p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
           {hashPrompt.message}
         </p>
+      {:else if hashPrompt.kind === 'locked'}
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700" for="e-res"
+            >Economic resource</label
+          >
+          <input
+            id="e-res"
+            type="text"
+            value={resourceHashB64}
+            readonly
+            class="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
+          />
+          <p class="mt-1 text-xs text-gray-500">
+            Seeded with this {economicMode === 'Consume' ? 'batch' : 'held thing'} — a second
+            inventoriable resource would be a different NDO.
+          </p>
+        </div>
       {:else}
         <div>
           <label class="mb-1 block text-sm font-medium text-gray-700" for="e-res"
@@ -343,7 +394,14 @@
       >
       <button
         type="button"
-        disabled={isSubmitting || dryRunPending || hardViolations.length > 0 || hashPrompt.kind !== 'entry'}
+        disabled={isSubmitting ||
+          dryRunPending ||
+          hardViolations.length > 0 ||
+          hashPrompt.kind === 'loading' ||
+          hashPrompt.kind === 'missing' ||
+          hashPrompt.kind === 'digital' ||
+          (hashPrompt.kind === 'locked' && !resourceHashB64) ||
+          (hashPrompt.kind === 'entry' && !resourceHashB64)}
         onclick={handleSubmit}
         class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >

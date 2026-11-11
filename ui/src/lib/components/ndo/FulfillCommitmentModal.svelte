@@ -1,11 +1,20 @@
 <script lang="ts">
   import type { CellId } from '@holochain/client';
+  import { encodeHashToBase64 } from '@holochain/client';
   import type {
     CommitmentRecord,
     FulfillmentPerformanceMetrics,
     OperationalState
   } from '@nondominium/shared-types';
-  import { Modal, NdoButton } from '@nondominium/ndo-ui';
+  import {
+    ALREADY_FULFILLED_HINT,
+    Modal,
+    NdoButton,
+    OWN_COMMITMENT_FULFILL_HINT,
+    canInitiateCommitmentFulfillment,
+    fulfillCommitmentErrorMessage
+  } from '@nondominium/ndo-ui';
+  import { appContext } from '$lib/stores/app.context.svelte';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
 
   interface Props {
@@ -34,6 +43,28 @@
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
+  const myAgentB64 = $derived(
+    appContext.myAgentPubKey ? encodeHashToBase64(appContext.myAgentPubKey) : null
+  );
+
+  const alreadyFulfilled = $derived(record.fulfilled === true);
+
+  const iAmAuthor = $derived(
+    !canInitiateCommitmentFulfillment({
+      myAgentB64,
+      authorB64: record.author ? encodeHashToBase64(record.author) : null,
+      fulfilled: false
+    })
+  );
+
+  const canSubmit = $derived(
+    canInitiateCommitmentFulfillment({
+      myAgentB64,
+      authorB64: record.author ? encodeHashToBase64(record.author) : null,
+      fulfilled: record.fulfilled
+    })
+  );
+
   const states: OperationalState[] = [
     'Available',
     'Reserved',
@@ -45,6 +76,14 @@
   ];
 
   async function handleSubmit() {
+    if (alreadyFulfilled) {
+      errorMessage = ALREADY_FULFILLED_HINT;
+      return;
+    }
+    if (iAmAuthor) {
+      errorMessage = OWN_COMMITMENT_FULFILL_HINT;
+      return;
+    }
     const numerical = Number(quantity);
     if (!Number.isFinite(numerical) || numerical < 0) {
       errorMessage = 'Observed quantity must be a non-negative number.';
@@ -68,9 +107,7 @@
       onfulfilled?.();
       onclose();
     } else {
-      errorMessage =
-        governanceStore.errorMessage ??
-        'Fulfillment failed. The counterparty must be online to countersign.';
+      errorMessage = fulfillCommitmentErrorMessage(governanceStore.errorMessage);
     }
   }
 </script>
@@ -85,6 +122,15 @@
       <p class="text-sm text-gray-700">
         Action <span class="font-medium">{record.commitment.action}</span>
       </p>
+      {#if alreadyFulfilled}
+        <p class="rounded border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">
+          {ALREADY_FULFILLED_HINT}
+        </p>
+      {:else if iAmAuthor}
+        <p class="rounded border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+          {OWN_COMMITMENT_FULFILL_HINT}
+        </p>
+      {/if}
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="mb-1 block text-sm font-medium text-gray-700" for="f-qty"
@@ -94,7 +140,8 @@
             id="f-qty"
             type="number"
             bind:value={quantity}
-            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            disabled={iAmAuthor}
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
           />
         </div>
         <div>
@@ -103,7 +150,8 @@
             id="f-unit"
             type="text"
             bind:value={unit}
-            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            disabled={iAmAuthor}
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
           />
         </div>
       </div>
@@ -114,7 +162,8 @@
         <select
           id="f-state"
           bind:value={resourceState}
-          class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          disabled={iAmAuthor}
+          class="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
         >
           <option value="">Leave unchanged</option>
           {#each states as s}
@@ -122,7 +171,7 @@
           {/each}
         </select>
       </div>
-      <fieldset class="grid grid-cols-2 gap-3">
+      <fieldset class="grid grid-cols-2 gap-3" disabled={iAmAuthor}>
         <legend class="mb-1 text-sm font-medium text-gray-700">Performance (0–1, both sides)</legend>
         {#each ['timeliness', 'quality', 'reliability', 'communication', 'overall_satisfaction'] as key}
           <div>
@@ -149,7 +198,8 @@
           id="f-note"
           rows="2"
           bind:value={note}
-          class="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+          disabled={iAmAuthor}
+          class="w-full rounded border border-gray-200 px-3 py-2 text-sm disabled:opacity-50"
         ></textarea>
       </div>
       {#if errorMessage}
@@ -159,7 +209,7 @@
   {/snippet}
   {#snippet footer()}
     <NdoButton variant="ghost" onclick={onclose}>Cancel</NdoButton>
-    <NdoButton disabled={isSubmitting} onclick={() => void handleSubmit()}>
+    <NdoButton disabled={isSubmitting || !canSubmit} onclick={() => void handleSubmit()}>
       {isSubmitting ? 'Fulfilling…' : 'Fulfill'}
     </NdoButton>
   {/snippet}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DIGITAL_NO_INVENTORY_MESSAGE,
   NO_ECONOMIC_RESOURCE_MESSAGE,
   resourceHashPrompt
 } from './resource-hash-field';
@@ -35,5 +36,29 @@ describe('resourceHashPrompt', () => {
     expect(
       resourceHashPrompt({ loaded: true, lookupFailed: true, instanceCount: 0, filledFromCommitment: false })
     ).toEqual({ kind: 'entry' });
+  });
+
+  it('locks to the dual-created resource for inventoriable Use/Consume NDOs', () => {
+    expect(
+      resourceHashPrompt({
+        loaded: true,
+        lookupFailed: false,
+        instanceCount: 1,
+        filledFromCommitment: false,
+        inventoriableFork: true
+      })
+    ).toEqual({ kind: 'locked' });
+  });
+
+  it('explains that Digital NDOs are not inventoriable', () => {
+    expect(
+      resourceHashPrompt({
+        loaded: true,
+        lookupFailed: false,
+        instanceCount: 0,
+        filledFromCommitment: false,
+        digital: true
+      })
+    ).toEqual({ kind: 'digital', message: DIGITAL_NO_INVENTORY_MESSAGE });
   });
 });

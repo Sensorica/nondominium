@@ -3,19 +3,27 @@
   import { encodeHashToBase64 } from '@holochain/client';
   import type {
     CommitmentRecord,
+    EconomicMode,
     PropertyRegime,
     ResourceNature,
     Rivalry,
     VfEconomicEvent
   } from '@nondominium/shared-types';
+  import {
+    ALREADY_FULFILLED_HINT,
+    OWN_COMMITMENT_FULFILL_HINT,
+    canInitiateCommitmentFulfillment
+  } from '@nondominium/ndo-ui';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
+  import { appContext } from '$lib/stores/app.context.svelte';
   import { mergeAgentOptions, type AgentMemberOption } from '$lib/utils/agent-pubkey';
   import CommitmentCreateForm from './CommitmentCreateForm.svelte';
   import EconomicEventCreateForm from './EconomicEventCreateForm.svelte';
   import AdmitToPoolModal from './AdmitToPoolModal.svelte';
   import FulfillCommitmentModal from './FulfillCommitmentModal.svelte';
   import ParticipationClaimsPanel from './ParticipationClaimsPanel.svelte';
+
 
   interface Props {
     /** NDO Layer 0 action hash. */
@@ -25,6 +33,7 @@
     propertyRegime?: string | null;
     resourceNature?: string | null;
     rivalryOverride?: string | null;
+    economicMode?: EconomicMode | null;
     /** NDO members (nickname + full pubkey id) for provider/receiver pickers. */
     ndoMembers?: AgentMemberOption[];
   }
@@ -35,6 +44,7 @@
     propertyRegime = null,
     resourceNature = null,
     rivalryOverride = null,
+    economicMode = null,
     ndoMembers = []
   }: Props = $props();
 
@@ -54,7 +64,37 @@
 
   const canAct = $derived(propertyRegime != null && resourceNature != null);
 
+  const myAgentB64 = $derived(
+    appContext.myAgentPubKey ? encodeHashToBase64(appContext.myAgentPubKey) : null
+  );
+
+  function canFulfill(r: CommitmentRecord): boolean {
+    return (
+      canAct &&
+      canInitiateCommitmentFulfillment({
+        myAgentB64,
+        authorB64: r.author ? encodeHashToBase64(r.author) : null,
+        fulfilled: r.fulfilled
+      })
+    );
+  }
+
+  function fulfillDisabledReason(r: CommitmentRecord): string | undefined {
+    if (!canAct) return undefined;
+    if (r.fulfilled) return ALREADY_FULFILLED_HINT;
+    if (
+      !canInitiateCommitmentFulfillment({
+        myAgentB64,
+        authorB64: r.author ? encodeHashToBase64(r.author) : null
+      })
+    ) {
+      return OWN_COMMITMENT_FULFILL_HINT;
+    }
+    return undefined;
+  }
+
   const ndoCommitments = $derived(records.map((r) => r.commitment));
+
 
   async function load() {
     loadError = null;
@@ -83,6 +123,7 @@
     propertyRegime={propertyRegime as PropertyRegime}
     resourceNature={resourceNature as ResourceNature}
     rivalryOverride={(rivalryOverride as Rivalry | null) ?? undefined}
+    {economicMode}
     members={pickerMembers}
     onclose={() => {
       showCommitment = false;
@@ -100,6 +141,7 @@
     propertyRegime={propertyRegime as PropertyRegime}
     resourceNature={resourceNature as ResourceNature}
     rivalryOverride={(rivalryOverride as Rivalry | null) ?? undefined}
+    {economicMode}
     pendingCommitments={ndoCommitments}
     members={pickerMembers}
     onclose={() => {
@@ -141,6 +183,11 @@
       <p class="text-xs text-gray-500">
         Commitments and events for this NDO. Admit a commitment into a group-as-pool, or fulfill it
         (event + claim + bilateral PPR in one call).
+        {#if String(resourceNature) === 'Digital'}
+          Digital NDOs are not inventoriable — prefer Cite or Work over Use/Consume stock flows.
+        {:else if economicMode}
+          Inventoriable ({economicMode}) events should target the seeded EconomicResource.
+        {/if}
       </p>
     </div>
     <div class="flex gap-2">
@@ -203,16 +250,32 @@
                 >
                   Admit to pool
                 </button>
-                <button
-                  type="button"
-                  disabled={!canAct}
-                  onclick={() => {
-                    fulfillTarget = r;
-                  }}
-                  class="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Fulfill
-                </button>
+                <div class="flex flex-col items-end gap-1">
+                  {#if r.fulfilled}
+                    <span
+                      class="rounded bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800"
+                    >
+                      Fulfilled
+                    </span>
+                  {:else}
+                    <button
+                      type="button"
+                      disabled={!canFulfill(r)}
+                      title={fulfillDisabledReason(r)}
+                      onclick={() => {
+                        fulfillTarget = r;
+                      }}
+                      class="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      Fulfill
+                    </button>
+                    {#if canAct && !canFulfill(r)}
+                      <span class="max-w-48 text-right text-[11px] leading-snug text-gray-500">
+                        Cannot fulfill your own commitment
+                      </span>
+                    {/if}
+                  {/if}
+                </div>
               </div>
             </div>
           </li>

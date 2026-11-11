@@ -230,7 +230,10 @@ export interface NdoInput {
   identification_pattern?: IdentificationPattern | null;
   unique_id?: string | null;
   max_concurrent_users?: number | null;
-  /** Seeds EconomicResource on hard dual create; not persisted on identity. */
+  /**
+   * Seeds EconomicResource on hard dual create. Also persisted on identity so
+   * Ideation foreshadow can dual-create on the first Layer-1-eligible transition.
+   */
   initial_quantity?: number | null;
 }
 

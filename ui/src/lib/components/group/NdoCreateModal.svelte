@@ -60,9 +60,11 @@
   };
 
   const natureTooltips: Record<ResourceNature, string> = {
-    Physical: 'A tangible, material resource.',
-    Digital: 'Software, data, designs, documents, datasets, and methods.',
-    Hybrid: 'A material resource with an essential digital specification.'
+    Physical: 'A tangible, material resource — may be inventoriable (shelf units, custody).',
+    Digital:
+      'Software, data, designs, documents, datasets, and methods. Unique by content or address — not inventoriable stock (copies are trivial). Prefer the create wizard for Digital guidance.',
+    Hybrid:
+      'A material resource with an essential digital twin. Inventory may track the physical face; the digital face is located by address, not shelf units.'
   };
 
   async function handleSubmit() {
@@ -158,6 +160,12 @@
         <p class="mt-1 text-xs text-gray-500">
           Default rivalry for this nature: <span class="font-medium">{natureDefaultRivalry}</span>
         </p>
+        {#if resource_nature === 'Digital'}
+          <p class="mt-1 text-xs text-amber-800">
+            Digital NDOs are not inventoriable. For Use/Consume physical forks and richer
+            foreshadow, use the create wizard instead of this legacy form.
+          </p>
+        {/if}
       </div>
 
       <!-- Rivalry override -->

@@ -156,7 +156,45 @@ pub fn get_commitments_for_ndo(
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CommitmentRecord {
   pub action_hash: ActionHash,
+  /// Action author — the agent who wrote the commitment. Fulfillment must be
+  /// initiated by the *other* party; this author countersigns (`fulfillment.rs`).
+  pub author: AgentPubKey,
   pub commitment: Commitment,
+  /// True once a `CommitmentToClaim` link exists (`fulfill_commitment_closure`
+  /// / `claim_commitment`). Commitments are fulfilled once.
+  pub fulfilled: bool,
+}
+
+fn commitment_is_fulfilled(commitment_hash: &ActionHash) -> ExternResult<bool> {
+  let links = get_links(
+    LinkQuery::try_new(commitment_hash.clone(), LinkTypes::CommitmentToClaim)?,
+    GetStrategy::default(),
+  )?;
+  Ok(!links.is_empty())
+}
+
+fn commitment_record_from_action(
+  hash: ActionHash,
+  record: Record,
+) -> ExternResult<Option<CommitmentRecord>> {
+  let Some(commitment) = record
+    .entry()
+    .to_app_option::<Commitment>()
+    .map_err(|_| {
+      wasm_error!(WasmErrorInner::Guest(
+        "Failed to deserialize commitment".into()
+      ))
+    })?
+  else {
+    return Ok(None);
+  };
+  let fulfilled = commitment_is_fulfilled(&hash)?;
+  Ok(Some(CommitmentRecord {
+    action_hash: hash,
+    author: record.action().author().clone(),
+    commitment,
+    fulfilled,
+  }))
 }
 
 #[hdk_extern]
@@ -177,17 +215,8 @@ pub fn get_all_commitments_detailed(_: ()) -> ExternResult<Vec<CommitmentRecord>
     let Some(record) = get(hash.clone(), GetOptions::default())? else {
       continue;
     };
-    if let Ok(Some(commitment)) =
-      record.entry().to_app_option::<Commitment>().map_err(|_| {
-        wasm_error!(WasmErrorInner::Guest(
-          "Failed to deserialize commitment".into()
-        ))
-      })
-    {
-      records.push(CommitmentRecord {
-        action_hash: hash,
-        commitment,
-      });
+    if let Some(detailed) = commitment_record_from_action(hash, record)? {
+      records.push(detailed);
     }
   }
   Ok(records)
@@ -209,17 +238,8 @@ pub fn get_commitments_for_ndo_detailed(
     let Some(record) = get(hash.clone(), GetOptions::default())? else {
       continue;
     };
-    if let Ok(Some(commitment)) =
-      record.entry().to_app_option::<Commitment>().map_err(|_| {
-        wasm_error!(WasmErrorInner::Guest(
-          "Failed to deserialize commitment".into()
-        ))
-      })
-    {
-      records.push(CommitmentRecord {
-        action_hash: hash,
-        commitment,
-      });
+    if let Some(detailed) = commitment_record_from_action(hash, record)? {
+      records.push(detailed);
     }
   }
   Ok(records)

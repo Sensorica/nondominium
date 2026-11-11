@@ -25,7 +25,8 @@ pub struct NdoInput {
   pub unique_id: Option<String>,
   #[serde(default)]
   pub max_concurrent_users: Option<u32>,
-  /// Seeds EconomicResource on hard dual create; not stored on identity.
+  /// Seeds EconomicResource on hard dual create; also stored on identity for
+  /// deferred dual create when the NDO starts at Ideation.
   #[serde(default)]
   pub initial_quantity: Option<f64>,
 }
@@ -437,6 +438,7 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
     identification_pattern: input.identification_pattern.clone(),
     unique_id: input.unique_id.clone(),
     max_concurrent_users: input.max_concurrent_users,
+    initial_quantity: input.initial_quantity,
     closure_reason: None,
     closure_note: None,
   };
@@ -487,7 +489,7 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
   let mut economic_resource_action_hash = None;
   if entry.economic_mode.is_some() && layer1_eligible(&entry.lifecycle_stage) {
     let (spec_hash, resource_hash) =
-      hard_dual_create_inventory(action_hash.clone(), &entry, input.initial_quantity)?;
+      hard_dual_create_inventory(action_hash.clone(), &entry, entry.initial_quantity)?;
     specification_action_hash = Some(spec_hash);
     economic_resource_action_hash = Some(resource_hash);
   }
@@ -682,6 +684,29 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
       LinkTypes::NdoByLifecycleStage,
       (),
     )?;
+  }
+
+  // Deferred hard dual create: Ideation (or other non-L1 stage) foreshadowed
+  // economic_mode; first transition into a Layer-1-eligible stage seeds inventory.
+  // Idempotent — skip if a ResourceSpecification link already exists.
+  if current_entry.economic_mode.is_some()
+    && layer1_eligible(&input.new_stage)
+    && !layer1_eligible(&old_stage)
+  {
+    let existing = get_links(
+      LinkQuery::try_new(
+        input.original_action_hash.clone(),
+        LinkTypes::NdoToSpecification,
+      )?,
+      GetStrategy::default(),
+    )?;
+    if existing.is_empty() {
+      hard_dual_create_inventory(
+        input.original_action_hash.clone(),
+        &current_entry,
+        current_entry.initial_quantity,
+      )?;
+    }
   }
 
   Ok(update_hash)

@@ -2,20 +2,14 @@
   /**
    * Wraps `@nondominium/ndo-ui` wizard create modal. Maps to hApp `NdoInput`,
    * drops Source foreshadow fields, and exposes all seven PropertyRegime values
-   * (ndo-ui refinement only offers four). After hard dual create, applies
-   * preselected creatable governance templates onto the new Layer 1 spec.
+   * (ndo-ui refinement only offers four). Governance templates are recommended
+   * on Review but applied only when the agent selects them on the Governance tab.
    */
   import { goto } from '$app/navigation';
   import type { NdoDescriptor, PropertyRegime } from '@nondominium/shared-types';
-  import {
-    NdoCreateModal,
-    type NdoInput as NdoUiInput,
-    type WizardResult
-  } from '@nondominium/ndo-ui';
-  import { decodeHashFromBase64 } from '@holochain/client';
+  import { NdoCreateModal, type NdoInput as NdoUiInput } from '@nondominium/ndo-ui';
   import { groupStore } from '$lib/stores/group.store.svelte';
   import { fromNdoUiCreateInput, toNdoUiDescriptors } from '$lib/utils/ndo-ui-adapters';
-  import { applyWizardGovernanceTemplates } from '$lib/utils/apply-wizard-governance';
 
   interface Props {
     groupId: string;
@@ -40,11 +34,6 @@
   let errorMessage = $state<string | null>(null);
   /** Optional override so Collective / Pool / Public remain creatable. */
   let regimeOverride = $state<PropertyRegime | ''>('');
-  let lastWizardResult = $state<WizardResult | null>(null);
-
-  function handleWizardComplete(result: WizardResult) {
-    lastWizardResult = result;
-  }
 
   async function handleSubmit(input: NdoUiInput) {
     isSubmitting = true;
@@ -58,26 +47,6 @@
       isSubmitting = false;
       errorMessage = groupStore.errorMessage ?? 'Failed to create NDO.';
       return;
-    }
-
-    const templateIds =
-      lastWizardResult?.ndo_input.governance_rule_ids ?? input.governance_rule_ids ?? [];
-    if (created.specificationActionHash && templateIds.length > 0) {
-      try {
-        await applyWizardGovernanceTemplates({
-          ndoIdentityHash: decodeHashFromBase64(created.hashB64),
-          specificationHash: created.specificationActionHash,
-          cellId: created.cellId,
-          templateIds,
-          propertyRegime: mapped.property_regime,
-          resourceNature: mapped.resource_nature,
-          economicMode: mapped.economic_mode ?? null,
-          useKind: mapped.use_kind ?? null,
-          maxConcurrentUsers: mapped.max_concurrent_users ?? null
-        });
-      } catch {
-        // Best-effort: NDO + inventory already exist; Governance tab can retry.
-      }
     }
 
     isSubmitting = false;
@@ -97,10 +66,9 @@
       <span class="font-medium text-gray-800">Final property regime</span>
       <select
         bind:value={regimeOverride}
-        class="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
-        title="Wizard offers four regimes; choose Collective, Pool, or Public here when needed. Leave as Wizard default to keep the wizard choice."
+        class="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800"
       >
-        <option value="">Wizard default</option>
+        <option value="">Use wizard choice</option>
         {#each allRegimes as r}
           <option value={r}>{r}</option>
         {/each}
@@ -109,14 +77,11 @@
   </div>
 
   <NdoCreateModal
-    {groupId}
-    {groupName}
     existingNdos={toNdoUiDescriptors(existingNdos)}
+    {groupName}
     {isSubmitting}
     {errorMessage}
-    initialArchetype="stub"
-    {onclose}
-    onwizardcomplete={handleWizardComplete}
+    onclose={onclose}
     onsubmit={handleSubmit}
   />
 </div>

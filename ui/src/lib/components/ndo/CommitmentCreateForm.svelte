@@ -3,6 +3,7 @@
   import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
   import type {
     ConstraintViolation,
+    EconomicMode,
     PropertyRegime,
     ResourceNature,
     Rivalry,
@@ -10,8 +11,10 @@
   } from '@nondominium/shared-types';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
   import { connectionStore } from '$lib/stores/connection.store.svelte';
+  import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import AgentPubkeyField from '$lib/components/agent/AgentPubkeyField.svelte';
   import type { AgentMemberOption } from '$lib/utils/agent-pubkey';
+  import { happNdoUiProfile } from '$lib/utils/ndo-ui-profile';
 
   interface Props {
     ndoActionHash: ActionHash;
@@ -20,6 +23,8 @@
     propertyRegime: PropertyRegime;
     resourceNature: ResourceNature;
     rivalryOverride?: Rivalry;
+    /** When set, seed resource_hash from the dual-created EconomicResource. */
+    economicMode?: EconomicMode | null;
     /** Group + NDO members for the provider/receiver picker. */
     members?: AgentMemberOption[];
     onclose: () => void;
@@ -32,31 +37,34 @@
     propertyRegime,
     resourceNature,
     rivalryOverride,
+    economicMode = null,
     members = [],
     onclose,
     oncreated
   }: Props = $props();
 
-  const actions: VfAction[] = [
-    'Transfer',
-    'Move',
-    'Use',
-    'Consume',
-    'Produce',
-    'Work',
-    'Modify',
-    'Combine',
-    'Separate',
-    'Raise',
-    'Lower',
-    'Cite',
-    'Accept',
-    'InitialTransfer',
-    'AccessForUse',
-    'TransferCustody'
-  ];
+  const inventoriableFork = $derived(!!economicMode);
+  const ndo = getNdoStore();
 
-  let action = $state<VfAction>('Use');
+  let resourceHashB64 = $state('');
+
+  const palette = $derived(
+    happNdoUiProfile({
+      resourceNature,
+      propertyRegime,
+      economicMode,
+      hasInventoriableResource: inventoriableFork || !!resourceHashB64
+    }).actionPalette
+  );
+
+  let action = $state<VfAction>(
+    happNdoUiProfile({
+      resourceNature,
+      propertyRegime,
+      economicMode,
+      hasInventoriableResource: !!economicMode
+    }).activity.defaultAction as VfAction
+  );
   let providerB64 = $state('');
   // Explicit receiver (was previously hardcoded on the backend to the caller;
   // the zome now requires an explicit field). Defaults to self for the common
@@ -91,6 +99,31 @@
 
   $effect(() => {
     void ensureProvider();
+  });
+
+  $effect(() => {
+    if (!inventoriableFork) return;
+    const cell = ndoCellId;
+    let cancelled = false;
+    void (async () => {
+      let rows;
+      try {
+        rows = await ndo().specificationsWithInstances();
+      } catch (error) {
+        if (cancelled || isTaskInterrupted(error)) return;
+        return;
+      }
+      if (cancelled) return;
+      if (cell == null && ndo().cellId != null) return;
+      const flat = rows.flatMap((row) => row.instances);
+      if (flat.length === 1) {
+        resourceHashB64 = encodeHashToBase64(flat[0].actionHash);
+        resourceUnit = flat[0].resource.quantity.has_unit || resourceUnit;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   });
 
   async function runDryRun() {
@@ -148,11 +181,21 @@
           has_unit: effortUnit.trim() || 'hour'
         }
       : null;
+    let resourceHash: ActionHash | null = null;
+    if (resourceHashB64) {
+      try {
+        resourceHash = decodeHashFromBase64(resourceHashB64) as ActionHash;
+      } catch {
+        errorMessage = 'Invalid economic resource action hash.';
+        return;
+      }
+    }
     const out = await governanceStore.proposeCommitment(
       {
         action,
         provider,
         receiver,
+        ...(resourceHash ? { resource_hash: resourceHash } : {}),
         resource_quantity: resQty,
         effort_quantity: effQty,
         due_date: dueMs * 1000,
@@ -195,10 +238,25 @@
           bind:value={action}
           class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
         >
-          {#each actions as a}
-            <option value={a}>{a}</option>
-          {/each}
+          <optgroup label="Suggested for this NDO">
+            {#each palette.primary as a}
+              <option value={a}>{a}</option>
+            {/each}
+          </optgroup>
+          {#if palette.more.length > 0}
+            <optgroup label="More">
+              {#each palette.more as a}
+                <option value={a}>{a}</option>
+              {/each}
+            </optgroup>
+          {/if}
         </select>
+        <p class="mt-1 text-xs text-gray-500">
+          Suggested actions match this NDO’s nature
+          {#if economicMode}
+            and inventoriable mode ({economicMode})
+          {/if}. Hard-illegal or irrelevant actions are hidden.
+        </p>
       </div>
       <AgentPubkeyField
         id="c-provider"
@@ -215,17 +273,6 @@
         hint="Who receives this commitment (often the other party)."
       />
       <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700" for="c-receiver"
-          >Receiver (agent pubkey b64)</label
-        >
-        <input
-          id="c-receiver"
-          type="text"
-          bind:value={receiverB64}
-          class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs"
-        />
-      </div>
-      <div>
         <label class="mb-1 block text-sm font-medium text-gray-700" for="c-due">Due date</label>
         <input
           id="c-due"
@@ -234,6 +281,23 @@
           class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
+      {#if inventoriableFork && resourceHashB64}
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700" for="c-res"
+            >Economic resource</label
+          >
+          <input
+            id="c-res"
+            type="text"
+            value={resourceHashB64}
+            readonly
+            class="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
+          />
+          <p class="mt-1 text-xs text-gray-500">
+            Seeded with this {economicMode === 'Consume' ? 'batch' : 'held thing'}.
+          </p>
+        </div>
+      {/if}
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="mb-1 block text-sm text-gray-600" for="c-res-qty">Resource quantity (optional)</label>
