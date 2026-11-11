@@ -46,7 +46,7 @@ export type ResourceStore = {
     input: EconomicResourceInput,
     cellId?: CellId
   ) => Promise<ActionHash | null>;
-  fetchEconomicResource: (hash: ActionHash) => Promise<EconomicResource | null>;
+  fetchEconomicResource: (hash: ActionHash, cellId?: CellId) => Promise<EconomicResource | null>;
   fetchResourcesByCustodian: (custodian: AgentPubKey) => Promise<EconomicResource[]>;
   fetchMyResources: (myAgentPubKey: AgentPubKey) => Promise<void>;
   transferResourceCustody: (
@@ -185,8 +185,11 @@ const createResourceStore = (): E.Effect<ResourceStore, never, ResourceServiceTa
       return created?.resource_hash ?? null;
     }
 
-    async function fetchEconomicResource(hash: ActionHash): Promise<EconomicResource | null> {
-      const resource = await run(resourceService.getEconomicResource(hash));
+    async function fetchEconomicResource(
+      hash: ActionHash,
+      cellId?: CellId
+    ): Promise<EconomicResource | null> {
+      const resource = await run(resourceService.getEconomicResource(hash, cellId));
       if (resource) resourceCache.set(hash.toString(), resource);
       return resource;
     }

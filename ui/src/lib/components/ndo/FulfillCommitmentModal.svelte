@@ -10,12 +10,14 @@
     ALREADY_FULFILLED_HINT,
     Modal,
     NdoButton,
+    NOT_CUSTODIAN_RESOURCE_STATE_HINT,
     OWN_COMMITMENT_FULFILL_HINT,
     canInitiateCommitmentFulfillment,
     fulfillCommitmentErrorMessage
   } from '@nondominium/ndo-ui';
   import { appContext } from '$lib/stores/app.context.svelte';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
+  import { resourceStore } from '$lib/stores/resource.store.svelte';
 
   interface Props {
     record: CommitmentRecord;
@@ -42,6 +44,8 @@
   let metrics = $state<FulfillmentPerformanceMetrics>(defaultMetrics());
   let isSubmitting = $state(false);
   let errorMessage = $state('');
+  /** null = unknown / no resource; true only when my key matches custodian. */
+  let iAmCustodian = $state<boolean | null>(null);
 
   const myAgentB64 = $derived(
     appContext.myAgentPubKey ? encodeHashToBase64(appContext.myAgentPubKey) : null
@@ -65,6 +69,8 @@
     })
   );
 
+  const canUpdateResourceState = $derived(iAmCustodian === true);
+
   const states: OperationalState[] = [
     'Available',
     'Reserved',
@@ -74,6 +80,29 @@
     'InUse',
     'PendingValidation'
   ];
+
+  $effect(() => {
+    const resourceHash = record.commitment.resource_inventoried_as;
+    const me = myAgentB64;
+    const cellId = ndoCellId ?? undefined;
+    if (!resourceHash || !me) {
+      iAmCustodian = null;
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const resource = await resourceStore.fetchEconomicResource(resourceHash, cellId);
+      if (cancelled) return;
+      if (!resource?.custodian) {
+        iAmCustodian = null;
+        return;
+      }
+      iAmCustodian = encodeHashToBase64(resource.custodian) === me;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  });
 
   async function handleSubmit() {
     if (alreadyFulfilled) {
@@ -89,13 +118,20 @@
       errorMessage = 'Observed quantity must be a non-negative number.';
       return;
     }
+    if (resourceState !== '' && iAmCustodian === false) {
+      errorMessage = NOT_CUSTODIAN_RESOURCE_STATE_HINT;
+      return;
+    }
     isSubmitting = true;
     errorMessage = '';
     const out = await governanceStore.fulfillCommitmentClosure(
       {
         commitment_hash: record.action_hash,
         observed_quantity: { numerical_value: numerical, has_unit: unit.trim() || 'each' },
-        resource_state_update: resourceState === '' ? null : resourceState,
+        // Never send a state update unless we know we are the custodian —
+        // otherwise update_operational_state aborts the whole closure.
+        resource_state_update:
+          resourceState !== '' && canUpdateResourceState ? resourceState : null,
         provider_metrics: metrics,
         receiver_metrics: metrics,
         note: note.trim() || null
@@ -162,7 +198,7 @@
         <select
           id="f-state"
           bind:value={resourceState}
-          disabled={iAmAuthor}
+          disabled={iAmAuthor || !canUpdateResourceState}
           class="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
         >
           <option value="">Leave unchanged</option>
@@ -170,6 +206,13 @@
             <option value={s}>{s}</option>
           {/each}
         </select>
+        {#if iAmCustodian === false}
+          <p class="mt-1 text-xs text-amber-800">{NOT_CUSTODIAN_RESOURCE_STATE_HINT}</p>
+        {:else if iAmCustodian === null && record.commitment.resource_inventoried_as}
+          <p class="mt-1 text-xs text-gray-500">
+            Only the current custodian can change operational state. Leave unchanged if unsure.
+          </p>
+        {/if}
       </div>
       <fieldset class="grid grid-cols-2 gap-3" disabled={iAmAuthor}>
         <legend class="mb-1 text-sm font-medium text-gray-700">Performance (0–1, both sides)</legend>

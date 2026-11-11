@@ -349,7 +349,24 @@ pub fn fulfill_commitment_closure(
       FunctionName::from(UPDATE_OPERATIONAL_STATE_FN.to_string()),
       None,
       update_input,
-    )?;
+    )
+    .map_err(|e| {
+      let msg = format!("{e:?}");
+      if msg.contains("Not the custodian") {
+        GovernanceError::InvalidInput(
+          "Cannot update resource operational state: you are not the custodian \
+           of this resource. Leave resource_state_update unset (or ask the \
+           custodian to fulfill)."
+            .to_string(),
+        )
+        .into()
+      } else {
+        GovernanceError::InvalidInput(format!(
+          "Resource state update failed inside closure: {msg}"
+        ))
+        .into()
+      }
+    })?;
     match resp {
       ZomeCallResponse::Ok(bytes) => {
         let record: Record = bytes.decode().map_err(|e| {
