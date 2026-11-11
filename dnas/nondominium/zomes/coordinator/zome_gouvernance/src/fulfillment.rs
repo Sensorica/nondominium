@@ -359,12 +359,10 @@ pub fn fulfill_commitment_closure(
            custodian to fulfill)."
             .to_string(),
         )
-        .into()
       } else {
         GovernanceError::InvalidInput(format!(
           "Resource state update failed inside closure: {msg}"
         ))
-        .into()
       }
     })?;
     match resp {
