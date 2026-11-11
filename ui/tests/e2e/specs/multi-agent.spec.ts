@@ -200,8 +200,9 @@ test.describe.serial('nondominium multi-agent flows', () => {
           timeoutMs: 240_000,
           pollMs: 6_000,
           onPoll: async () => {
+            // Membership is on the overview. After a successful join the Join
+            // button is disabled, so a reload is the refresh — not another click.
             await page.reload();
-            await page.getByRole('button', { name: 'Join NDO' }).click();
           }
         }
       );

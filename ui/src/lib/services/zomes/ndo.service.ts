@@ -86,6 +86,19 @@ export interface NdoService {
    * holds the cloned cell to read the NDO at all).
    */
   joinNdo: (ndoHashB64: string) => E.Effect<void, ResourceError | NdoNotFoundError>;
+  /** Whether `agent` has an `NdoMembership` on this NDO. False is not a read denial. */
+  isNdoMember: (
+    ndoHashB64: string,
+    agent: AgentPubKey
+  ) => E.Effect<boolean, ResourceError | NdoNotFoundError>;
+  /**
+   * Subset of `ndoHashB64s` that `agent` has joined. A single NDO that cannot be
+   * resolved is skipped so one missing cell does not blank the rest of the list.
+   */
+  joinedNdoHashes: (
+    agent: AgentPubKey,
+    ndoHashB64s: readonly string[]
+  ) => E.Effect<string[], ResourceError>;
   getNdoMembers: (
     ndoHashB64: string
   ) => E.Effect<{ id: string; name: string }[], ResourceError | NdoNotFoundError>;
@@ -341,6 +354,12 @@ export const NdoServiceLive: Layer.Layer<
           cellId: resolved.cellId,
           identityHash: resolved.anchor.identity_action_hash
         };
+      });
+
+    const membershipOf = (ndoHashB64: string, agent: AgentPubKey) =>
+      E.gen(function* () {
+        const { cellId, identityHash } = yield* resolveNdoCellOrFail(ndoHashB64);
+        return yield* callNdoZome<boolean>(cellId, 'is_ndo_member', [agent, identityHash]);
       });
 
     return {
@@ -635,16 +654,27 @@ export const NdoServiceLive: Layer.Layer<
 
           // Idempotent by design: re-joining is a benign no-op, not an error the user
           // should see. Mirrors the group's self-healing membership (REQ-UI-GRP-04).
-          const alreadyMember = yield* callNdoZome<boolean>(cellId, 'is_ndo_member', [
-            myPubKey,
-            identityHash
-          ]).pipe(E.catch(() => E.succeed(false)));
+          const alreadyMember = yield* membershipOf(ndoHashB64, myPubKey).pipe(
+            E.catch(() => E.succeed(false))
+          );
           if (alreadyMember) return;
 
           yield* callNdoZome<unknown>(cellId, 'join_ndo', {
             ndo_identity_hash: identityHash,
             role: null
           });
+        }),
+
+      isNdoMember: (ndoHashB64, agent) => membershipOf(ndoHashB64, agent),
+
+      joinedNdoHashes: (agent, ndoHashB64s) =>
+        E.gen(function* () {
+          const joined: string[] = [];
+          for (const hash of ndoHashB64s) {
+            const member = yield* membershipOf(hash, agent).pipe(E.catch(() => E.succeed(false)));
+            if (member) joined.push(hash);
+          }
+          return joined;
         }),
 
       getNdoMembers: (ndoHashB64) =>

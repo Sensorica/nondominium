@@ -95,6 +95,15 @@
   const membersError = $derived(store ? errorOf(store.members) : null);
 
   const isAuthenticated = $derived(appContext.myAgentPubKey != null);
+  const joinedByMe = $derived(store?.joinedByMe ?? null);
+  /** Disabled until we know, and once this agent has joined. */
+  const joinDisabled = $derived(joinLoading || joinedByMe !== false);
+  const joinHeaderLabel = $derived(
+    joinLoading ? 'Joining…' : joinedByMe ? 'Joined' : 'Join NDO'
+  );
+  const joinConfirmLabel = $derived(
+    joinLoading ? 'Joining…' : joinedByMe ? 'Joined' : 'Join this NDO'
+  );
   const missing = $derived(!isLoading && !loadError && !ndoDescriptor && !parseError && !!specActionHash);
 
   const breadcrumb = $derived.by((): BreadcrumbItem[] => {
@@ -240,13 +249,14 @@
         {/if}
         <NdoButton
           variant="ghost"
-          disabled={joinLoading}
+          disabled={joinDisabled}
           onclick={() => {
+            if (joinDisabled) return;
             showJoinPanel = !showJoinPanel;
             if (showJoinPanel) void loadNdoMembers();
           }}
         >
-          {joinLoading ? 'Joining…' : 'Join NDO'}
+          {joinHeaderLabel}
         </NdoButton>
         <NdoButton variant="ghost" onclick={() => (showAssociateModal = true)}>
           Associate with a group
@@ -313,8 +323,8 @@
         NDO with a group.
       </p>
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <NdoButton disabled={joinLoading} onclick={() => void handleJoinNdo()}>
-          {joinLoading ? 'Joining…' : 'Join this NDO'}
+        <NdoButton disabled={joinDisabled} onclick={() => void handleJoinNdo()}>
+          {joinConfirmLabel}
         </NdoButton>
       </div>
       {#if joinMessage}

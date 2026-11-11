@@ -66,6 +66,11 @@ export interface NdoStore {
    */
   readonly cellId: CellId | null;
   readonly members: EntityState<NdoMember[], string>;
+  /**
+   * Whether the current agent has joined this NDO. `null` until the membership
+   * read returns; a failed read is `false` so Join stays available.
+   */
+  readonly joinedByMe: boolean | null;
 
   // Compatibility getters derived from `descriptor`, so component markup is unchanged.
   readonly ndo: NdoDescriptor | null;
@@ -166,6 +171,7 @@ export function createNdoStore(hashB64: string): NdoStore {
 
   let descriptor = $state.raw<EntityState<NdoDescriptor, string>>(idle());
   let members = $state.raw<EntityState<NdoMember[], string>>(idle());
+  let joinedByMe = $state<boolean | null>(null);
   let cellId = $state.raw<CellId | null>(null);
 
   // Seed immediately from the in-memory cache (populated by NdoCard click).
@@ -215,6 +221,24 @@ export function createNdoStore(hashB64: string): NdoStore {
     }, ignoreInterrupt);
   }
 
+  function loadMyMembership(): void {
+    const hash = actionHash;
+    if (!hash) return;
+    tasks
+      .run(
+        E.gen(function* () {
+          const me = yield* E.tryPromise({
+            try: () => services.holochain.getMyAgentPubKey(),
+            catch: (e) => e
+          });
+          return yield* services.ndo.isNdoMember(hashB64, me);
+        })
+      )
+      .then((exit) => {
+        joinedByMe = Exit.isSuccess(exit) ? exit.value : false;
+      }, ignoreInterrupt);
+  }
+
   function loadMembers(): void {
     // A failed read showed an empty list, so a retry starts from nothing rather than
     // bringing the stale members back while it loads.
@@ -233,7 +257,9 @@ export function createNdoStore(hashB64: string): NdoStore {
 
   async function join(): Promise<boolean> {
     const exit = await tasks.run(E.uninterruptible(services.ndo.joinNdo(hashB64)));
-    return Exit.isSuccess(exit);
+    const ok = Exit.isSuccess(exit);
+    if (ok) joinedByMe = true;
+    return ok;
   }
 
   async function advanceLifecycle(
@@ -442,6 +468,7 @@ export function createNdoStore(hashB64: string): NdoStore {
   if (actionHash) {
     resolveCell(actionHash);
     refresh();
+    loadMyMembership();
   }
 
   return {
@@ -456,6 +483,9 @@ export function createNdoStore(hashB64: string): NdoStore {
     },
     get members() {
       return members;
+    },
+    get joinedByMe() {
+      return joinedByMe;
     },
     get ndo() {
       return dataOf(descriptor);

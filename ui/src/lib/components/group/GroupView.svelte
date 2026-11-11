@@ -4,6 +4,7 @@
    * Resource + Agent live; Intelligence / Work stay Soon. Commitment Pool
    * mounts on the Resource view.
    */
+  import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import type {
@@ -28,6 +29,7 @@
   import { governanceStore } from '$lib/stores/governance.store.svelte';
   import { mossStore } from '$lib/stores/moss.store.svelte';
   import { devStorageKey } from '$lib/utils/hc-connect';
+  import { ndosJoinedBy } from '$lib/domain/ndo-membership';
   import GroupProfileModal from './GroupProfileModal.svelte';
   import MemberList from './MemberList.svelte';
   import PoolSection from './PoolSection.svelte';
@@ -47,6 +49,8 @@
   let showCreateModal = $state(false);
   let showProfileModal = $state(false);
   let selfClaims = $state<Array<{ claim: PrivateParticipationClaim }>>([]);
+  /** Agent pubkey (b64) → NDO hashes they have joined, among this group's NDOs. */
+  let joinedHashesByAgent = $state<Record<string, readonly string[]>>({});
 
   const VISITED_KEY = devStorageKey('ndo_group_visited_v1');
 
@@ -99,6 +103,11 @@
 
   const myKeyB64 = $derived(
     appContext.myAgentPubKey ? encodeHashToBase64(appContext.myAgentPubKey) : null
+  );
+
+  const myJoinedHashes = $derived(myKeyB64 ? (joinedHashesByAgent[myKeyB64] ?? []) : []);
+  const joinedBySelected = $derived(
+    agentParam ? ndosJoinedBy(groupStore.groupNdos, joinedHashesByAgent[agentParam] ?? []) : []
   );
 
   const people = $derived<AgentDirectoryPerson[]>(
@@ -223,6 +232,26 @@
     const out = await governanceStore.fetchMyParticipationClaims({ limit: 24 });
     selfClaims = out ? out.claims.map((c) => ({ claim: c.claim })) : [];
   }
+
+  $effect(() => {
+    const agents = new Set<string>();
+    if (myKeyB64) agents.add(myKeyB64);
+    if (agentParam) agents.add(agentParam);
+    const hashes = groupStore.groupNdos.map((d) => d.hash);
+    if (groupStore.isLoading && hashes.length === 0) return;
+
+    let cancelled = false;
+    for (const agentId of agents) {
+      void groupStore.joinedNdoHashes(agentId, hashes).then((result) => {
+        if (cancelled) return;
+        const previous = untrack(() => joinedHashesByAgent);
+        joinedHashesByAgent = { ...previous, [agentId]: result };
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  });
 
   $effect(() => {
     appContext.currentView = 'group';
@@ -350,7 +379,7 @@
         roleInGroup={selectedPerson?.skills?.[0] ?? null}
         theirGroups={lobbyStore.groups}
         initiated={initiatedBySelected}
-        joined={[]}
+        joined={joinedBySelected}
         {connections}
         {isSelf}
         claims={selfClaims}
@@ -375,7 +404,7 @@
     <ResourcePerspective
       ndos={toNdoUiDescriptors(groupStore.groupNdos)}
       myAgentKey={myKeyB64}
-      joinedHashes={[]}
+      joinedHashes={myJoinedHashes}
       isLoading={groupStore.isLoading}
       ndoHref={(hash) => `/ndo/${encodeURIComponent(hash)}`}
       oncreateclick={() => (showCreateModal = true)}

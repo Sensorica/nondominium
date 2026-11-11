@@ -1,5 +1,5 @@
 import { Effect as E, Exit, pipe, Result } from 'effect';
-import type { ActionHash } from '@holochain/client';
+import type { ActionHash, AgentPubKey } from '@holochain/client';
 import { decodeHashFromBase64, encodeHashToBase64 } from '@holochain/client';
 import type {
   GroupDescriptor,
@@ -58,6 +58,11 @@ export type GroupStore = {
     specificationActionHash: import('@holochain/client').ActionHash | null;
   } | null>;
   associateNdoWithGroup: (ndoHashB64: string, targetGroupId: string) => Promise<void>;
+  /**
+   * NDO identity hashes among `ndoHashes` for which `agentIdB64` has joined.
+   * An empty list covers both "joined none" and a failed read.
+   */
+  joinedNdoHashes: (agentIdB64: string, ndoHashes: readonly string[]) => Promise<string[]>;
   /**
    * Admits a commitment (living on an NDO cell) into the named group's
    * Commitment Pool. Any group member may call this; the pool does not
@@ -246,6 +251,24 @@ function createGroupStore(): GroupStore {
     return null;
   }
 
+  async function joinedNdoHashes(
+    agentIdB64: string,
+    ndoHashes: readonly string[]
+  ): Promise<string[]> {
+    if (ndoHashes.length === 0) return [];
+    const exit = await E.runPromiseExit(
+      pipe(
+        E.gen(function* () {
+          const ndoService = yield* NdoServiceTag;
+          const agent = decodeHashFromBase64(agentIdB64) as AgentPubKey;
+          return yield* ndoService.joinedNdoHashes(agent, ndoHashes);
+        }),
+        E.provide(GroupStoreServicesResolved)
+      )
+    );
+    return Exit.isSuccess(exit) ? exit.value : [];
+  }
+
   async function associateNdoWithGroup(ndoHashB64: string, targetGroupId: string): Promise<void> {
     // Writes an NdoAnchor in the target group, copying the NDO's clone
     // coordinates from an existing anchor. Under model A the anchor is the only
@@ -421,6 +444,7 @@ function createGroupStore(): GroupStore {
     refreshCurrentGroup,
     createNdo,
     associateNdoWithGroup,
+    joinedNdoHashes,
     admitCommitment,
     withdrawCommitment,
     resolvePoolCommitmentDetails
