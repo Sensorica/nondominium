@@ -10,8 +10,8 @@ fn operational_state_path(state: &OperationalState) -> ExternResult<EntryHash> {
 fn root_economic_resource_action_hash(mut hash: ActionHash) -> ExternResult<ActionHash> {
   loop {
     let record = must_get_valid_record(hash.clone())?;
-    match record.action() {
-      Action::Update(update) => {
+    match &record.action().data {
+      ActionData::Update(update) => {
         hash = update.original_action_address.clone();
       }
       _ => return Ok(hash),

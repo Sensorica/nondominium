@@ -65,9 +65,10 @@
   let dueDateLocal = $state('');
   let note = $state('');
   // Optional ValueFlows Measures. Empty = omit from the commitment.
-  let resourceQuantity = $state('');
+  // Bound to type="number" inputs, so Svelte gives a number, or undefined when empty.
+  let resourceQuantity = $state<number | undefined>(undefined);
   let resourceUnit = $state('each');
-  let effortQuantity = $state('');
+  let effortQuantity = $state<number | undefined>(undefined);
   let effortUnit = $state('hour');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
@@ -133,13 +134,15 @@
     isSubmitting = true;
     errorMessage = '';
     const dueMs = new Date(dueDateLocal).getTime();
-    const resQty = resourceQuantity.trim()
+    const resQty =
+      resourceQuantity != null && Number.isFinite(resourceQuantity)
       ? {
           numerical_value: Number(resourceQuantity),
           has_unit: resourceUnit.trim() || 'each'
         }
       : null;
-    const effQty = effortQuantity.trim()
+    const effQty =
+      effortQuantity != null && Number.isFinite(effortQuantity)
       ? {
           numerical_value: Number(effortQuantity),
           has_unit: effortUnit.trim() || 'hour'
@@ -211,6 +214,17 @@
         {members}
         hint="Who receives this commitment (often the other party)."
       />
+      <div>
+        <label class="mb-1 block text-sm font-medium text-gray-700" for="c-receiver"
+          >Receiver (agent pubkey b64)</label
+        >
+        <input
+          id="c-receiver"
+          type="text"
+          bind:value={receiverB64}
+          class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs"
+        />
+      </div>
       <div>
         <label class="mb-1 block text-sm font-medium text-gray-700" for="c-due">Due date</label>
         <input

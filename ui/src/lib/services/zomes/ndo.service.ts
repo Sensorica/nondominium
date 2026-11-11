@@ -25,6 +25,7 @@ import {
   HolochainClientServiceLive
 } from '../holochain.service.svelte';
 import { generateNdoNetworkSeed } from '../ndo-clone.helpers';
+import { ensureNdoCells } from '$lib/moss/ndo-cells';
 
 // ─── Service interface ────────────────────────────────────────────────────────
 
@@ -38,6 +39,12 @@ export type CreateNdoResult = {
 
 export interface NdoService {
   getLobbyNdoDescriptors: () => E.Effect<NdoDescriptor[], ResourceError>;
+  /**
+   * Joins the `ndo` clone cell of every NDO the agent's groups anchor, one at a
+   * time. Inside Moss this is what makes an NDO resolvable as an asset for a
+   * member who never opened it (see `moss/ndo-cells.ts`).
+   */
+  joinAnchoredNdoCells: () => E.Effect<{ joined: number; failed: number }, ResourceError>;
   getNdoDescriptorForSpecActionHash: (
     hash: ActionHash
   ) => E.Effect<NdoDescriptor, ResourceError | NdoNotFoundError>;
@@ -351,6 +358,24 @@ export const NdoServiceLive: Layer.Layer<
             }
           }
           return descriptors;
+        }),
+
+      joinAnchoredNdoCells: () =>
+        E.gen(function* () {
+          const scan = yield* scanGroupAnchors();
+          const seen = new Set<string>();
+          const anchors = scan
+            .flatMap((g) => g.anchors)
+            .filter((a) => {
+              const key = encodeHashToBase64(a.ndo_dna_hash);
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          return yield* E.tryPromise({
+            try: () => ensureNdoCells(anchors, (anchor) => E.runPromise(ensureCellForAnchor(anchor))),
+            catch: (e) => ResourceError.fromError(e, 'JOIN_ANCHORED_NDO_CELLS')
+          });
         }),
 
       getNdoDescriptorForSpecActionHash: (hash) =>

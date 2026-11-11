@@ -16,8 +16,22 @@ the merge to `main` rather than reconstructed after.
 The release is the **peer mesh**: two agents on different machines share a Group and an
 NDO over a live DHT.
 
+### Changed
+
+- **Holochain 0.7.1** (HDK =0.7.1, HDI =0.8.1, `@holochain/client` ^0.21.1) with the hREA DNA pinned to upstream `happ-0.5.0-beta.1`. Every 0.7 network is a new network: DNA hashes change, and 0.6 data does not carry over.
+
 ### Added
 
+- **Moss tool scaffold.** Nondominium runs as a Moss tool in `weave` dev mode: a dev config
+  with two agents and one group (`bun run tool-dev`), `@theweave/api` in the UI, and a
+  connection mode that takes the conductor client from Moss. The standalone build is
+  unchanged. See `documentation/specifications/moss-integration.md`.
+- **Moss group context.** Inside Moss the Moss group is the group: the tool instance's `group` cell is the one Nondominium group, joined automatically with no invite code, the profile comes from Moss, the role from the Moss accountabilities, and NDO clones are created through the `WeaveClient`. Standalone keeps the Lobby, the Group DNA and invite links.
+- **NDOs as Moss assets.** Each NDO has a Weave Asset Locator, `getAssetInfo` and `search` answer for it, an NDO linked from another tool opens in Nondominium, and the NDO view can add it to the Moss pocket.
+- **ValueFlows `Measure`.** Quantities on commitments, economic events and economic resources are a `Measure` (`numerical_value`, `has_unit`) instead of a loose `f64` plus unit string, validated the same way everywhere. This changes the integrity zomes of the nondominium DNA, so its hash changes: a new network, and entries written before it do not carry over (an old `EconomicResource.quantity` would not decode anyway).
+- **Commitments per NDO.** An `NdoToCommitments` index with `get_commitments_for_ndo`, plus hash-paired reads (`get_commitments_for_ndo_detailed`, `get_all_commitments_detailed`) returning each `Commitment` with its `ActionHash`, so a UI can act on one.
+- **Atomic commitment fulfillment.** `fulfill_commitment_closure` records the fulfilling event, the claim and both parties' participation receipts in one call, with the counterparty countersigning over `call_remote` a payload it rebuilds from the commitment; `Claim.fulfilled_by` now points at the right event (#14). The party who did not author the commitment initiates and the author countersigns, and a commitment is fulfilled once.
+- **Layer 1 foreshadow fields.** `ResourceSpecification` takes optional inventory intent, identification pattern, default unit, substitutability and digital locator fields, validated in `validate_spec_foreshadow`.
 - **Lobby DNA** as the entry point. Groups are announced here for discovery, and NDOs are
   browsed and filtered across every group the agent belongs to.
 - **Group DNA, one cloned cell per group.** Each group is its own DHT with its own
@@ -36,6 +50,10 @@ NDO over a live DHT.
   disclosure choice, and a `Person` entry created only on the first DHT-active action.
 - **Browser-based multi-agent development harness**: one Vite dev server per agent on
   consecutive ports, so each agent gets an isolated origin.
+
+### Network identity
+
+Holochain 0.7.1 changes every DNA hash, so this release joins a new network and cannot see any 0.6 data. The DNA hashes for the release build are listed in [documentation/IMPLEMENTATION_STATUS.md](documentation/IMPLEMENTATION_STATUS.md#dna-hashes-holochain-071-build), with the `hc dna hash` commands that reproduce them. The values there are those of the commit that wrote them; replace them with the hashes of the tagged build when the release is cut.
 
 ### Deliberately not in this release
 

@@ -16,6 +16,9 @@
     "sweettest:verbose": "bun run build:happ && CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest -- --nocapture",
     "sweettest:only": "CARGO_TARGET_DIR=target/native-tests cargo test -p nondominium_sweettest",
     "launch:happ": "node scripts/launch-happ.mjs",
+    "moss:install": "bun install --cwd weave",
+    "tool-dev": "concurrently -k \"UI_PORT=8888 bun run --filter ui start\" \"bun run --cwd weave agent1\" \"bun run --cwd weave agent2\"",
+    "tool-dev-1": "concurrently -k \"UI_PORT=8888 bun run --filter ui start\" \"bun run --cwd weave agent1\"",
     "e2e": "bun run --filter ui test:e2e",
     "e2e:ui": "bun run --filter ui test:e2e:ui",
     "package": "npm run build:happ && npm run --filter ui package && hc web-app pack workdir --recursive",
@@ -27,8 +30,8 @@
     "pai:sync": "bun scripts/pai-sync.ts"
   },
   "devDependencies": {
-    "@holochain/client": "^0.19.1",
-    "@holochain/hc-spin": "^0.600.0",
+    "@holochain/client": "^0.21.1",
+    "@holochain/hc-spin": "^0.700.1",
     "@types/libsodium-wrappers": "^0.7.14",
     "@types/ws": "^8.18.1",
     "concurrently": "^6.5.1",

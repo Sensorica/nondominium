@@ -1,5 +1,6 @@
 <script lang="ts">
   import { appContext } from '$lib/stores/app.context.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
 
   interface Props {
     /** Open the profile setup / edit modal */
@@ -18,14 +19,17 @@
     <span class="text-sm text-gray-700">
       Signed in as <span class="font-semibold text-gray-900">{profile.nickname}</span>
     </span>
-    <button
-      type="button"
-      aria-label="Edit profile"
-      onclick={() => onOpenProfile()}
-      class="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
-    >
-      Edit
-    </button>
+    <!-- Inside Moss the profile belongs to the Moss group and is edited there. -->
+    {#if !mossStore.isMoss}
+      <button
+        type="button"
+        aria-label="Edit profile"
+        onclick={() => onOpenProfile()}
+        class="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+      >
+        Edit
+      </button>
+    {/if}
   {:else}
     <span class="text-sm text-gray-500">No Lobby profile yet</span>
     <button

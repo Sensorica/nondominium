@@ -7,8 +7,10 @@
     NdoButton,
     type BreadcrumbItem
   } from '@nondominium/ndo-ui';
+  import { decodeHashFromBase64 } from '@holochain/client';
   import { appContext } from '$lib/stores/app.context.svelte';
   import { lobbyStore } from '$lib/stores/lobby.store.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
   import {
     createNdoStore,
     isTaskInterrupted,
@@ -32,6 +34,24 @@
 
   let { specHashB64 }: Props = $props();
 
+  // Moss: the NDO's asset, put in the pocket so it can be linked from other tools.
+  let pocketAdded = $state(false);
+  async function addToPocket() {
+    const cellId = store?.cellId;
+    if (!cellId) return;
+    await mossStore.addToPocket({
+      dnaHash: cellId[0],
+      identityActionHash: decodeHashFromBase64(specHashB64)
+    });
+    pocketAdded = true;
+  }
+
+  /**
+   * The store of the NDO open in this view, one per `specHashB64`. Recreated when the
+   * prop changes and destroyed with the old hash or on teardown, which interrupts every
+   * fiber it forked. Descendants read it through `getNdoStore()`; they only mount once
+   * `specActionHash` is set, so the store exists by then.
+   */
   let store = $state.raw<NdoStore | null>(null);
   setNdoStore(() => store!);
 
@@ -213,6 +233,11 @@
         <p class="mt-1 font-mono text-xs text-gray-400">{specHashB64.slice(0, 20)}…</p>
       </div>
       <div class="flex flex-wrap items-center gap-2 md:ml-4 md:shrink-0">
+        {#if mossStore.isMoss && store?.cellId}
+          <NdoButton variant="ghost" onclick={() => void addToPocket()}>
+            {pocketAdded ? 'In your Moss pocket' : 'Add to Moss pocket'}
+          </NdoButton>
+        {/if}
         <NdoButton
           variant="ghost"
           disabled={joinLoading}

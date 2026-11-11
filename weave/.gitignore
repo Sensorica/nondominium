@@ -1,0 +1,6 @@
+.kitsune2_bootstrap_srv
+.hc_local_services
+# materialized by nix develop when it is entered from weave/
+.agents/
+.claude/
+.cursor/

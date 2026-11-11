@@ -171,7 +171,7 @@ pub fn validate_agent_joining(
 #[hdk_extern]
 pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
     match op.flattened::<EntryTypes, LinkTypes>()? {
-        FlatOp::StoreEntry(store_entry) => match store_entry {
+        FlatOp::CreateEntry(store_entry) => match store_entry {
             OpEntry::CreateEntry { app_entry, .. } | OpEntry::UpdateEntry { app_entry, .. } => {
                 match app_entry {
                     EntryTypes::GroupProfile(profile) => validate_group_profile(profile),
@@ -193,19 +193,21 @@ pub fn validate(op: Op) -> ExternResult<ValidateCallbackResult> {
         // re-derive the NDO cell from, so a rewrite would silently repoint the group
         // at a different network. Enforced here rather than trusted to the
         // coordinator, because any group member may update any anchor.
-        FlatOp::RegisterUpdate(OpUpdate::Entry {
+        FlatOp::Update(OpUpdate::Entry {
             app_entry: EntryTypes::NdoAnchor(updated),
             action,
-        }) => validate_ndo_anchor_update(action.original_action_address, updated),
+        }) => validate_ndo_anchor_update(action.data.original_action_address, updated),
         // A CommitmentAnchor update is the withdrawal mechanism: only the
         // `status` and `status_changed_at` fields may change. Every pointer
         // field (group, NDO cell coordinates, commitment hash) is immutable
         // so the anchor cannot be silently repointed at a different
         // commitment, and the pool-memory invariant holds.
-        FlatOp::RegisterUpdate(OpUpdate::Entry {
+        // Holochain 0.7 reports entry updates as FlatOp::Update; the
+        // superseded action hash is action.data.original_action_address.
+        FlatOp::Update(OpUpdate::Entry {
             app_entry: EntryTypes::CommitmentAnchor(updated),
             action,
-        }) => validate_commitment_anchor_update(action.original_action_address, updated),
+        }) => validate_commitment_anchor_update(action.data.original_action_address, updated),
         _ => Ok(ValidateCallbackResult::Valid),
     }
 }

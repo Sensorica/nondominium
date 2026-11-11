@@ -26,6 +26,7 @@
   import { toNdoUiDescriptors } from '$lib/utils/ndo-ui-adapters';
   import { encodeHashToBase64 } from '@holochain/client';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
   import { devStorageKey } from '$lib/utils/hc-connect';
   import GroupProfileModal from './GroupProfileModal.svelte';
   import MemberList from './MemberList.svelte';
@@ -227,7 +228,8 @@
     appContext.currentView = 'group';
     appContext.selectedGroupId = groupId;
     void groupStore.loadGroupData(groupId);
-    if (!hasVisited(groupId)) {
+    // Inside Moss the profile and who sees it are the Moss group's business.
+    if (!mossStore.isMoss && !hasVisited(groupId)) {
       showProfileModal = true;
     }
   });
@@ -318,9 +320,11 @@
       <p class="mt-1 font-mono text-sm text-gray-400">{groupId}</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <NdoButton variant="ghost" onclick={() => void copyInviteLink()}>
-        {inviteCopied ? 'Invite link copied!' : 'Copy invite link'}
-      </NdoButton>
+      {#if !mossStore.isMoss}
+        <NdoButton variant="ghost" onclick={() => void copyInviteLink()}>
+          {inviteCopied ? 'Invite link copied!' : 'Copy invite link'}
+        </NdoButton>
+      {/if}
       <NdoButton onclick={() => (showCreateModal = true)}>
         <span class="text-base leading-none">+</span> Create NDO
       </NdoButton>

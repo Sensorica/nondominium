@@ -800,6 +800,10 @@ NdoView.svelte
 
 ## 9. Moss Integration Contract
 
+> **Superseded in part (2026-11-03).** The feature map below assumes Moss replaces the Group DNA and the Lobby. The Group DNA now stays in both modes, and in Moss there is one Nondominium group per Moss group, the group cell of the tool instance, joined automatically. Read the group rows of the table through ADR-014 (`adr/ADR-014-work-contexts-in-group-dht.md`) and REQ-GROUP-19 to REQ-GROUP-23 in `../requirements/lobby-dna.md`.
+
+> **Partly superseded (v0.1.0 Moss pilot).** [moss-integration.md](moss-integration.md) is authoritative. Differences from the table and the sketch below: there is no Nondominium Lobby Tool DHT in Moss (every tool instance in every Moss group is its own network, so the Lobby DNA's global seed does not survive as an inter-group lobby), the Moss group is the federation layer, the instance's provisioned `group` cell is the one Nondominium group of that Moss group, and `AppletServices` in `@theweave/api` `0.7.0-rc.3` has `search`, `getAssetInfo` and `creatables` only (opening an asset is a render view, not a method). The entry-point sketch below calls `get_all_ndo_descriptors` on `lobby`, which does not exist; NDOs come from the group cell's `NdoAnchor` entries.
+
 When deployed inside Moss, Nondominium appears as **one Tool applet**. Moss handles: group
 invites, agent identity at the surface, and the app sidebar. Nondominium owns its internal
 complexity (Group DHTs, NDO DHTs, hard links, smart agreements).

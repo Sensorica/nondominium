@@ -12,10 +12,10 @@ This document tracks what is **actually implemented and verified** in the curren
 
 Canonical list: [README.md § Technology Stack](../README.md#technology-stack). Summary:
 
-- **Backend**: Rust (Holochain HDK ^0.6.0 / HDI ^0.7.0), compiled to WASM
+- **Backend**: Rust (Holochain HDK ^0.7.0 / HDI ^0.8.0), compiled to WASM
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7 + UnoCSS + Melt UI next-gen + Effect-TS
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) is deprecated
-- **Client**: @holochain/client ^0.20.0 (UI); ^0.19.1 (root dev tooling)
+- **Client**: @holochain/client ^0.21.1 (UI)
 
 ### Multi-DNA hApp Architecture
 
@@ -31,6 +31,30 @@ The packaged hApp declares five roles in `workdir/happ.yaml`:
 5. **`ndo`** — deferred template role; each NDO is provisioned as an isolated cloned cell (`clone_limit: 512`, ADR-010/ADR-013)
 
 Each local DNA domain follows the integrity/coordinator pattern; the Lobby and Group DNAs carry their own zomes (`zome_lobby_coordinator`, `zome_group`). The core Nondominium domain remains a three-zome architecture, but the installed hApp is a multi-DNA system. See [ARCHITECTURE_COMPONENTS.md](ARCHITECTURE_COMPONENTS.md) and [zomes/architecture_overview.md](zomes/architecture_overview.md).
+
+### DNA hashes (Holochain 0.7.1 build)
+
+Holochain 0.7 changes every DNA hash, so a 0.7 build cannot reach any 0.6 network. These are the hashes of the DNAs in `workdir/nondominium.happ` as built from the commit of this document, with the toolchain pinned by `flake.lock` (holochain 0.7.1). They change whenever a zome, a manifest or a toolchain pin changes, so the ones that count are those of the tagged release build; regenerate them with the commands below before publishing.
+
+| Role | DNA hash | Notes |
+| --- | --- | --- |
+| `lobby` | `uhC0kyI7d80mfkSqBYxPsuiwRStStIVMJt2fsI1sla_h6W0GrxKuP` | With the role's fixed network seed `nondominium-lobby-v1`. Every install joins this network. |
+| `nondominium` | `uhC0k8HbqmcIJODRVOMuvc_74foAClnPG1JAer-BFaYYlK_T-qFZK` | Seed `~` in the manifest: the hash an agent gets is the base hash. |
+| `hrea` | `uhC0kqRmO5ZkbuLCLS18qro-HT8Vp2kVfgZX3QI5JCVmDf8Zrv4G-` | Built from the pinned `vendor/hrea` commit (`Sensorica/hREA` `c4c44adb`, release `happ-0.5.0-beta.1` plus the hdk 0.7.1 pin bump). This value changes when the submodule pin changes. |
+| `group` | `uhC0kJ2HPdnV14G_EIj9GFQfNXjAx3YBuIGPOOHjEWW6xGHjc2AbK` | Base hash of the clone template. Each cloned Group gets its own hash from a unique network seed. |
+| `ndo` | `uhC0kVU9I_kb0Rnm4q-I3HkZ3Rapg_Plhza7UYt26E2IRbAXNNlrp` | Base hash of the clone template. Each NDO cell gets its own hash. |
+
+To reproduce them, inside `nix develop` and after `bun run build:happ`:
+
+```bash
+hc dna hash dnas/nondominium/workdir/nondominium.dna
+hc dna hash vendor/hrea/dnas/hrea/workdir/hrea.dna
+hc dna hash dnas/group/workdir/group.dna
+hc dna hash dnas/ndo/workdir/ndo.dna
+hc dna hash --network-seed nondominium-lobby-v1 dnas/lobby/workdir/lobby.dna
+```
+
+The lobby command passes the seed that `workdir/happ.yaml` sets for that role, so the printed value is the hash of the installed cell and not of the bare DNA file.
 
 ### Status Terminology
 
@@ -269,6 +293,18 @@ There is no `get_all_groups` extern in a Group cell; each cell represents one is
 
 ---
 
+## Moss Tool 🔄 In progress (v0.1.0 pilot, #163 to #165)
+
+Nondominium runs as a Moss tool in `weave` dev mode. Standalone (Lobby, Group DNA, invite codes) is unchanged.
+
+- ✅ **Scaffold (#163).** `weave/weave.dev.config.ts` (two agents, one group, tool served from `localhost:8888`), `bun run tool-dev`, `@theweave/api` in `ui/`, host detection and the Moss connection mode in `ui/src/lib/moss/`, an empty `AppletServices`. The UI connects through the applet client Moss hands it.
+- ✅ **Moss group context (#164).** Inside Moss the profile comes from `profilesClient`, the role from `myAccountabilitiesPerGroup()`, the tool instance's provisioned `group` cell is the one Nondominium group (the tool installer creates its profile, every other member joins it automatically, no invite code), and NDO clones are created through the `WeaveClient`. Standalone keeps the Lobby DNA, Group DNA and invite codes. Known gap: NDO clones are not registered as public to the Moss group, because Moss rc.5 cannot register a clone that carries DNA properties (see [moss-integration.md](specifications/moss-integration.md)).
+- ✅ **NDOs as assets (#165).** Each NDO has a WAL (its clone DNA and identity record); `getAssetInfo` and `search` answer from the group's NDO anchors; an asset view or a main view on a WAL opens the NDO; an `Add to Moss pocket` button puts it in the pocket. An asset resolves on a member's machine once that member has joined the NDO's clone, which the tool does in the background on load because NDO clones are not public to the Moss group yet.
+
+See [moss-integration.md](specifications/moss-integration.md).
+
+---
+
 ## NDO Federation Extensions ✅ Implemented (PR #103)
 
 The governance zome includes three additional public entry families:
@@ -291,7 +327,7 @@ These are Nondominium-native federation primitives. They are not yet a full vers
 
 ### Phase 1: Complete ✅
 
-- hREA git submodule (`vendor/hrea`, Sensorica fork)
+- hREA git submodule (`vendor/hrea`, h-REA/hREA release `happ-0.5.0-beta.1` plus a 0.7.1 pin bump at Sensorica/hREA `c4c44adb`; previously the Sensorica fork on `main-0.6`)
 - `happ.yaml` dual-DNA roles configuration
 - hREA DNA compiled and included in `.webhapp` bundle
 - `hrea_agent_hash` field added to `Person` integrity entry

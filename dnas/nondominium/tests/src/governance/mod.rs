@@ -12,7 +12,7 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest --test governance
 
 use holochain::prelude::*;
-use holochain::sweettest::await_consistency_20_s;
+use holochain::sweettest::await_consistency_s;
 use serde::{Deserialize, Serialize};
 
 use nondominium_sweettest::common::*;
@@ -788,6 +788,31 @@ struct FulfillCommitmentClosureOutput {
 struct PprPairStub {
     pub provider_claim_hash: ActionHash,
     pub receiver_claim_hash: ActionHash,
+    pub provider_claim: PprClaimStub,
+    pub receiver_claim: PprClaimStub,
+}
+
+/// The part of a `PrivateParticipationClaim` the signature check needs.
+#[derive(Debug, Serialize, Deserialize)]
+struct PprClaimStub {
+    pub bilateral_signature: CryptographicSignatureStub,
+}
+
+/// Mirror of the integrity `CryptographicSignature`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CryptographicSignatureStub {
+    pub recipient_signature: Signature,
+    pub counterparty_signature: Signature,
+    pub signed_data_hash: [u8; 32],
+    pub signed_at: Timestamp,
+}
+
+/// Mirror of `ValidateParticipationClaimSignatureInput`.
+#[derive(Debug, Serialize, Deserialize)]
+struct ValidateSignatureInputStub {
+    pub signature: CryptographicSignatureStub,
+    pub owner: AgentPubKey,
+    pub counterparty: AgentPubKey,
 }
 
 /// Mirror of `EconomicResourceInput` (same shape as resource.rs tests).
@@ -1018,7 +1043,7 @@ async fn fulfill_commitment_closure_happy_path() {
 
     // Wait for DHT consistency so Bob (the fulfillment caller) sees the
     // commitment entry Alice wrote.
-    await_consistency_20_s([&cell_alice, &cell_bob])
+    await_consistency_s(20, [&cell_alice, &cell_bob])
         .await
         .unwrap();
 
@@ -1066,6 +1091,151 @@ async fn fulfill_commitment_closure_happy_path() {
         .find(|c| c.fulfilled_by == fulfillment.event_hash)
         .expect("claim with fulfilled_by == event_hash must exist");
     assert_eq!(fulfillment_claim.fulfills, commitment.commitment_hash);
+
+    // Both receipts carry signatures that the PPR validator accepts: the
+    // provider's receipt is owned by Alice, the receiver's by Bob.
+    for (sig, owner, counterparty) in [
+        (
+            fulfillment.ppr.provider_claim.bilateral_signature.clone(),
+            alice_key.clone(),
+            bob_key.clone(),
+        ),
+        (
+            fulfillment.ppr.receiver_claim.bilateral_signature.clone(),
+            bob_key.clone(),
+            alice_key.clone(),
+        ),
+    ] {
+        let valid: bool = conductors[1]
+            .call(
+                &cell_bob.zome("zome_gouvernance"),
+                "validate_participation_claim_signature",
+                ValidateSignatureInputStub {
+                    signature: sig,
+                    owner,
+                    counterparty,
+                },
+            )
+            .await;
+        assert!(valid, "both PPR signatures must verify");
+    }
+
+    // A fulfilled commitment cannot be fulfilled again.
+    let second: Result<FulfillCommitmentClosureOutput, _> = conductors[1]
+        .call_fallible(
+            &cell_bob.zome("zome_gouvernance"),
+            "fulfill_commitment_closure",
+            FulfillCommitmentClosureInput {
+                commitment_hash: commitment.commitment_hash.clone(),
+                observed_quantity: Measure::new(1.0, "each"),
+                resource_state_update: None,
+                provider_metrics: PerformanceMetricsStub::good(),
+                receiver_metrics: PerformanceMetricsStub::good(),
+                note: Some("second time".to_string()),
+            },
+        )
+        .await;
+    let err = second.expect_err("a second fulfillment must be refused");
+    assert!(
+        format!("{err:?}").contains("already fulfilled"),
+        "unexpected error: {err:?}"
+    );
+}
+
+/// The commitment's author cannot initiate its fulfillment: the author
+/// consented by writing it, the other party consents by initiating, and the
+/// author countersigns. Alice wrote the commitment, so Alice calling the
+/// closure is refused before anything reaches Bob.
+#[tokio::test(flavor = "multi_thread")]
+async fn fulfill_commitment_closure_refuses_the_author_as_initiator() {
+    let (conductors, cell_alice, cell_bob) = setup_two_agents().await;
+    let alice_key = cell_alice.agent_pubkey().clone();
+    let bob_key = cell_bob.agent_pubkey().clone();
+
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Author initiator NDO".to_string(),
+                property_regime: "Commons".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+    let spec: CreateResourceSpecificationOutputStub = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_resource_specification",
+            ResourceSpecInputStub {
+                name: "Author initiator spec".to_string(),
+                description: "spec".to_string(),
+                category: "test".to_string(),
+                image_url: None,
+                tags: vec![],
+                scope: ResourceScope::Network,
+                ndo_identity_hash: ndo.action_hash.clone(),
+                governance_rules: vec![],
+            },
+        )
+        .await;
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct CreateEconomicResourceOutputStub {
+        pub resource_hash: ActionHash,
+    }
+    let resource: CreateEconomicResourceOutputStub = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_economic_resource",
+            EconomicResourceInputStub {
+                spec_hash: spec.spec_hash.clone(),
+                quantity: Measure::new(1.0, "each"),
+                current_location: None,
+            },
+        )
+        .await;
+    let commitment: ProposeCommitmentOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_gouvernance"),
+            "propose_commitment",
+            ProposeCommitmentInput {
+                action: "Transfer".to_string(),
+                resource_hash: Some(resource.resource_hash.clone()),
+                resource_spec_hash: None,
+                provider: alice_key.clone(),
+                receiver: bob_key.clone(),
+                resource_quantity: Some(Measure::new(1.0, "each")),
+                effort_quantity: None,
+                due_date: Timestamp::now(),
+                note: None,
+                ndo_identity_hash: ndo.action_hash.clone(),
+            },
+        )
+        .await;
+
+    let attempt: Result<FulfillCommitmentClosureOutput, _> = conductors[0]
+        .call_fallible(
+            &cell_alice.zome("zome_gouvernance"),
+            "fulfill_commitment_closure",
+            FulfillCommitmentClosureInput {
+                commitment_hash: commitment.commitment_hash.clone(),
+                observed_quantity: Measure::new(1.0, "each"),
+                resource_state_update: None,
+                provider_metrics: PerformanceMetricsStub::good(),
+                receiver_metrics: PerformanceMetricsStub::good(),
+                note: None,
+            },
+        )
+        .await;
+    let err = attempt.expect_err("the author must not initiate the closure");
+    assert!(
+        format!("{err:?}").contains("did not author"),
+        "unexpected error: {err:?}"
+    );
 }
 
 /// Mirror of a Claim's asserted fields.

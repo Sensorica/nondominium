@@ -208,7 +208,11 @@
         receiver,
         resource_inventoried_as: resource,
         resource_quantity: {
-          numerical_value: Number(quantity) || 1,
+          // A Measure may be 0; only a missing or non-numeric value falls back to 1.
+          numerical_value:
+            quantity == null || String(quantity).trim() === '' || !Number.isFinite(Number(quantity))
+              ? 1
+              : Number(quantity),
           has_unit: unit.trim() || 'each'
         },
         note: note.trim() || null,

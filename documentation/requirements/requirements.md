@@ -50,12 +50,27 @@ Optional, pay-as-you-grow integrations and application profiles (communities may
 
 | Integration | Role | Normative detail | Design stub |
 |-------------|------|------------------|-------------|
-| **Lobby DNA** | Multi-network federation: entry point (Lobby DHT) + per-group coordination (Group DHT) + NDO-to-NDO hard links, Contributions, Smart Agreements; dual deployment (standalone + Moss applet) | REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-* | [lobby-dna.md](lobby-dna.md) / [lobby-architecture.md](../specifications/lobby-architecture.md) |
+| **Lobby DNA** | Multi-network federation: entry point (Lobby DHT) + per-group coordination (Group DHT) + NDO-to-NDO hard links, Contributions, Smart Agreements; dual deployment (standalone + Moss applet); group model by deployment mode, work contexts, sovereignty levels | REQ-LOBBY-*, REQ-GROUP-*, REQ-WC-*, REQ-SOV-*, REQ-FED-*, REQ-NDO-EXT-* | [lobby-dna.md](lobby-dna.md) / [lobby-architecture.md](../specifications/lobby-architecture.md) |
 | **Unyt** | Economic settlement (Smart Agreements, RAVE proofs, PPR↔RAVE provenance) | `ndo_prima_materia.md` §6.6, §11.5; REQ-NDO-CS-07–CS-11 | [unyt-integration.md](post-mvp/unyt-integration.md) |
 | **Flowsta** | Cross-app identity (Vault `IsSamePersonEntry`, `FlowstaIdentity` slot, DID, recovery); Tier 1 (Phase 1) vs Tier 2 (Phase 3) | `ndo_prima_materia.md` §6.5–6.7, §11.6; REQ-NDO-CS-12–CS-15; REQ-NDO-AGENT-07–08 | [flowsta-integration.md](post-mvp/flowsta-integration.md) |
 | **Source-NDO application profile** | Optional third primitive for applications governing generative ecological or knowledge systems. Not activated for ordinary Project NDOs (e.g. open-hardware design) or mature-resource mutualisation (e.g. sharing a 3D printer) unless the application explicitly needs to govern a generative Source and its boundary effects. | REQ-SOURCE-APP-*, REQ-SOURCE-ONT-*, REQ-SOURCE-GOV-*, REQ-SOURCE-DATA-*, REQ-SOURCE-EVENT-*; REQ-USER-ST-*, REQ-UI-SOURCE-* (§4.6) | [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md) / [source-ndo-paper.md](post-mvp/source-ndo-paper.md) |
 
-**Knowledge-base context** (ontology, OVN alignment, gap analysis): [resources.md](resources.md), [agent.md](agent.md), [governance.md](governance.md), [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md). This PRD remains the anchor for MVP user stories and REQ-USER / REQ-RES / REQ-GOV IDs; NDO-wide REQ-NDO-* IDs are defined in `ndo_prima_materia.md` §9; Source-NDO REQ-SOURCE-* IDs are defined in `source-ndo-requirements.md` §8.
+**Knowledge-base context** (ontology, OVN alignment, gap analysis): [resources.md](resources.md), [agent.md](agent.md), [governance.md](governance.md), [source-ndo-requirements.md](post-mvp/source-ndo-requirements.md). This PRD remains the anchor for MVP user stories and REQ-USER / REQ-RES / REQ-GOV IDs; NDO-wide REQ-NDO-* IDs are defined in `ndo_prima_materia.md` §9; Source-NDO REQ-SOURCE-* IDs are defined in `source-ndo-requirements.md` §8. Group model, work-context, sovereignty and federation IDs (REQ-GROUP-19 to REQ-GROUP-23, REQ-WC-*, REQ-SOV-*, REQ-FED-*) are defined in `lobby-dna.md`; release-scope IDs (REQ-REL-*) are defined in §2.4 above.
+
+### 2.4 Release scope and group model (v0.1.0 and v0.2)
+
+Decided 2026-11-03. The Group DNA stays in both deployment modes, so standalone and Moss share one architecture. In Moss the Moss group is the federation layer and holds exactly one Nondominium group: the group cell of the tool instance, joined automatically with no invite code. Work contexts (displayed as projects) live in the group DHT and are many-to-many with groups. A work context is not an NDO. Three sovereignty levels (NDO, work context, federation) each keep their own governance scope. The normative detail is in [lobby-dna.md](lobby-dna.md) §5.6 (group model by mode), §5.7 (work contexts), §8.4 (sovereignty levels) and §8.5 (federation); the decision that work contexts live in the group DHT is recorded in [ADR-014](../specifications/adr/ADR-014-work-contexts-in-group-dht.md).
+
+- **REQ-REL-01**: v0.1.0 ships for Moss only. The standalone build is kept building and passing CI, but is not released.
+  **Falsifier:** a standalone artifact among the v0.1.0 release assets, or a standalone build that fails in CI at the release commit.
+- **REQ-REL-02**: v0.1.0 in Moss ships one Nondominium group per Moss group (the tool instance's group cell, joined automatically, no invite code) and NDOs as cloned cells anchored in that group (REQ-GROUP-21, REQ-GROUP-22, ADR-010, ADR-011).
+  **Falsifier:** in a Moss group with two agents, one agent creates an NDO and the other cannot see and open it.
+- **REQ-REL-03**: v0.1.0 ships no work context: no work-context entry type exposed to users, no coordinator function and no interface for it.
+  **Falsifier:** a work-context screen, function or entry type reachable in the v0.1.0 build.
+- **REQ-REL-04**: The v0.1.0 wiring leaves the seam for v0.2: the Moss group cell is the same cell that will hold work contexts, so adding them does not change how a group is created or joined.
+  **Falsifier:** the v0.2 work-context change requires creating a different group cell or a different join step than v0.1.0 uses.
+- **REQ-REL-05**: v0.2 adds work contexts in the group DHT (REQ-WC-01 to REQ-WC-07), their many-to-many relation with groups (REQ-WC-03), and the cross-group view that serves the federation layer (REQ-FED-02).
+  **Falsifier:** a v0.2 release without one of these, or one that stores work contexts in a DNA of their own.
 
 ## 3. nondominium Resource Characteristics
 

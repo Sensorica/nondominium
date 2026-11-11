@@ -70,10 +70,10 @@ Canonical command reference for every suite: [TEST_COMMANDS.md](TEST_COMMANDS.md
 
 nondominium implements a **Governance-as-Operator** architecture that separates data management from business logic enforcement:
 
-- **Framework**: Holochain HDK ^0.6.0 / HDI ^0.7.0 (Rust + WASM)
+- **Framework**: Holochain HDK ^0.7.0 / HDI ^0.8.0 (Rust + WASM)
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Vite 7
 - **Testing**: Sweettest (Rust, primary) — Tryorama (TypeScript) deprecated
-- **Client**: @holochain/client ^0.20.0
+- **Client**: @holochain/client ^0.21.1
 - **Package Management**: Bun for dependency management and build orchestration
 
 ### Zome Structure
@@ -140,6 +140,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | --- | --- | --- |
 | **[Technical Specifications](specifications/specifications.md)** | Detailed data structures, zome functions, cross-zome interfaces | ✅ Complete |
 | **[ADR-010…013 — Per-NDO cells](specifications/adr/ADR-010-013-per-ndo-cells.md)** | One cloned cell per NDO, group `NdoAnchor` discovery, DnaHash bound to Layer 0 via DNA properties | ✅ Active |
+| **[ADR-014 — Work contexts live in the group DHT](specifications/adr/ADR-014-work-contexts-in-group-dht.md)** | Work contexts as entries of the group cell in both modes, the rejected dedicated work-context DNA, the Moss mapping (one Nondominium group per Moss group) | ✅ Accepted, no code yet (v0.2) |
 | **[Architecture Overview](zomes/architecture_overview.md)** | Comprehensive system architecture & cross-zome integration | ✅ Complete |
 | **[Governance Operator Architecture](specifications/governance/governance-operator-architecture.md)** | Technical architecture for modular governance design | ✅ Complete |
 | **[Governance Implementation Guide](specifications/governance/governance-operator-implementation-guide.md)** | Detailed implementation guide with code examples | ✅ Complete |
@@ -148,6 +149,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | **[Private Participation Receipts](specifications/governance/private-participation-receipt.md)** | PPR system full specification | ✅ Complete |
 | **[Governance Model (Legacy)](specifications/governance/governance.md)** | Legacy governance model and decision-making processes | 📦 Reference |
 | **[UI Architecture](specifications/ui_architecture.md)** | Frontend design patterns & component structure | ✅ Complete |
+| **[Moss Integration](specifications/moss-integration.md)** | Running Nondominium as a Moss tool (v0.1.0 pilot): dev config, host seam, what Moss does to our roles | 🔄 In progress (#163 to #165) |
 | **[ValueFlows Action Usage](specifications/VfAction_Usage.md)** | ValueFlows implementation with governance examples | ✅ Complete |
 | **[Protocol Bridge Specifications](specifications/protocol-bridge-specifications.md)** | Bun Protocol Bridge architecture for platform integration (Tiki, Odoo) | ✅ Complete |
 | **[API Reference](API_REFERENCE.md)** | Complete function reference across all zomes | ✅ Complete |
@@ -158,7 +160,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 
 | Document | Description | Status |
 | --- | --- | --- |
-| **[Lobby DNA Requirements](requirements/lobby-dna.md)** | Multi-network federation: Lobby DNA, Group DNA, NDO extensions (REQ-LOBBY-*, REQ-GROUP-*, REQ-NDO-EXT-*) | ✅ Lobby + Group DNAs shipped (#103, #107); NDO-level extensions in progress (#112) |
+| **[Lobby DNA Requirements](requirements/lobby-dna.md)** | Multi-network federation: Lobby DNA, Group DNA, NDO extensions, group model by deployment mode, work contexts, sovereignty levels (REQ-LOBBY-*, REQ-GROUP-*, REQ-WC-*, REQ-SOV-*, REQ-FED-*, REQ-NDO-EXT-*) | ✅ Lobby + Group DNAs shipped (#103, #107); NDO-level extensions in progress (#112) |
 | **[Unyt Integration](requirements/post-mvp/unyt-integration.md)** | Economic settlement, Smart Agreements, RAVE proofs, PPR↔RAVE provenance | 🔄 Post-MVP |
 | **[Flowsta Integration](requirements/post-mvp/flowsta-integration.md)** | Cross-app identity (IsSamePersonEntry, FlowstaIdentity, DID, key recovery) | 🔄 Post-MVP |
 | **[NDO Versioning](requirements/post-mvp/ndo-versioning.md)** | DAG-based version graph, fork/merge/repair relations, contribution propagation | 🔄 Post-MVP |
@@ -328,7 +330,7 @@ CARGO_TARGET_DIR=target/native-tests cargo test --package nondominium_sweettest 
 
 - Use `warn!` macro in Rust zome functions to log debugging information visible in test output
 - Use `#[ignore]` on tests not yet ready for execution
-- DHT sync between agents: `await_consistency_20_s([&cell_a, &cell_b]).await.unwrap()` (pass the array by value, not `&[...]`)
+- DHT sync between agents: `await_consistency_s(20, [&cell_a, &cell_b]).await.unwrap()` (pass the array by value, not `&[...]`)
 
 ---
 
@@ -449,7 +451,7 @@ Primary Accountable Agent (coordination/governance)
 ### Testing Patterns
 
 - **Multi-Agent**: All tests support 2+ distributed agents
-- **DHT Sync**: Use `await_consistency_20_s` with the timeout wrapper
+- **DHT Sync**: Use `await_consistency_s(20, ..)` with an explicit timeout in seconds
 - **Debug Support**: Verbose logging with `warn!` macro for Rust debugging
 - **Isolation**: Test isolation with proper cleanup between scenarios
 

@@ -19,7 +19,7 @@
 //!   CARGO_TARGET_DIR=target/native-tests cargo test --test resource
 
 use holochain::prelude::*;
-use holochain::sweettest::{await_consistency_20_s, SweetCell, SweetConductorBatch};
+use holochain::sweettest::{await_consistency_s, SweetCell, SweetConductorBatch};
 use nondominium_shared::types::{Measure, OperationalState};
 use serde::{Deserialize, Serialize};
 
@@ -634,7 +634,7 @@ async fn assert_global_listing_count(
     expected: usize,
     reason: &str,
 ) {
-    await_consistency_20_s([alice, bob]).await.unwrap();
+    await_consistency_s(20, [alice, bob]).await.unwrap();
     assert_eq!(
         global_listing_count(conductors, 0, alice, spec_hash).await,
         expected,

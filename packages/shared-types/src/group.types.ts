@@ -1,5 +1,6 @@
 // Author and timestamp fields are not stored in entries — they come from the Holochain
-// action header (record.signed_action.hashed.content.author / timestamp).
+// action header (record.action().author() / timestamp() in zomes; the JS client
+// exposes them on record.signed_action.hashed.content).
 import type { ActionHash, DnaHash, Timestamp } from '@holochain/client';
 
 export interface GroupProfile {

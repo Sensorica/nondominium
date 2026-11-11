@@ -1,6 +1,7 @@
 <script lang="ts">
   import { afterNavigate } from '$app/navigation';
   import Sidebar from './Sidebar.svelte';
+  import { mossStore } from '$lib/stores/moss.store.svelte';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -22,6 +23,8 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div class="flex min-h-screen bg-gray-100">
+  <!-- Moss opens an NDO asset in a side panel or window: just the NDO, no navigation. -->
+  {#if !mossStore.isAssetView}
   <header
     class="fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-2 border-b border-gray-200 bg-gray-50 px-3 md:hidden"
   >
@@ -61,8 +64,9 @@
   >
     <Sidebar />
   </div>
+  {/if}
 
-  <main class="min-w-0 flex-1 overflow-auto pt-12 md:pt-0">
+  <main class="min-w-0 flex-1 overflow-auto {mossStore.isAssetView ? '' : 'pt-12 md:pt-0'}">
     {@render children?.()}
   </main>
 </div>
