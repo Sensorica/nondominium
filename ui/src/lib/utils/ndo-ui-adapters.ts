@@ -106,17 +106,48 @@ export function toNdoUiGroups(groups: GroupDescriptor[]): NdoUiGroup[] {
   }));
 }
 
-/** Map wizard NdoInput onto the hApp create payload; drop Source / foreshadow fields. */
+function mapEconomicMode(
+  mode: NdoUiNdoInput['economic_mode']
+): NdoInput['economic_mode'] {
+  if (mode === 'use') return 'Use';
+  if (mode === 'consume') return 'Consume';
+  return null;
+}
+
+function mapUseKind(kind: NdoUiNdoInput['use_kind']): NdoInput['use_kind'] {
+  if (kind === 'unit') return 'Unit';
+  if (kind === 'capacity') return 'Capacity';
+  return null;
+}
+
+/** Map wizard NdoInput onto the hApp create payload; drop Source-only fields. */
 export function fromNdoUiCreateInput(input: NdoUiNdoInput): NdoInput {
   const regime = NDO_UI_REGIMES.has(input.property_regime)
     ? (input.property_regime as NdoInput['property_regime'])
     : (input.property_regime as NdoInput['property_regime']);
+  const economic_mode = mapEconomicMode(input.economic_mode ?? null);
+  const use_kind = mapUseKind(input.use_kind ?? null);
+  const identification =
+    input.identification_pattern === 'LotControlled' ||
+    input.identification_pattern === 'Stock' ||
+    input.identification_pattern === 'Serialized'
+      ? input.identification_pattern
+      : null;
   return {
     name: input.name,
     property_regime: regime,
     resource_nature: input.resource_nature as NdoInput['resource_nature'],
     lifecycle_stage: input.lifecycle_stage as NdoInput['lifecycle_stage'],
-    ...(input.description?.trim() ? { description: input.description.trim() } : {})
+    ...(input.description?.trim() ? { description: input.description.trim() } : {}),
+    ...(economic_mode ? { economic_mode } : {}),
+    ...(use_kind ? { use_kind } : {}),
+    ...(input.default_unit?.trim() ? { default_unit: input.default_unit.trim() } : {}),
+    ...(input.initial_quantity != null ? { initial_quantity: input.initial_quantity } : {}),
+    ...(identification ? { identification_pattern: identification } : {}),
+    ...(input.unique_id?.trim() ? { unique_id: input.unique_id.trim() } : {}),
+    ...(input.max_concurrent_users != null
+      ? { max_concurrent_users: input.max_concurrent_users }
+      : {})
   };
 }
 

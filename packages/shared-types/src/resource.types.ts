@@ -162,6 +162,9 @@ export interface NdoDescriptor {
   successor_ndo_hash: string | null;
   hibernation_origin: string | null;
   rivalry_override: string | null;
+  economic_mode?: EconomicMode | null;
+  use_kind?: UseKind | null;
+  closure_reason?: ClosureReason | null;
 }
 
 export interface GroupDescriptor {
@@ -200,6 +203,20 @@ export interface GroupMemberProfile {
 
 // ─── NDO input/output types ───────────────────────────────────────────────────
 
+/** Physical/Hybrid inventoriable fork — mirrors Rust `EconomicMode`. */
+export type EconomicMode = 'Use' | 'Consume';
+
+export type UseKind = 'Unit' | 'Capacity';
+
+/** Why a batch/NDO was closed — not a LifecycleStage. */
+export type ClosureReason =
+  | 'Depleted'
+  | 'Spoiled'
+  | 'Withdrawn'
+  | 'WrittenOff'
+  | 'DonatedRemainder'
+  | 'Other';
+
 export interface NdoInput {
   name: string;
   property_regime: PropertyRegime;
@@ -207,6 +224,14 @@ export interface NdoInput {
   lifecycle_stage: LifecycleStage;
   description?: string;
   rivalry_override?: Rivalry;
+  economic_mode?: EconomicMode | null;
+  use_kind?: UseKind | null;
+  default_unit?: string | null;
+  identification_pattern?: IdentificationPattern | null;
+  unique_id?: string | null;
+  max_concurrent_users?: number | null;
+  /** Seeds EconomicResource on hard dual create; not persisted on identity. */
+  initial_quantity?: number | null;
 }
 
 /**
@@ -276,6 +301,9 @@ export interface UpdateLifecycleStageInput {
   new_stage: LifecycleStage;
   successor_ndo_hash?: ActionHash;
   transition_event_hash?: ActionHash;
+  /** Required for Consume-mode NDOs entering Deprecated / EndOfLife. */
+  closure_reason?: ClosureReason | null;
+  closure_note?: string | null;
 }
 
 export interface NdoTransitionHistoryEvent {
@@ -351,6 +379,8 @@ export interface UsageLimitData {
   max_duration_hours?: number;
   max_quantity_per_period?: number;
   period_days?: number;
+  max_concurrent_users?: number;
+  max_per_agent?: number;
 }
 
 export interface TransferConditionData {
@@ -407,11 +437,23 @@ export interface NondominiumIdentity {
   rivalry_override?: Rivalry;
   successor_ndo_hash?: ActionHash;
   hibernation_origin?: LifecycleStage;
+  economic_mode?: EconomicMode | null;
+  use_kind?: UseKind | null;
+  default_unit?: string | null;
+  identification_pattern?: IdentificationPattern | null;
+  unique_id?: string | null;
+  max_concurrent_users?: number | null;
+  closure_reason?: ClosureReason | null;
+  closure_note?: string | null;
 }
 
 export interface NdoOutput {
   action_hash: ActionHash;
   entry: NondominiumIdentity;
+  /** Set when hard dual create activated Layer 1 in the same create_ndo call. */
+  specification_action_hash?: ActionHash | null;
+  /** Set when hard dual create also seeded an EconomicResource. */
+  economic_resource_action_hash?: ActionHash | null;
 }
 
 export interface GetAllNdosOutput {

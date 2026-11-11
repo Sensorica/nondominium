@@ -47,7 +47,15 @@ export type GroupStore = {
    * items from other members appear without a manual reload.
    */
   refreshCurrentGroup: () => Promise<void>;
-  createNdo: (input: NdoInput) => Promise<string | null>;
+  /**
+   * Creates the NDO in the current group. Returns hash + optional hard-dual
+   * Layer 1 hashes so the wizard can attach preselected governance templates.
+   */
+  createNdo: (input: NdoInput) => Promise<{
+    hashB64: string;
+    cellId: import('@holochain/client').CellId;
+    specificationActionHash: import('@holochain/client').ActionHash | null;
+  } | null>;
   associateNdoWithGroup: (ndoHashB64: string, targetGroupId: string) => Promise<void>;
   /**
    * Admits a commitment (living on an NDO cell) into the named group's
@@ -200,7 +208,11 @@ function createGroupStore(): GroupStore {
     await loadGroupData(currentGroupId, { silent: true });
   }
 
-  async function createNdo(input: NdoInput): Promise<string | null> {
+  async function createNdo(input: NdoInput): Promise<{
+    hashB64: string;
+    cellId: import('@holochain/client').CellId;
+    specificationActionHash: import('@holochain/client').ActionHash | null;
+  } | null> {
     if (!currentGroupId) return null;
     const groupId = currentGroupId;
 
@@ -221,9 +233,13 @@ function createGroupStore(): GroupStore {
 
     if (Exit.isSuccess(exit)) {
       const { encodeHashToBase64 } = await import('@holochain/client');
-      const hashB64 = encodeHashToBase64(exit.value);
+      const hashB64 = encodeHashToBase64(exit.value.action_hash);
       await loadGroupData(groupId);
-      return hashB64;
+      return {
+        hashB64,
+        cellId: exit.value.cellId,
+        specificationActionHash: exit.value.specification_action_hash
+      };
     }
     errorMessage = 'Failed to create NDO.';
     return null;

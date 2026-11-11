@@ -139,6 +139,33 @@ pub enum Rivalry {
   NonRivalrous,
 }
 
+/// Layer 0 inventoriable fork for Physical / Hybrid (commitment-pool experiment).
+/// Use = operate / occupy without depleting; Consume = batch/stock that depletes.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum EconomicMode {
+  Use,
+  Consume,
+}
+
+/// Under Use: one held thing vs a place with concurrent capacity.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum UseKind {
+  Unit,
+  Capacity,
+}
+
+/// Why a Consume (or any) NDO was closed. Stored on terminal lifecycle transitions;
+/// `Depleted` is the qty→0 case — not a separate LifecycleStage.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum ClosureReason {
+  Depleted,
+  Spoiled,
+  Withdrawn,
+  WrittenOff,
+  DonatedRemainder,
+  Other,
+}
+
 impl ResourceNature {
   /// Authoritative default rivalry for this nature.
   /// Callers set `rivalry_override` when a particular resource differs from this default.

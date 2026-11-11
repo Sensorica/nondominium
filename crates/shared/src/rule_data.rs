@@ -47,6 +47,12 @@ pub struct UsageLimitData {
   pub max_duration_hours: Option<f64>,
   pub max_quantity_per_period: Option<f64>,
   pub period_days: Option<u32>,
+  /// Concurrent occupancy cap (Use/capacity places). Additive; serde-default for legacy entries.
+  #[serde(default)]
+  pub max_concurrent_users: Option<u32>,
+  /// Max inventoriable units one agent may hold (Consume packs). Additive.
+  #[serde(default)]
+  pub max_per_agent: Option<f64>,
 }
 
 /// Which kind of transfer a transfer-condition rule governs.

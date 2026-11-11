@@ -65,6 +65,35 @@ enum Rivalry {
     NonRivalrous,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+enum EconomicMode {
+    Use,
+    Consume,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+enum UseKind {
+    Unit,
+    Capacity,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+enum IdentificationPattern {
+    Serialized,
+    LotControlled,
+    Stock,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+enum ClosureReason {
+    Depleted,
+    Spoiled,
+    Withdrawn,
+    WrittenOff,
+    DonatedRemainder,
+    Other,
+}
+
 /// Mirrors `zome_resource_coordinator::NdoInput`.
 #[derive(Debug, Serialize, Deserialize)]
 struct NdoInput {
@@ -74,13 +103,26 @@ struct NdoInput {
     pub lifecycle_stage: LifecycleStage,
     pub description: Option<String>,
     pub rivalry_override: Option<Rivalry>,
+    #[serde(default)]
+    pub economic_mode: Option<EconomicMode>,
+    #[serde(default)]
+    pub use_kind: Option<UseKind>,
+    #[serde(default)]
+    pub default_unit: Option<String>,
+    #[serde(default)]
+    pub identification_pattern: Option<IdentificationPattern>,
+    #[serde(default)]
+    pub unique_id: Option<String>,
+    #[serde(default)]
+    pub max_concurrent_users: Option<u32>,
+    #[serde(default)]
+    pub initial_quantity: Option<f64>,
 }
 
 /// Mirrors `zome_resource_integrity::NondominiumIdentity`.
 ///
-/// `#[serde(default)]` on `successor_ndo_hash` and `hibernation_origin` matches
-/// the production struct so entries serialized before those fields existed
-/// still deserialize correctly.
+/// `#[serde(default)]` on additive fields matches the production struct so
+/// entries serialized before those fields existed still deserialize correctly.
 #[derive(Debug, Serialize, Deserialize)]
 struct NdoEntry {
     pub name: String,
@@ -95,6 +137,22 @@ struct NdoEntry {
     pub successor_ndo_hash: Option<ActionHash>,
     #[serde(default)]
     pub hibernation_origin: Option<LifecycleStage>,
+    #[serde(default)]
+    pub economic_mode: Option<EconomicMode>,
+    #[serde(default)]
+    pub use_kind: Option<UseKind>,
+    #[serde(default)]
+    pub default_unit: Option<String>,
+    #[serde(default)]
+    pub identification_pattern: Option<IdentificationPattern>,
+    #[serde(default)]
+    pub unique_id: Option<String>,
+    #[serde(default)]
+    pub max_concurrent_users: Option<u32>,
+    #[serde(default)]
+    pub closure_reason: Option<ClosureReason>,
+    #[serde(default)]
+    pub closure_note: Option<String>,
 }
 
 /// Mirrors `zome_resource_coordinator::NdoOutput`.
@@ -102,6 +160,10 @@ struct NdoEntry {
 struct NdoOutput {
     pub action_hash: ActionHash,
     pub entry: NdoEntry,
+    #[serde(default)]
+    pub specification_action_hash: Option<ActionHash>,
+    #[serde(default)]
+    pub economic_resource_action_hash: Option<ActionHash>,
 }
 
 /// Mirrors `zome_resource_coordinator::GetAllNdosOutput`.
@@ -117,6 +179,10 @@ struct UpdateLifecycleStageInput {
     pub new_stage: LifecycleStage,
     pub successor_ndo_hash: Option<ActionHash>,
     pub transition_event_hash: Option<ActionHash>,
+    #[serde(default)]
+    pub closure_reason: Option<ClosureReason>,
+    #[serde(default)]
+    pub closure_note: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -136,6 +202,13 @@ fn ndo_input(
         lifecycle_stage: stage,
         description: None,
         rivalry_override: None,
+        economic_mode: None,
+        use_kind: None,
+        default_unit: None,
+        identification_pattern: None,
+        unique_id: None,
+        max_concurrent_users: None,
+        initial_quantity: None,
     }
 }
 
@@ -149,6 +222,8 @@ fn update_stage(
         new_stage: stage,
         successor_ndo_hash: successor,
         transition_event_hash: None,
+        closure_reason: None,
+        closure_note: None,
     }
 }
 
@@ -1075,4 +1150,206 @@ async fn ndo_transition_history_reports_hibernation_and_resume() {
     assert_eq!(history[0].to_stage, LifecycleStage::Hibernating);
     assert_eq!(history[1].from_stage, LifecycleStage::Hibernating);
     assert_eq!(history[1].to_stage, LifecycleStage::Active);
+}
+
+/// Minimal mirror of GetAllResourceSpecificationsOutput for dual-create checks.
+#[derive(Debug, Serialize, Deserialize)]
+struct SpecListing {
+    pub name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SpecsForNdoOutput {
+    pub specifications: Vec<SpecListing>,
+    pub action_hashes: Vec<ActionHash>,
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn consume_ndo_hard_dual_create_at_specification() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let mut input = ndo_input(
+        "Harvest Batch",
+        PropertyRegime::CommonPool,
+        ResourceNature::Physical,
+        LifecycleStage::Specification,
+    );
+    input.economic_mode = Some(EconomicMode::Consume);
+    input.default_unit = Some("kg".to_string());
+    input.initial_quantity = Some(250.0);
+    input.identification_pattern = Some(IdentificationPattern::LotControlled);
+
+    let output: NdoOutput = conductors[0]
+        .call(&alice.zome("zome_resource"), "create_ndo", input)
+        .await;
+
+    assert_eq!(output.entry.economic_mode, Some(EconomicMode::Consume));
+    assert_eq!(output.entry.default_unit.as_deref(), Some("kg"));
+    assert_eq!(
+        output.entry.identification_pattern,
+        Some(IdentificationPattern::LotControlled)
+    );
+    let spec_hash = output
+        .specification_action_hash
+        .clone()
+        .expect("hard dual create must return specification_action_hash");
+    assert!(
+        output.economic_resource_action_hash.is_some(),
+        "hard dual create must return economic_resource_action_hash"
+    );
+
+    let specs: SpecsForNdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            output.action_hash.clone(),
+        )
+        .await;
+    assert_eq!(
+        specs.action_hashes.len(),
+        1,
+        "hard dual create must activate Layer 1"
+    );
+    assert_eq!(specs.action_hashes[0], spec_hash);
+
+    let resources: Vec<Record> = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_resources_by_specification",
+            spec_hash,
+        )
+        .await;
+    assert_eq!(resources.len(), 1, "hard dual create must seed EconomicResource");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn use_capacity_ndo_hard_dual_create() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let mut input = ndo_input(
+        "Workshop Bay",
+        PropertyRegime::Pool,
+        ResourceNature::Physical,
+        LifecycleStage::Active,
+    );
+    input.economic_mode = Some(EconomicMode::Use);
+    input.use_kind = Some(UseKind::Capacity);
+    input.max_concurrent_users = Some(4);
+
+    let output: NdoOutput = conductors[0]
+        .call(&alice.zome("zome_resource"), "create_ndo", input)
+        .await;
+
+    assert_eq!(output.entry.economic_mode, Some(EconomicMode::Use));
+    assert_eq!(output.entry.use_kind, Some(UseKind::Capacity));
+    assert_eq!(output.entry.max_concurrent_users, Some(4));
+    assert!(
+        output.specification_action_hash.is_some(),
+        "Use/capacity hard dual create returns spec hash"
+    );
+
+    let specs: SpecsForNdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            output.action_hash,
+        )
+        .await;
+    assert_eq!(specs.action_hashes.len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn consume_ideation_stores_mode_without_inventory() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let mut input = ndo_input(
+        "Future Batch Stub",
+        PropertyRegime::CommonPool,
+        ResourceNature::Physical,
+        LifecycleStage::Ideation,
+    );
+    input.economic_mode = Some(EconomicMode::Consume);
+    input.default_unit = Some("L".to_string());
+    input.initial_quantity = Some(10.0);
+    input.identification_pattern = Some(IdentificationPattern::Stock);
+
+    let output: NdoOutput = conductors[0]
+        .call(&alice.zome("zome_resource"), "create_ndo", input)
+        .await;
+
+    assert_eq!(output.entry.economic_mode, Some(EconomicMode::Consume));
+    assert!(
+        output.specification_action_hash.is_none(),
+        "Ideation must not return a dual-create spec hash"
+    );
+
+    let specs: SpecsForNdoOutput = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "get_specifications_for_ndo",
+            output.action_hash,
+        )
+        .await;
+    assert!(
+        specs.action_hashes.is_empty(),
+        "Ideation must not activate Layer 1 / inventory"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn consume_end_of_life_requires_closure_reason_depleted() {
+    let (conductors, alice, _bob) = setup_two_agents().await;
+
+    let mut input = ndo_input(
+        "Depletable Lot",
+        PropertyRegime::CommonPool,
+        ResourceNature::Physical,
+        LifecycleStage::Active,
+    );
+    input.economic_mode = Some(EconomicMode::Consume);
+    input.default_unit = Some("units".to_string());
+    input.initial_quantity = Some(5.0);
+    input.identification_pattern = Some(IdentificationPattern::Stock);
+
+    let output: NdoOutput = conductors[0]
+        .call(&alice.zome("zome_resource"), "create_ndo", input)
+        .await;
+    let hash = output.action_hash.clone();
+
+    // Without closure_reason — must fail for Consume
+    let missing: Result<ActionHash, _> = conductors[0]
+        .call_fallible(
+            &alice.zome("zome_resource"),
+            "update_lifecycle_stage",
+            update_stage(hash.clone(), LifecycleStage::EndOfLife, None),
+        )
+        .await;
+    assert!(
+        missing.is_err(),
+        "Consume EndOfLife without closure_reason must fail"
+    );
+
+    let with_reason = UpdateLifecycleStageInput {
+        original_action_hash: hash.clone(),
+        new_stage: LifecycleStage::EndOfLife,
+        successor_ndo_hash: None,
+        transition_event_hash: None,
+        closure_reason: Some(ClosureReason::Depleted),
+        closure_note: Some("qty reached zero".to_string()),
+    };
+    let _: ActionHash = conductors[0]
+        .call(
+            &alice.zome("zome_resource"),
+            "update_lifecycle_stage",
+            with_reason,
+        )
+        .await;
+
+    let entry: Option<NdoEntry> = conductors[0]
+        .call(&alice.zome("zome_resource"), "get_ndo", hash)
+        .await;
+    let entry = entry.expect("ndo exists");
+    assert_eq!(entry.lifecycle_stage, LifecycleStage::EndOfLife);
+    assert_eq!(entry.closure_reason, Some(ClosureReason::Depleted));
+    assert_eq!(entry.closure_note.as_deref(), Some("qty reached zero"));
 }

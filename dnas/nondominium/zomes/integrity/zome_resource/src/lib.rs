@@ -1,7 +1,8 @@
 use hdi::prelude::*;
 pub use nondominium_shared::types::{
-  DigitalLocatorKind, IdentificationPattern, InventoryIntent, LifecycleStage, Measure,
-  NdoDnaProperties, OperationalState, PropertyRegime, ResourceNature, ResourceScope, Rivalry,
+  ClosureReason, DigitalLocatorKind, EconomicMode, IdentificationPattern, InventoryIntent,
+  LifecycleStage, Measure, NdoDnaProperties, OperationalState, PropertyRegime, ResourceNature,
+  ResourceScope, Rivalry, UseKind,
 };
 pub use nondominium_shared::rule_data::RuleData;
 
@@ -121,6 +122,30 @@ pub struct NondominiumIdentity {
   // #[serde(default)] ensures forward-compatibility with pre-field records.
   #[serde(default)]
   pub hibernation_origin: Option<LifecycleStage>,
+  /// Physical/Hybrid inventoriable fork. Immutable after creation.
+  #[serde(default)]
+  pub economic_mode: Option<EconomicMode>,
+  /// Required when `economic_mode == Use`. Immutable after creation.
+  #[serde(default)]
+  pub use_kind: Option<UseKind>,
+  /// Consume default unit / Use display unit foreshadow. Immutable after creation.
+  #[serde(default)]
+  pub default_unit: Option<String>,
+  /// Consume lot vs stock foreshadow. Immutable after creation.
+  #[serde(default)]
+  pub identification_pattern: Option<IdentificationPattern>,
+  /// Optional serial/QR for Use/unit. Immutable after creation.
+  #[serde(default)]
+  pub unique_id: Option<String>,
+  /// Required when Use/capacity. Immutable after creation.
+  #[serde(default)]
+  pub max_concurrent_users: Option<u32>,
+  /// Set once on Deprecated / EndOfLife (esp. Consume Depleted).
+  #[serde(default)]
+  pub closure_reason: Option<ClosureReason>,
+  /// Optional free-text note with `closure_reason`.
+  #[serde(default)]
+  pub closure_note: Option<String>,
 }
 
 // NDO membership — makes participation in an NDO explicit and listable.
@@ -661,6 +686,24 @@ fn validate_create_nondominium_identity(
     ));
   }
 
+  if ndi.closure_reason.is_some() || ndi.closure_note.is_some() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "closure_reason / closure_note must be None at creation".to_string(),
+    ));
+  }
+
+  if ndi.economic_mode == Some(EconomicMode::Use) && ndi.use_kind.is_none() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "use_kind required when economic_mode is Use".to_string(),
+    ));
+  }
+
+  if matches!(ndi.resource_nature, ResourceNature::Digital) && ndi.economic_mode.is_some() {
+    return Ok(ValidateCallbackResult::Invalid(
+      "economic_mode is not valid for Digital resources".to_string(),
+    ));
+  }
+
   // Phase A: all seven PropertyRegime variants are accepted at creation.
   // Semantic helpers live on `nondominium_shared::PropertyRegime`
   // (`is_rivalrous`, `permits_ownership_transfer`, `is_uncapturable`,
@@ -762,6 +805,36 @@ fn validate_update_nondominium_identity(
       "NondominiumIdentity description is immutable after creation".to_string(),
     ));
   }
+  if new_entry.economic_mode != original.economic_mode {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity economic_mode is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.use_kind != original.use_kind {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity use_kind is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.default_unit != original.default_unit {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity default_unit is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.identification_pattern != original.identification_pattern {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity identification_pattern is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.unique_id != original.unique_id {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity unique_id is immutable after creation".to_string(),
+    ));
+  }
+  if new_entry.max_concurrent_users != original.max_concurrent_users {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity max_concurrent_users is immutable after creation".to_string(),
+    ));
+  }
 
   // --- successor_ndo_hash: immutable once set ---
   if original.successor_ndo_hash.is_some()
@@ -769,6 +842,18 @@ fn validate_update_nondominium_identity(
   {
     return Ok(ValidateCallbackResult::Invalid(
       "NondominiumIdentity successor_ndo_hash is immutable once set".to_string(),
+    ));
+  }
+
+  // --- closure_reason / closure_note: immutable once set ---
+  if original.closure_reason.is_some() && new_entry.closure_reason != original.closure_reason {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity closure_reason is immutable once set".to_string(),
+    ));
+  }
+  if original.closure_note.is_some() && new_entry.closure_note != original.closure_note {
+    return Ok(ValidateCallbackResult::Invalid(
+      "NondominiumIdentity closure_note is immutable once set".to_string(),
     ));
   }
 
@@ -790,12 +875,33 @@ fn validate_update_nondominium_identity(
     ));
   }
 
+  // closure_reason may only be introduced on a terminal transition
+  if original.closure_reason.is_none()
+    && new_entry.closure_reason.is_some()
+    && *to != LifecycleStage::Deprecated
+    && *to != LifecycleStage::EndOfLife
+  {
+    return Ok(ValidateCallbackResult::Invalid(
+      "closure_reason may only be set when entering Deprecated or EndOfLife".to_string(),
+    ));
+  }
+
   // Terminal destination: any non-terminal source may Deprecate or end
   if *to == LifecycleStage::Deprecated || *to == LifecycleStage::EndOfLife {
     // hibernation_origin must be cleared when entering a terminal state
     if new_entry.hibernation_origin.is_some() {
       return Ok(ValidateCallbackResult::Invalid(
         "hibernation_origin must be None when entering a terminal state".to_string(),
+      ));
+    }
+    // Consume-mode batches require a closure reason (e.g. Depleted) at terminal.
+    if original.economic_mode == Some(EconomicMode::Consume)
+      && new_entry.closure_reason.is_none()
+      && original.closure_reason.is_none()
+    {
+      return Ok(ValidateCallbackResult::Invalid(
+        "Consume-mode NDO requires closure_reason when entering Deprecated or EndOfLife"
+          .to_string(),
       ));
     }
     // REQ-NDO-LC-06: Deprecated requires a validated successor hash

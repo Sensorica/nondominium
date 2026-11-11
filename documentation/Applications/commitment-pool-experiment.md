@@ -139,10 +139,21 @@ We:
 
 **Why:** The design-system Layer 1 form already collected these ValueFlows foreshadow fields. Leaving them client-only would teach collaborators a false model (“I filled inventory tracking but nothing stuck”). Extending DNA additively keeps backward compatibility and makes ResourcesPanel honest. Source-NDO fields were **not** added (out of experiment scope).
 
+### Layer 0 Use / Consume + hard dual create
+
+- Enums on shared crate: `EconomicMode` (`Use` \| `Consume`), `UseKind` (`Unit` \| `Capacity`), `ClosureReason` (`Depleted`, `Spoiled`, `Withdrawn`, `WrittenOff`, `DonatedRemainder`, `Other`)
+- Additive fields on **`NondominiumIdentity`** (not DNA properties — avoid DnaHash churn): `economic_mode`, `use_kind`, `default_unit`, `identification_pattern`, `unique_id`, `max_concurrent_users`, `closure_reason`, `closure_note`
+- `create_ndo` validates foreshadow; when mode is set and lifecycle is Layer-1-eligible, auto-creates Project-scoped `ResourceSpecification` + `EconomicResource` (Consume uses `initial_quantity`; Use/unit qty=1; Use/capacity also attaches a `capacity_limit` usage rule when `max_concurrent_users` is set). `NdoOutput` returns optional `specification_action_hash` / `economic_resource_action_hash` for that path.
+- Wizard preselects mode-specific governance template IDs; hApp `NdoCreateWizard` applies creatable mappings onto the new spec after dual create (skips `capacity_limit` when dual create already wrote it).
+- `UpdateLifecycleStageInput.closure_reason` required for Consume-mode terminal transitions; UI reason picker labels **Depleted** explicitly
+- `UsageLimitData` extended with `max_concurrent_users` / `max_per_agent` for capacity and Consume packs
+- Design-system wizard (`release-prototype`) asks Use/Consume after Physical/Hybrid; governance packs differ by mode; ui-kit has Physical Use/Consume create + enrich fixtures
+
 ### Tests
 
 - Governance Sweettests for fulfillment closure and NDO-scoped commitment reads
 - Resource Sweettests `resource_spec_persists_inventory_foreshadow` and `resource_spec_persists_digital_locator` (use `get_latest_resource_specification`, not a non-existent `get_resource_specification`)
+- NDO Layer 0 Sweettests for Consume/Use hard dual create, Ideation foreshadow-only, and EndOfLife + `Depleted` closure reason
 
 ---
 
@@ -176,17 +187,23 @@ These were explicit product decisions during the experiment. Treat them as defau
 | Design-system pin | Sibling `release-prototype` via Vite file alias | Prototype IA is the Resource Perspective cut collaborators already saw |
 | Layer 1 foreshadow | Persist inventory + digital locator on DNA | Form honesty; additive `Option` + `serde(default)` |
 | Source fields in DS form | Out of DNA / not persisted this cut | Source-NDO is post-MVP; don’t pretend ecological Source profiles exist |
-| Governance templates | Only **creatable** IDs map to `RuleData` (`access_accountable`, `quota_extraction`, `maintenance_schedule`, `no_ownership_transfer`); rest filtered | Avoid writing stringly rules the integrity zome can’t express |
+| Governance templates | Creatable IDs map to `RuleData` (`access_accountable`, `quota_extraction`, `maintenance_schedule`, `no_ownership_transfer`, `capacity_limit`, `max_per_agent`); rest filtered | Avoid writing stringly rules the integrity zome can’t express |
 | Custom rules | Keep `RuleEditorModal` | Escape hatch when templates don’t fit |
 | Activity / Composition / Pool | Stay live while adopting DS Resources/Governance chrome | Experiment value is the pool loop; don’t regress it to “Soon” |
 | Separate lab route | No | Lobby → Group → NDO is enough |
 | Merge to `dev` | Not automatic | Validate mapping with GE first; cherry-pick or rebase slices |
 | Pool listing architecture | Group-side `CommitmentAnchor` (leave as-is) | See §8 — not CapabilitySlot; primary key is the Group |
+| NDO inventoriable fork | **Use** vs **Consume** at Layer 0 for Physical/Hybrid only | NDO is first-order (thing or batch), not a category; Digital/Source skip the fork |
+| Capacity | **Use subtype** (`use_kind = Capacity`) | Place with concurrent occupancy; equipment stays Use/unit; materials are Consume |
+| Consume identity | NDO **is the batch/lot** | New delivery = new NDO; unit + initial quantity required at create |
+| Hard dual create | When `economic_mode` set and lifecycle allows Layer 1 → auto `ResourceSpecification` + `EconomicResource` | Ideation stores mode foreshadow only; inventory waits for Specification+ |
+| Batch closure | `EndOfLife` / `Deprecated` + **`closure_reason`** (incl. `Depleted`) | No new `Depleted` LifecycleStage; qty→0 uses reason `Depleted` |
 
 **Locked plan shorthand** used in implementation chat for the DS alignment pass:
 
 - **1C** — Persist inventory foreshadow + digital locator; adopt `ResourcesPanel` / `SpecificationFormModal`; Source out
 - **2C** — `GovernanceTemplatePicker` → creatable `RuleData`; Custom editor retained; keep Activity / Composition / Pool live
+- **Use/Consume** — DS wizard on `release-prototype`; DNA + adapters on this branch only (see §5 / §7)
 
 ---
 

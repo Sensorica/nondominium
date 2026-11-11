@@ -12,13 +12,36 @@ pub struct NdoInput {
   pub description: Option<String>,
   /// Optional override of `ResourceNature::default_rivalry()`. Immutable after creation.
   pub rivalry_override: Option<Rivalry>,
+  /// Physical/Hybrid inventoriable fork (Use vs Consume). Ignored for Digital.
+  #[serde(default)]
+  pub economic_mode: Option<EconomicMode>,
+  #[serde(default)]
+  pub use_kind: Option<UseKind>,
+  #[serde(default)]
+  pub default_unit: Option<String>,
+  #[serde(default)]
+  pub identification_pattern: Option<IdentificationPattern>,
+  #[serde(default)]
+  pub unique_id: Option<String>,
+  #[serde(default)]
+  pub max_concurrent_users: Option<u32>,
+  /// Seeds EconomicResource on hard dual create; not stored on identity.
+  #[serde(default)]
+  pub initial_quantity: Option<f64>,
 }
 
-// Output from create_ndo — the action_hash IS the stable Layer 0 identity
+// Output from create_ndo — the action_hash IS the stable Layer 0 identity.
+// Optional inventory hashes are set when hard dual create activated Layer 1.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NdoOutput {
   pub action_hash: ActionHash,
   pub entry: NondominiumIdentity,
+  /// Present when `economic_mode` triggered hard dual create of a ResourceSpecification.
+  #[serde(default)]
+  pub specification_action_hash: Option<ActionHash>,
+  /// Present when hard dual create also seeded an EconomicResource.
+  #[serde(default)]
+  pub economic_resource_action_hash: Option<ActionHash>,
 }
 
 // Output from get_all_ndos
@@ -60,6 +83,11 @@ pub struct UpdateLifecycleStageInput {
   pub successor_ndo_hash: Option<ActionHash>,
   /// Triggering EconomicEvent action hash (REQ-NDO-L0-05); link created when Some
   pub transition_event_hash: Option<ActionHash>,
+  /// Required for Consume-mode NDOs entering Deprecated / EndOfLife.
+  #[serde(default)]
+  pub closure_reason: Option<ClosureReason>,
+  #[serde(default)]
+  pub closure_note: Option<String>,
 }
 
 // Path helpers for NDO categorization anchors (issue #75).
@@ -93,7 +121,12 @@ fn resolve_ndo_links(links: Vec<Link>) -> ExternResult<Vec<NdoOutput>> {
     let Ok(Some(entry)) = record.entry().to_app_option::<NondominiumIdentity>() else {
       continue;
     };
-    ndos.push(NdoOutput { action_hash, entry });
+    ndos.push(NdoOutput {
+      action_hash,
+      entry,
+      specification_action_hash: None,
+      economic_resource_action_hash: None,
+    });
   }
   Ok(ndos)
 }
@@ -136,11 +169,254 @@ pub(crate) fn resolve_latest_ndo_record(original_action_hash: ActionHash) -> Ext
 /// It never changes, even as lifecycle_stage evolves through subsequent updates.
 ///
 /// REQ-NDO-L0-01, REQ-NDO-L0-02, REQ-NDO-L0-07
+fn layer1_eligible(stage: &LifecycleStage) -> bool {
+  !matches!(
+    stage,
+    LifecycleStage::Ideation
+      | LifecycleStage::Hibernating
+      | LifecycleStage::Deprecated
+      | LifecycleStage::EndOfLife
+  )
+}
+
+fn validate_economic_foreshadow(input: &NdoInput) -> ExternResult<()> {
+  let Some(mode) = &input.economic_mode else {
+    return Ok(());
+  };
+  if matches!(input.resource_nature, ResourceNature::Digital) {
+    return Err(ResourceError::InvalidInput(
+      "economic_mode is not valid for Digital resources".to_string(),
+    )
+    .into());
+  }
+  match mode {
+    EconomicMode::Use => {
+      let kind = input.use_kind.as_ref().ok_or_else(|| {
+        ResourceError::InvalidInput("use_kind required when economic_mode is Use".to_string())
+      })?;
+      if *kind == UseKind::Capacity {
+        match input.max_concurrent_users {
+          Some(n) if n >= 2 => {}
+          _ => {
+            return Err(ResourceError::InvalidInput(
+              "max_concurrent_users (>= 2) required for Use/capacity".to_string(),
+            )
+            .into());
+          }
+        }
+      }
+    }
+    EconomicMode::Consume => {
+      if input
+        .default_unit
+        .as_ref()
+        .map(|u| u.trim().is_empty())
+        .unwrap_or(true)
+      {
+        return Err(ResourceError::InvalidInput(
+          "default_unit required when economic_mode is Consume".to_string(),
+        )
+        .into());
+      }
+      match input.initial_quantity {
+        Some(q) if q > 0.0 && q.is_finite() => {}
+        _ => {
+          return Err(ResourceError::InvalidInput(
+            "initial_quantity (> 0) required when economic_mode is Consume".to_string(),
+          )
+          .into());
+        }
+      }
+      if input.identification_pattern.is_none() {
+        return Err(ResourceError::InvalidInput(
+          "identification_pattern (LotControlled|Stock) required for Consume".to_string(),
+        )
+        .into());
+      }
+    }
+  }
+  Ok(())
+}
+
+/// When economic_mode is set and Layer 1 is eligible, create a Project-scoped
+/// ResourceSpecification + EconomicResource (hard dual create).
+fn hard_dual_create_inventory(
+  ndo_hash: ActionHash,
+  entry: &NondominiumIdentity,
+  initial_quantity: Option<f64>,
+) -> ExternResult<(ActionHash, ActionHash)> {
+  let agent_info = agent_info()?;
+  let mode = entry.economic_mode.as_ref().ok_or_else(|| {
+    ResourceError::InvalidInput("hard dual create requires economic_mode".to_string())
+  })?;
+
+  let (qty, unit, identification, inventory_intent) = match mode {
+    EconomicMode::Use => {
+      let unit = entry
+        .default_unit
+        .clone()
+        .unwrap_or_else(|| "each".to_string());
+      // Inventoried foreshadow requires an identification pattern.
+      // Use/unit with optional serial → Serialized; Use/capacity place → Stock.
+      let identification = Some(match entry.use_kind {
+        Some(UseKind::Capacity) => IdentificationPattern::Stock,
+        _ => IdentificationPattern::Serialized,
+      });
+      (1.0, unit, identification, InventoryIntent::Inventoried)
+    }
+    EconomicMode::Consume => {
+      let unit = entry.default_unit.clone().ok_or_else(|| {
+        ResourceError::InvalidInput("Consume dual create needs default_unit".to_string())
+      })?;
+      let qty = initial_quantity.ok_or_else(|| {
+        ResourceError::InvalidInput("Consume dual create needs initial_quantity".to_string())
+      })?;
+      (
+        qty,
+        unit,
+        entry.identification_pattern.clone(),
+        InventoryIntent::Inventoried,
+      )
+    }
+  };
+
+  let mut governance_rules: Vec<ActionHash> = Vec::new();
+  if matches!(
+    (mode, entry.use_kind.as_ref()),
+    (EconomicMode::Use, Some(UseKind::Capacity))
+  ) {
+    if let Some(max) = entry.max_concurrent_users {
+      let rule = GovernanceRule {
+        rule_data: RuleData::UsageLimit(nondominium_shared::UsageLimitData {
+          max_duration_hours: None,
+          max_quantity_per_period: None,
+          period_days: None,
+          max_concurrent_users: Some(max),
+          max_per_agent: None,
+        }),
+        enforced_by: None,
+        ndo_identity_hash: ndo_hash.clone(),
+        property_regime: entry.property_regime.clone(),
+        resource_nature: entry.resource_nature.clone(),
+        rivalry_override: entry.rivalry_override.clone(),
+      };
+      let rule_hash = create_entry(&EntryTypes::GovernanceRule(rule))?;
+      governance_rules.push(rule_hash.clone());
+      let rules_path = Path::from("governance_rules");
+      create_link(
+        rules_path.path_entry_hash()?,
+        rule_hash.clone(),
+        LinkTypes::AllGovernanceRules,
+        (),
+      )?;
+    }
+  }
+
+  let spec = ResourceSpecification {
+    name: entry.name.clone(),
+    description: entry
+      .description
+      .clone()
+      .unwrap_or_else(|| format!("Auto-activated inventory for {}", entry.name)),
+    category: "inventory".to_string(),
+    image_url: None,
+    tags: vec!["hard-dual-create".to_string()],
+    is_active: true,
+    scope: ResourceScope::Project,
+    ndo_identity_hash: ndo_hash.clone(),
+    ndo_state_hash: ndo_hash.clone(),
+    inventory_intent: Some(inventory_intent),
+    identification_pattern: identification,
+    default_unit: Some(unit.clone()),
+    substitutable: Some(matches!(mode, EconomicMode::Consume)),
+    digital_locator_kind: None,
+    digital_locator: None,
+  };
+
+  let spec_hash = create_entry(&EntryTypes::ResourceSpecification(spec))?;
+  create_link(
+    ndo_hash.clone(),
+    spec_hash.clone(),
+    LinkTypes::NdoToSpecification,
+    (),
+  )?;
+  create_link(
+    agent_info.agent_initial_pubkey.clone(),
+    spec_hash.clone(),
+    LinkTypes::AgentToOwnedSpecs,
+    (),
+  )?;
+  for rule_hash in &governance_rules {
+    create_link(
+      spec_hash.clone(),
+      rule_hash.clone(),
+      LinkTypes::SpecificationToGovernanceRule,
+      (),
+    )?;
+  }
+
+  let quantity = Measure::new(qty, unit);
+  quantity
+    .validate()
+    .map_err(|e| ResourceError::InvalidInput(format!("Invalid quantity: {e}")))?;
+  if quantity.numerical_value <= 0.0 {
+    return Err(ResourceError::InvalidInput("Quantity must be positive".to_string()).into());
+  }
+
+  let resource = EconomicResource {
+    quantity,
+    custodian: agent_info.agent_initial_pubkey.clone(),
+    current_location: entry.unique_id.clone(),
+    operational_state: OperationalState::PendingValidation,
+  };
+  let resource_hash = create_entry(&EntryTypes::EconomicResource(resource))?;
+
+  let path = Path::from("economic_resources");
+  create_link(
+    path.path_entry_hash()?,
+    resource_hash.clone(),
+    LinkTypes::AllEconomicResources,
+    (),
+  )?;
+  create_link(
+    Path::from(format!(
+      "ndo.opstate.{:?}",
+      OperationalState::PendingValidation
+    ))
+    .path_entry_hash()?,
+    resource_hash.clone(),
+    LinkTypes::ResourcesByOperationalState,
+    (),
+  )?;
+  create_link(
+    spec_hash.clone(),
+    resource_hash.clone(),
+    LinkTypes::SpecificationToResource,
+    (),
+  )?;
+  create_link(
+    agent_info.agent_initial_pubkey.clone(),
+    resource_hash.clone(),
+    LinkTypes::CustodianToResource,
+    (),
+  )?;
+  create_link(
+    agent_info.agent_initial_pubkey.clone(),
+    resource_hash.clone(),
+    LinkTypes::AgentToManagedResources,
+    (),
+  )?;
+
+  Ok((spec_hash, resource_hash))
+}
+
 #[hdk_extern]
 pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
   if input.name.trim().is_empty() {
     return Err(ResourceError::InvalidInput("Name cannot be empty".to_string()).into());
   }
+
+  validate_economic_foreshadow(&input)?;
 
   let agent_info = agent_info()?;
 
@@ -149,12 +425,20 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
     initiator: agent_info.agent_initial_pubkey.clone(),
     property_regime: input.property_regime,
     resource_nature: input.resource_nature,
-    lifecycle_stage: input.lifecycle_stage,
+    lifecycle_stage: input.lifecycle_stage.clone(),
     created_at: sys_time()?,
     description: input.description,
     rivalry_override: input.rivalry_override,
     successor_ndo_hash: None,
     hibernation_origin: None,
+    economic_mode: input.economic_mode.clone(),
+    use_kind: input.use_kind.clone(),
+    default_unit: input.default_unit.clone(),
+    identification_pattern: input.identification_pattern.clone(),
+    unique_id: input.unique_id.clone(),
+    max_concurrent_users: input.max_concurrent_users,
+    closure_reason: None,
+    closure_note: None,
   };
 
   let action_hash = create_entry(&EntryTypes::NondominiumIdentity(entry.clone()))?;
@@ -198,7 +482,22 @@ pub fn create_ndo(input: NdoInput) -> ExternResult<NdoOutput> {
     (),
   )?;
 
-  Ok(NdoOutput { action_hash, entry })
+  // Hard dual create: inventoriable Use/Consume at Layer 0 when Layer 1 is eligible.
+  let mut specification_action_hash = None;
+  let mut economic_resource_action_hash = None;
+  if entry.economic_mode.is_some() && layer1_eligible(&entry.lifecycle_stage) {
+    let (spec_hash, resource_hash) =
+      hard_dual_create_inventory(action_hash.clone(), &entry, input.initial_quantity)?;
+    specification_action_hash = Some(spec_hash);
+    economic_resource_action_hash = Some(resource_hash);
+  }
+
+  Ok(NdoOutput {
+    action_hash,
+    entry,
+    specification_action_hash,
+    economic_resource_action_hash,
+  })
 }
 
 /// Retrieve the latest NondominiumIdentity by its original action hash.
@@ -280,6 +579,24 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
     .into());
   }
 
+  let entering_terminal = matches!(
+    input.new_stage,
+    LifecycleStage::Deprecated | LifecycleStage::EndOfLife
+  );
+
+  // Consume-mode batches require a closure reason at terminal (integrity also enforces).
+  if entering_terminal
+    && current_entry.economic_mode == Some(EconomicMode::Consume)
+    && input.closure_reason.is_none()
+    && current_entry.closure_reason.is_none()
+  {
+    return Err(ResourceError::InvalidInput(
+      "Consume-mode NDO requires closure_reason when entering Deprecated or EndOfLife"
+        .to_string(),
+    )
+    .into());
+  }
+
   // Apply mutations — integrity validation enforces the state machine and immutability.
   // hibernation_origin is managed automatically; callers do not set it directly.
   let old_stage = current_entry.lifecycle_stage.clone();
@@ -304,6 +621,14 @@ pub fn update_lifecycle_stage(input: UpdateLifecycleStageInput) -> ExternResult<
   // successor hash with None (integrity rejects immutable-once-set field changes).
   if to == LifecycleStage::Deprecated {
     current_entry.successor_ndo_hash = input.successor_ndo_hash.clone();
+  }
+  if entering_terminal {
+    if current_entry.closure_reason.is_none() {
+      current_entry.closure_reason = input.closure_reason.clone();
+    }
+    if current_entry.closure_note.is_none() {
+      current_entry.closure_note = input.closure_note.clone();
+    }
   }
 
   let latest_action_hash = record.action_address().clone();

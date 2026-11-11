@@ -80,9 +80,9 @@
       ...(description.trim() && { description: description.trim() }),
       ...(rivalry_override && { rivalry_override })
     };
-    const hashB64 = await groupStore.createNdo(input);
+    const created = await groupStore.createNdo(input);
     isSubmitting = false;
-    if (hashB64) {
+    if (created) {
       onclose();
       await goto(`/group/${encodeURIComponent(groupId)}`);
     } else {

@@ -2,13 +2,20 @@
   /**
    * Wraps `@nondominium/ndo-ui` wizard create modal. Maps to hApp `NdoInput`,
    * drops Source foreshadow fields, and exposes all seven PropertyRegime values
-   * (ndo-ui refinement only offers four).
+   * (ndo-ui refinement only offers four). After hard dual create, applies
+   * preselected creatable governance templates onto the new Layer 1 spec.
    */
   import { goto } from '$app/navigation';
   import type { NdoDescriptor, PropertyRegime } from '@nondominium/shared-types';
-  import { NdoCreateModal, type NdoInput as NdoUiInput } from '@nondominium/ndo-ui';
+  import {
+    NdoCreateModal,
+    type NdoInput as NdoUiInput,
+    type WizardResult
+  } from '@nondominium/ndo-ui';
+  import { decodeHashFromBase64 } from '@holochain/client';
   import { groupStore } from '$lib/stores/group.store.svelte';
   import { fromNdoUiCreateInput, toNdoUiDescriptors } from '$lib/utils/ndo-ui-adapters';
+  import { applyWizardGovernanceTemplates } from '$lib/utils/apply-wizard-governance';
 
   interface Props {
     groupId: string;
@@ -33,6 +40,11 @@
   let errorMessage = $state<string | null>(null);
   /** Optional override so Collective / Pool / Public remain creatable. */
   let regimeOverride = $state<PropertyRegime | ''>('');
+  let lastWizardResult = $state<WizardResult | null>(null);
+
+  function handleWizardComplete(result: WizardResult) {
+    lastWizardResult = result;
+  }
 
   async function handleSubmit(input: NdoUiInput) {
     isSubmitting = true;
@@ -41,14 +53,36 @@
     if (regimeOverride) {
       mapped.property_regime = regimeOverride;
     }
-    const hashB64 = await groupStore.createNdo(mapped);
-    isSubmitting = false;
-    if (hashB64) {
-      onclose();
-      await goto(`/ndo/${encodeURIComponent(hashB64)}`);
-    } else {
+    const created = await groupStore.createNdo(mapped);
+    if (!created) {
+      isSubmitting = false;
       errorMessage = groupStore.errorMessage ?? 'Failed to create NDO.';
+      return;
     }
+
+    const templateIds =
+      lastWizardResult?.ndo_input.governance_rule_ids ?? input.governance_rule_ids ?? [];
+    if (created.specificationActionHash && templateIds.length > 0) {
+      try {
+        await applyWizardGovernanceTemplates({
+          ndoIdentityHash: decodeHashFromBase64(created.hashB64),
+          specificationHash: created.specificationActionHash,
+          cellId: created.cellId,
+          templateIds,
+          propertyRegime: mapped.property_regime,
+          resourceNature: mapped.resource_nature,
+          economicMode: mapped.economic_mode ?? null,
+          useKind: mapped.use_kind ?? null,
+          maxConcurrentUsers: mapped.max_concurrent_users ?? null
+        });
+      } catch {
+        // Best-effort: NDO + inventory already exist; Governance tab can retry.
+      }
+    }
+
+    isSubmitting = false;
+    onclose();
+    await goto(`/ndo/${encodeURIComponent(created.hashB64)}`);
   }
 </script>
 
@@ -82,6 +116,7 @@
     {errorMessage}
     initialArchetype="stub"
     {onclose}
+    onwizardcomplete={handleWizardComplete}
     onsubmit={handleSubmit}
   />
 </div>

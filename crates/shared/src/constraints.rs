@@ -469,6 +469,8 @@ mod tests {
         max_duration_hours: None,
         max_quantity_per_period: Some(10.0),
         period_days: Some(30),
+        max_concurrent_users: None,
+        max_per_agent: None,
       }),
     );
     assert!(!has_hard_violation(&v));
@@ -484,6 +486,8 @@ mod tests {
         max_duration_hours: Some(2.0),
         max_quantity_per_period: None,
         period_days: None,
+        max_concurrent_users: None,
+        max_per_agent: None,
       }),
     );
     assert!(v.is_empty());
@@ -497,6 +501,8 @@ mod tests {
         max_duration_hours: None,
         max_quantity_per_period: Some(10.0),
         period_days: Some(30),
+        max_concurrent_users: None,
+        max_per_agent: None,
       }),
     );
     assert!(v.is_empty());

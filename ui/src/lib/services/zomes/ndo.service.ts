@@ -28,12 +28,20 @@ import { generateNdoNetworkSeed } from '../ndo-clone.helpers';
 
 // ─── Service interface ────────────────────────────────────────────────────────
 
+/** Result of creating an NDO cell + Layer 0 (+ optional hard dual Layer 1). */
+export type CreateNdoResult = {
+  action_hash: ActionHash;
+  cellId: CellId;
+  specification_action_hash: ActionHash | null;
+  economic_resource_action_hash: ActionHash | null;
+};
+
 export interface NdoService {
   getLobbyNdoDescriptors: () => E.Effect<NdoDescriptor[], ResourceError>;
   getNdoDescriptorForSpecActionHash: (
     hash: ActionHash
   ) => E.Effect<NdoDescriptor, ResourceError | NdoNotFoundError>;
-  createNdo: (input: NdoInput, groupId: string) => E.Effect<ActionHash, ResourceError>;
+  createNdo: (input: NdoInput, groupId: string) => E.Effect<CreateNdoResult, ResourceError>;
   updateLifecycleStage: (input: UpdateLifecycleStageInput) => E.Effect<ActionHash, ResourceError>;
   getNdoTransitionHistory: (ndoHash: ActionHash) => E.Effect<NdoTransitionHistoryEvent[], ResourceError>;
   getGroupNdoDescriptors: (groupId: string) => E.Effect<NdoDescriptor[], ResourceError>;
@@ -104,10 +112,13 @@ function anchorToDescriptor(anchor: NdoAnchorEntry): NdoDescriptor {
     initiator: encodeHashToBase64(anchor.initiator),
     created_at: Number(anchor.ndo_created_at),
     successor_ndo_hash: null,
-    // The anchor caches only the card fields; rivalry_override is not among
-    // them, so it stays null here and is filled by the live read on open.
+    // The anchor caches only the card fields; rivalry_override / economic_mode
+    // are filled by the live read on open.
     rivalry_override: null,
-    hibernation_origin: null
+    hibernation_origin: null,
+    economic_mode: null,
+    use_kind: null,
+    closure_reason: null
   };
 }
 
@@ -126,7 +137,10 @@ function identityToDescriptor(hash: ActionHash, entry: NondominiumIdentity): Ndo
       ? encodeHashToBase64(entry.successor_ndo_hash)
       : null,
     hibernation_origin: entry.hibernation_origin ? String(entry.hibernation_origin) : null,
-    rivalry_override: entry.rivalry_override ? String(entry.rivalry_override) : null
+    rivalry_override: entry.rivalry_override ? String(entry.rivalry_override) : null,
+    economic_mode: entry.economic_mode ?? null,
+    use_kind: entry.use_kind ?? null,
+    closure_reason: entry.closure_reason ?? null
   };
 }
 
@@ -413,7 +427,15 @@ export const NdoServiceLive: Layer.Layer<
             property_regime: input.property_regime,
             resource_nature: input.resource_nature,
             lifecycle_stage: input.lifecycle_stage,
-            description: input.description ?? null
+            description: input.description ?? null,
+            rivalry_override: input.rivalry_override ?? null,
+            economic_mode: input.economic_mode ?? null,
+            use_kind: input.use_kind ?? null,
+            default_unit: input.default_unit ?? null,
+            identification_pattern: input.identification_pattern ?? null,
+            unique_id: input.unique_id ?? null,
+            max_concurrent_users: input.max_concurrent_users ?? null,
+            initial_quantity: input.initial_quantity ?? null
           });
 
           // 3. Anchor in the group cell with full clone coordinates. NOT
@@ -438,7 +460,12 @@ export const NdoServiceLive: Layer.Layer<
             })
             .pipe(E.mapError((e) => ResourceError.fromError(e, 'CREATE_NDO_ANCHOR')));
 
-          return ndoOut.action_hash;
+          return {
+            action_hash: ndoOut.action_hash,
+            cellId: ndoCellId,
+            specification_action_hash: ndoOut.specification_action_hash ?? null,
+            economic_resource_action_hash: ndoOut.economic_resource_action_hash ?? null
+          } satisfies CreateNdoResult;
         }),
 
       updateLifecycleStage: (input) =>

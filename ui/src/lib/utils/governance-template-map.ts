@@ -16,14 +16,19 @@ export const CREATABLE_TEMPLATE_IDS = new Set([
   'access_accountable',
   'quota_extraction',
   'maintenance_schedule',
-  'no_ownership_transfer'
+  'no_ownership_transfer',
+  'capacity_limit',
+  'max_per_agent'
 ]);
 
 /**
  * Map a DS template id to RuleData. Returns null for templates that need schema
- * work (attribution, integrity, capacity, Source-*).
+ * work (attribution, integrity, Source-*).
  */
-export function mapTemplateToRuleData(templateId: string): TemplateCreateResult | null {
+export function mapTemplateToRuleData(
+  templateId: string,
+  opts?: { maxConcurrentUsers?: number; maxPerAgent?: number }
+): TemplateCreateResult | null {
   switch (templateId) {
     case 'access_accountable':
       return {
@@ -41,6 +46,22 @@ export function mapTemplateToRuleData(templateId: string): TemplateCreateResult 
           UsageLimit: {
             max_quantity_per_period: 100,
             period_days: 30
+          }
+        }
+      };
+    case 'capacity_limit':
+      return {
+        rule_data: {
+          UsageLimit: {
+            max_concurrent_users: opts?.maxConcurrentUsers ?? 4
+          }
+        }
+      };
+    case 'max_per_agent':
+      return {
+        rule_data: {
+          UsageLimit: {
+            max_per_agent: opts?.maxPerAgent ?? 10
           }
         }
       };

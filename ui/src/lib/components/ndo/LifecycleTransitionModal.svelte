@@ -1,5 +1,9 @@
 <script lang="ts">
-  import type { LifecycleStage, NdoDescriptor } from '@nondominium/shared-types';
+  import type {
+    ClosureReason,
+    LifecycleStage,
+    NdoDescriptor
+  } from '@nondominium/shared-types';
   import { decodeHashFromBase64 } from '@holochain/client';
   import type { ActionHash } from '@holochain/client';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
@@ -19,14 +23,31 @@
   const currentStage = descriptor.lifecycle_stage ?? '';
   const allOptions: LifecycleStage[] = allowedNextStages(descriptor);
 
+  const CLOSURE_REASONS: { value: ClosureReason; label: string }[] = [
+    { value: 'Depleted', label: 'Depleted (quantity reached zero)' },
+    { value: 'Spoiled', label: 'Spoiled' },
+    { value: 'Withdrawn', label: 'Withdrawn' },
+    { value: 'WrittenOff', label: 'Written off' },
+    { value: 'DonatedRemainder', label: 'Donated remainder' },
+    { value: 'Other', label: 'Other' }
+  ];
+
   let selectedStage = $state<LifecycleStage | ''>('');
   let successorSearch = $state('');
   let selectedSuccessorHash = $state('');
+  let closureReason = $state<ClosureReason | ''>('');
+  let closureNote = $state('');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
   const needsSuccessor = $derived(selectedStage === 'Deprecated');
   const needsConfirm = $derived(selectedStage === 'Hibernating');
+  const needsClosureReason = $derived(
+    selectedStage === 'Deprecated' || selectedStage === 'EndOfLife'
+  );
+  const requiresClosureForConsume = $derived(
+    needsClosureReason && descriptor.economic_mode === 'Consume'
+  );
 
   const matchingNdos = $derived(
     successorSearch.trim().length >= 2
@@ -47,6 +68,10 @@
       errorMessage = 'Please select a successor NDO for deprecation.';
       return;
     }
+    if (requiresClosureForConsume && !closureReason) {
+      errorMessage = 'Select a closure reason (e.g. Depleted when stock is gone).';
+      return;
+    }
     isSubmitting = true;
     errorMessage = '';
 
@@ -61,7 +86,13 @@
         original_action_hash: originalHash,
         new_stage: selectedStage as LifecycleStage,
         successor_ndo_hash: successorHash,
-        transition_event_hash: undefined
+        transition_event_hash: undefined,
+        ...(closureReason
+          ? {
+              closure_reason: closureReason as ClosureReason,
+              closure_note: closureNote.trim() || null
+            }
+          : {})
       });
     } catch (error) {
       isSubmitting = false;
@@ -151,6 +182,44 @@
           <div class="rounded border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-700">
             Hibernating preserves the current stage as origin. The NDO can resume from <strong>{currentStage}</strong> later.
           </div>
+        {/if}
+
+        {#if needsClosureReason}
+          <fieldset>
+            <legend class="mb-2 text-sm font-medium text-gray-700">
+              Closure reason{requiresClosureForConsume ? ' (required for Consume batches)' : ''}:
+            </legend>
+            <div class="space-y-2">
+              {#each CLOSURE_REASONS as reason}
+                <label class="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="closure-reason"
+                    value={reason.value}
+                    bind:group={closureReason}
+                    class="h-4 w-4"
+                  />
+                  <span class="text-sm text-gray-700">
+                    {#if reason.value === 'Depleted'}
+                      <span class="font-medium text-gray-900">Depleted</span>
+                      <span class="text-gray-500"> — quantity reached zero</span>
+                    {:else}
+                      {reason.label}
+                    {/if}
+                  </span>
+                </label>
+              {/each}
+            </div>
+            <label class="mt-2 block text-xs text-gray-500">
+              Optional note
+              <input
+                type="text"
+                bind:value={closureNote}
+                class="mt-1 w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                placeholder="Context for this closure…"
+              />
+            </label>
+          </fieldset>
         {/if}
       {/if}
 
