@@ -74,18 +74,25 @@ export class UIResourceSpec extends Schema.Class<UIResourceSpec>('UIResourceSpec
   created_at: Schema.optional(Schema.Number)
 }) { }
 
+/**
+ * ValueFlows `Measure` — mirrors `crates/shared/src/types.rs::Measure`.
+ * Used anywhere VF carries a quantity (resourceQuantity, effortQuantity, …).
+ */
+export class MeasureSchema extends Schema.Class<MeasureSchema>('Measure')({
+  numerical_value: Schema.Number,
+  has_unit: Schema.String
+}) { }
+
 export class EconomicResourceInput extends Schema.Class<EconomicResourceInput>(
   'EconomicResourceInput'
 )({
   conforms_to: Schema.Any, // ActionHash → ResourceSpecification
-  quantity: Schema.Number,
-  unit: Schema.String,
+  quantity: MeasureSchema,
   current_location: Schema.optional(Schema.String)
 }) { }
 
 export class UIEconomicResource extends Schema.Class<UIEconomicResource>('UIEconomicResource')({
-  quantity: Schema.Number,
-  unit: Schema.String,
+  quantity: MeasureSchema,
   custodian: Schema.Any, // AgentPubKey
   current_location: Schema.optional(Schema.String),
   operational_state: OperationalStateSchema,

@@ -340,7 +340,8 @@ export function createNdoStore(hashB64: string): NdoStore {
                 (m) =>
                   m.event_time === ev.event_time &&
                   m.action === ev.action &&
-                  m.resource_quantity === ev.resource_quantity
+                  m.resource_quantity.numerical_value === ev.resource_quantity.numerical_value &&
+                  m.resource_quantity.has_unit === ev.resource_quantity.has_unit
               )
             ) {
               merged.push(ev);

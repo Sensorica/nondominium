@@ -159,6 +159,69 @@ pub enum ResourceScope {
   Public,
 }
 
+/// Whether a Layer 1 kind tracks inventoriable units (ValueFlows foreshadow).
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum InventoryIntent {
+  Inventoried,
+  NotInventoried,
+  NotApplicable,
+}
+
+/// How inventoriable units are identified when tracking applies.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum IdentificationPattern {
+  Serialized,
+  LotControlled,
+  Stock,
+}
+
+/// How a digital (non-inventoriable) artifact is located / addressed.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum DigitalLocatorKind {
+  ContentAddressed,
+  Url,
+  Repository,
+  DistributedStore,
+  HostedService,
+  LocalHost,
+}
+
+/// Soft foreshadow rules mirrored from the design-system `validateForeshadow`.
+/// Returns `Err(message)` when Inventoried lacks pattern or default unit.
+pub fn validate_spec_foreshadow(
+  inventory_intent: Option<&InventoryIntent>,
+  identification_pattern: Option<&IdentificationPattern>,
+  default_unit: Option<&str>,
+  resource_nature: Option<&ResourceNature>,
+) -> Result<(), String> {
+  let intent = match inventory_intent {
+    Some(i) => i,
+    None => return Ok(()),
+  };
+  // Digital kinds are never inventoriable.
+  if matches!(resource_nature, Some(ResourceNature::Digital)) {
+    if matches!(intent, InventoryIntent::Inventoried | InventoryIntent::NotInventoried) {
+      return Err(
+        "Digital resource kinds are not inventoriable; use NotApplicable inventory intent"
+          .to_string(),
+      );
+    }
+    return Ok(());
+  }
+  if *intent != InventoryIntent::Inventoried {
+    return Ok(());
+  }
+  if identification_pattern.is_none() {
+    return Err(
+      "Choose how units are identified (serialized, lot, or stock).".to_string(),
+    );
+  }
+  if default_unit.map(|u| u.trim().is_empty()).unwrap_or(true) {
+    return Err("Enter a default unit for this kind (e.g. each, kg, L).".to_string());
+  }
+  Ok(())
+}
+
 /// Current process condition on a specific EconomicResource instance (Layer 2).
 /// Cycles frequently as processes begin and end; orthogonal to LifecycleStage.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
@@ -216,6 +279,51 @@ pub struct NdoDnaProperties {
   pub property_regime: PropertyRegime,
   pub resource_nature: ResourceNature,
   pub created_at: Timestamp,
+}
+
+// ─── ValueFlows Measure ──────────────────────────────────────────────────────
+//
+// `vf:Measure` is the shared value-with-unit type ValueFlows attaches to flow
+// quantities (`resourceQuantity`, `effortQuantity`, `availableQuantity`,
+// `minimumQuantity`). Carrying it as its own type — rather than a loose
+// `f64 + String` pair — keeps Intent / Commitment / EconomicEvent / Claim
+// aligned with VF 1.0 and lets hREA / Grassroots-side tooling consume the same
+// shape without reshaping on the wire.
+//
+// `unit` is kept open as a String for the MVP: VF spec recommends om2 unit URIs
+// (e.g. `om2:kilogram`), but a typed unit vocabulary is a cross-cutting
+// standardisation task that is out of scope for the commitment-pool experiment.
+// Downstream code should treat `unit` as case-sensitive and compare it as-is.
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct Measure {
+  pub numerical_value: f64,
+  pub has_unit: String,
+}
+
+impl Measure {
+  pub fn new(numerical_value: f64, has_unit: impl Into<String>) -> Self {
+    Self {
+      numerical_value,
+      has_unit: has_unit.into(),
+    }
+  }
+
+  /// Validation used across all VF entries carrying a Measure.
+  /// A Measure must have a non-NaN, non-infinite, non-negative numerical value
+  /// and a non-empty unit. Zero is permitted — some flows legitimately record
+  /// nil-quantity observations.
+  pub fn validate(&self) -> Result<(), String> {
+    if self.numerical_value.is_nan() || !self.numerical_value.is_finite() {
+      return Err("Measure numerical_value must be a finite number".to_string());
+    }
+    if self.numerical_value < 0.0 {
+      return Err("Measure numerical_value cannot be negative".to_string());
+    }
+    if self.has_unit.trim().is_empty() {
+      return Err("Measure has_unit cannot be empty".to_string());
+    }
+    Ok(())
+  }
 }
 
 // ─── ValueFlows action enum ───────────────────────────────────────────────────

@@ -4,6 +4,7 @@ use nondominium_shared::constraints::{
   check_action_permitted, ConstraintViolation, ResourceClassification,
 };
 use nondominium_shared::io::governance::CheckActionConstraintsInput;
+use nondominium_shared::types::Measure;
 use zome_gouvernance_integrity::*;
 
 // ============================================================================
@@ -16,7 +17,8 @@ pub struct LogEconomicEventInput {
   pub provider: AgentPubKey,
   pub receiver: AgentPubKey,
   pub resource_inventoried_as: ActionHash,
-  pub resource_quantity: f64,
+  /// ValueFlows `resourceQuantity` on the observed flow.
+  pub resource_quantity: Measure,
   pub note: Option<String>,
   pub commitment_hash: Option<ActionHash>, // Optional link to commitment being fulfilled
   pub generate_pprs: Option<bool>,         // Whether to auto-generate PPR claims
@@ -34,6 +36,15 @@ pub struct LogEconomicEventOutput {
 #[hdk_extern]
 pub fn log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEconomicEventOutput> {
   let now = sys_time()?;
+
+  // Shape-check the Measure before integrity sees it so callers get a clearer
+  // error on malformed input (integrity will also reject it, but with a less
+  // specific message).
+  input.resource_quantity.validate().map_err(|e| {
+    wasm_error!(WasmErrorInner::Guest(format!(
+      "Invalid resource_quantity: {e}"
+    )))
+  })?;
 
   // Hard action constraints are enforced by integrity validation.
   // Soft warnings are available via evaluate_state_transition / check_action_constraints
@@ -106,7 +117,7 @@ pub fn log_economic_event(input: LogEconomicEventInput) -> ExternResult<LogEcono
 pub struct LogInitialTransferInput {
   pub resource_hash: ActionHash,
   pub receiver: AgentPubKey,
-  pub quantity: f64,
+  pub quantity: Measure,
   pub ndo_identity_hash: ActionHash,
 }
 

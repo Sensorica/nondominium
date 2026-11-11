@@ -1,7 +1,7 @@
 use crate::constraints::ConstraintViolation;
 use crate::types::{
-  BenefitClause, LifecycleStage, NdoLinkType, OperationalState, PropertyRegime, ResourceNature,
-  Rivalry, VfAction,
+  BenefitClause, LifecycleStage, Measure, NdoLinkType, OperationalState, PropertyRegime,
+  ResourceNature, Rivalry, VfAction,
 };
 use hdi::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -67,8 +67,9 @@ pub struct NdoClassificationView {
 /// Wire-compatible view of `EconomicResource` for cross-zome transition requests.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EconomicResourceView {
-  pub quantity: f64,
-  pub unit: String,
+  /// ValueFlows `resourceQuantity` as a `Measure`; replaces the previous
+  /// `quantity: f64 + unit: String` pair.
+  pub quantity: Measure,
   pub custodian: AgentPubKey,
   pub current_location: Option<String>,
   pub operational_state: OperationalState,
@@ -77,6 +78,9 @@ pub struct EconomicResourceView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransitionContext {
   pub target_location: Option<String>,
+  /// Signed delta applied to the resource's `Measure.numerical_value` during
+  /// the transition. The unit is inherited from the source resource — this is
+  /// a magnitude, not a unit redefinition.
   pub quantity_change: Option<f64>,
   pub target_custodian: Option<AgentPubKey>,
   pub process_notes: Option<String>,

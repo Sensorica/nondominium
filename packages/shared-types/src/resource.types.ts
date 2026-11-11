@@ -1,5 +1,18 @@
 import type { ActionHash, AgentPubKey, DnaHash, EntryHash, Record, Timestamp } from '@holochain/client';
 
+/**
+ * ValueFlows `Measure` — a numerical value with a unit label. Mirrors
+ * `crates/shared/src/types.rs::Measure` 1:1. Used anywhere ValueFlows carries
+ * a quantity: `resourceQuantity`, `effortQuantity`, `availableQuantity`.
+ *
+ * `has_unit` is a free-form string in the MVP; the VF spec recommends om2
+ * unit URIs (e.g. `om2:kilogram`), but typed units are deferred.
+ */
+export interface Measure {
+  numerical_value: number;
+  has_unit: string;
+}
+
 // Resource operational state types (Layer 2 instance condition)
 export type OperationalState =
   | "Available"
@@ -22,11 +35,17 @@ export interface ResourceSpecification {
   is_active?: boolean;
   scope?: ResourceScope;
   ndo_identity_hash?: ActionHash;
+  /** Inventory foreshadow — additive; absent on legacy entries. */
+  inventory_intent?: InventoryIntent | null;
+  identification_pattern?: IdentificationPattern | null;
+  default_unit?: string | null;
+  substitutable?: boolean | null;
+  digital_locator_kind?: DigitalLocatorKind | null;
+  digital_locator?: string | null;
 }
 
 export interface EconomicResource {
-  quantity: number;
-  unit: string;
+  quantity: Measure;
   custodian: AgentPubKey;
   current_location?: string;
   operational_state: OperationalState;
@@ -70,6 +89,12 @@ export interface ResourceSpecificationInput {
   scope: ResourceScope;
   ndo_identity_hash: ActionHash;
   governance_rules: NestedGovernanceRuleInput[];
+  inventory_intent?: InventoryIntent | null;
+  identification_pattern?: IdentificationPattern | null;
+  default_unit?: string | null;
+  substitutable?: boolean | null;
+  digital_locator_kind?: DigitalLocatorKind | null;
+  digital_locator?: string | null;
 }
 
 export interface NestedGovernanceRuleInput {
@@ -79,8 +104,7 @@ export interface NestedGovernanceRuleInput {
 
 export interface EconomicResourceInput {
   spec_hash: ActionHash;
-  quantity: number;
-  unit: string;
+  quantity: Measure;
   current_location?: string;
 }
 
@@ -285,6 +309,19 @@ export type ResourceNature = "Physical" | "Digital" | "Hybrid";
 export type Rivalry = "Rivalrous" | "NonRivalrous";
 
 export type ResourceScope = "Project" | "Network" | "Public";
+
+/** Layer 1 inventory foreshadow (ValueFlows). */
+export type InventoryIntent = "Inventoried" | "NotInventoried" | "NotApplicable";
+
+export type IdentificationPattern = "Serialized" | "LotControlled" | "Stock";
+
+export type DigitalLocatorKind =
+  | "ContentAddressed"
+  | "Url"
+  | "Repository"
+  | "DistributedStore"
+  | "HostedService"
+  | "LocalHost";
 
 export type ConstraintSeverity = "Hard" | "Soft";
 
