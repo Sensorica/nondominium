@@ -10,6 +10,7 @@
     VfAction,
     VfCommitment
   } from '@nondominium/shared-types';
+  import { actionFormSpec, validateCommitmentDraft } from '@nondominium/ndo-ui';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
   import { connectionStore } from '$lib/stores/connection.store.svelte';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
@@ -56,15 +57,15 @@
   /** null until the NDO's inventoried instances have been read. */
   let inventoriedCount = $state<number | null>(null);
 
-  const palette = $derived(
-    happNdoUiProfile({
-      resourceNature,
-      propertyRegime,
-      economicMode,
-      hasInventoriableResource:
-        inventoriableFork || (inventoriedCount != null && inventoriedCount > 0) || !!resourceHashB64
-    }).actionPalette
-  );
+  const profileCtx = $derived({
+    resourceNature,
+    propertyRegime,
+    economicMode,
+    hasInventoriableResource:
+      inventoriableFork || (inventoriedCount != null && inventoriedCount > 0) || !!resourceHashB64
+  });
+
+  const palette = $derived(happNdoUiProfile(profileCtx).actionPalette);
 
   let action = $state<VfAction>(
     happNdoUiProfile({
@@ -74,11 +75,16 @@
       hasInventoriableResource: !!economicMode
     }).activity.defaultAction as VfAction
   );
+
+  const formSpec = $derived(
+    actionFormSpec(action, {
+      ...profileCtx,
+      surface: 'event'
+    })
+  );
+
   let resourceLookupFailed = $state(false);
-  let quantity = $state('1');
-  // ValueFlows `Measure.has_unit`. Defaults to "each" for the common
-  // "custody of one tool" case; override for countable continuous resources
-  // (kWh, kg, hr, …).
+  let quantity = $state<number | undefined>(1);
   let unit = $state('each');
   let note = $state('');
   let fromCommitmentIdx = $state<number | ''>('');
@@ -109,6 +115,9 @@
     )
   );
 
+  const showResourceHashUi = $derived(formSpec.resourceHash.presence !== 'hidden');
+  const showResourceQtyUi = $derived(formSpec.resourceQuantity.presence !== 'hidden');
+
   async function seedAgents() {
     try {
       const me = await connectionStore.getMyAgentPubKey();
@@ -122,6 +131,16 @@
 
   $effect(() => {
     void seedAgents();
+  });
+
+  $effect(() => {
+    if (formSpec.agents.mode === 'unilateralSame' && providerB64) {
+      receiverB64 = providerB64;
+    }
+  });
+
+  $effect(() => {
+    unit = formSpec.resourceQuantity.defaultUnit || unit;
   });
 
   $effect(() => {
@@ -145,8 +164,6 @@
         return;
       }
       if (cancelled) return;
-      // A lookup started before the NDO cell resolved would miss per-cell
-      // instances. Drop it; the effect re-runs once `ndoCellId` is set.
       if (cell == null && ndo().cellId != null) return;
       const flat = rows.flatMap((row) => row.instances);
       inventoriedCount = flat.length;
@@ -201,16 +218,39 @@
       errorMessage = hashPrompt.message;
       return;
     }
-    if (!providerB64 || !receiverB64 || !resourceHashB64) {
-      errorMessage = 'Provider, receiver, and resource hash are required.';
+
+    const providerWire =
+      formSpec.agents.mode === 'unilateralSame'
+        ? providerB64 || receiverB64
+        : providerB64;
+    const receiverWire =
+      formSpec.agents.mode === 'unilateralSame' ? providerWire : receiverB64;
+
+    // Event time is set by the zome (sys_time); draft validator still needs a time stub.
+    const draftErrors = validateCommitmentDraft(formSpec, {
+      provider: providerWire,
+      receiver: receiverWire,
+      timeLocal: 'now',
+      resourceHash: showResourceHashUi ? resourceHashB64 : null,
+      resourceQuantity: showResourceQtyUi ? quantity : null,
+      effortQuantity: null
+    });
+    if (draftErrors.length > 0) {
+      errorMessage = draftErrors.join(' ');
       return;
     }
+
+    if (showResourceHashUi && !resourceHashB64) {
+      errorMessage = `${formSpec.resourceHash.label} is required.`;
+      return;
+    }
+
     let provider: AgentPubKey;
     let receiver: AgentPubKey;
     let resource: ActionHash;
     try {
-      provider = decodeHashFromBase64(providerB64) as AgentPubKey;
-      receiver = decodeHashFromBase64(receiverB64) as AgentPubKey;
+      provider = decodeHashFromBase64(providerWire) as AgentPubKey;
+      receiver = decodeHashFromBase64(receiverWire) as AgentPubKey;
       resource = decodeHashFromBase64(resourceHashB64) as ActionHash;
     } catch {
       errorMessage = 'Invalid base64 hash for provider, receiver, or resource.';
@@ -218,8 +258,6 @@
     }
     isSubmitting = true;
     errorMessage = '';
-    const commitment =
-      fromCommitmentIdx !== '' ? ndoCommitments[fromCommitmentIdx as number] : undefined;
     const out = await governanceStore.logEconomicEvent(
       {
         action,
@@ -227,19 +265,13 @@
         receiver,
         resource_inventoried_as: resource,
         resource_quantity: {
-          // A Measure may be 0; only a missing or non-numeric value falls back to 1.
           numerical_value:
-            quantity == null || String(quantity).trim() === '' || !Number.isFinite(Number(quantity))
-              ? 1
-              : Number(quantity),
-          has_unit: unit.trim() || 'each'
+            quantity == null || !Number.isFinite(Number(quantity)) ? 1 : Number(quantity),
+          has_unit: unit.trim() || formSpec.resourceQuantity.defaultUnit
         },
         note: note.trim() || null,
         generate_pprs: false,
-        ndo_identity_hash: ndoActionHash,
-        ...(commitment && {
-          commitment_hash: undefined as ActionHash | undefined
-        })
+        ndo_identity_hash: ndoActionHash
       },
       ndoCellId ?? undefined
     );
@@ -263,7 +295,8 @@
     <div class="border-b border-gray-100 px-6 py-4">
       <h2 id="event-create-title" class="text-lg font-semibold text-gray-900">Log economic event</h2>
       <p class="mt-1 text-sm text-gray-500">
-        Dry-runs <code class="text-xs">check_action_constraints</code> before write.
+        Dry-runs <code class="text-xs">check_action_constraints</code> before write. Observation time
+        is recorded by the conductor.
       </p>
     </div>
 
@@ -280,7 +313,9 @@
           >
             <option value="">— none —</option>
             {#each ndoCommitments as c, i (i)}
-              <option value={i}>{c.action} · due {new Date(Number(c.due_date) / 1000).toLocaleString()}</option>
+              <option value={i}
+                >{c.action} · due {new Date(Number(c.due_date) / 1000).toLocaleString()}</option
+              >
             {/each}
           </select>
         </div>
@@ -288,7 +323,11 @@
 
       <div>
         <label class="mb-1 block text-sm font-medium text-gray-700" for="e-action">Action</label>
-        <select id="e-action" bind:value={action} class="w-full rounded border border-gray-300 px-3 py-2 text-sm">
+        <select
+          id="e-action"
+          bind:value={action}
+          class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+        >
           <optgroup label="Suggested for this NDO">
             {#each palette.primary as a}
               <option value={a}>{a}</option>
@@ -303,71 +342,136 @@
           {/if}
         </select>
         <p class="mt-1 text-xs text-gray-500">
-          Suggested actions match this NDO’s nature
-          {#if economicMode}
-            and inventoriable mode ({economicMode})
-          {/if}. Hard-illegal or irrelevant actions are hidden.
+          {#if formSpec.summaryHint}
+            {formSpec.summaryHint}
+          {:else}
+            Suggested actions match this NDO’s nature
+            {#if economicMode}
+              and inventoriable mode ({economicMode})
+            {/if}.
+          {/if}
         </p>
       </div>
-      <AgentPubkeyField
-        id="e-provider"
-        label="Provider"
-        bind:value={providerB64}
-        {members}
-        hint="Pick a member or paste a full agent pubkey."
-      />
-      <AgentPubkeyField
-        id="e-receiver"
-        label="Receiver"
-        bind:value={receiverB64}
-        {members}
-        hint="Who receives this event."
-      />
-      {#if hashPrompt.kind === 'loading'}
-        <p class="text-sm text-gray-500">Looking up inventoried resources…</p>
+
+      {#if formSpec.agents.mode === 'unilateralSame'}
+        <AgentPubkeyField
+          id="e-agent"
+          label={formSpec.agents.singleLabel}
+          bind:value={providerB64}
+          {members}
+          hint="Pick a member or paste a full agent pubkey."
+        />
+      {:else}
+        <AgentPubkeyField
+          id="e-provider"
+          label={formSpec.agents.providerLabel}
+          bind:value={providerB64}
+          {members}
+          hint="Pick a member or paste a full agent pubkey."
+        />
+        <AgentPubkeyField
+          id="e-receiver"
+          label={formSpec.agents.receiverLabel}
+          bind:value={receiverB64}
+          {members}
+          hint="Who receives this event."
+        />
+      {/if}
+
+      {#if showResourceHashUi}
+        {#if hashPrompt.kind === 'loading'}
+          <p class="text-sm text-gray-500">Looking up inventoried resources…</p>
+        {:else if hashPrompt.kind === 'digital' || hashPrompt.kind === 'missing'}
+          <p
+            class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            role="status"
+          >
+            {hashPrompt.message}
+          </p>
+        {:else if hashPrompt.kind === 'locked'}
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700" for="e-res"
+              >{formSpec.resourceHash.label}</label
+            >
+            <input
+              id="e-res"
+              type="text"
+              value={resourceHashB64}
+              readonly
+              class="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              Seeded with this {economicMode === 'Consume' ? 'batch' : 'held thing'} — a second
+              inventoriable resource would be a different NDO.
+            </p>
+          </div>
+        {:else}
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700" for="e-res"
+              >{formSpec.resourceHash.label}</label
+            >
+            <input
+              id="e-res"
+              type="text"
+              bind:value={resourceHashB64}
+              class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs"
+            />
+          </div>
+        {/if}
       {:else if hashPrompt.kind === 'digital' || hashPrompt.kind === 'missing'}
-        <p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
+        <p
+          class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          role="status"
+        >
           {hashPrompt.message}
         </p>
-      {:else if hashPrompt.kind === 'locked'}
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700" for="e-res"
-            >Economic resource</label
-          >
-          <input
-            id="e-res"
-            type="text"
-            value={resourceHashB64}
-            readonly
-            class="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
-          />
-          <p class="mt-1 text-xs text-gray-500">
-            Seeded with this {economicMode === 'Consume' ? 'batch' : 'held thing'} — a second
-            inventoriable resource would be a different NDO.
-          </p>
-        </div>
-      {:else}
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700" for="e-res"
-            >Resource action hash b64</label
-          >
-          <input id="e-res" type="text" bind:value={resourceHashB64} class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs" />
+      {/if}
+
+      {#if showResourceQtyUi}
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700" for="e-qty"
+              >Quantity{formSpec.resourceQuantity.presence === 'optional'
+                ? ' (optional)'
+                : ''}</label
+            >
+            <input
+              id="e-qty"
+              type="number"
+              bind:value={quantity}
+              class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700" for="e-unit">Unit</label>
+            <input
+              id="e-unit"
+              type="text"
+              bind:value={unit}
+              placeholder="each"
+              class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
         </div>
       {/if}
-      <div class="grid grid-cols-2 gap-3">
+
+      {#if formSpec.note.presence !== 'hidden'}
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700" for="e-qty">Quantity</label>
-          <input id="e-qty" type="number" bind:value={quantity} class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+          <label class="mb-1 block text-sm text-gray-600" for="e-note">Note</label>
+          <textarea
+            id="e-note"
+            rows="2"
+            bind:value={note}
+            class="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+          ></textarea>
         </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700" for="e-unit">Unit</label>
-          <input id="e-unit" type="text" bind:value={unit} placeholder="each" class="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
-        </div>
-      </div>
-      <div>
-        <label class="mb-1 block text-sm text-gray-600" for="e-note">Note</label>
-        <textarea id="e-note" rows="2" bind:value={note} class="w-full rounded border border-gray-200 px-3 py-2 text-sm"></textarea>
-      </div>
+      {/if}
+
+      {#if formSpec.phase2.length > 0}
+        <p class="rounded border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          Coming next: {formSpec.phase2.map((p) => p.label).join(', ')} (Phase 2 schema).
+        </p>
+      {/if}
 
       {#if hardViolations.length > 0}
         <ul class="space-y-1 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -400,8 +504,8 @@
           hashPrompt.kind === 'loading' ||
           hashPrompt.kind === 'missing' ||
           hashPrompt.kind === 'digital' ||
-          (hashPrompt.kind === 'locked' && !resourceHashB64) ||
-          (hashPrompt.kind === 'entry' && !resourceHashB64)}
+          (showResourceHashUi && hashPrompt.kind === 'locked' && !resourceHashB64) ||
+          (showResourceHashUi && hashPrompt.kind === 'entry' && !resourceHashB64)}
         onclick={handleSubmit}
         class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >

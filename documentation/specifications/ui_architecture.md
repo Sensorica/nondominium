@@ -224,6 +224,10 @@ interface GroupDescriptor {
 | `LifecycleTransitionModal` | `ndo/LifecycleTransitionModal.svelte` | State machine transitions with special Deprecated / Hibernating handling   |
 | `TransitionHistoryPanel`   | `ndo/TransitionHistoryPanel.svelte`   | Collapsible history of lifecycle transitions                               |
 | `ForkNdoModal`             | `ndo/ForkNdoModal.svelte`             | Informational fork friction modal with copy-pubkey CTA                     |
+| `CommitmentCreateForm`     | `ndo/CommitmentCreateForm.svelte`     | Propose commitment — action list from `actionPalette`; fields from `actionFormSpec` |
+| `EconomicEventCreateForm`  | `ndo/EconomicEventCreateForm.svelte`  | Log economic event — same palette + form-spec concepts (`surface: 'event'`) |
+
+**Activity forms:** `@nondominium/ndo-ui` owns the shared concepts — `actionsForNdoContext` filters which `VfAction`s appear for the NDO’s nature / regime / economic mode; `actionFormSpec` shapes agents, time, resource hash, and quantities per action (Phase 1 maps onto today’s Commitment/Event wire fields; Phase 2 slots such as `hasBeginning` / `hasEnd` are documented hints only). See design-system `packages/ndo-ui/ECONOMIC_MODE.md` § Action Form Spec.
 
 
 

@@ -9,6 +9,10 @@
     Rivalry,
     VfAction
   } from '@nondominium/shared-types';
+  import {
+    actionFormSpec,
+    validateCommitmentDraft
+  } from '@nondominium/ndo-ui';
   import { governanceStore } from '$lib/stores/governance.store.svelte';
   import { connectionStore } from '$lib/stores/connection.store.svelte';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
@@ -48,14 +52,14 @@
 
   let resourceHashB64 = $state('');
 
-  const palette = $derived(
-    happNdoUiProfile({
-      resourceNature,
-      propertyRegime,
-      economicMode,
-      hasInventoriableResource: inventoriableFork || !!resourceHashB64
-    }).actionPalette
-  );
+  const profileCtx = $derived({
+    resourceNature,
+    propertyRegime,
+    economicMode,
+    hasInventoriableResource: inventoriableFork || !!resourceHashB64
+  });
+
+  const palette = $derived(happNdoUiProfile(profileCtx).actionPalette);
 
   let action = $state<VfAction>(
     happNdoUiProfile({
@@ -65,15 +69,18 @@
       hasInventoriableResource: !!economicMode
     }).activity.defaultAction as VfAction
   );
+
+  const formSpec = $derived(
+    actionFormSpec(action, {
+      ...profileCtx,
+      surface: 'commitment'
+    })
+  );
+
   let providerB64 = $state('');
-  // Explicit receiver (was previously hardcoded on the backend to the caller;
-  // the zome now requires an explicit field). Defaults to self for the common
-  // "I propose this to myself" flow.
   let receiverB64 = $state('');
   let dueDateLocal = $state('');
   let note = $state('');
-  // Optional ValueFlows Measures. Empty = omit from the commitment.
-  // Bound to type="number" inputs, so Svelte gives a number, or undefined when empty.
   let resourceQuantity = $state<number | undefined>(undefined);
   let resourceUnit = $state('each');
   let effortQuantity = $state<number | undefined>(undefined);
@@ -82,9 +89,15 @@
   let errorMessage = $state('');
   let violations = $state<ConstraintViolation[]>([]);
   let dryRunPending = $state(false);
+  let timeDefaultApplied = $state(false);
 
   const hardViolations = $derived(violations.filter((v) => v.severity === 'Hard'));
   const softViolations = $derived(violations.filter((v) => v.severity === 'Soft'));
+
+  function toDatetimeLocalValue(d: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
 
   async function ensureProvider() {
     try {
@@ -99,6 +112,27 @@
 
   $effect(() => {
     void ensureProvider();
+  });
+
+  // Keep receiver = provider for unilateralSame UX (one visible agent field).
+  $effect(() => {
+    if (formSpec.agents.mode === 'unilateralSame' && providerB64) {
+      receiverB64 = providerB64;
+    }
+  });
+
+  // Default units from form spec when switching action.
+  $effect(() => {
+    resourceUnit = formSpec.resourceQuantity.defaultUnit || resourceUnit;
+    effortUnit = formSpec.effortQuantity.defaultUnit || effortUnit;
+  });
+
+  // Punctual default-to-now once per open (or when switching into punctual with empty time).
+  $effect(() => {
+    if (formSpec.time.defaultToNow && !dueDateLocal && !timeDefaultApplied) {
+      dueDateLocal = toDatetimeLocalValue(new Date());
+      timeDefaultApplied = true;
+    }
   });
 
   $effect(() => {
@@ -151,15 +185,35 @@
       errorMessage = 'Resolve Hard action constraints before submitting.';
       return;
     }
-    if (!providerB64 || !receiverB64 || !dueDateLocal) {
-      errorMessage = 'Provider, receiver, and due date are required.';
+
+    const providerWire =
+      formSpec.agents.mode === 'unilateralSame'
+        ? providerB64 || receiverB64
+        : providerB64;
+    const receiverWire =
+      formSpec.agents.mode === 'unilateralSame' ? providerWire : receiverB64;
+
+    const draftErrors = validateCommitmentDraft(formSpec, {
+      provider: providerWire,
+      receiver: receiverWire,
+      timeLocal: dueDateLocal,
+      resourceHash:
+        formSpec.resourceHash.presence === 'hidden' ? null : resourceHashB64,
+      resourceQuantity:
+        formSpec.resourceQuantity.presence === 'hidden' ? null : resourceQuantity,
+      effortQuantity:
+        formSpec.effortQuantity.presence === 'hidden' ? null : effortQuantity
+    });
+    if (draftErrors.length > 0) {
+      errorMessage = draftErrors.join(' ');
       return;
     }
+
     let provider: AgentPubKey;
     let receiver: AgentPubKey;
     try {
-      provider = decodeHashFromBase64(providerB64) as AgentPubKey;
-      receiver = decodeHashFromBase64(receiverB64) as AgentPubKey;
+      provider = decodeHashFromBase64(providerWire) as AgentPubKey;
+      receiver = decodeHashFromBase64(receiverWire) as AgentPubKey;
     } catch {
       errorMessage = 'Invalid base64 pubkey for provider or receiver.';
       return;
@@ -168,25 +222,30 @@
     errorMessage = '';
     const dueMs = new Date(dueDateLocal).getTime();
     const resQty =
-      resourceQuantity != null && Number.isFinite(resourceQuantity)
-      ? {
-          numerical_value: Number(resourceQuantity),
-          has_unit: resourceUnit.trim() || 'each'
-        }
-      : null;
+      formSpec.resourceQuantity.presence !== 'hidden' &&
+      resourceQuantity != null &&
+      Number.isFinite(resourceQuantity)
+        ? {
+            numerical_value: Number(resourceQuantity),
+            has_unit: resourceUnit.trim() || formSpec.resourceQuantity.defaultUnit
+          }
+        : null;
     const effQty =
-      effortQuantity != null && Number.isFinite(effortQuantity)
-      ? {
-          numerical_value: Number(effortQuantity),
-          has_unit: effortUnit.trim() || 'hour'
-        }
-      : null;
+      formSpec.effortQuantity.presence !== 'hidden' &&
+      effortQuantity != null &&
+      Number.isFinite(effortQuantity)
+        ? {
+            numerical_value: Number(effortQuantity),
+            has_unit: effortUnit.trim() || formSpec.effortQuantity.defaultUnit
+          }
+        : null;
     let resourceHash: ActionHash | null = null;
-    if (resourceHashB64) {
+    if (formSpec.resourceHash.presence !== 'hidden' && resourceHashB64) {
       try {
         resourceHash = decodeHashFromBase64(resourceHashB64) as ActionHash;
       } catch {
         errorMessage = 'Invalid economic resource action hash.';
+        isSubmitting = false;
         return;
       }
     }
@@ -252,103 +311,166 @@
           {/if}
         </select>
         <p class="mt-1 text-xs text-gray-500">
-          Suggested actions match this NDO’s nature
-          {#if economicMode}
-            and inventoriable mode ({economicMode})
-          {/if}. Hard-illegal or irrelevant actions are hidden.
+          {#if formSpec.summaryHint}
+            {formSpec.summaryHint}
+          {:else}
+            Suggested actions match this NDO’s nature
+            {#if economicMode}
+              and inventoriable mode ({economicMode})
+            {/if}.
+          {/if}
         </p>
       </div>
-      <AgentPubkeyField
-        id="c-provider"
-        label="Provider"
-        bind:value={providerB64}
-        {members}
-        hint="Pick a member or paste a full agent pubkey."
-      />
-      <AgentPubkeyField
-        id="c-receiver"
-        label="Receiver"
-        bind:value={receiverB64}
-        {members}
-        hint="Who receives this commitment (often the other party)."
-      />
+
+      {#if formSpec.agents.mode === 'unilateralSame'}
+        <AgentPubkeyField
+          id="c-agent"
+          label={formSpec.agents.singleLabel}
+          bind:value={providerB64}
+          {members}
+          hint="Pick a member or paste a full agent pubkey."
+        />
+      {:else}
+        <AgentPubkeyField
+          id="c-provider"
+          label={formSpec.agents.providerLabel}
+          bind:value={providerB64}
+          {members}
+          hint="Pick a member or paste a full agent pubkey."
+        />
+        <AgentPubkeyField
+          id="c-receiver"
+          label={formSpec.agents.receiverLabel}
+          bind:value={receiverB64}
+          {members}
+          hint="Who receives this commitment (often the other party)."
+        />
+      {/if}
+
       <div>
-        <label class="mb-1 block text-sm font-medium text-gray-700" for="c-due">Due date</label>
+        <label class="mb-1 block text-sm font-medium text-gray-700" for="c-due"
+          >{formSpec.time.label}</label
+        >
         <input
           id="c-due"
           type="datetime-local"
           bind:value={dueDateLocal}
           class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
         />
+        {#if formSpec.time.helper}
+          <p class="mt-1 text-xs text-gray-500">{formSpec.time.helper}</p>
+        {/if}
       </div>
-      {#if inventoriableFork && resourceHashB64}
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700" for="c-res"
-            >Economic resource</label
-          >
-          <input
-            id="c-res"
-            type="text"
-            value={resourceHashB64}
-            readonly
-            class="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
-          />
-          <p class="mt-1 text-xs text-gray-500">
-            Seeded with this {economicMode === 'Consume' ? 'batch' : 'held thing'}.
-          </p>
+
+      {#if formSpec.resourceHash.presence !== 'hidden'}
+        {#if inventoriableFork && resourceHashB64}
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700" for="c-res"
+              >{formSpec.resourceHash.label}</label
+            >
+            <input
+              id="c-res"
+              type="text"
+              value={resourceHashB64}
+              readonly
+              class="w-full rounded border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              Seeded with this {economicMode === 'Consume' ? 'batch' : 'held thing'}.
+            </p>
+          </div>
+        {:else}
+          <div>
+            <label class="mb-1 block text-sm font-medium text-gray-700" for="c-res"
+              >{formSpec.resourceHash.label}</label
+            >
+            <input
+              id="c-res"
+              type="text"
+              bind:value={resourceHashB64}
+              class="w-full rounded border border-gray-300 px-3 py-2 font-mono text-xs"
+              placeholder="Action hash (base64)"
+            />
+            {#if formSpec.resourceHash.presence === 'optional'}
+              <p class="mt-1 text-xs text-gray-500">Optional for this action.</p>
+            {/if}
+          </div>
+        {/if}
+      {/if}
+
+      {#if formSpec.resourceQuantity.presence !== 'hidden'}
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="mb-1 block text-sm text-gray-600" for="c-res-qty"
+              >Resource quantity{formSpec.resourceQuantity.presence === 'optional'
+                ? ' (optional)'
+                : ''}</label
+            >
+            <input
+              id="c-res-qty"
+              type="number"
+              bind:value={resourceQuantity}
+              class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              placeholder="e.g. 1"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-gray-600" for="c-res-unit">Resource unit</label>
+            <input
+              id="c-res-unit"
+              type="text"
+              bind:value={resourceUnit}
+              class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
         </div>
       {/if}
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="mb-1 block text-sm text-gray-600" for="c-res-qty">Resource quantity (optional)</label>
-          <input
-            id="c-res-qty"
-            type="number"
-            bind:value={resourceQuantity}
-            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-            placeholder="e.g. 1"
-          />
+
+      {#if formSpec.effortQuantity.presence !== 'hidden'}
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="mb-1 block text-sm text-gray-600" for="c-eff-qty"
+              >Effort quantity{formSpec.effortQuantity.presence === 'optional'
+                ? ' (optional)'
+                : ''}</label
+            >
+            <input
+              id="c-eff-qty"
+              type="number"
+              bind:value={effortQuantity}
+              class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              placeholder="e.g. 4"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-gray-600" for="c-eff-unit">Effort unit</label>
+            <input
+              id="c-eff-unit"
+              type="text"
+              bind:value={effortUnit}
+              class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
         </div>
+      {/if}
+
+      {#if formSpec.note.presence !== 'hidden'}
         <div>
-          <label class="mb-1 block text-sm text-gray-600" for="c-res-unit">Resource unit</label>
-          <input
-            id="c-res-unit"
-            type="text"
-            bind:value={resourceUnit}
-            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-          />
+          <label class="mb-1 block text-sm text-gray-600" for="c-note">Note</label>
+          <textarea
+            id="c-note"
+            rows="2"
+            bind:value={note}
+            class="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+          ></textarea>
         </div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="mb-1 block text-sm text-gray-600" for="c-eff-qty">Effort quantity (optional)</label>
-          <input
-            id="c-eff-qty"
-            type="number"
-            bind:value={effortQuantity}
-            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-            placeholder="e.g. 4"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-sm text-gray-600" for="c-eff-unit">Effort unit</label>
-          <input
-            id="c-eff-unit"
-            type="text"
-            bind:value={effortUnit}
-            class="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-          />
-        </div>
-      </div>
-      <div>
-        <label class="mb-1 block text-sm text-gray-600" for="c-note">Note</label>
-        <textarea
-          id="c-note"
-          rows="2"
-          bind:value={note}
-          class="w-full rounded border border-gray-200 px-3 py-2 text-sm"
-        ></textarea>
-      </div>
+      {/if}
+
+      {#if formSpec.phase2.length > 0}
+        <p class="rounded border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          Coming next: {formSpec.phase2.map((p) => p.label).join(', ')} (Phase 2 schema).
+        </p>
+      {/if}
 
       {#if hardViolations.length > 0}
         <ul class="space-y-1 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
