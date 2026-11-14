@@ -1238,6 +1238,56 @@ async fn fulfill_commitment_closure_refuses_the_author_as_initiator() {
     );
 }
 
+/// Participation grammar: provider == receiver cannot close via
+/// fulfill_commitment_closure, so propose_commitment rejects it Hard.
+#[tokio::test(flavor = "multi_thread")]
+async fn propose_commitment_rejects_identical_provider_and_receiver() {
+    let (conductors, cell_alice, _cell_bob) = setup_two_agents().await;
+    let alice_key = cell_alice.agent_pubkey().clone();
+
+    let ndo: NdoOutput = conductors[0]
+        .call(
+            &cell_alice.zome("zome_resource"),
+            "create_ndo",
+            NdoInput {
+                name: "Self-self reject NDO".to_string(),
+                property_regime: "Nondominium".to_string(),
+                resource_nature: "Physical".to_string(),
+                lifecycle_stage: "Active".to_string(),
+                description: None,
+                rivalry_override: None,
+            },
+        )
+        .await;
+
+    let attempt: Result<ProposeCommitmentOutput, _> = conductors[0]
+        .call_fallible(
+            &cell_alice.zome("zome_gouvernance"),
+            "propose_commitment",
+            ProposeCommitmentInput {
+                action: "Modify".to_string(),
+                resource_hash: None,
+                resource_spec_hash: None,
+                provider: alice_key.clone(),
+                receiver: alice_key.clone(),
+                resource_quantity: None,
+                effort_quantity: Some(Measure::new(1.0, "hour")),
+                due_date: Timestamp::now(),
+                note: Some("self-self must fail".to_string()),
+                ndo_identity_hash: ndo.action_hash.clone(),
+            },
+        )
+        .await;
+
+    let err = attempt.expect_err("identical provider and receiver must be refused");
+    let msg = format!("{err:?}");
+    assert!(
+        msg.contains("distinct provider and receiver")
+            || msg.contains("performer and witness"),
+        "unexpected error: {err:?}"
+    );
+}
+
 /// Mirror of a Claim's asserted fields.
 #[derive(Debug, Serialize, Deserialize)]
 struct ClaimOutput {

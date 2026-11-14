@@ -11,8 +11,10 @@
     Modal,
     NdoButton,
     NOT_CUSTODIAN_RESOURCE_STATE_HINT,
+    NOT_PARTY_FULFILL_HINT,
     OWN_COMMITMENT_FULFILL_HINT,
     canInitiateCommitmentFulfillment,
+    commitmentFulfillDisabledReason,
     fulfillCommitmentErrorMessage
   } from '@nondominium/ndo-ui';
   import { appContext } from '$lib/stores/app.context.svelte';
@@ -53,18 +55,29 @@
 
   const alreadyFulfilled = $derived(record.fulfilled === true);
 
+  const partyArgs = $derived({
+    myAgentB64,
+    authorB64: record.author ? encodeHashToBase64(record.author) : null,
+    providerB64: encodeHashToBase64(record.commitment.provider),
+    receiverB64: encodeHashToBase64(record.commitment.receiver)
+  });
+
   const iAmAuthor = $derived(
-    !canInitiateCommitmentFulfillment({
-      myAgentB64,
-      authorB64: record.author ? encodeHashToBase64(record.author) : null,
-      fulfilled: false
-    })
+    !!myAgentB64 &&
+      !!record.author &&
+      myAgentB64 === encodeHashToBase64(record.author)
   );
 
   const canSubmit = $derived(
     canInitiateCommitmentFulfillment({
-      myAgentB64,
-      authorB64: record.author ? encodeHashToBase64(record.author) : null,
+      ...partyArgs,
+      fulfilled: record.fulfilled
+    })
+  );
+
+  const blockedReason = $derived(
+    commitmentFulfillDisabledReason({
+      ...partyArgs,
       fulfilled: record.fulfilled
     })
   );
@@ -109,8 +122,10 @@
       errorMessage = ALREADY_FULFILLED_HINT;
       return;
     }
-    if (iAmAuthor) {
-      errorMessage = OWN_COMMITMENT_FULFILL_HINT;
+    if (!canSubmit) {
+      errorMessage =
+        blockedReason ??
+        (iAmAuthor ? OWN_COMMITMENT_FULFILL_HINT : NOT_PARTY_FULFILL_HINT);
       return;
     }
     const numerical = Number(quantity);
@@ -162,9 +177,9 @@
         <p class="rounded border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-900">
           {ALREADY_FULFILLED_HINT}
         </p>
-      {:else if iAmAuthor}
+      {:else if blockedReason}
         <p class="rounded border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
-          {OWN_COMMITMENT_FULFILL_HINT}
+          {blockedReason}
         </p>
       {/if}
       <div class="grid grid-cols-2 gap-3">
@@ -176,7 +191,7 @@
             id="f-qty"
             type="number"
             bind:value={quantity}
-            disabled={iAmAuthor}
+            disabled={!canSubmit}
             class="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
           />
         </div>
@@ -186,7 +201,7 @@
             id="f-unit"
             type="text"
             bind:value={unit}
-            disabled={iAmAuthor}
+            disabled={!canSubmit}
             class="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
           />
         </div>
@@ -198,7 +213,7 @@
         <select
           id="f-state"
           bind:value={resourceState}
-          disabled={iAmAuthor || !canUpdateResourceState}
+          disabled={!canSubmit || !canUpdateResourceState}
           class="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
         >
           <option value="">Leave unchanged</option>
@@ -214,7 +229,7 @@
           </p>
         {/if}
       </div>
-      <fieldset class="grid grid-cols-2 gap-3" disabled={iAmAuthor}>
+      <fieldset class="grid grid-cols-2 gap-3" disabled={!canSubmit}>
         <legend class="mb-1 text-sm font-medium text-gray-700">Performance (0–1, both sides)</legend>
         {#each ['timeliness', 'quality', 'reliability', 'communication', 'overall_satisfaction'] as key}
           <div>
@@ -241,7 +256,7 @@
           id="f-note"
           rows="2"
           bind:value={note}
-          disabled={iAmAuthor}
+          disabled={!canSubmit}
           class="w-full rounded border border-gray-200 px-3 py-2 text-sm disabled:opacity-50"
         ></textarea>
       </div>

@@ -10,9 +10,8 @@
     VfEconomicEvent
   } from '@nondominium/shared-types';
   import {
-    ALREADY_FULFILLED_HINT,
-    OWN_COMMITMENT_FULFILL_HINT,
-    canInitiateCommitmentFulfillment
+    canInitiateCommitmentFulfillment,
+    commitmentFulfillDisabledReason
   } from '@nondominium/ndo-ui';
   import { getNdoStore, isTaskInterrupted } from '$lib/stores/ndo.store.svelte';
   import { groupStore } from '$lib/stores/group.store.svelte';
@@ -68,29 +67,27 @@
     appContext.myAgentPubKey ? encodeHashToBase64(appContext.myAgentPubKey) : null
   );
 
+  function partyArgs(r: CommitmentRecord) {
+    return {
+      myAgentB64,
+      authorB64: r.author ? encodeHashToBase64(r.author) : null,
+      fulfilled: r.fulfilled,
+      providerB64: r.commitment.provider
+        ? encodeHashToBase64(r.commitment.provider)
+        : null,
+      receiverB64: r.commitment.receiver
+        ? encodeHashToBase64(r.commitment.receiver)
+        : null
+    };
+  }
+
   function canFulfill(r: CommitmentRecord): boolean {
-    return (
-      canAct &&
-      canInitiateCommitmentFulfillment({
-        myAgentB64,
-        authorB64: r.author ? encodeHashToBase64(r.author) : null,
-        fulfilled: r.fulfilled
-      })
-    );
+    return canAct && canInitiateCommitmentFulfillment(partyArgs(r));
   }
 
   function fulfillDisabledReason(r: CommitmentRecord): string | undefined {
     if (!canAct) return undefined;
-    if (r.fulfilled) return ALREADY_FULFILLED_HINT;
-    if (
-      !canInitiateCommitmentFulfillment({
-        myAgentB64,
-        authorB64: r.author ? encodeHashToBase64(r.author) : null
-      })
-    ) {
-      return OWN_COMMITMENT_FULFILL_HINT;
-    }
-    return undefined;
+    return commitmentFulfillDisabledReason(partyArgs(r));
   }
 
   const ndoCommitments = $derived(records.map((r) => r.commitment));
@@ -271,7 +268,7 @@
                     </button>
                     {#if canAct && !canFulfill(r)}
                       <span class="max-w-48 text-right text-[11px] leading-snug text-gray-500">
-                        Cannot fulfill your own commitment
+                        {fulfillDisabledReason(r) ?? 'Cannot fulfill'}
                       </span>
                     {/if}
                   {/if}

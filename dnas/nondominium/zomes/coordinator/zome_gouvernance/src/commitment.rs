@@ -58,6 +58,19 @@ pub fn propose_commitment(input: ProposeCommitmentInput) -> ExternResult<Propose
     })?;
   }
 
+  // Participation grammar: commitments that close via fulfill_commitment_closure
+  // need distinct performer + witness on the wire. Self-self rows are unfulfillable.
+  if input.provider == input.receiver {
+    return Err(
+      GovernanceError::InvalidInput(
+        "propose_commitment requires distinct provider and receiver \
+         (performer and witness). The NDO is the derived beneficiary, not a wire agent."
+          .to_string(),
+      )
+      .into(),
+    );
+  }
+
   // Hard action constraints are enforced by integrity validation.
   // Soft warnings: use evaluate_state_transition / check_action_constraints (parallel path).
 

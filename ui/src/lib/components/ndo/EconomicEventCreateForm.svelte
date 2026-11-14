@@ -118,18 +118,28 @@
   const showResourceHashUi = $derived(formSpec.resourceHash.presence !== 'hidden');
   const showResourceQtyUi = $derived(formSpec.resourceQuantity.presence !== 'hidden');
 
+  /** Seed only authorSeedWire when bilateral; both = me when unilateralSame. */
   async function seedAgents() {
     try {
       const me = await connectionStore.getMyAgentPubKey();
       const b64 = encodeHashToBase64(me);
-      if (!providerB64) providerB64 = b64;
-      if (!receiverB64) receiverB64 = b64;
+      if (!formSpec.requireDistinctAgents) {
+        if (!providerB64) providerB64 = b64;
+        if (!receiverB64) receiverB64 = providerB64 || b64;
+        return;
+      }
+      const seed = formSpec.authorSeedWire;
+      if (seed === 'provider' && !providerB64) providerB64 = b64;
+      if (seed === 'receiver' && !receiverB64) receiverB64 = b64;
     } catch {
       /* ignore */
     }
   }
 
   $effect(() => {
+    void action;
+    void formSpec.authorSeedWire;
+    void formSpec.requireDistinctAgents;
     void seedAgents();
   });
 

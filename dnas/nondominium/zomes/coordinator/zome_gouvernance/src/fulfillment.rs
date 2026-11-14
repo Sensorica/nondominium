@@ -162,7 +162,8 @@ pub fn fulfill_commitment_closure(
     return Err(
       GovernanceError::InvalidInput(format!(
         "fulfill_commitment_closure must be called by the commitment's provider \
-         ({:?}) or receiver ({:?}). Caller was {:?}.",
+         ({:?}) or receiver ({:?}) — the named performer or witness. \
+         Caller was {:?}.",
         commitment.provider, commitment.receiver, caller
       ))
       .into(),

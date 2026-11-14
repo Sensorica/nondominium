@@ -99,19 +99,32 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  async function ensureProvider() {
+  /**
+   * Participation grammar: seed only authorSeedWire for bilateral commitments.
+   * Never default both fields to me (that produced unfulfillable self-self rows).
+   */
+  async function seedAuthorAgent() {
     try {
       const me = await connectionStore.getMyAgentPubKey();
       const b64 = encodeHashToBase64(me);
-      if (!providerB64) providerB64 = b64;
-      if (!receiverB64) receiverB64 = b64;
+      if (!formSpec.requireDistinctAgents) {
+        if (!providerB64) providerB64 = b64;
+        if (!receiverB64) receiverB64 = providerB64 || b64;
+        return;
+      }
+      const seed = formSpec.authorSeedWire;
+      if (seed === 'provider' && !providerB64) providerB64 = b64;
+      if (seed === 'receiver' && !receiverB64) receiverB64 = b64;
     } catch {
       /* leave empty */
     }
   }
 
   $effect(() => {
-    void ensureProvider();
+    void action;
+    void formSpec.authorSeedWire;
+    void formSpec.requireDistinctAgents;
+    void seedAuthorAgent();
   });
 
   // Keep receiver = provider for unilateralSame UX (one visible agent field).

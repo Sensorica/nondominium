@@ -151,6 +151,7 @@ nondominium implements a **Governance-as-Operator** architecture that separates 
 | **[UI Architecture](specifications/ui_architecture.md)** | Frontend design patterns & component structure | ✅ Complete |
 | **[Moss Integration](specifications/moss-integration.md)** | Running Nondominium as a Moss tool (v0.1.0 pilot): dev config, host seam, what Moss does to our roles | 🔄 In progress (#163 to #165) |
 | **[ValueFlows Action Usage](specifications/VfAction_Usage.md)** | ValueFlows implementation with governance examples | ✅ Complete |
+| **[Participation grammar](specifications/participation-grammar.md)** | Regime×nature×family×initiation grammar for commitment/fulfillment agent roles (performer/witness; NDO as derived beneficiary) | ✅ Active |
 | **[Protocol Bridge Specifications](specifications/protocol-bridge-specifications.md)** | Bun Protocol Bridge architecture for platform integration (Tiki, Odoo) | ✅ Complete |
 | **[API Reference](API_REFERENCE.md)** | Complete function reference across all zomes | ✅ Complete |
 | **[Implementation Plan](implementation_plan.md)** | Development roadmap & phase breakdown | ✅ Complete |
