@@ -1,5 +1,13 @@
 # Nondominium
 
+[![Build](https://github.com/Sensorica/nondominium/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/Sensorica/nondominium/actions/workflows/build.yml)
+[![Lint](https://github.com/Sensorica/nondominium/actions/workflows/lint.yml/badge.svg?branch=dev)](https://github.com/Sensorica/nondominium/actions/workflows/lint.yml)
+[![Docs](https://img.shields.io/badge/docs-mdBook-blue)](https://sensorica.github.io/nondominium/)
+[![Design system](https://img.shields.io/badge/design%20system-design.sensorica.co-5319E7)](https://design.sensorica.co/)
+[![License: OVN](https://img.shields.io/badge/license-OVN%20v1.0-green)](LICENSE.md)
+[![Holochain](https://img.shields.io/badge/Holochain-0.7.1-1D9BF0)](https://www.holochain.org/)
+[![Valueflows](https://img.shields.io/badge/ontology-Valueflows-orange)](https://www.valueflo.ws/)
+[![Svelte](https://img.shields.io/badge/UI-SvelteKit%202%20%2B%20Svelte%205-FF3E00)](https://svelte.dev/)
 [![Ask DeepWiki](https://img.shields.io/badge/DeepWiki-Ask-blue)](https://deepwiki.com/Sensorica/nondominium)
 
 <div align="center">
