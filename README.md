@@ -1,6 +1,6 @@
 # Nondominium
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Sensorica/nondominium)
+[![Ask DeepWiki](https://img.shields.io/badge/DeepWiki-Ask-blue)](https://deepwiki.com/Sensorica/nondominium)
 
 <div align="center">
   <img src="nondominium_logo.png" alt="Nondominium logo" width="200">
