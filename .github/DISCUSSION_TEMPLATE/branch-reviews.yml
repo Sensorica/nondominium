@@ -1,0 +1,48 @@
+title: "<branch>: review notes"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One thread per branch that is not meant to be merged as it is (an experiment, a spike). Review notes go here instead of on a PR. When a slice of the branch moves toward `dev`, link its issue or PR in a reply.
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: The branch reviewed, with a link to it.
+      placeholder: "commitment-pool-experiment"
+    validations:
+      required: true
+  - type: input
+    id: commits
+    attributes:
+      label: Commits compared
+      description: The head commit reviewed and the base it was read against.
+      placeholder: "00f6c0d against dev at c18e926"
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What the branch does, what was read, and what holds up well.
+    validations:
+      required: true
+  - type: textarea
+    id: findings
+    attributes:
+      label: Findings
+      description: One bullet per point, with a file and line link. Put the ones that matter most first.
+      placeholder: |
+        - **Any agent can withdraw any commitment from a pool.** `path/to/file.rs:86` ...
+    validations:
+      required: true
+  - type: textarea
+    id: running
+    attributes:
+      label: Running it
+      description: Optional. What was run (tests, a two-agent network, a dogfooding report), what worked, and what broke.
+  - type: textarea
+    id: toward-dev
+    attributes:
+      label: Toward dev
+      description: Optional. Which parts could move to `dev`, with their issues or milestones.
