@@ -391,7 +391,7 @@ Full three-level hierarchical UI as specified in `documentation/requirements/ui_
 #### Components — Group Level
 
 - `GroupView.svelte` — group header, "Create NDO" button, group-scoped `NdoBrowser`; **fixed**: uses `$effect` instead of `onMount` so group data reloads correctly when navigating between groups
-- `NdoCreateModal.svelte` — 5-field form (name, regime, nature, stage, description), uniqueness check, Effect-TS errors, navigates to NDO page on success; currently exposes 4 of the backend's 6 regimes
+- `NdoCreateModal.svelte` — 5-field form (name, regime, nature, stage, description), uniqueness check, Effect-TS errors, navigates to NDO page on success; exposes all seven `PropertyRegime` variants
 - `GroupProfileModal.svelte` — per-group profile disclosure preferences (first visit only)
 
 #### Components — NDO Level

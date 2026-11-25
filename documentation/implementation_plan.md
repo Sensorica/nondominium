@@ -87,7 +87,7 @@ Judge outcomes by **systemic viability** — anti-fragility, evolvability, coord
 | **Governance-as-operator** | Decouple the **data substrate** (`zome_resource`) from **regulatory signaling** (`zome_gouvernance`). Business and governance logic must not be hard-coded into core entry schemas; rules evolve as mutable data without destructive migrations (REQ-ARCH-07, REQ-ARCH-08). |
 | **Stigmergic coordination** | Prefer discoverable traces, anchor links, reputation signals (PPRs), and **CapabilitySlot** attachments over central orchestrators. Agents coordinate by modifying a shared environment — the DHT — not by a mediating platform service. |
 | **Fractal composability** | Use the same coordination primitives at agent, group, NDO, and federation scales. **Trust and integrity compose** through hierarchies (atomic → component → composite): local verification at each level yields global coherence; changes re-verify only affected paths (digital integrity, holonic NDO links — post-MVP). |
-| **Path-dependency awareness** | Before refactors or major UI/API contracts, scan legacy choices (orphan `ResourceSpecification` entries, pre-NDO economic-resource flows, four-regime frontend types, and remaining placeholder surfaces). The localStorage Group shell has already migrated to cloned Group cells; only per-Group presentation preferences remain local. Document migration windows (REQ-NDO-MIG-*) when Layer 1 bridges old and new models. |
+| **Path-dependency awareness** | Before refactors or major UI/API contracts, scan legacy choices (orphan `ResourceSpecification` entries, pre-NDO economic-resource flows, the former four-regime frontend types (now seven regimes), and remaining placeholder surfaces). The localStorage Group shell has already migrated to cloned Group cells; only per-Group presentation preferences remain local. Document migration windows (REQ-NDO-MIG-*) when Layer 1 bridges old and new models. |
 | **Anti-fragility** | Disruption should teach, not only hurt. Disputes, validation failures, and adversarial behaviour must generate auditable signals (PPRs, validation receipts, governance events) that improve future coordination — not merely error screens. |
 
 ### 2.2 Nondominium enactments
@@ -779,7 +779,7 @@ This plan ensures the nondominium hApp will fulfill its vision of decentralized,
 
 ### 12.1 Generic NDO (three-layer model, lifecycle split)
 
-- [x] Implement `NondominiumIdentity` Layer 0 with permanent identity, seven `PropertyRegime` variants, five `ResourceNature` variants, lifecycle metadata, and validated updates.
+- [x] Implement `NondominiumIdentity` Layer 0 with permanent identity, seven `PropertyRegime` variants, three `ResourceNature` variants, lifecycle metadata, and validated updates.
 - [x] Implement `LifecycleStage` and Layer 0 discovery facets (`NdoByLifecycleStage`, `NdoByNature`, `NdoByPropertyRegime`).
 - [ ] Add `NDOToSpecification`, `NDOToProcess`, holonic links beyond the implemented federation primitives, and the `CapabilitySlot` surface.
 - [x] Replace legacy `ResourceState` with `OperationalState` on `EconomicResource` and `ResourcesByOperationalState` discovery (`REQ-NDO-OS-01`, `REQ-NDO-OS-06`).
